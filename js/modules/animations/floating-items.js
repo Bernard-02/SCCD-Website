@@ -6,6 +6,7 @@
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { setSpotlightLogo } from '../ui/theme-toggle.js';
 import { loadCourses } from '../pages/courses-source.js';
 import { loadSummerCamp } from '../pages/summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activities-source.js';
@@ -29,16 +30,11 @@ const FLOAT_SLIDE_HIDES = [
 function randFloatSlideHide() { return FLOAT_SLIDE_HIDES[Math.floor(Math.random() * FLOAT_SLIDE_HIDES.length)]; }
 
 // 桌面 16~32（依視窗面積，見 totalItems）、手機 10（< 768px）。手機減量是視覺優化，不影響桌面。
-// 手機與矮橫向（橫向手機）都用手機參數（user 2026-07-04「首頁也比照手機版」；gate 同 landscape.css）
-function isMobileViewport() {
-  return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
-}
 // 每次 init 時評估（原 module-load 時定案的 const：SPA 換頁不重載模組，直向載入後轉橫向會殘留桌面值）
 // 桌面依視窗面積給量（user 2026-10-01「盡量讓空間都有 item、像在宇宙觀看」；同日三修「數量減少一點」45000→60000）：
 // 每 ~60000px² 一張：1280×720→16、1440×900→22、1920×1080 以上封頂 32（每張 2 條常駐 3D tween，別無上限）。
 function totalItems() {
-  if (isMobileViewport()) return 10;
+  if (SCCDHelpers.isMobileLayout()) return 10;
   return Math.min(32, Math.max(16, Math.round(window.innerWidth * window.innerHeight / 60000)));
 }
 // 鏡頭平移（user 2026-10-01）：畫面像 camera 朝一個方向緩慢移動。卡在世界中靜止＝畫面上只隨鏡頭同速同向移動＝鏡頭等速；
@@ -53,9 +49,9 @@ const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比�
 const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 // 手機小一號（user 2026-09-10「大小不用太大、分佈平均」）：卡窄＋透視放大 cap 1.05（桌面 1.5）
 // → 12 張在 390 寬不互擠、留白分佈才平均。桌面全不受影響。
-function imgWidth() { return isMobileViewport() ? 100 : IMG_WIDTH; }
-function maxTextWidth() { return isMobileViewport() ? 170 : MAX_TEXT_WIDTH; }
-function scaleGain() { return isMobileViewport() ? 0.45 : 0.9; }
+function imgWidth() { return SCCDHelpers.isMobileLayout() ? 100 : IMG_WIDTH; }
+function maxTextWidth() { return SCCDHelpers.isMobileLayout() ? 170 : MAX_TEXT_WIDTH; }
+function scaleGain() { return SCCDHelpers.isMobileLayout() ? 0.45 : 0.9; }
 // 單點透視（z 位移）：以畫面中心為消失點，卡中心越近中心越小（遠）、越四周越大（近）。tick 每幀與 spawn 初始共用
 function perspectiveScale(cx, cy, cw, ch, gain) {
   const hx = cw / 2, hy = ch / 2;
@@ -196,24 +192,25 @@ async function fetchActivityPosters() {
     });
   } catch (_) {}
 
-  // Library documents（PDF）→ library.html#f-{id}
+  // Library documents（PDF）→ library.html#f-{id}；docType=contributions（收錄）不收（user 2026-10-03，其餘分類照收）
   // ⚠️ 必須跟 library files 面板「同源、同 id 規則」（同 press 浮卡）：Directus library_documents →
   //    element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）。
   //    直讀本地 library.json 的舊 id（"1"/"L-PUB-1"）跟面板 Directus row id 對不上 → 點進去不捲動、不 highlight；
   //    封面也只是舊快照 placeholder（非真封面）。Directus 失敗才 fallback 本地（此時面板也 fallback 本地，id 一致）。
   try {
     // cover 深取 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 config/api.js CMS_CDN_BASE）
-    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,cover.filename_disk&sort=-year,sort&limit=-1`);
+    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,docType,cover.filename_disk&sort=-year,sort&limit=-1`);
     if (!res.ok) throw new Error('CMS ' + res.status);
     const rows = (await res.json())?.data;
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     rows.forEach(r => {
       const cover = r.cover?.filename_disk;
-      if (cover && r.id != null) {
+      if (cover && r.id != null && r.docType !== 'contributions') {
         files.push({ type: 'image', src: `${CMS_CDN_BASE}/${cover}`, url: `pages/library.html#f-${shortLibId(r.id)}` });
       }
     });
   } catch (_) {
+    // ponytail: 本地快照沒有 docType 欄，fallback 時收錄類濾不掉；只在 CMS 掛掉時發生
     try {
       const lib = await fetch(sitePath('data/library.json')).then(r => r.json());
       lib.forEach(item => {
@@ -401,7 +398,6 @@ function removeWatchMask() {
   watchMaskListeners.leave.forEach(fn => fn());
 }
 
-const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
 // news hover wipe overlay 的 clip-path 收/展（隨機抽一方向）；圖片卡片與文字卡片共用
 const WIPE_DIRECTIONS = [
@@ -433,7 +429,7 @@ function createImageEl(src, url, interactive = true, preImg = null) {
   if (url) {
     /** @type {HTMLAnchorElement} */ (wrapper).href = url;
     wrapper.setAttribute('aria-label', floatingLinkLabel(url)); // 無障礙：功能圖連結名稱
-    wrapper.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
+    wrapper.style.cursor = 'var(--cursor-pointer)';
   }
   wrapper.style.cssText = `
     display: block;
@@ -465,7 +461,7 @@ function createImageEl(src, url, interactive = true, preImg = null) {
     background: transparent;
     pointer-events: none;
     clip-path: inset(100% 0 0 0);
-    transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
+    transition: clip-path var(--dur-medium) var(--ease-wipe);
   `;
 
   wrapper.appendChild(img);
@@ -476,19 +472,21 @@ function createImageEl(src, url, interactive = true, preImg = null) {
     wrapper.appendChild(newsOverlay);
 
     // 隨機選一個 wipe 方向（上/下/左/右）
-    const wipe = randomWipe();
+    let wipe = randomWipe();
     newsOverlay.style.clipPath = wipe.hidden;
 
     // 訂閱 news hover 事件：每次 enter 時隨機選色
     // mode-color：用 var(--theme-fg) strict 對比，不隨機（與整體 B/W 對比 pattern 一致）
+    // 退場抽新方向 wipe 出去＝下次進場的來向 → 每次四方向隨機（user 2026-10-02，同 news marquee 遮罩）
     subscribeNewsHover(() => {
       if (document.body.classList.contains('mode-color')) {
         newsOverlay.style.background = 'var(--theme-fg)';
       } else {
-        newsOverlay.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+        newsOverlay.style.background = SCCDHelpers.getRandomAccentColor();
       }
       newsOverlay.style.clipPath = wipe.shown;
     }, () => {
+      wipe = randomWipe();
       newsOverlay.style.clipPath = wipe.hidden;
     });
   }
@@ -500,11 +498,12 @@ function createImageEl(src, url, interactive = true, preImg = null) {
 
 function createTextEl(textEn, textZh, url) {
   const el = document.createElement(url ? 'a' : 'div');
+  el.className = 'floating-text-card';   // mode 切換時字色／底色自己淡（typography.css「會動的層」段點名用）
   if (url) {
     /** @type {HTMLAnchorElement} */ (el).href = url;
-    el.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 14 1, pointer`;
+    el.style.cursor = 'var(--cursor-pointer)';
   }
-  const defaultColor = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+  const defaultColor = SCCDHelpers.getRandomAccentColor();
   const defaultTextColor = '#000';
   el.style.cssText = `
     display: inline-block;
@@ -515,7 +514,6 @@ function createTextEl(textEn, textZh, url) {
     line-height: var(--line-height-s);
     will-change: transform;
     pointer-events: ${url ? 'auto' : 'none'};
-    transition: background 0.25s ease, color 0.25s ease;
     white-space: nowrap;
   `;
 
@@ -537,9 +535,9 @@ function createTextEl(textEn, textZh, url) {
   newsOverlay.style.cssText = `
     position: absolute; inset: 0;
     pointer-events: none;
-    transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);
+    transition: clip-path var(--dur-medium) var(--ease-wipe);
   `;
-  const wipe = randomWipe();
+  let wipe = randomWipe();
   newsOverlay.style.clipPath = wipe.hidden;
   el.appendChild(newsOverlay); // 放最後 → 蓋在文字上方
 
@@ -573,6 +571,7 @@ function createTextEl(textEn, textZh, url) {
     newsOverlay.style.background = document.body.classList.contains('mode-color') ? 'var(--theme-fg)' : defaultColor;
     newsOverlay.style.clipPath = wipe.shown;
   }, () => {
+    wipe = randomWipe();   // 每次四方向隨機（同圖片卡）
     newsOverlay.style.clipPath = wipe.hidden;
   });
 
@@ -614,7 +613,7 @@ export function initWatchHover() {
     position: fixed; inset: 0;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--dur-fast) ease;
     z-index: 9998;
   `;
   document.body.appendChild(overlay);
@@ -630,6 +629,26 @@ export function initWatchHover() {
   function ensureOverlayInHeader() {
     const h = document.querySelector('#site-header header');
     if (h && overlay.parentElement !== h) { overlay.style.zIndex = '5'; h.appendChild(overlay); }
+  }
+
+  // mode／menu 鈕比照 news banner（user 2026-10-02）：一層同底色（theme-fg）遮罩 clip-path wipe 蓋掉 icon、四方向隨機進出，
+  //   並把鈕列降到 overlay 後面——桌面列 relative z-50 自成 stacking context、整列（含鈕）原本浮在 overlay(z-5) 之上；
+  //   降成 auto 後 logo 錨點(z-10) 仍在 overlay 上、鈕在下。header 常駐跨頁 → 遮罩 lazy 建、離頁拔。
+  const btnRow = () => document.getElementById('mode-btn')?.parentElement;
+  function setHeaderBtnsMasked(on) {
+    ['mode-btn', 'menu-btn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      let m = /** @type {HTMLElement|null} */ (btn.querySelector(':scope > [data-watch-btn-mask]'));
+      if (!m) {
+        m = document.createElement('div');
+        m.dataset.watchBtnMask = '1';
+        m.style.cssText = `position:absolute; inset:0; border-radius:inherit; background:var(--theme-fg); pointer-events:none; transition:clip-path var(--dur-medium) var(--ease-wipe); clip-path:${randomWipe().hidden};`;
+        btn.appendChild(m);
+        void m.offsetWidth;   // 藏起態先 commit，首次 wipe 才有 transition
+      }
+      m.style.clipPath = on ? 'inset(0 0 0 0)' : randomWipe().hidden;
+    });
   }
 
   function updateSpotlight() {
@@ -672,6 +691,10 @@ export function initWatchHover() {
     overlay.style.opacity = '1';
     applyNewsHover();
     applyWatchMask();   // 遮蔽 news marquee（rgb 方塊蓋 rgb、黑條蓋黑）
+    const row = btnRow();
+    if (row) row.style.zIndex = 'auto';
+    setHeaderBtnsMasked(true);
+    setSpotlightLogo(true);
     if (!isLocked) {
       savedBodyOverflow = document.body.style.overflow;
       isLocked = true;
@@ -690,25 +713,38 @@ export function initWatchHover() {
     overlay.style.opacity = '0';
     removeNewsHover();
     removeWatchMask();
+    setHeaderBtnsMasked(false);
+    setSpotlightLogo(false);
     // overlay 有 transition: opacity 0.3s，fade-out 期間 scroll 會讓 fading 中的 spotlight
-    // 在 viewport 原位 → 視覺跑位；等 fade 完才解鎖 scroll + 停 tracking
+    // 在 viewport 原位 → 視覺跑位；等 fade 完才解鎖 scroll + 停 tracking（鈕列也等淡完才抬回 overlay 之上）
     unlockTimer = setTimeout(() => {
       document.body.style.overflow = savedBodyOverflow;
       isLocked = false;
       unlockTimer = null;
       stopTracking();
+      const row = btnRow();
+      if (row) row.style.zIndex = '';
     }, 300);
   });
+  // 點擊開影片後收 spotlight（影片 overlay z-10000 蓋住 header → 鈕列直接抬回）
   watchBtn.__closeSpotlight = () => {
     overlay.style.opacity = '0';
     removeNewsHover();
     removeWatchMask();
+    setHeaderBtnsMasked(false);
+    setSpotlightLogo(false);
+    const row = btnRow();
+    if (row) row.style.zIndex = '';
   };
 
   // 離頁：overlay 現掛在跨 SPA 常駐的 <header> 內 → 一定要移除，否則殘留在別頁 header（雖 opacity:0 pe:none 無害、但積累）
   registerPageCleanup(() => {
     overlay.remove();
     removeWatchMask();
+    document.querySelectorAll('[data-watch-btn-mask]').forEach(el => el.remove());
+    setSpotlightLogo(false);
+    const row = btnRow();
+    if (row) row.style.zIndex = '';
   });
 }
 
@@ -805,7 +841,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
     x = initialPos.x - realW / 2;
     y = initialPos.y - realH / 2;
     // 手機：初始批整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）
-    if (isMobileViewport()) {
+    if (SCCDHelpers.isMobileLayout()) {
       x = Math.min(Math.max(x, 8), Math.max(8, cw - realW - 8));
       y = Math.min(Math.max(y, 8), Math.max(8, ch - realH - 8));
     }
@@ -871,7 +907,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   };
 
   // speed：鏡頭位移倍率（hover 停 0、離開漸進回 1）；z：目前寫上的深度 zIndex（tick 隨透視倍率更新）
-  const item = { el: mover, x, y, w: realW, h: realH, rotation, hovered: false, speed: 1, z: z0, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
+  const item = { el: mover, x, y, w: realW, h: realH, rotation, hovered: false, speed: 1, z: z0, scale: scale0, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
 
   if (el.tagName !== 'A') {
     // 無連結卡不吃滑鼠（卡本身原就 pointer-events:none）：外框也不擋下面的卡、不觸發 hover
@@ -880,11 +916,12 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
     // hover 判定掛 mover（未旋轉的 2D 外框）不掛卡片（user 2026-10-01「有時 hover 不到這個 item」）：3D 擺動側過去時
     //   卡片投影變窄，游標落在外框內、卡片外＝打到透明的 perspectiveWrap → 卡片收不到 mouseenter。
     let swayAt = null;   // hover 暫停當下的擺動角：離開時轉回這裡再續播＝反向動畫（原 resume 從 0 瞬跳回擺動角）
+    let clicked = false; // 點了＝要離頁：退場中游標移開也維持轉正／hover 態，不轉回原角度（user 2026-10-02）
     mover.addEventListener('mouseenter', () => {
       item.hovered = true;
       gsap.killTweensOf(item, 'speed');
       item.speed = 0;                  // 立刻停住（user 2026-08-28：方便點擊）
-      mover.style.zIndex = '1000';     // 疊到最上層（高過所有深度 60~150；同時只有一張被 hover）
+      mover.style.zIndex = '1000';     // 疊到最上層（高過所有深度排名 1~N；同時只有一張被 hover）
       if (elData.onHover) elData.onHover(true);
       if (!swayAt) {
         gsapTween.pause();
@@ -893,6 +930,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
       gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
     });
     mover.addEventListener('mouseleave', () => {
+      if (clicked) return;
       item.hovered = false;
       mover.style.zIndex = String(item.z);
       if (elData.onHover) elData.onHover(false);
@@ -903,7 +941,10 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
       });
     });
     // 外框內、卡片外的點擊（還沒轉正就點）轉給卡片連結 → router 照常攔 a[href]
-    mover.addEventListener('click', (e) => { if (!el.contains(/** @type {Node} */ (e.target))) el.click(); });
+    mover.addEventListener('click', (e) => {
+      clicked = true;
+      if (!el.contains(/** @type {Node} */ (e.target))) el.click();
+    });
   }
 
   return item;
@@ -936,7 +977,7 @@ export async function initFloatingItems() {
   if (!container) return;
 
   // 六個 category 各自一池，畫面上「均分 + 不重複」（user 2026-06-28；press 已於 2026-09-04 退出首頁 pool——不渲染、不 deep-link）：
-  //   activities / summer-camp / library-files / album / curriculum / awards 等權，
+  //   activities / summer-camp / library-files（不含收錄類）/ album / curriculum / awards 等權，
   //   選位時挑「畫面上現有數量最少」的可用 category（等權 → 自動均分）。
   const [actCats, coursePool, awardPool] = await Promise.all([
     fetchActivityPosters(),
@@ -1023,7 +1064,7 @@ export async function initFloatingItems() {
     for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
     playFloatEntrance(0);
   }
-  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
+  const rotateGateMq = window.matchMedia(SCCDHelpers.LANDSCAPE_GATE);
   const onRotateGateChange = () => requestAnimationFrame(respawnAll);
   rotateGateMq.addEventListener('change', onRotateGateChange);
 
@@ -1090,9 +1131,7 @@ export async function initFloatingItems() {
 
       const scale = perspectiveScale(item.x + item.w / 2, item.y + item.h / 2, cw, ch, gain);
       item.el.style.transform = `translate(${item.x}px, ${item.y}px) scale(${scale})`;
-      // 深度排序跟著透視倍率走（近＝大的蓋遠＝小的）；值變才寫、免每幀 restack；hover 中維持最上層
-      const z = Math.round(scale * 100);
-      if (z !== item.z) { item.z = z; if (!item.hovered) item.el.style.zIndex = String(z); }
+      item.scale = scale;
 
       // 完全出畫面就 cull（縮放溢出 0.25×尺寸同 spawn 的 OVER，＋20px 餘裕讓剛生在邊緣的卡不被當場收掉）。
       // 舊的 250~500px 隱形緩衝在鏡頭平移下＝卡要多飄十幾秒才重生 → 鏡頭前方空出一整條沒卡的帶。
@@ -1113,6 +1152,13 @@ export async function initFloatingItems() {
         spawnFromEdge();
       }
     }
+
+    // 深度排序跟著透視倍率走（近＝大的蓋遠＝小的），z＝倍率排名（唯一整數）。原本各自 round(scale×100)：兩張重疊卡
+    // 倍率差 <0.01 時會「同分(DOM 序決勝)↔差 1」來回切＝重疊角落不停閃、像穿模（user 2026-10-03，實測 2s 互換 14 次）；
+    // 排名只在倍率真的超車時才變。值變才寫、免每幀 restack；hover 中維持最上層（1000）
+    items.slice().sort((a, b) => a.scale - b.scale).forEach((it, i) => {
+      if (it.z !== i + 1) { it.z = i + 1; if (!it.hovered) it.el.style.zIndex = String(i + 1); }
+    });
 
     rafId = requestAnimationFrame(tick);
   }

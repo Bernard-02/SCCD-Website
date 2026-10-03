@@ -85,6 +85,14 @@ export function isDirectVideoUrl(url) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.t
 // 'hls'=m3u8 串流、'file'=直連 mp4 等；兩者播放/截幀共用同一套（attachVideoSource / grabHlsFrame 內部再依 isHlsUrl 分流）。
 export const isSelfHostedVideo = (kind) => kind === 'hls' || kind === 'file';
 
+// 影片 UI 各塊的隨機傾角（整數，跟 exclude 已用角度差 ≥2°）；lightbox-video.js 共用
+export function randRot(exclude = [], min = -4, max = 6) {
+  let r;
+  do { r = Math.round(Math.random() * (max - min) + min); }
+  while (exclude.some(e => Math.abs(e - r) < 2));
+  return r;
+}
+
 // ── 後台影片連結 → lightbox media item ────────────────────────────
 // .m3u8 → videoKind:'hls'、直連 mp4 等 → videoKind:'file'（皆自製 UI + canvas 截幀縮圖）；
 // 認得出 YouTube id → yt embed（iframe + yt 官方縮圖）；皆非 → null（照舊丟掉）。
@@ -303,7 +311,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       // 矮橫向（user 2026-07-10）：保留 control bar + 全螢幕，但返回鍵改用常駐 mobileCloseBtn
       // （landscape.css 釘右上、箭頭轉 →，對齊全站 slide-in 返回鍵）、controls 內返回塊藏掉——
       // controls 3s 自動隱藏，返回鍵常駐才不用先喚出 bar 才能關。
-      const isShortLandscape = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+      const isShortLandscape = SCCDHelpers.isLandscapeGate();
       const closeBlock = document.getElementById('video-block-close');
       if (isShortLandscape) {
         if (closeBlock) closeBlock.style.display = 'none';
@@ -324,11 +332,25 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       updateVolumeUI();
       hideControls();
     }
+    // 黑圈滿版後影片 clip-reveal 進場（四向隨機，user 2026-10-03）；closePlayer 沿同方向滑出。
+    // 遮罩＝影片框，框要貼齊畫面比例：只靠 width＋object-fit contain 會有 letterbox、框比畫面大＝看起來整個畫面在擦
+    const reveal = () => {
+      if (overlay.style.display === 'none') return;   // metadata 晚到時已關閉
+      const r = video.videoWidth / video.videoHeight;
+      video.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+      video.style.width = isMobile() ? `min(100vw, ${100 * r}svh)` : `min(95%, ${90 * r}svh)`;
+      video._enterDir = randDir(ALL_DIRS);
+      gsap.fromTo(video, navChipHidden(video, video._enterDir),
+        { ...NAV_CHIP_SHOWN, duration: DUR.medium, ease: EASE.enter, overwrite: true });
+    };
+    if (video.readyState >= 1) reveal(); else video.addEventListener('loadedmetadata', reveal, { once: true });
     video.play();
   }
 
   // ── 關閉播放器 ──────────────────────────────────────────
+  let closing = false;   // 影片滑出期間 overlay 還在：擋 Esc / ended / 點影片重入
   function closePlayer() {
+    if (closing) return;
     video.pause();
     clearTimeout(hideTimer);
     if (document.fullscreenElement) document.exitFullscreen?.();
@@ -349,10 +371,15 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       return;
     }
 
-    gsap.set(controls, { opacity: 0 });
-    controls.style.pointerEvents = 'none';
-    isVisible = false;
+    closing = true;
+    // 自製 ui bar 與影片同拍：各塊沿自己進場方向 clip-reveal 滑出（user 2026-10-03）；bar 已自動藏起則 no-op
+    hideControls();
 
+    // 影片先沿進場方向 clip-reveal 滑出（黑底照舊蓋著），滑完外層黑圈才收（user 2026-10-03）
+    gsap.to(video, { ...navChipHidden(video, video._enterDir || 'bottom'), duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: () => shrinkToCard(rect) });
+  }
+
+  function shrinkToCard(rect) {
     const vW = window.innerWidth, vH = window.innerHeight;
     const cardCx = rect.left + rect.width / 2;
     const cardCy = rect.top + rect.height / 2;
@@ -373,6 +400,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     gsap.to(clone, {
       scale: 1, backgroundColor: cardBg, duration: DUR.medium, ease: EASE.enter,
       onComplete: () => {
+        closing = false;
         clone.remove();
         detachVideoSource(video);
         // 黑色 clone 完全縮回後才恢復 html bg，避免 gutter 條閃白
@@ -384,12 +412,6 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   }
 
   // ── 控制列自動隱藏 ──────────────────────────────────────
-  function randRot(exclude = [], min = -4, max = 6) {
-    let r;
-    do { r = Math.round(Math.random() * (max - min) + min); }
-    while (exclude.some(e => Math.abs(e - r) < 2));
-    return r;
-  }
 
   // hero clip-reveal（滑動＋遮罩，同全站 nav chip / lightbox 影片 UI）：rotation 寫 block 自身 transform
   // （靜止傾角、reveal 期間不變），動畫量是獨立的 translate 屬性 + clipPath（兩者共存不打架，見 scroll-animate nav chip 註）。
@@ -403,6 +425,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   let hideTimer;
 
   function showControls() {
+    if (closing) return;   // 滑出中移滑鼠不要把 bar 叫回來
     clearTimeout(hideTimer);
     controls.style.pointerEvents = 'auto';
     gsap.set(controls, { opacity: 1 });
@@ -459,6 +482,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
 
   // ── 播放/暫停 ──────────────────────────────────────────
   function togglePlay() {
+    if (closing) return;   // 滑出中點影片/按空白鍵不要又播起來
     if (video.paused) { video.play(); } else { video.pause(); }
     updatePlayIcon();
     showControls();

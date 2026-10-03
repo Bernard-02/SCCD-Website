@@ -8,7 +8,7 @@
  *   - 全螢幕 = 原生 controls（user 指定）；手機 = 原生 controls（同首頁手機策略）
  */
 
-import { attachVideoSource, detachVideoSource } from '../ui/video-player.js';
+import { attachVideoSource, detachVideoSource, randRot } from '../ui/video-player.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { navChipHidden, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 
@@ -112,7 +112,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   volWrap.appendChild(muteBtn);
   const volTrack = document.createElement('div');
   volTrack.className = 'lb-video-ink-bg';
-  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s cubic-bezier(0.25,0,0,1);height:4px;background:#000;position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
+  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s var(--ease-wipe);height:4px;background:#000;position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
   const volFill = document.createElement('div');
   volFill.className = 'lb-video-ink-bg';
   volFill.style.cssText = 'height:100%;width:100%;background:#000;pointer-events:none;position:relative;';
@@ -144,12 +144,6 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   const ALL_DIRS  = ['top', 'bottom', 'left', 'right'];
   const VERT_DIRS = ['top', 'bottom'];   // 中央 bar 限上下（寬 bar 從左右飛入距離太遠、不像 hero 揭露）
   const randDir = dirs => dirs[Math.floor(Math.random() * dirs.length)];
-  function randRot(exclude = [], min = -4, max = 6) {
-    let r;
-    do { r = Math.round(Math.random() * (max - min) + min); }
-    while (exclude.some(e => Math.abs(e - r) < 2));
-    return r;
-  }
   // [中央 bar（限上下、±2°）, 全螢幕塊（四向、-4~6°）]
   const uiBlocks = [centerBlock, fsBlock];
 
