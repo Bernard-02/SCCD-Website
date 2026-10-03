@@ -8,8 +8,8 @@
   inset: 0;
   /* 背景逐 mode 用「字面色」而非只換 var(--theme-bg)：unregistered custom property 只變值不會
      觸發 background-color transition（原本 mode1↔mode2 背景瞬跳）。改字面宣告，切 mode 才 fade。
-     mode3 仍讀 var(--theme-bg)（RAF 每幀更新該 var、字面宣告不變 → 循環色即時、且不逐幀觸發 transition）。
-     0.4s = MODE_FADE_MS，與 body/html 的 .mode-switching fade 同節奏。 */
+     0.4s = MODE_FADE_MS，與 body/html 的 .mode-switching fade 同節奏。
+     ⚠️ mode3 的 var(--theme-bg) 每幀變「會」逐幀觸發 transition（舊註解說不會＝錯）→ 背景拖在 UI 後面，見下方 mode3 規則 */
   background-color: #ffffff;
   color: var(--theme-fg, #000000);
   overflow: hidden;
@@ -18,6 +18,9 @@
 }
 body.mode-inverse #atlas-main { background-color: #000000; }
 body.mode-color #atlas-main { background-color: var(--theme-bg); }
+/* mode3 穩態不過渡：色環 tap 掃色時 UI（nav btn/鉛筆等 theme-bg 底）即時變、背景卻拖 0.4s＝實測差到 191/255；
+   .mode-switching 窗口不匹配＝進出 mode3 照常淡 */
+html:not(.mode-switching) body.mode-color #atlas-main { transition: none; }
 
 #atlas-stage {
   position: absolute;

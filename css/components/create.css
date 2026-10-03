@@ -494,6 +494,11 @@ body.mode-color .control-box {
   width: calc(var(--rotation-box-min-height) + 108px * var(--scale));
   transition: width var(--dur-medium) var(--ease-standard), background-color var(--dur-base) ease;
 }
+/* mode3 穩態盒底不過渡：--list-zebra-strip 隨 hue 每幀變，bg transition 每幀重追＝色環 tap 掃色時盒子拖在 body 後面
+   （實測差到 168/255）。同 color.css nav btn／header bar 做法；.mode-switching 窗口不匹配＝進出 mode3 照常淡。width 照抄上面 */
+html:not(.mode-switching) body.mode-color #create-app .control-box { transition: opacity 0s; }
+html:not(.mode-switching) body.mode-color #create-app #colormode-box { transition: width var(--dur-medium) var(--ease-standard) var(--dur-micro); }
+html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-box { transition: width var(--dur-medium) var(--ease-standard); }
 
 /* 色彩選擇器控制盒：預設隱藏。高度由 align-self:stretch + min-height(120) 給，不用 aspect-ratio。
    ⚠️不可加 aspect-ratio:1/1：mode3 盒寬已是 144（顯式），離開 mode3 時 class 一掉、aspect-ratio 會用「當下 144 寬」反推
