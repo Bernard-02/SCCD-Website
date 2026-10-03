@@ -275,7 +275,7 @@
           <!-- Animation -->
           <div class="class-info-panel pb-3xl relative z-10" data-division="animation">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-7 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">Explore the relationship between self and the environment through animation creation, and then extend the care and reflection on culture, ecology and humanities.</p>
@@ -285,7 +285,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="animation">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 min-[1024px]:ml-sm relative md:order-2 works-container division-images" data-division="animation">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播（class-images-slideshow.js） -->
               </div>
             </div>
@@ -294,7 +294,7 @@
           <!-- Creative Media -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="creative-media">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-7 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">Explore the essence of new media interaction from multiple perspectives, furthermore, showing care and reflection on humanities, society, and the environment by these perspectives.</p>
@@ -304,7 +304,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="creative-media">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 min-[1024px]:ml-sm relative md:order-2 works-container division-images" data-division="creative-media">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -313,7 +313,7 @@
           <!-- MDES -->
           <div class="class-info-panel pb-3xl hidden relative z-10" data-division="mdes">
             <div class="grid-20 md:items-start">
-              <div class="col-span-full order-2 md:col-start-4 md:col-span-6 md:order-1">
+              <div class="col-span-full order-2 md:col-start-4 md:col-span-7 md:order-1">
                 <div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">
                   <div data-class-text class="list-scroll">
                   <p class="mb-en-zh-body division-text font-regular">The MDES program offers advanced research and creative practice opportunities, fostering innovation in communications design. Graduate students engage in cutting-edge projects that push the boundaries of design thinking and media expression.</p>
@@ -323,7 +323,7 @@
                   </div>
                 </div>
               </div>
-              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 relative md:order-2 works-container division-images" data-division="mdes">
+              <div class="col-span-full order-1 md:col-start-11 md:col-span-8 min-[1024px]:ml-sm relative md:order-2 works-container division-images" data-division="mdes">
                 <!-- JS 動態 render 3 張 .class-img，5s 輪播 -->
               </div>
             </div>
@@ -488,6 +488,7 @@
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
@@ -497,7 +498,7 @@
   <!-- Works Container Hover Effect -->
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      if (!SCCDHelpers.isDesktop()) return;
+      if (window.innerWidth < 768) return;
       document.body.addEventListener('mouseover', function (e) {
         const img = e.target.closest('.works-container img');
         if (!img) return;

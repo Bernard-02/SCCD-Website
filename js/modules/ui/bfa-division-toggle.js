@@ -16,6 +16,7 @@ import { registerPageExit } from './page-exit.js';
 import { registerPageCleanup } from './page-cleanup.js';
 import { ensureCardMask, fitCardToText } from './scroll-animate.js';
 import { pauseVideoEl } from './pause-offscreen-video.js';
+import { EASE } from './motion.js';
 
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
@@ -53,6 +54,11 @@ export function initBFADivisionToggle() {
   async function showContent(divisionId, animate = true) {
     const infoId = resolveInfoPanelId(divisionId);
 
+    // Works panel 獨立切換（不受 slideshow 影響）— info ctx 不可見，無動畫直接切。
+    // 必須在 await 之前：等圖片動畫期間 user 捲進 works 又點別的分頁，延遲的 instant 切換會
+    // 蓋掉那次切換＝兩張說明卡同時顯示（user 2026-10-02）
+    instantToggleWorks(divisionId);
+
     // Info panel 的 display 切換 + 圖片 clip-path 進/退場由 class-images-slideshow.js 控制。
     // Fallback（slideshow 還沒 init 完）：直接切 hidden，不做動畫。
     const slideshow = window.SCCD_classSlideshow;
@@ -63,9 +69,6 @@ export function initBFADivisionToggle() {
         el.classList.toggle('hidden', el.getAttribute('data-division') !== infoId);
       });
     }
-
-    // Works panel 獨立切換（不受 slideshow 影響）— info ctx 不可見，無動畫直接切
-    instantToggleWorks(divisionId);
   }
 
   // 說明色卡寬度貼合文字（fitCardToText 在 scroll-animate.js）：切 tab 揭露前的貼合由
@@ -85,7 +88,6 @@ export function initBFADivisionToggle() {
   // 文字 clip-path：仿 class-images-slideshow（hide 固定右→左、show 從隨機 4 方向 reveal）。
   // .aspect-video 容器要 overflow-hidden（已加）+ 移除 bg-black，讓上下層影片在交錯時都能透出。
   const WORKS_ANIM_DUR = 0.5;
-  const WORKS_ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)'; // 文字 clip-path（同 class）
   const WORKS_VIDEO_EASE = 'power3.inOut'; // 影片 slide：慢→快→慢，避免匀速感
   const WORKS_HIDE_CLIP_LEAVE = 'inset(0% 100% 0% 0%)'; // 退場固定：右→左
   const WORKS_HIDE_CLIPS = [
@@ -128,6 +130,10 @@ export function initBFADivisionToggle() {
   }
   let isWorksAnimating = false;
   let worksLayoutInited = false;
+  // 目前（切換中＝將要）顯示的 works panel。不用 z-index 判：動畫中 new=2、old=1，進場 reveal／退場會抓到舊卡
+  let activeWorks = null;
+  // 每次切換 ++：被後來的切換取代的動畫（phase2 揭新卡、finalize）作廢＝同時只會有一張說明卡
+  let worksSeq = 0;
 
   function initWorksLayoutOnce() {
     if (worksLayoutInited) return;
@@ -160,12 +166,12 @@ export function initBFADivisionToggle() {
       panel.style.zIndex = '1';
       if (text) fitCardToText(text);   // 顯示前貼合寬度（同 Programs 說明卡，避免揭露後才縮的跳動）
       if (text && typeof gsap !== 'undefined') gsap.set(text, REVEAL_SHOWN);
-      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 0 });
+      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 0, xPercent: 0 });
     } else {
       panel.style.pointerEvents = 'none';
       panel.style.zIndex = '0';
       if (text && typeof gsap !== 'undefined') gsap.set(text, revealHiddenT(randRevealDir()));
-      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100 });
+      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100, xPercent: 0 });
       // 換 tab 藏起的 panel 影片要停：panel 只是 transform 移走、沒 display:none → pauseVideosOffscreen 的 IO 不會觸發
       pauseVideoEl(panel.querySelector('iframe'));
     }
@@ -174,9 +180,16 @@ export function initBFADivisionToggle() {
   // 即時切換（用於初始化 / info ctx 不可見時）
   function instantToggleWorks(divisionId) {
     initWorksLayoutOnce();
+    worksSeq++;               // 作廢進行中的 switchWorksOnly
+    isWorksAnimating = false;
     const targetId = resolveWorksPanelId(divisionId);
     classWorksPanels.forEach(p => {
-      setWorksPanelState(p, p.getAttribute('data-division') === targetId);
+      if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf([p.querySelector('[data-works-hl]'), ...worksVideoParts(p)].filter(Boolean));
+      }
+      const on = p.getAttribute('data-division') === targetId;
+      if (on) activeWorks = p;
+      setWorksPanelState(p, on);
     });
   }
 
@@ -196,10 +209,7 @@ export function initBFADivisionToggle() {
       p => p.getAttribute('data-division') === targetId
     );
     if (!newPanel) return;
-    // 用 z-index === '1' 標記目前 active panel
-    const oldPanel = Array.from(classWorksPanels).find(
-      p => p.style.zIndex === '1' && p !== newPanel
-    );
+    const oldPanel = activeWorks;
 
     if (!oldPanel || newPanel === oldPanel) {
       instantToggleWorks(divisionId);
@@ -207,6 +217,8 @@ export function initBFADivisionToggle() {
     }
 
     isWorksAnimating = true;
+    const seq = ++worksSeq;
+    activeWorks = newPanel;
 
     const oldText  = oldPanel.querySelector('[data-works-hl]');
     const newText  = newPanel.querySelector('[data-works-hl]');
@@ -230,7 +242,7 @@ export function initBFADivisionToggle() {
     // ── Phase 1（同時觸發）：舊字卡滑出遮罩 + 影片 cross slide 起跑 ──
     if (oldText) ensureCardMask(oldText);
     const phase1 = oldText
-      ? gsap.to(oldText, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE })
+      ? gsap.to(oldText, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: EASE.wipe })
       : null;
 
     if (oldVideo) gsap.to(oldVideo, {
@@ -241,25 +253,25 @@ export function initBFADivisionToggle() {
 
     // 收尾：normalise z-index，確保只有 newPanel 是 active（z-index 1），其他全 0
     const finalize = () => {
+      if (seq !== worksSeq) return;   // 已被 instant 切換取代
       classWorksPanels.forEach(p => {
         p.style.zIndex = (p === newPanel) ? '1' : '0';
       });
       isWorksAnimating = false;
     };
 
-    if (newVideo) gsap.to(newVideo, {
-      yPercent: 0, xPercent: 0, duration: VIDEO_DUR, ease: WORKS_VIDEO_EASE,
-      onComplete: finalize
-    });
-    else gsap.delayedCall(VIDEO_DUR, finalize);
+    if (newVideo) gsap.to(newVideo, { yPercent: 0, xPercent: 0, duration: VIDEO_DUR, ease: WORKS_VIDEO_EASE });
+    // 不掛在影片 tween 的 onComplete：進場 reveal（overwrite:true）殺掉影片 tween 時 finalize 會永不執行＝之後點擊全被擋
+    gsap.delayedCall(VIDEO_DUR, finalize);
 
     // ── Phase 2（Phase 1 結束後）：新字卡滑入遮罩 ──
     function startPhase2() {
+      if (seq !== worksSeq) return;   // 已被 instant 切換取代：不揭這張，免兩張說明卡疊在一起
       if (newText) {
         ensureCardMask(newText);
         fitCardToText(newText);   // 揭露前貼合寬度（隱藏態量寬 OK）
         gsap.set(newText, revealHiddenT(randRevealDir()));
-        gsap.to(newText, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE });
+        gsap.to(newText, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: EASE.wipe });
       }
     }
 
@@ -271,7 +283,6 @@ export function initBFADivisionToggle() {
 
   // ─── Color + rotation ──────────────────────────────────────
 
-  const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
   // 預設 bg/color 用 CSS 變數，跟 mode 走（standard=黑底白字 / inverse=白底黑字）
   // active / hover 時改成 accent 隨機色 + 黑字（accent 永遠淺色，黑字才看得到）
   const BTN_DEFAULT_BG    = 'var(--theme-fg)';
@@ -281,7 +292,7 @@ export function initBFADivisionToggle() {
   // works context → 讀 works(作品) strip；否則（info/class）→ 讀 class(學制) strip。
   // 同一排 sticky btn 同時服務 Programs 與 Works 兩區，各自的封鎖綫要分別避開（user 2026-06-03 works 也要避免）。
   // 讀 dataset.accentHex 不讀 style.background：瀏覽器把 inline 顏色序列化成 rgb(...) 回吐，
-  // 跟 ACCENT_COLORS hex 比永遠不相等 → exclude 默默失效。寫色那端（section-banner-reveal
+  // 跟 SCCDHelpers.ACCENT_COLORS hex 比永遠不相等 → exclude 默默失效。寫色那端（section-banner-reveal
   // replay）會同步把原始 hex 存進 dataset。
   function getCurrentStripColor() {
     const anchor = (window.SCCD_classContext || 'info') === 'works' ? 'works' : 'class';
@@ -293,9 +304,9 @@ export function initBFADivisionToggle() {
 
   function randomColor(exclude) {
     const pool = exclude
-      ? ACCENT_COLORS.filter(c => c.toLowerCase() !== exclude.toLowerCase())
-      : ACCENT_COLORS;
-    const list = pool.length ? pool : ACCENT_COLORS;
+      ? SCCDHelpers.ACCENT_COLORS.filter(c => c.toLowerCase() !== exclude.toLowerCase())
+      : SCCDHelpers.ACCENT_COLORS;
+    const list = pool.length ? pool : SCCDHelpers.ACCENT_COLORS;
     return list[Math.floor(Math.random() * list.length)];
   }
   // 全站 nav btn 統一 −4~+6（2026-09-16 併入，走 SCCDHelpers.getRandomRotation 單一來源；原 −3~+3 無「必須小」理由）
@@ -610,7 +621,7 @@ export function initBFADivisionToggle() {
   // class 區的 slideshow 圖片有 revealActive 進場，works 的字卡/影片原本 instant 顯示（無進場）。
   // user 2026-08-24：works 也要進場。沿用本模組 works 切換的同組常數/機制（手感一致），
   // hide＝把 active panel 字卡藏進遮罩外＋影片落到下方等待位；reveal＝滑入（同 setWorksPanelState 反向）。
-  const activeWorksPanel = () => Array.from(classWorksPanels).find(p => p.style.zIndex === '1');
+  const activeWorksPanel = () => activeWorks;
   window.SCCD_hideWorksActive = function () {
     if (typeof gsap === 'undefined') return;
     initWorksLayoutOnce();
@@ -628,7 +639,7 @@ export function initBFADivisionToggle() {
     const text  = panel.querySelector('[data-works-hl]');
     const video = worksVideoParts(panel);
     if (video) gsap.to(video, { yPercent: 0, xPercent: 0, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true });
-    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.to(text, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true }); }
+    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.to(text, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: EASE.wipe, overwrite: true }); }
   };
 
   // ─── Initial State ───────────────────────────────────────────
@@ -656,12 +667,12 @@ export function initBFADivisionToggle() {
     if (!container) { resolve(); return; }
     const r = container.getBoundingClientRect();
     if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
-    const activePanel = Array.from(classWorksPanels).find(p => p.style.zIndex === '1');
+    const activePanel = activeWorks;
     if (!activePanel) { resolve(); return; }
     const text  = activePanel.querySelector('[data-works-hl]');
     const video = worksVideoParts(activePanel);
     const tweens = [];
-    if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: WORKS_ANIM_EASE, overwrite: true })); }
+    if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: EASE.wipe, overwrite: true })); }
     if (video && video.length) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
     if (!tweens.length) { resolve(); return; }
     let done = 0;
