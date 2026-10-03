@@ -209,6 +209,24 @@
   gap: 1rem; /* 上下兩區的間距 */
 }
 
+/* 真桌面（user 2026-10-03）：UI bar（控制列）底貼底部 padding 48（＝header SCCD／鈕頂 48、左下頁卡底 48，上下對稱）；
+   輸入框＋canvas（display-area）置中於「SCCD 頂 48 → UI bar 頂」。
+   #create-app 往上延伸到 48（原本從 header 下緣 96 起）＝置中範圍頂直接是 48；display-area 上下 auto margin 吃掉剩餘高＝置中、
+   UI bar 落在底。header 是 fixed z-50 照樣蓋在上面；48–96 這段只有 display-area 的空白邊。gap 歸 0：否則範圍底會在 UI bar 頂上方 1rem。
+   放不下（< 756 高）時 auto margin 歸 0、justify-content:center 讓溢出上下平分（同原行為） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #create-app {
+    margin-top: calc(48px - var(--header-height, 96px));
+    height: calc(100% + var(--header-height, 96px) - 48px);
+  }
+  .main-container {
+    padding-top: 0;
+    padding-bottom: 48px;
+    gap: 0;
+  }
+  .main-container > .display-area { margin-block: auto; }
+}
+
 /* 上方顯示區 (左右結構) */
 .display-area {
   flex: 0 1 auto; /* 不要擴展，根據內容調整大小 */
