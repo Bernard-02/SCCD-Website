@@ -11,11 +11,11 @@ import { registerPageCleanup } from './page-cleanup.js';
 import { fitCardToText } from './scroll-animate.js';
 import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
+import { DUR, EASE } from './motion.js';
 
 // nav btn 隨機角互動的桌面 gate（同 arrow-spin：桌面且非矮橫向才有 hover）
 export function isNavSpinDesktop() {
-  return window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  return SCCDHelpers.isDesktopLayout();
 }
 
 const readInlineRot = (el) => {
@@ -196,8 +196,7 @@ export function bindFrameScrollSplit(section) {
   let recent = [];                        // 近 FLING_WIN 的事件位移
   let releasedDir = 0, lastRelease = 0;
   const onWheel = (/** @type {WheelEvent} */ e) => {
-    if (window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return;
+    if (SCCDHelpers.isMobileLayout()) return;
     if (e.ctrlKey) return;                                    // pinch / ctrl+wheel 縮放不攔
     if (e.clientX <= navCol.getBoundingClientRect().right) return; // col 1-3（nav 欄）：window 捲（去 footer/hero）
     // frame 未對齊（在 hero/footer/過渡中）：不攔，讓 window 捲＋mandatory snap 收尾。缺這個 gate 時，
@@ -235,7 +234,10 @@ export function bindFrameScrollSplit(section) {
  * 盒高由 CSS 定（lists.css：host＝flex column、底部讓出左下當前頁卡 --page-indicator-top）＝nav 與當前頁卡共用左欄不互疊。
  * 這裡做的事：
  *   ① 清單有沒有溢出 → host 掛 .nav-overflowing。沒溢出＝完全沿用原樣（overflow 不開、旋轉角不裁、沒有 chevron）
- *   ② chevron 點擊＝第一個沒完整露出的項目捲到頂（整批換）；到底 disabled；chevron 水平置中於最寬那顆 btn
+ *   ② chevron 點擊＝前進半窗：越過可見窗中線的第一個項目捲到頂（user 2026-10-02「只移動一半」，同 library 年份欄）；
+ *      到底 disabled；chevron 水平置中於最寬那顆 btn
+ *   ②' 清單一離頂＝上 chevron clip-reveal 蓋在清單盒頂（底色遮住捲過去的 btn）、回到頂收起；點＝上一批（user 2026-10-02，
+ *      同 library 年份欄）。chevron 觸發的捲動看終點決定顯隱＝點擊當下就進退場。落點都讓出上 chevron 的高＝第一顆不被它蓋住
  *   ③ active btn 不在可視範圍（deep-link 進後段分頁、about scroll-spy 換段）時捲進來
  *   ④ 清單比 host 窄時（curriculum bar 只佔 2 欄）把右側裁切界補到 host 右緣（--nav-clip-extra），長 label 才不被切
  * 滾輪：游標在清單上＝原生先捲清單、到邊界才 chain 給 window（四頁 nav 欄本來就不被 bindFrameScrollSplit 攔）。
@@ -252,9 +254,28 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
   more.className = 'nav-more-btn';
   more.setAttribute('aria-label', '下一批分頁 More sections');
   more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
-  host.appendChild(more);
+  // ②' 上 chevron：absolute（不佔版面＝出現/收起清單不跳），靜態位置＝host content 起點、margin 由 update 量到清單盒頂
+  const up = document.createElement('button');
+  up.className = 'nav-less-btn';
+  up.setAttribute('aria-label', '上一批分頁 Previous sections');
+  up.inert = true;
+  up.innerHTML = '<span class="nav-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span>';  // 90＝朝上
+  const upInner = /** @type {HTMLElement} */ (up.firstElementChild);
+  host.append(up, more);
+  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
+  let upShown = false;
+  let goal = -1;   // chevron 觸發的捲動目的地（-1＝沒在捲）：上 chevron 顯隱看終點、點擊當下就進退場，不等捲完
   const pad = () => parseFloat(getComputedStyle(list).paddingTop) || 0;   // 溢出態的旋轉角 clearance（lists.css）
-  const syncEnd = () => { more.disabled = list.scrollTop + list.clientHeight >= list.scrollHeight - 1; };
+  const syncEnd = () => {
+    more.disabled = list.scrollTop + list.clientHeight >= list.scrollHeight - 1;
+    const show = (goal >= 0 ? goal : list.scrollTop) > 1 && host.classList.contains('nav-overflowing');
+    if (show === upShown) return;
+    upShown = show;
+    up.inert = !show;
+    // clip-reveal：鈕本身 overflow:clip 當遮罩、內層（含底色）上往下出現、下往上收起（user 2026-10-02）
+    if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
+    else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
+  };
   const update = () => {
     // 比「項目自然總高」vs「host 內可用高」（版面值、與目前是否溢出態無關＝不會來回翻）。
     // ⚠️不能比 scrollHeight/clientHeight：旋轉的末顆 btn 角會算進 scrollHeight → 放得下也永遠判溢出
@@ -266,7 +287,7 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     const avail = host.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const over = natural > avail + 1;
     host.classList.toggle('nav-overflowing', over);
-    if (!over) return;
+    if (!over) { syncEnd(); return; }
     // ④ 右側裁切界補到 host 右緣（兩者都取 content 寬＝溢出態的 padding 不影響結果）
     const extra = (host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))
       - (list.clientWidth - parseFloat(ls.paddingLeft) - parseFloat(ls.paddingRight));
@@ -275,21 +296,46 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     //    左緣取 button 的 rect（旋轉在 inner、button 本身不轉；curriculum 的 MDES 往左凸 12 也跟得到）
     const widest = /** @type {HTMLElement[]} */ ([...list.querySelectorAll('.anchor-nav-inner')]).reduce((a, b) => (b.offsetWidth > a.offsetWidth ? b : a));
     more.style.width = `${widest.offsetWidth}px`;
-    more.style.marginLeft = `${(widest.closest('button') || widest).getBoundingClientRect().left - host.getBoundingClientRect().left - parseFloat(cs.paddingLeft)}px`;
+    const hr = host.getBoundingClientRect(), lr = list.getBoundingClientRect();
+    const wl = (widest.closest('button') || widest).getBoundingClientRect().left;
+    more.style.marginLeft = `${wl - hr.left - parseFloat(cs.paddingLeft)}px`;
+    // ②' 上 chevron 蓋滿清單盒頂整寬（左右 clearance 帶也遮），箭頭同樣置中於最寬那顆 btn
+    up.style.width = `${list.offsetWidth}px`;
+    up.style.marginTop = `${lr.top - hr.top - host.clientTop - parseFloat(cs.paddingTop)}px`;
+    up.style.marginLeft = `${lr.left - hr.left - host.clientLeft - parseFloat(cs.paddingLeft)}px`;
+    upInner.style.paddingLeft = `${wl - lr.left}px`;
+    upInner.style.paddingRight = `${list.offsetWidth - (wl - lr.left) - widest.offsetWidth}px`;
     const a = list.querySelector('.active');
     if (a) {
-      const lr = list.getBoundingClientRect(), ar = a.getBoundingClientRect();
+      const ar = a.getBoundingClientRect();
       if (ar.bottom > lr.bottom - pad()) list.scrollTop += ar.bottom - lr.bottom + pad();
-      else if (ar.top < lr.top + pad()) list.scrollTop -= lr.top + pad() - ar.top;
+      else if (list.scrollTop > 0 && ar.top < lr.top + pad() + up.offsetHeight) list.scrollTop = Math.max(0, list.scrollTop - (lr.top + pad() + up.offsetHeight - ar.top));
     }
+    syncEnd();
+  };
+  const scrollList = (/** @type {number} */ target) => {
+    if (typeof gsap === 'undefined') { list.scrollTop = target; return; }
+    const done = () => { goal = -1; syncEnd(); };
+    gsap.to(list, { scrollTop: target, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: done, onInterrupt: done });
+    goal = target;   // 寫在 gsap.to 之後：overwrite 殺舊 tween 時它的 onInterrupt 會先把 goal 清掉
     syncEnd();
   };
   more.addEventListener('click', () => {
     const box = list.getBoundingClientRect();
+    const mid = (box.top + pad() + (upShown ? up.offsetHeight : 0) + box.bottom - pad()) / 2;   // 可見窗（扣上 chevron 蓋住的）中線
     // 項目＝清單直接子層（curriculum 是「BFA 標籤＋鈕」的 group，以 group 為單位才不會切掉標籤）
-    const next = /** @type {HTMLElement[]} */ ([...list.children]).find(c => c.getBoundingClientRect().bottom > box.bottom - pad() + 1);
+    const next = /** @type {HTMLElement[]} */ ([...list.children]).find(c => c.getBoundingClientRect().top >= mid);
     const max = list.scrollHeight - list.clientHeight;
-    list.scrollTo({ top: next ? Math.min(max, list.scrollTop + next.getBoundingClientRect().top - box.top - pad()) : max, behavior: 'smooth' });
+    // 落點讓出上 chevron 高（捲下去它就會出現）
+    scrollList(next ? Math.min(max, list.scrollTop + next.getBoundingClientRect().top - box.top - pad() - up.offsetHeight) : max);
+  });
+  up.addEventListener('click', () => {
+    const box = list.getBoundingClientRect();
+    // 上一批＝被上 chevron 蓋住（或捲出頂）的最後一個項目，捲到它貼清單盒底。
+    // 落點離頂不到上 chevron 高＝第一顆還會被它蓋住 → 直接回頂（也免小數 scrollTop 停在 1.x 讓 chevron 又冒出來）
+    const prev = /** @type {HTMLElement[]} */ ([...list.children]).reverse().find(c => c.getBoundingClientRect().top < box.top + pad() + up.offsetHeight - 1);
+    const t = prev ? list.scrollTop + prev.getBoundingClientRect().bottom - box.bottom + pad() : 0;
+    scrollList(t < up.offsetHeight ? 0 : t);
   });
   list.addEventListener('scroll', syncEnd, { passive: true });
   // host 高（視窗 resize）或項目高（ui_labels 填字後折行、字型載入）一變就重判；
@@ -304,17 +350,6 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
   registerPageCleanup(() => { ro.disconnect(); mo.disconnect(); cancelAnimationFrame(raf); });
 }
 
-/**
- * deep-link 落地 highlight 期間其餘列半透明（user 2026-09-11，對齊 library deep-link dim）：
- * 對目標 .list-item 掛 .is-hovered、lists.css 的 class 版 dim 規則接手（全 viewport；
- * 合成 mouseenter/inline flash 觸不到 CSS :hover state，故 :hover 版 dim 接不到 deep-link）。
- * @param {HTMLElement|null} itemEl
- */
-export function flashDeepLinkDim(itemEl, ms = 1200) {
-  if (!itemEl) return;
-  itemEl.classList.add('is-hovered');
-  setTimeout(() => itemEl.classList.remove('is-hovered'), ms);
-}
 
 /**
  * hover-dim「只在滑鼠真的移動後才 dim」guard（activities/admission 共用）。

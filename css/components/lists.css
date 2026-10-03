@@ -100,7 +100,7 @@
    清單開 overflow、chevron 現身。沒溢出＝零視覺變化（清單只是可縮的 flex item、overflow 仍 visible）。
    host 兩種：四頁 inner-scroll frame 的 .inner-scroll-nav-col（activities/curriculum/admission/faculty）＋ about 的
    sticky #anchor-nav（清單是 JS 包的一層）。gate 排除矮橫向（那邊 nav 進 header 帶、清單是橫向 strip）。 */
-.nav-more-btn { display: none; }
+.nav-more-btn, .nav-less-btn { display: none; }
 @media (min-width: 1024px) and (min-height: 501px) {
   .inner-scroll-nav-col {
     display: flex;
@@ -154,11 +154,34 @@
     background: none;
     color: var(--theme-fg);
     cursor: var(--cursor-pointer);
-    transition: color 0.3s ease;
+    transition: color var(--dur-fast) ease;
   }
   .nav-overflowing > .nav-more-btn:disabled {
     color: rgba(var(--theme-fg-rgb), 0.2);
     cursor: var(--cursor-not-allowed);
+  }
+  /* 上 chevron（user 2026-10-02）：清單離頂才 clip-reveal 出現、蓋在清單盒頂（absolute 不佔版面；位置/寬由 JS 量）。
+     鈕本身 overflow:clip＝遮罩，內層帶底色上往下出現、下往上收起；內層上 padding＝清單頂 clearance(sm)→箭頭落在原第一顆 btn 頂，
+     下 padding xs＝下 chevron 的鏡像。 */
+  .nav-overflowing > .nav-less-btn {
+    position: absolute;
+    z-index: 1;
+    align-self: flex-start;
+    display: block;
+    padding: 0;
+    border: none;
+    background: none;
+    overflow: clip;
+    color: var(--theme-fg);
+    cursor: var(--cursor-pointer);
+  }
+  .nav-less-inner {
+    display: flex;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--spacing-sm, 16px) 0 var(--spacing-xs, 8px);
+    background: var(--theme-bg);
   }
 }
 
@@ -1086,7 +1109,7 @@
   font-size: 32px;
   transform: rotate(-8deg);
   clip-path: inset(-12px);
-  transition: transform var(--dur-fast, 0.3s) var(--ease-standard, ease);
+  transition: transform var(--dur-fast) var(--ease-standard, ease);
 }
 
 /* 09-10：#timeline-list-btn hover 固定 +8° 改由 JS arrow-spin 隨機角度接手（timeline.js 寫 inner inline transform） */
@@ -1483,8 +1506,37 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
  *  - hover 翻黑底白字（!important 蓋過 inline accent 與 .text-* utility 子元素色）*/
 .list-ref-btn {
   color: black;
-  background: var(--item-color-deep, transparent);
-  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+  background: var(--item-color-deep, transparent);   /* hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
+}
+
+/* gallery / album 縮圖＋poster 載入佔位（2026-10-03）：ref 色塊蓋住未載好的圖，load 時內層在框內 clip-reveal 滑出
+ * （JS 寫 transform，見 activities-data-loader thumbPh）。框＝縮圖自身形狀當遮罩（跟圖同角旋轉）；mode3 同 ref 走反向中性灰。 */
+.gallery-ph {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+.gallery-ph > span {
+  position: absolute;
+  inset: 0;
+  background: var(--item-color-deep, var(--light-gray));
+  transition: transform var(--dur-slow) var(--ease-wipe);   /* 出場（JS 停 loop 寫終值） */
+  animation: gallery-ph-loop 2s infinite;
+}
+/* 載入中循環：蓋滿停留 → 滑出（--ph-out）→ 空一拍（無色）→ 從 --ph-in 滑回蓋滿。每圈終點＝蓋滿（JS 等 animationiteration 才出場）。
+ * 方向 var 由 thumbPh() 出生隨機；segment 曲線＝--ease-wipe 值（keyframe 內不靠 var）。 */
+@keyframes gallery-ph-loop {
+  0%, 30% { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.25, 0, 0, 1); }
+  60% { transform: var(--ph-out); }
+  60.1%, 70% { transform: var(--ph-in); animation-timing-function: cubic-bezier(0.25, 0, 0, 1); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gallery-ph > span { animation: none; }
+}
+body.mode-color .gallery-ph > span {
+  background: var(--theme-neutral-gray-inverse);
 }
 
 /* 分類標籤與 DSD ref chip 一致：英文／中文同列、baseline 對齊，不拆成兩行。 */
@@ -1616,6 +1668,12 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
   100% { transform: translateX(-50%); }
 }
 
+/* hover 配色對調（user 2026-10-03；index-marquee.js 桌面 hover 加 .is-swap）：bar 吃數字方塊的 rgb（--hm-accent）＋黑字、
+   方塊變 bar 色。方塊／bar／字色都是 JS inline → !important 壓過；mode2/mode3 版本見 inverse.css / color.css */
+.hm-banner-row.is-swap .hm-banner-num { background: #000 !important; color: #fff !important; }
+.hm-banner-row.is-swap .homepage-marquee-link { background: var(--hm-accent) !important; }
+.hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) { color: #000 !important; }
+
 /* ponytail: activities list 無分割線 + 灰白交叉斑馬紋（user 2026-06-21）。
    - 分割線整段移除：item divider / 年份 separator display:none（item 之間無縫）；search 底線去掉。
    - 斑馬紋灰 = --list-zebra-gray（gray-9 再淺 50%）。
@@ -1664,43 +1722,9 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   background: linear-gradient(var(--list-zebra-strip, rgba(255,255,255,0.15)), var(--list-zebra-strip, rgba(255,255,255,0.15))), var(--theme-bg);
 }
 
-/* 列表 opacity／底色過渡（桌面）。opacity 只剩下方 deep-link 落地 dim（.is-hovered）在用：真 hover 不再 dim
-   （user 2026-10-01：除 atlas 外 hover 卡片不調不透明度；原 :has(:hover) 三條＋DSD 卡兩條已撤）。
-   .list-year-label＝toggle/非 toggle 兩變體共用 hook（hideYearHeader 的 list 無此元素）。 */
-@media (min-width: 768px) {
-  :is(#activities-content-section, #admission-content-section) .list-year-label {
-    transition: opacity 0.25s ease;
-  }
-  /* .list-item / .list-content 的 background-color 也走 200ms 過渡，且 timing-function 必須跟 header 完全一致
-     ＝`cubic-bezier(0.4,0,0.2,1)`（Tailwind `transition-colors` 內建曲線，非 `ease`）：「退回斑馬」時 header 有色彩
-     過渡、content/item 原本瞬間切→title 慢半拍；補過渡後若曲線不同(ease vs cubic)三者中段仍錯開(t=40ms header 19%
-     但 content 37%)＝還是不同步(user 2026-08-25)。同 duration + 同曲線才每一幀都齊。item 的 opacity 過渡是另一維度
-     (整塊一起淡、不造成 title↔content 錯位)、維持 0.25s ease 不動。 */
-  :is(#activities-content-section, #admission-content-section) .list-item {
-    transition: opacity 0.25s ease, background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  :is(#activities-content-section, #admission-content-section) .list-content {
-    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-}
-
-/* deep-link 落地 highlight（user 2026-09-11，對齊 library）：navigateToItem 落地 flash 時
-   對目標 .list-item 掛 .is-hovered ~1.2s（section-switch-helpers.flashDeepLinkDim）→ 其餘列＋他組年份標籤
-   半透明（真 hover 已不 dim，見上方過渡註解）。全 viewport 生效；.dim-off＝視窗外 item 排除
-   （loadListInto 的 IO 標記，大清單一次切全清單 opacity＝白費）。 */
-@media (max-width: 767px) {
-  /* 手機也要淡入淡出（桌面 block 已有 opacity transition；此處只補手機、避免蓋掉桌面雙屬性 shorthand） */
-  :is(#activities-content-section, #admission-content-section) :is(.list-item, .list-year-label) {
-    transition: opacity 0.25s ease;
-  }
-}
-:is(#activities-content-section, #admission-content-section):has(.list-item.is-hovered)
-  :is(.list-item, .list-year-label):not(.is-hovered):where(:not(.dim-off)) {
-  opacity: 0.25;
-}
-:is(#activities-content-section, #admission-content-section) .list-year-group:has(.list-item.is-hovered) .list-year-label {
-  opacity: 1;
-}
+/* 列表底色（item／header／content）一律瞬切、不過渡（user 2026-10-02 全站 hover 變色 instant）：原 200ms 同曲線
+   過渡是為了「退回斑馬」時三者同步（08-25）——三者都不過渡＝天然同步。header 模板的 transition-colors 一併拿掉
+   （activities-data-loader / legal-data-loader / degree-show-data-loader）。 */
 
 /* ===== Degree Show 清單卡片標題 marquee（過長不換行，溢出時捲動）=====
    結構由 degree-show-data-loader.js 產出：h5 > .dshow-title-line(overflow window)×1-2(EN/ZH)
@@ -1833,7 +1857,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   padding: 0;
   border: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   /* default 隨機角（JS 設 --pl-rot，全站 -4~+6 排除 0）；桌面 hover 抽新角吃住（JS 換 var；user 2026-09-15） */
   transform: rotate(var(--pl-rot, 0deg));
   transition: transform var(--dur-fast) ease;

@@ -170,6 +170,7 @@ function revealZebraBg(item, tl, at) {
   const clear = (e) => {
     if (item.dataset.zbGen !== g) { item.removeEventListener('transitionend', clear); return; }  // 六輪：已被接管 → 只解綁、不清 clip
     if (e.target !== item || e.propertyName !== 'clip-path') return;
+    if (e.elapsedTime + 0.05 < DUR.base) return;   // Chromium 偶發起跑即 end（elapsedTime 0），見 list-row-reveal clr
     item.style.transition = ''; item.style.clipPath = '';
     item.removeEventListener('transitionend', clear);
   };

@@ -3,7 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, flashDeepLinkDim } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
@@ -75,8 +75,7 @@ async function navigateToAdmissionItem(itemId, unlock) {
   // 順序：list 文字 render → highlight → 600ms → 展開（同 activities）
   const flashThenOpen = async () => {
     await waitForItemRevealed(target);
-    flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
-    target.style.transition = 'background 0.3s';
+    target.style.transition = 'background var(--dur-fast)';
     target.style.background = flashColor;
     setTimeout(() => {
       target.style.background = '';
@@ -96,19 +95,23 @@ async function navigateToAdmissionItem(itemId, unlock) {
   //   item 對齊 box 頂；scroller-relative = rect 差 + scrollTop），捲完 flash+open。
   // 手機/窄與矮橫向拆 frame（box overflow 被 landscape gate 改 visible、不可捲）走原 window 路徑——
   //   看 computed overflow 不看寬度（同 list-accordion getScrollableBox 邏輯）。
+  // box 對齊交給 proceedOpen（deepOpen，同 activities box 路徑）：扣 filter bar 釘點對齊 pin 線＋補差＋才展開。
+  //   原本自己捲到 item 頂（沒扣釘點）＋skipOpenScroll → 展開後 title 釘在 bar 下、蓋住內容頂（user 2026-10-03）。
   const scroller = getScrollableScrollCol(target);
   if (scroller) {
     const section = document.getElementById('admission-content-section');
     const sectionTopDoc = section ? section.getBoundingClientRect().top + window.scrollY : 0;
-    scrollWindowNoSnap(sectionTopDoc, { onComplete: () => {
-      const itemInScroller = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-      const targetScroll = Math.max(0, Math.round(itemInScroller));
-      if (typeof gsap !== 'undefined' && Math.abs(targetScroll - scroller.scrollTop) > 1) {
-        gsap.to(scroller, { scrollTop: targetScroll, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: flashThenOpen });
-      } else {
-        scroller.scrollTop = targetScroll;
-        flashThenOpen();
-      }
+    scrollWindowNoSnap(sectionTopDoc, { onComplete: async () => {
+      await waitForItemRevealed(target);
+      const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
+      if (header && !header.classList.contains('active')) {
+        /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);
+        header.dataset.accentHex = flashColor;
+        header.style.background = flashColor;
+        header.dataset.deepOpen = '1';
+        header.addEventListener('list:opened', unlock, { once: true });
+        header.click();
+      } else unlock();
     } });
     return;
   }
@@ -149,7 +152,6 @@ function scrollSectionIntoView(el, behavior = 'smooth', onDone) {
 // 滑動揭露（navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）、4 方向隨機、DUR.base + cubic-bezier + stagger；
 // 進場只在 content section 進視窗時跑一次（不重播切分頁）；退場離頁且 navRevealed 才跑、fromTo 顯式起點、from:'end'。
 // transition:'none' 解 .anchor-nav-inner 的 navigation.css `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管（卡頓），跑完還原。
-const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 
 function setupSectionNavReveal() {
   if (typeof gsap === 'undefined') return;
@@ -161,7 +163,7 @@ function setupSectionNavReveal() {
   inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
 
   const section = document.getElementById('admission-content-section');
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isLandscapeGate = SCCDHelpers.isLandscapeGate();
   if (isLandscapeGate && 'IntersectionObserver' in window && section) {
     // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」，clip-path 非
     // opacity（user 2026-07-10 三反饋定為全站 nav btn 原則，同 curriculum/faculty setNav）：IO 偵測
@@ -179,7 +181,7 @@ function setupSectionNavReveal() {
       gsap.to(inners, {
         clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
         translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-        duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+        duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
         onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
       });
     };
@@ -210,7 +212,7 @@ function setupSectionNavReveal() {
       if (navRevealed) return;
       navRevealed = true;
       gsap.to(inners, {
-        ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, clearProps: 'clipPath,translate',
+        ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.02, clearProps: 'clipPath,translate',
         onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
       });
     };
@@ -229,7 +231,7 @@ function setupSectionNavReveal() {
     const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
       { ...NAV_CHIP_SHOWN },
-      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
   }));
 }
 

@@ -66,6 +66,9 @@ export function revealRows(rows, { dur = DUR.reveal, delay = 0, stagger = 0.06, 
     const clr = (e) => {
       if (row.dataset.rrGen !== g) { row.removeEventListener('transitionend', clr); return; }  // 六輪：已被接管 → 只解綁、不清 inline
       if (e.target !== row || e.propertyName !== 'transform') return;
+      // Chromium 偶發「剛起跑就 transitionend、elapsedTime 0」（真 transition 仍 running；lazy 捲入批首列實測 ~1/3）：
+      // 照清 inline＝title 瞬間歸位無進場、副標照播（user 2026-10-03）→ 只認跑滿的 end。
+      if (e.elapsedTime + 0.05 < dur) return;
       row.style.transition = ''; row.style.transform = '';
       row.removeEventListener('transitionend', clr);
     };
