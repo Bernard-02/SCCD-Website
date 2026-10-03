@@ -146,11 +146,10 @@ export async function initProgramStructure() {
   //   degree 走 labelKey 對照往上找第一個 degree 祖先（CMS id 是 UUID、labelKey 才跨 CMS/fallback 穩定）。
   //   hover 動畫/創媒/BFA → 展開 BFA 期程+學位；碩士 → MDes；BPAIDC → BDes；SCCD(dcd，無 degree) → tree 仍上色（隨機）但不展開任何 bar。
   //   說明卡平常只留 title 殼（Term 期程 / Degree 學位），hover 才展開內容（user 2026-09-11）；層級由 NODES 的 parent 定義（後台 program_nodes）。
-  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
-  const rndAccent = () => ACCENT[Math.floor(Math.random() * ACCENT.length)];
+  const rndAccent = () => SCCDHelpers.getRandomAccentColor();
   const DEGREE_BY_LABELKEY = { 'about.group.bfa': 'bfa', 'about.program.mdes': 'mdes', 'about.program.bpaidc': 'bdes' };
   // degree↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內三 degree 仍各自穩定一色（hover/tap/legend 共用此 map）
-  const shuffledAccent = [...ACCENT].sort(() => Math.random() - 0.5);
+  const shuffledAccent = [...SCCDHelpers.ACCENT_COLORS].sort(() => Math.random() - 0.5);
   const DEGREE_COLOR = { bfa: shuffledAccent[0], mdes: shuffledAccent[1], bdes: shuffledAccent[2] };
   // Term 期程 / Degree 學位 bar 都從後台建（掛在 degree 節點的 termEn/termZh、degreeEn/degreeZh），依 degree
   //   key（bfa/mdes/bdes）；空＝不建該 bar。head「Term 期程 / Degree 學位」殼仍硬編在 about.html。
@@ -614,6 +613,8 @@ export async function initProgramStructure() {
   }
   function floatTick(nowMs) {
     floatRaf = requestAnimationFrame(floatTick);
+    // mode 切換 VT 中凍住，免交叉淡入殘影（10-03）；相位是絕對時間、恢復那幀最多跳 ~2px，不另補償
+    if (document.documentElement.classList.contains('mode-vt')) return;
     const now = nowMs / 1000;
     chips.forEach((box) => {
       if (!box._floatReadyAt) return;   // 尚未 reveal 完 → GSAP reveal / 隱藏態仍掌管，不接管

@@ -92,6 +92,9 @@ html.mode-switching.mode-switching .nav-link,
 html.mode-switching.mode-switching .mobile-nav-link,
 html.mode-switching.mode-switching .page-indicator-card,
 html.mode-switching.mode-switching .nav-more-btn,
+html.mode-switching.mode-switching .nav-less-btn,
+html.mode-switching.mode-switching .nav-less-inner,
+html.mode-switching.mode-switching .year-less-inner,
 html.mode-switching.mode-switching [data-bar],
 html.mode-switching.mode-switching #mode-btn .theme-toggle-btn,
 html.mode-switching.mode-switching .mobile-header-btn,
@@ -142,6 +145,10 @@ html.mode-switching.mode-switching .alumni-city-btn,
 /* courses 頁 */
 html.mode-switching.mode-switching .courses-grid-card,
 html.mode-switching.mode-switching .courses-program-btn,
+/* sitemap 卡（legal 頁；10-03 起不再掛 .courses-grid-card） */
+html.mode-switching.mode-switching .legal-map-card,
+html.mode-switching.mode-switching .legal-map-num,
+html.mode-switching.mode-switching .legal-map-card::before,
 /* atlas 頁 */
 html.mode-switching.mode-switching .atlas-name,
 html.mode-switching.mode-switching .atlas-list-col-title,
@@ -182,19 +189,52 @@ html.mode-vt *,
 html.mode-vt *::before,
 html.mode-vt *::after {
   transition: none !important;
+  /* 舊快照是靜態圖、新畫面即時：過渡中還在動的東西兩張圖位置不同＝殘影（user 2026-10-03）→ 期間凍住 CSS 動畫
+     （跑馬燈等）；GSAP／rAF 迴圈由 theme-toggle.js runModeViewTransition 與各迴圈看 html.mode-vt 自凍 */
+  animation-play-state: paused !important;
 }
+/* 例外＝會動的層（theme-toggle.js MODE_VT_LIVE_LAYERS，清單兩邊同步）：整層抽出快照、只顯示即時畫面
+   ＝照動不凍也不殘影（user 2026-10-03）。層內變色沒有快照可淡 → 自己 transition，時長同大背景。
+   只收一直在動的東西（不動的留快照照常淡，見 theme-toggle.js 註解）。
+   逐條寫不用 :is()＝祖先 id/class 能被 bloom filter 快篩（library 4 萬節點） */
+::view-transition-old(.vt-live) { display: none; }
+::view-transition-new(.vt-live) { animation: none; }
+html.mode-vt #floating-layer, html.mode-vt #floating-layer *,
+html.mode-vt .hm-banner-viewport, html.mode-vt .hm-banner-viewport *,
+html.mode-vt .lib-title-box, html.mode-vt .lib-title-box *,
+html.mode-vt #library-awards-ticker .awards-ticker-wrapper, html.mode-vt #library-awards-ticker .awards-ticker-wrapper * {
+  transition: background-color var(--dur-base) ease, border-color var(--dur-base) ease !important;
+  animation-play-state: running !important;
+}
+/* ticker logo 的黑↔白是 filter: invert（inverse.css／color.css）→ 一起淡，否則 logo 先翻色、底還沒淡到＝閃一下看不見 */
+html.mode-vt #library-awards-ticker .awards-ticker-wrapper img { transition: filter var(--dur-base) ease !important; }
+/* 字色只給「自己宣告 color」的元素（＋層根）淡。⚠️別整層 * 都掛 color：它會繼承，body 黑↔白時層內每個子孫
+   （含純圖片卡）各起一條 transition、每幀重繪自己的合成層（headless 實測淡變期間幀數砍半） */
+html.mode-vt #floating-layer .floating-text-card,
+html.mode-vt .hm-banner-viewport .homepage-marquee-text,
+html.mode-vt .hm-banner-viewport .homepage-marquee-clone,
+html.mode-vt .lib-title-box {
+  transition: color var(--dur-base) ease, background-color var(--dur-base) ease, border-color var(--dur-base) ease !important;
+}
+/* library 三原色卡本來就只顯示即時畫面：卡上的跑馬燈不必凍（灰卡那張的字條是 visibility:hidden） */
+html.mode-vt .color-rect-title-inner { animation-play-state: running !important; }
 /* 只顯示即時新畫面（舊圖直接消失、新圖不淡）：library 三原色卡 snap（同上 08-11 定案）；
-   header logo 過渡中照轉、換檔不消失，鉛筆（#mode-color-panel）照常滑進滑出（user 2026-10-01） */
+   header logo 過渡中照轉、換檔不消失，鉛筆（#mode-color-panel）照常滑進滑出（user 2026-10-01）；
+   mode 鈕 icon 直接切不淡（user 2026-10-02） */
 ::view-transition-old(lib-snap-1),
 ::view-transition-old(lib-snap-2),
 ::view-transition-old(lib-snap-3),
 ::view-transition-old(header-logo),
-::view-transition-old(mcp) { display: none; }
+::view-transition-old(mcp),
+::view-transition-old(mode-icon-0),
+::view-transition-old(mode-icon-1) { display: none; }
 ::view-transition-new(lib-snap-1),
 ::view-transition-new(lib-snap-2),
 ::view-transition-new(lib-snap-3),
 ::view-transition-new(header-logo),
-::view-transition-new(mcp) { animation: none; }
+::view-transition-new(mcp),
+::view-transition-new(mode-icon-0),
+::view-transition-new(mode-icon-1) { animation: none; }
 
 /* curriculum / activities / admission：sticky 遮罩 + pseudo-element 遮罩。
  * 這些用 `background`/`background-color: var(--theme-bg|fg)` 上色，不在上方 whitelist → mode 切換時 snap，
@@ -228,6 +268,7 @@ html.mode-switching.mode-switching .activities-filter-bar::before,
 html.mode-switching.mode-switching .admission-scroll-mask,
 html.mode-switching.mode-switching .list-header.is-pinned::before,
 html.mode-switching.mode-switching .list-mobile-header-blocker,
+html.mode-switching.mode-switching .legal-sitemap .legal-map-desc,
 html.mode-switching.mode-switching .support-acc-header {
   /* box-shadow 也列入：activities/admission sticky 遮罩用平移 shadow 左右外擴（消真機合成器邊緣漏色），
      shadow 色 = var(--theme-bg)，不 transition 會在 mode 切換時 gutter 外擴帶 snap、與大背景脫節 */

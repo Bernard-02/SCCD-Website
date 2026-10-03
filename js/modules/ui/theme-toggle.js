@@ -346,6 +346,17 @@ function applyOverlayLogo(open, isSlideInPanel, fade) {
   }
 }
 
+// 首頁 hover WATCH 的 spotlight overlay：logo 比照 full lightbox 開關（開＝白線框 crossfade、關＝立即還原；user 2026-10-02）。
+// 真 overlay 開著由 checkSlideInState 接管。logoType 同 applyOverlayLogo，但不重載手機 logo（桌面 hover 才觸發）。
+/** @param {boolean} open */
+export function setSpotlightLogo(open) {
+  if (isSlideInOpen || overlayLogoActive === open) return;
+  overlayLogoActive = open;
+  const mode = getStoredMode();
+  switchHeaderLogo(mode === 'color' ? 'wireframe' : open ? 'wireframe-inverse' : mode === 'inverse' ? 'inverse' : 'standard', { fade: open });
+  if (mode === 'color') applyColorVars();
+}
+
 export function initThemeToggle() {
   applyModeForPage(getCurrentPage());
 
@@ -607,6 +618,7 @@ function commitMode(mode, autoStartColorLoop) {
 
 // ── mode 切換 View Transition（user 2026-10-01 plan B；樣式在 typography.css「mode 切換 View Transition」段）──
 // atlas：09-28 實測 VT 無收益；/create：p5 畫布自管 mode。不支援的瀏覽器退回舊的 .mode-switching CSS fade。
+// 10-03 再測：atlas 星雲做即時層（照動）會卡，user 實機比較後定案維持舊 fade（兩套分開維護）。
 function canModeViewTransition() {
   if (typeof document.startViewTransition !== 'function') return false;
   const page = getCurrentPage();
@@ -619,6 +631,12 @@ function canModeViewTransition() {
 // - library 三原色卡切 mode 要 snap（user 2026-08-11）＝卡單獨成 group 不淡 → 平常疊在色卡上面的灰卡、next 鈕、header、
 //   左下當前頁卡、開著的 menu 也都要命名，否則被色卡 group 蓋掉。⚠️別命名 #site-header：0 高的 static 殼，
 //   擷取不含裡面的 fixed header／sticky 頁卡（10-01 實測過渡中整個消失）→ 逐一命名實際元素
+// - 會動的層（vt-live-N＋view-transition-class: vt-live）：整層抽出整頁快照、只顯示即時畫面＝過渡中照動、不凍也不殘影
+//   （user 2026-10-03）。層內變色沒有快照可淡 → 靠層內自己的 CSS transition（typography.css，selector 清單要跟這裡同步）。
+//   ⭐只收「一直在動」的東西、範圍收到最小（user 同日）：不動的沒有殘影問題，留在快照裡照常交叉淡入才跟大背景完全同步
+//   ——所以 news banner 只抽字在捲的裁切窗（.hm-banner-viewport），bar／數字方塊留快照；ticker 只抽透明的 wrapper，
+//   外層底色（＝灰卡色）留在灰卡快照。命名「裁切容器」而非裡面在動的元素：具名元素不吃祖先 overflow 裁切、只保得住自己的
+const MODE_VT_LIVE_LAYERS = '#floating-layer, .hm-banner-viewport, .lib-title-box, #library-awards-ticker .awards-ticker-wrapper';
 /** @returns {HTMLElement[]} 已命名元素（VT 結束後清） */
 function nameModeVtElements() {
   /** @type {HTMLElement[]} */
@@ -630,16 +648,33 @@ function nameModeVtElements() {
   };
   name(document.getElementById('header-logo'), 'header-logo');
   name(document.getElementById('mode-color-panel'), 'mcp');   // 此刻可能還 display:none、新畫面才出現（2→3）＝照樣命名
-  const stack = document.getElementById('library-card-stack');
-  if (!stack) return named;
-  let i = 0;
-  [document.getElementById('library-card-main'), ...stack.children].forEach(c => {
-    if (!(c instanceof HTMLElement)) return;
-    name(c, c.style.cssText.includes('--lib-bg') ? 'lib-gray' : `lib-snap-${++i}`);   // --lib-bg＝當前灰卡（setAsGray 標記）
+  // mode 鈕 icon 換圖不淡、直接切（user 2026-10-02）；桌面／手機各一顆，名稱不可重複
+  document.querySelectorAll('[data-header-mode-icon]').forEach((el, i) => name(/** @type {HTMLElement} */ (el), `mode-icon-${i}`));
+  // 只命名看得到的（隱藏 panel 的標題盒不必）；名稱各自唯一、樣式靠共用的 view-transition-class 套
+  let live = 0;
+  document.querySelectorAll(MODE_VT_LIVE_LAYERS).forEach(el => {
+    if (!el.getClientRects().length) return;
+    name(/** @type {HTMLElement} */ (el), `vt-live-${++live}`);
+    /** @type {HTMLElement} */ (el).style.setProperty('view-transition-class', 'vt-live');
   });
-  name(document.querySelector('.lib-card-next-btn'), 'lib-next');
+  // 首頁 news banner 本體（bar／數字方塊，不動）照常交叉淡入，命名只因為疊在漂浮卡層上面
+  name(document.getElementById('homepage-marquee-stack'), 'home-news');
+  // 首頁 WATCH 卡整顆自己漂（rAF）：具名 group 跟著即時位置走＝新舊圖同位不殘影，照常交叉淡入；也因為疊在漂浮卡層上面
+  name(document.getElementById('homepage-yt-card'), 'home-yt');
+  const stack = document.getElementById('library-card-stack');
+  if (stack) {
+    let i = 0;
+    [document.getElementById('library-card-main'), ...stack.children].forEach(c => {
+      if (!(c instanceof HTMLElement)) return;
+      name(c, c.style.cssText.includes('--lib-bg') ? 'lib-gray' : `lib-snap-${++i}`);   // --lib-bg＝當前灰卡（setAsGray 標記）
+    });
+    name(document.querySelector('.lib-card-next-btn'), 'lib-next');
+  }
+  if (!stack && !live) return named;
+  // 以下＝平常疊在色卡／會動的層上面的東西
   name(document.querySelector('#site-header > header'), 'site-header');
   name(document.getElementById('page-indicator'), 'page-indicator');
+  name(document.getElementById('custom-scrollbar-thumb'), 'scroll-thumb');
   if (document.documentElement.classList.contains('mobile-menu-open')) name(document.getElementById('mobile-nav-panel'), 'site-menu');
   return named;
 }
@@ -650,11 +685,25 @@ let modeVT = null;
 // 還沒變的底色上（白 logo 壓白底＝看起來閃一下不見），太晚反之。switchHeaderLogo 載好後等它
 /** @type {Promise<void> | null} */
 let logoSwapGate = null;
+// VT 期間凍住的 GSAP（舊快照是靜態圖、新畫面即時 → 過渡中還在動＝殘影，user 2026-10-03）。連點時新 VT 接手整包，
+// 最後一個 finished 才 resume。只凍「正在跑／排程中」的；本來就 paused 的（ScrollTrigger scrub、等 .play() 的）不碰，
+// update 內才建的 tween（鉛筆滑入等）照跑。CSS animation 由 html.mode-vt 凍（typography.css）、rAF 迴圈各自看 class。
+// 目標在「會動的層」（vt-live-N，只顯示即時畫面）裡的不凍：漂浮卡 3D 擺動、awards ticker 照跑
+/** @type {any[]} */
+let vtFrozen = [];
 /** @param {() => void} update */
 function runModeViewTransition(update) {
   const root = document.documentElement;
   const named = nameModeVtElements();
   root.classList.add('mode-vt');   // 期間殺全部 CSS transition＝新快照直接是終態（typography.css）
+  if (typeof gsap !== 'undefined') {
+    const liveLayers = named.filter(el => el.style.viewTransitionName.startsWith('vt-live'));
+    const inLiveLayer = (/** @type {any} */ a) => (a.targets ? a.targets() : a.getChildren(true, true, false).flatMap((/** @type {any} */ t) => t.targets()))
+      .some((/** @type {any} */ t) => t instanceof Element && liveLayers.some(l => l.contains(t)));
+    const running = gsap.globalTimeline.getChildren(false, true, true).filter(a => !a.paused() && !inLiveLayer(a));
+    running.forEach(a => a.pause());
+    vtFrozen.push(...running);
+  }
   const vt = document.startViewTransition(update);
   modeVT = vt;
   const gate = logoSwapGate = vt.ready.then(() => new Promise(r => setTimeout(r, MODE_FADE_MS * 0.3)), () => {});
@@ -676,7 +725,9 @@ function runModeViewTransition(update) {
     if (modeVT !== vt) return;   // 已被新的 VT 接手，收尾交給它
     modeVT = null;
     root.classList.remove('mode-vt');
-    named.forEach(el => { el.style.viewTransitionName = ''; });
+    named.forEach(el => { el.style.viewTransitionName = ''; el.style.removeProperty('view-transition-class'); });
+    vtFrozen.forEach(a => a.resume());
+    vtFrozen = [];
   });
 }
 
@@ -709,22 +760,31 @@ function runHeaderLogoReveal(logo) {
 // 防 race：lightbox 快速開→關時 switchHeaderLogo('inverse') 跟 ('standard') 連續觸發，
 // 舊 'inverse' Lottie 的 JSON fetch 若慢於 'standard' 完成，DOMLoaded 後到的 SVG 會覆蓋掉新 'standard' SVG。
 let logoLoadGeneration = 0;
+// fade 換檔已開始淡出、還沒換上（淡出中／載入中）
+let logoFading = false;
 
 export function switchHeaderLogo(type, { fade = false } = {}) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
+
+  // 呼叫當下就遞增（不等 doSwap）：fade 淡出期間又被呼叫時，淡出 onComplete 那次 doSwap 才認得出自己過期。
+  // 案：首頁快速掃過 WATCH——進場淡出 0.1s 內就離開，還原呼叫同 type 走 skip，淡出完照樣換上白線框而卡住
+  const myGeneration = ++logoLoadGeneration;
+  // 打斷上一次 fade：opacity 停在 crossfade 殘值（不是 /create 退場的 0、不走 reveal），畫面上仍是舊 logo → 淡回來
+  const interrupted = logoFading;
+  logoFading = false;
+  if (interrupted) gsap.to(logo, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
 
   // 不管 doSwap 走哪條路，都先記下「是否需要 reveal」— 從 /create 退場時 exit anim 把 logo.opacity 設為 0
   // ⚠️ Recovery 機制：若 user 在 /create typewriter 沒跑完就切頁，Lottie 還留在 logo 內 + dataset.logoType
   //    沒被 typewriter 改 → 下面 skip 條件成立 → 不跑 DOMLoaded → opacity:0 永遠卡住 → 下一頁 logo 不見
   //    所以無論走 skip 還是 doSwap，需要 reveal 時都要主動跑 helper
   const prevOpacity = parseFloat(logo.style.opacity);
-  const needsReveal = !isNaN(prevOpacity) && prevOpacity < 0.5;
+  const needsReveal = !interrupted && !isNaN(prevOpacity) && prevOpacity < 0.5;
 
   // 已是相同 type 的 Lottie 在運行 → skip 大件事，但 opacity:0 仍要救。
-  // logoType＝畫面上那支（雙緩衝換上才改，見 doSwap）→ 載入中又切回它＝作廢載入中的那支（generation 遞增）
+  // logoType＝畫面上那支（雙緩衝換上才改，見 doSwap）→ 載入中又切回它＝作廢載入中的那支（上面 generation 已遞增）
   if (logo.dataset.logoType === type && logo.querySelector('svg')) {
-    logoLoadGeneration++;
     if (needsReveal) runHeaderLogoReveal(logo);
     return;
   }
@@ -735,7 +795,7 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
   const fading = fade && !needsReveal && typeof gsap !== 'undefined' && !!logo.querySelector('svg');
 
   const doSwap = () => {
-    const myGeneration = ++logoLoadGeneration;
+    if (myGeneration !== logoLoadGeneration) return;   // 淡出期間已被後來的呼叫取代
     let file;
     if (type === 'wireframe') file = 'SCCDLogoWireframeStandard.json';
     else if (type === 'wireframe-inverse') file = 'SCCDLogoWireframeInverse.json';
@@ -779,6 +839,7 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
       if (myGeneration !== logoLoadGeneration) { anim.destroy(); layer.remove(); return; }
       layer.remove();   // 先拿出來：舊 anim destroy 會清空它的容器（header.js 初載那支的容器就是 logo 本身）
       otherAnims().forEach((a) => a.destroy());
+      logoFading = false;
       logo.dataset.logoType = type;
       // wireframe（mode3）filter＝當前 --theme-fg 對比（同手機 logo「初值讀當前 --theme-fg」招式），後續逐幀翻轉交 applyColorVars；
       // 其他 type 不帶 filter。換上這刻才設：載入期間畫面上還是舊 logo，提早設／清會先把舊的翻色（離開 mode3 白線框
@@ -805,8 +866,10 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
 
   // fade：先淡出（0.1s）→ onComplete 換檔＋淡入（0.1s）＝crossfade 共 ~0.2s（user 2026-09-08「切換再快一點」，原 DUR.base/2
   // 各 0.2s 覺得慢）。淡出期間舊 anim 仍轉，doSwap 抓當下 frame 接得上。overwrite:'auto' 只殺 logo opacity tween（scroll-shrink 動 width、不受影響）。
-  if (fading) gsap.to(logo, { opacity: 0, duration: DUR.micro / 2, ease: EASE.exitSoft, overwrite: 'auto', onComplete: doSwap });
-  else doSwap();
+  if (fading) {
+    logoFading = true;
+    gsap.to(logo, { opacity: 0, duration: DUR.micro / 2, ease: EASE.exitSoft, overwrite: 'auto', onComplete: doSwap });
+  } else doSwap();
 }
 
 // 對 main-modular.js 暴露：進入 /create 時讀當前 site mode + colorHue，帶進 iframe URL params

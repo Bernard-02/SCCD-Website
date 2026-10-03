@@ -32,8 +32,7 @@ function getFooterHideTargets() {
 // 不同於 footer 版型的 usesMobileFooter()（仍 768——平板 footer 照桌面 scatter）。
 // 回傳 { logo, mask }：mask = 外層 <a>（hero 慣例遮罩）。
 function getFooterHideLogo() {
-  const isMobile = window.innerWidth < 1024
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isMobile = SCCDHelpers.isMobileLayout();
   const logo = document.getElementById(isMobile ? 'header-logo-mobile' : 'header-logo');
   if (!logo) return null;
   return { logo, mask: /** @type {HTMLElement|null} */ (logo.parentElement) };
@@ -185,8 +184,7 @@ function footerHideBars(opts = {}) {
   gsap.killTweensOf(bars);
   // <1200＝手機 header 排（mode + 漢堡兩顆鈕）：一致往上滑收，配 .mobile-header-bg 底色帶的上滑（乾淨的手機式收起）。
   // 桌面散佈版(≥1200) header bars 才用隨機四方向 scatter。user 2026-08-10：兩顆鈕隨機四方向收看起來很奇怪。
-  const mobileHeader = window.innerWidth < 1024
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const mobileHeader = SCCDHelpers.isMobileLayout();
   const offsets = bars.map(bar => {
     const mask = ensureBarMask(bar);
     if (mask) { mask.style.overflow = 'clip'; lendCssRotToMask(bar, mask); }
@@ -480,8 +478,7 @@ export function triggerGenerateLogo() {
   }
 
   // 手機走簡化版：靜態 SCCD svg，不跑 typewriter（平板 768–1199 與矮橫向 header 也是手機版 → 同路徑）
-  if (window.innerWidth < 1024
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+  if (SCCDHelpers.isMobileLayout()) {
     applyMobileGenerateLogo();
     return;
   }
@@ -711,7 +708,7 @@ const NAV_PAGE_MAPPINGS = { 'degree-show-detail': 'activities' };
 /** @type {Record<string, [string, string]>} */
 const PAGE_CARD_LABELS = {
   regulations: ['Regulations & Policy', '規章與政策'],
-  accessibility: ['Site Map', '網站導覽'],
+  sitemap: ['Site Map', '網站導覽'],
   'policy-and-statements': ['Policies & Statements', '政策及聲明'],
   support: ['Donate', '捐贈'],
   donate: ['Donate', '捐贈'],
@@ -911,7 +908,7 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   const isGenerateActive = activePage === 'generate';
   const isAlumniActive   = activePage === 'alumni';
   // legal 區（2026-09-15 user：logo 一律小的、邏輯同 library）。含 SPA route 名與冷載入檔名（donate.html → page 'support'）
-  const isLegalActive    = ['regulations', 'accessibility', 'policy-and-statements', 'support', 'donate'].includes(activePage);
+  const isLegalActive    = ['regulations', 'sitemap', 'policy-and-statements', 'support', 'donate'].includes(activePage);
 
   // Alumni 頁面：alumni-full bar 取代 about-bar 位置，其他 bars 全部隱藏
   // 設 display:none 而非 clip-path：navigation 完成後的最終狀態（直接訪問 URL / SPA 切回都正確）
@@ -1129,10 +1126,21 @@ export function initHeader() {
     header.querySelectorAll('#mode-btn, #menu-btn').forEach(el => {
       const btn = /** @type {HTMLElement} */ (el);
       btn.style.setProperty('--hdr-rot', '0deg');   // GSAP 補間 var 要有帶單位的起點
+      // mode 鈕：點擊切 mode 跑 View Transition，overlay 蓋住鈕期間瀏覽器判游標「離開」、結束後補發 mouseenter
+      // （游標根本沒動）→ 同點位的 enter 不抽新角（user 2026-10-02「cursor 位置不變就不轉、但可以變色」；變色 listener 照跑）。
+      // 點擊本身也不轉（同日 user：連點也不換角）→ clickReroll:false
+      /** @type {number[] | null} */
+      let clickPt = null;
+      // 只記真人點擊（detail>0）：VT 期間的連點由 theme-toggle forwardModeClick 用 btn.click() 轉交＝座標 0,0，
+      // 蓋掉的話下一次補發的 enter 就對不上、又抽新角
+      if (btn.id === 'mode-btn') btn.addEventListener('click', (e) => { if (e.detail > 0) clickPt = [e.clientX, e.clientY]; });
       bindArrowSpin(btn, (d) => {
         if (typeof gsap === 'undefined') { btn.style.setProperty('--hdr-rot', `${d}deg`); return; }
         gsap.to(btn, { '--hdr-rot': `${d}deg`, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
-      });
+      }, btn.id === 'mode-btn' ? {
+        ignoreEnter: (e) => !!clickPt && e.clientX === clickPt[0] && e.clientY === clickPt[1],
+        clickReroll: false,
+      } : {});
     });
     // mode 圓鈕 hover 抽三原色（同漢堡鈕 mobile-menu.js；mode3 由 buttons.css 翻黑白）。無 active 態＝每次進入都重抽
     header.querySelector('#mode-btn')?.addEventListener('mouseenter', (e) => {
@@ -1140,7 +1148,6 @@ export function initHeader() {
     });
 
     // about bar hover：整條 bar 底色變三原色，hover 單一 item 時字 100% 黑
-    const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
     const aboutBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
     const libraryBar  = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
     const atlasBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
@@ -1151,7 +1158,7 @@ export function initHeader() {
     if (aboutBar) {
       aboutBar.style.transition = 'background var(--dur-base) ease';
       aboutBar.addEventListener('mouseenter', () => {
-        aboutBar.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+        aboutBar.style.background = SCCDHelpers.getRandomAccentColor();
       });
       aboutBar.addEventListener('mouseleave', () => {
         aboutBar.style.background = '';
@@ -1164,7 +1171,7 @@ export function initHeader() {
     [libraryBar, atlasBar, generateBar, alumniBar].filter(Boolean).forEach(el => {
       el.addEventListener('mouseenter', () => {
         el.classList.add('is-bar-hover');
-        el.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+        el.style.background = SCCDHelpers.getRandomAccentColor();
       });
       el.addEventListener('mouseleave', () => {
         el.classList.remove('is-bar-hover');
@@ -1331,7 +1338,7 @@ export function initHeader() {
         let filterM = '', contrastM = '';
         // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
         // 黑線隱形，改走 full-lightbox 的白線邏輯（user 2026-07-04）。直向 slide-in 蓋滿含 logo 區（accent 底）→ 維持黑線。
-        const slideInLeavesLogoOnDim = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+        const slideInLeavesLogoOnDim = SCCDHelpers.isLandscapeGate();
         if (isFullLightbox) { filterM = 'invert(1)'; contrastM = 'white'; }  // WireframeStandard 黑線 → invert 白
         else if (isSlideIn && slideInLeavesLogoOnDim) { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
@@ -1402,7 +1409,7 @@ export function initHeader() {
       const isLibrary = currentPage === 'library';
       const isAtlas   = currentPage === 'atlas';
       // legal 區冷載入也走小 logo（同 updateNavActive 的 isLegalActive 清單）
-      const isLegal   = ['regulations', 'accessibility', 'policy-and-statements', 'support', 'donate'].includes(currentPage);
+      const isLegal   = ['regulations', 'sitemap', 'policy-and-statements', 'support', 'donate'].includes(currentPage);
       // /create 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
       // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
       const isGenerate = currentPage === 'generate' || currentPage === 'create';

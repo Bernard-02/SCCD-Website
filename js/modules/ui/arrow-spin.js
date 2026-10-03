@@ -16,14 +16,20 @@ export function randomSpinAngle(from) {
   return r;
 }
 
-export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter } = {}) {
+/**
+ * @param {HTMLElement} el
+ * @param {(deg: number) => void} setAngle
+ * @param {{ initial?: number, onCommit?: (deg: number) => void, ignoreEnter?: (e: MouseEvent) => boolean, clickReroll?: boolean }} [opts]
+ *   clickReroll:false＝點擊不重抽（只定案 hover 角；沒 hover 就維持現角）
+ */
+export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter, clickReroll = true } = {}) {
   let committed = initial;
   let pending = null;   // hover 預覽角（about tab 的 _pendingRot）
   const rand = () => randomSpinAngle(committed);
   // hover 只綁桌面（矮橫向 gate 同 landscape.css）
-  if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
-    el.addEventListener('mouseenter', () => {
-      if (ignoreEnter && ignoreEnter()) return;   // re-parent 補發的假 mouseenter（元素被搬 DOM）→ 別抽新角
+  if (SCCDHelpers.isDesktopLayout()) {
+    el.addEventListener('mouseenter', (e) => {
+      if (ignoreEnter && ignoreEnter(e)) return;   // 補發的假 mouseenter（元素被搬 DOM／overlay 蓋過又掀開）→ 別抽新角
       // active／開著的鈕 hover 不轉（user 2026-09-29 全站：history 清單鈕 .active、footer tab .is-active、header 漢堡鈕 .is-open）
       if (el.classList.contains('active') || el.classList.contains('is-active') || el.classList.contains('is-open')) return;
       pending = rand(); setAngle(pending);
@@ -32,7 +38,7 @@ export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter
     el.addEventListener('mouseleave', () => { if (pending != null) committed = pending; pending = null; });
   }
   el.addEventListener('click', () => {
-    committed = pending ?? rand();
+    committed = pending ?? (clickReroll ? rand() : committed);
     pending = null;   // 同一次 hover 內再點＝重抽（不清的話連點會一直定同一個角）
     setAngle(committed);
     if (onCommit) onCommit(committed);

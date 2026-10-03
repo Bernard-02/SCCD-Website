@@ -14,7 +14,6 @@ import { DUR, EASE } from '../../ui/motion.js';
  * - section / division tab 切換（anchornav:active）→ 邊數/大小 morph + 移動方向隨機重擲
  */
 
-const COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 // 幾何用 <path> 8 段三次貝茲（不是 polygon）：圓＝標準 kappa 弧＝**真圓**（user 2026-08-10
 // 打回 24 邊形近似圓）；多邊形＝直線段（控制點取弦上 1/3、2/3 共線）。段數固定 → d 字串
 // 數字個數恆定（2+8×6=50），GSAP attr tween 才能圓↔多邊形互 morph
@@ -81,27 +80,27 @@ export function initAboutPolygons() {
   if (!host || typeof gsap === 'undefined') return;
 
   // --- DOM：svg0 放共用 defs（幾何 + mask）與 mode3 XOR 層，三個 svg 各放一個 fill（各自成 blend 層）---
-  const svgs = COLORS.map(() => el('svg'));
+  const svgs = SCCDHelpers.ACCENT_COLORS.map(() => el('svg'));
   const defs = el('defs');
   svgs[0].appendChild(defs);
-  const polys = COLORS.map((_, i) => el('path', { id: `about-pg${i}` }));
+  const polys = SCCDHelpers.ACCENT_COLORS.map((_, i) => el('path', { id: `about-pg${i}` }));
   polys.forEach(p => defs.appendChild(p));
-  COLORS.forEach((_, i) => {
+  SCCDHelpers.ACCENT_COLORS.forEach((_, i) => {
     // mask = 全白 - 另外兩形：mode3 XOR 填色用——交疊處被雙方互減 → 透明透出背景
     const mask = el('mask', { id: `about-pm${i}`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width: '100%', height: '100%' });
     mask.appendChild(el('rect', { width: '100%', height: '100%', fill: '#fff' }));
-    COLORS.forEach((_, j) => {
+    SCCDHelpers.ACCENT_COLORS.forEach((_, j) => {
       if (j === i) return;
       mask.appendChild(el('use', { href: `#about-pg${j}`, fill: '#000' }));
     });
     defs.appendChild(mask);
   });
-  COLORS.forEach((color, i) => {
+  SCCDHelpers.ACCENT_COLORS.forEach((color, i) => {
     svgs[i].appendChild(el('use', { href: `#about-pg${i}`, class: 'poly-fill', fill: color }));
   });
   // mode3 XOR 層：每形實心填 --theme-fg、mask 挖掉與他形重疊處 → 交疊區透明透出背景色
   const xor = el('g', { class: 'poly-xor' });
-  COLORS.forEach((_, i) => {
+  SCCDHelpers.ACCENT_COLORS.forEach((_, i) => {
     xor.appendChild(el('use', { href: `#about-pg${i}`, mask: `url(#about-pm${i})` }));
   });
   svgs[0].appendChild(xor);
@@ -244,6 +243,7 @@ export function initAboutPolygons() {
   };
 
   const tick = (time, deltaMS) => {
+    if (document.documentElement.classList.contains('mode-vt')) return;   // mode 切換 VT 中凍住，免交叉淡入殘影（10-03）
     const dt = Math.min(deltaMS, 100) / 1000; // 分頁喚醒的大 delta 夾住，免瞬移
     updateGate();
     const W = window.innerWidth, H = window.innerHeight;

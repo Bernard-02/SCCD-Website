@@ -164,7 +164,11 @@ function initWatchChars(ytCharsEl) {
         if (!layouts.length) return;
 
         let lastPlaced = null;
+        let hovered = false;   // 卡片 hover 中：底色換三原色（字黑）／mode3 反色（字 fg），見 initYTCardClick
         function getCharColor() {
+          if (hovered) return document.body.classList.contains('mode-color')
+            ? getComputedStyle(document.body).getPropertyValue('--theme-fg').trim() || '#000'
+            : '#000';
           // standard/inverse: 卡片底色 = var(--theme-fg)（黑/白）→ 文字用反向 var(--theme-bg)
           // mode-color: 卡片底改為 var(--theme-fg) strict 對比 → 文字用 var(--theme-fg-inverse)
           // ⚠️ 必須讀 document.body 而非 documentElement：--theme-bg/fg 定義在 body.mode-* 上，
@@ -252,8 +256,9 @@ function initWatchChars(ytCharsEl) {
         let cycleGen = 0;
         function cycleLayout() {
           // 背景分頁 / 待機蓋住期間不換組（09-25：3s interval 無 guard＝切回瞬間補跑 canvas 重繪）；
-          // 早退不清 interval，下一拍自然再試
-          if (document.hidden || document.body.classList.contains('idle-standby')) return;
+          // 早退不清 interval，下一拍自然再試。mode 切換 View Transition 中（html.mode-vt）也不換：WATCH 卡是
+          // 新舊快照交叉淡入，期間換字＝卡內字母疊影（10-03）
+          if (document.hidden || document.body.classList.contains('idle-standby') || document.documentElement.classList.contains('mode-vt')) return;
           const myGen = ++cycleGen;
           if (layoutInterval) { clearInterval(layoutInterval); layoutInterval = null; }
           clipReveal(0, 0.06, DUR.medium, EASE.exit).then(() => {
@@ -264,6 +269,7 @@ function initWatchChars(ytCharsEl) {
         }
         // 點擊開影片 / 離頁：逐字 clip-reveal 滑回框下離場（取代舊 _scale 瞬切 0）；回傳 Promise 供接續 clone/iris。
         ytCharsEl.__fadeOutWatch = function(opts = {}) { cycleGen++; return clipReveal(0, opts.stagger ?? 0.06, opts.dur ?? DUR.medium, EASE.exit); };
+        ytCharsEl.__setHover = function(on) { hovered = on; drawLayout(true); };
         ytCharsEl.__resetWatchAlpha = function() {
           if (!lastPlaced) return;
           lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 1; });
@@ -352,12 +358,25 @@ function initYTCardFloat(ytCard) {
 // 這樣 click handler 能 sync 立刻掛在 init 開頭，fetch 沒 resolve 時 click 是 graceful no-op
 // 不會發生「fetch 還沒回 / 失敗 → handler 永遠不掛 → user 點沒反應」
 function initYTCardClick(ytCard, playerRef) {
-  const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
-  ytCard.addEventListener('mouseenter', () => applyNewsHover());
+  // hover 底色：mode1/2 隨機三原色＋黑字、mode3 翻反色（同全站黑方塊鈕 hover；user 2026-10-02）。手機無 hover。
+  // important＝蓋過 inverse/color.css 的 !important 底色；冪等＝點擊 reparent chars 的 phantom mouseenter 不重抽色
+  const baseBg = ytCard.style.background;
+  let cardHovered = false;
+  const setCardHover = (on) => {
+    if (on === cardHovered || !matchMedia('(hover: hover)').matches) return;
+    cardHovered = on;
+    if (on) ytCard.style.setProperty('background', document.body.classList.contains('mode-color')
+      ? 'var(--theme-fg-inverse)' : SCCDHelpers.getRandomAccentColor(), 'important');
+    else ytCard.style.background = baseBg;
+    document.getElementById('homepage-yt-chars')?.__setHover?.(on);
+  };
+
+  ytCard.addEventListener('mouseenter', () => { applyNewsHover(); setCardHover(true); });
   ytCard.addEventListener('mouseleave', () => {
     if (ytCard.dataset.clickAnimating === '1') return;
     removeNewsHover();
+    setCardHover(false);
   });
 
   makeActivatable(ytCard, 'WATCH! 影片 Play video'); // 無障礙：圓形卡是 <div>，補可 Tab + Enter 開影片
@@ -446,9 +465,10 @@ function initYTCardClick(ytCard, playerRef) {
           onComplete: () => {
             // 先 openPlayer（overlay 顯示 + .play()），video 已 buffered → 黑屏 <100ms
             // 然後再 remove clone，確保「黑圈滿版時」才看到 video
-            player?.openPlayer({ accentColor: ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)] });
+            player?.openPlayer({ accentColor: SCCDHelpers.getRandomAccentColor() });
             clone.remove();
             ytCard.__closeSpotlight?.();
+            setCardHover(false);   // 影片蓋住＝不在 hover；收合黑圈 getCardBg 要讀回原底色
             // 還原 chars：先 cssText reset 再搬回原 parent（同步 task 內 DOM 一次到位，paint 不閃）
             if (ytCharsEl && charsOriginalParent) {
               ytCharsEl.setAttribute('style', charsOriginalCss);
