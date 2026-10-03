@@ -8,7 +8,8 @@
     "watch:css": "tailwindcss -i ./css/input.css -o ./css/output.css --watch",
     "check:ts": "tsc -p .",
     "watch:ts": "tsc -p . --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sync:assets": "node scripts/pull-site-assets.cjs"
   },
   "keywords": [],
   "author": "",

@@ -4,6 +4,8 @@ $src  = Split-Path $PSScriptRoot -Parent
 $dest = Join-Path (Split-Path $src -Parent) 'SCCD-上傳包'
 
 Push-Location $src
+# 先把後台 icon／游標拉成本地 fallback：部署出去的本地檔＝後台最新，開頁不會先閃舊圖（user 2026-10-02）
+node scripts/pull-site-assets.cjs
 npm run build:css
 Pop-Location
 
