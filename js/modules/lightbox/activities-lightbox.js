@@ -9,7 +9,6 @@ import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
-import { sitePath } from '../ui/site-base.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 let lightboxEl = null;
@@ -96,7 +95,7 @@ function ensureLightbox() {
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
            infinity loop（user 2026-08-28）：navigate() 環狀取餘、到底回頭 → chevron 恆可點；
            aria-disabled:* 樣式保留（single media 之外恆 false；改 disabled 行為時仍可用） -->
-      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:[cursor:var(--cursor-not-allowed)] aria-disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
@@ -106,7 +105,7 @@ function ensureLightbox() {
       <div class="alb-watermark-clip" aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:20;display:none;">
         <div class="alb-watermark" style="position:absolute;"></div>
       </div>
-      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:[cursor:var(--cursor-not-allowed)] aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -140,15 +139,15 @@ function ensureLightbox() {
       <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒 padding 上下 outline 會被 clip 掉 -->
       <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto;"></div>
       <div class="alb-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 12px;">
-        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
+        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
         <span class="alb-zoom-pct text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
+        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
         <!-- Fit-to-window 按鈕（user 2026-06-02）：點下去切到 fit；已在 fit 時 disabled -->
-        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit to window">
+        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit to window">
           <span class="icon icon-fit-viewport icon-m"></span>
         </button>
       </div>
@@ -245,8 +244,8 @@ function ensureLightbox() {
     if (!isDragging) return;
     isDragging = false;
     if (zoomImg) zoomImg.style.cursor = zoom.scale > fitScale() + 0.001
-      ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
-      : `url('${sitePath('custom-cursor/zoom-in.svg')}') 6 6, zoom-in`;
+      ? 'var(--cursor-grab)'
+      : 'var(--cursor-zoom-in)';
   });
 
   // 手機左右 swipe 換上一張/下一張（取代 chevron，iPhone Photos 風格；桌面無 touch 不觸發）
@@ -279,10 +278,10 @@ function applyZoom(animated = false) {
   // cursor 跟 canPan 一致（圖填滿 stage 才顯示 grab）；其餘狀態給 zoom-in（暗示「可放大」）
   const canPan = zoom.scale > fitScale() + 0.001;
   zoomImg.style.cursor = isDragging
-    ? `url('${sitePath('custom-cursor/drag_2.svg')}') 10 10, grabbing`
+    ? 'var(--cursor-grabbing)'
     : (canPan
-        ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
-        : `url('${sitePath('custom-cursor/zoom-in.svg')}') 6 6, zoom-in`);
+        ? 'var(--cursor-grab)'
+        : 'var(--cursor-zoom-in)');
   updateZoomUI();
   syncWatermarkToRenderedContent();
 }
@@ -490,7 +489,7 @@ function renderMain(index) {
     zoomImg.alt = '';
     // transform-origin:center 配合 zoomAt 的數學（以 img 自身中心為旋轉基準）
     // user-select / -webkit-user-drag 關閉避免拖曳時觸發瀏覽器原生 image drag
-    zoomImg.style.cssText = `max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:url('${sitePath('custom-cursor/zoom-in.svg')}') 9 9, zoom-in;user-select:none;-webkit-user-drag:none;will-change:transform;`;
+    zoomImg.style.cssText = `max-width:100%;max-height:100%;object-fit:contain;display:block;transform-origin:center;cursor:var(--cursor-zoom-in);user-select:none;-webkit-user-drag:none;will-change:transform;`;
     zoomImg.draggable = false;
 
     zoomStage.appendChild(zoomImg);
@@ -535,7 +534,7 @@ function renderMain(index) {
       isDragging = true;
       dragMoved = false;
       dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-      zoomImg.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
+      zoomImg.style.cursor = 'var(--cursor-grabbing)';
       e.preventDefault();
     });
 
@@ -753,6 +752,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 function positionUIRelativeToLogo() {
   // 手機（iPhone Photos 風格）：topbar（返回+ref+標題）改放畫面最底（縮圖列下方，見 lightbox.css @media）。
   // 大圖區只需讓開頂部 header logo（不再為頂部 topbar 預留空間）；量手機 logo 底邊當 padding-top。
+  if (mainContainerEl) { mainContainerEl.style.removeProperty('padding-left'); mainContainerEl.style.removeProperty('padding-right'); }   // 先清（見下左右界；縮成手機也不殘留）
   if (window.innerWidth < 768) {
     const mlogo = document.querySelector('#header-logo-mobile');
     const mrect = mlogo ? mlogo.getBoundingClientRect() : null;
@@ -763,11 +763,21 @@ function positionUIRelativeToLogo() {
   const logo = document.querySelector('#header-logo');
   if (!logo) return;
   const rect = logo.getBoundingClientRect();
-  const logoBottom = rect.bottom;
-  // ZOOM_GAP 36：對齊 atlas 歷屆教師 nav btn 與 logo 底邊的距離（user 2026-08-24 嫌太靠近 logo；實測 atlas 36px）。
-  const ZOOM_GAP = 36;
+  // 上緣＝logo 中線（user 2026-10-03「對齊 logo 的中間」，同 PDF viewer positionPdfStageRelativeToLogo；
+  // 取代 08-24 的 logo 底＋36）。logo 沒顯示（rect 0）退回舊式 logo 底＋36。
   const SHELL_PT = 24;
-  if (mainContainerEl) mainContainerEl.style.paddingTop = `${Math.max(0, logoBottom + ZOOM_GAP - SHELL_PT)}px`;
+  const top = rect.height ? rect.top + rect.height / 2 : rect.bottom + 36;
+  if (!mainContainerEl) return;
+  mainContainerEl.style.paddingTop = `${Math.max(0, top - SHELL_PT)}px`;
+  // 左右界（user 2026-10-03「圖片最大寬度跟 pdf lightbox 一樣、到 logo 的 gap 減少」）：真桌面 lightbox.css 釘 col-4
+  // （!important）→ 改取 logo 右緣與 col-4 的中點（同 library-viewer positionPdfStageRelativeToLogo）。開頭已清 inline＝
+  // 量到的是 CSS 值；768–1023 無 col-4 規則（px-32 < logo 右緣）＝不動、維持 CSS。
+  const col4 = parseFloat(getComputedStyle(mainContainerEl).paddingLeft) || 0;
+  if (rect.width && col4 > rect.right) {
+    const side = `${(rect.right + col4) / 2}px`;
+    mainContainerEl.style.setProperty('padding-left', side, 'important');
+    mainContainerEl.style.setProperty('padding-right', side, 'important');
+  }
 }
 
 // mode3（彩色背景）：去掉三原色，pill 一律白底黑字（對比 lightbox 黑底，user 2026-06-03）

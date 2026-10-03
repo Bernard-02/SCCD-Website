@@ -14,7 +14,7 @@
   border: none;
   padding: 0;
   background: transparent;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
 }
 
 /* Popover 容器：absolute by lightbox-ref-btn.js（inline top/left），本身不做遮罩
@@ -69,10 +69,9 @@
   border: none;
   padding: 6px 8px;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-pointer);
   background: transparent;
-  color: #000;
-  transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+  color: #000;   /* hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
   /* card rotate 後相鄰 row sub-pixel rendering 漏 1px accent 縫；margin -1 讓 row 重疊補縫 */
   margin: -1px 0;
 }
@@ -338,4 +337,16 @@
   }
   #pdf-viewer-modal .lightbox-ref-stack { align-items: stretch; }
   #pdf-viewer-modal .lightbox-ref-card { width: 100%; }
+}
+
+/* 真桌面：大圖區（PDF 頁面／album 大圖的 zoom stage）左右邊＝col-4 左緣（同 about 等內頁內容起點，user 2026-10-02）。
+   原 md:px-32（128px）在 Fit Width 滿寬時頁面左緣貼近 logo。對稱＝右邊停在 col-17 右緣、頁面維持畫面置中。
+   20 欄公式同 .site-container .grid-20：欄寬＝(100vw − 2×container-padding − 19×gutter) / 20 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #pdf-viewer-modal .pdf-main-row,
+  #activities-lightbox .alb-main-container {
+    --lb-col4: calc(var(--container-padding) + 3 * ((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter)));
+    padding-left: var(--lb-col4) !important;
+    padding-right: var(--lb-col4) !important;
+  }
 }

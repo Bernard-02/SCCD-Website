@@ -8,7 +8,6 @@ import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
-import { sitePath } from '../ui/site-base.js';
 import { peekPdfCover } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
@@ -76,7 +75,7 @@ function ensurePdfModal() {
       <!-- chevron 對齊 logo 左/右邊（var(--container-padding)）= 跟 back btn 同 column -->
       <!-- 用 aria-disabled 不用原生 disabled：Chrome 對原生 disabled 強制預設箭頭、CSS cursor 無效
            （同 activities-lightbox chevron；到底時要顯示 not-allowed 游標，user 2026-08-23）。turnPage 有 guard，點擊本就 no-op -->
-      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:[cursor:var(--cursor-not-allowed)]" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <!-- zoom stage：overflow:hidden 容器，transform 套在 .pdf-canvas-row 上做 zoom + pan -->
@@ -117,7 +116,7 @@ function ensurePdfModal() {
           </div>
         </div>
       </div>
-      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:[cursor:var(--cursor-not-allowed)]" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -152,15 +151,15 @@ function ensurePdfModal() {
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
-        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom out">
+        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
           <span class="icon icon-zoom-out icon-m"></span>
         </button>
         <span id="pdf-zoom-pct" class="text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Zoom in">
+        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
           <span class="icon icon-zoom-in icon-m"></span>
         </button>
         <!-- Fit Page ↔ Fit Width 雙態 toggle；icon 顯示「下一個動作」：預設 Fit Page → 顯示 fit_width（點了切滿寬）-->
-        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:[cursor:var(--cursor-not-allowed)]" aria-label="Fit / zoom toggle">
+        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit / zoom toggle">
           <span class="icon icon-fit-width icon-m"></span>
         </button>
       </div>
@@ -257,11 +256,9 @@ export function initPdfViewer() {
   // 載入色塊（取代舊 LQIP 馬賽克墊圖）：render 完成前蓋住頁面（.pdf-color-loader 是 .pdf-zoom-stage 的
   // stage 絕對定位 overlay、開場依頁面可視矩形定尺寸一次、render 不碰＝不跳）、每秒切一個「不同的」三原色循環；
   // render 完成後等當前色塊 1s 走完再隨機四方向 clip-reveal 揭露頁面。
-  const LOADER_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];   // 設計系統三原色（綠 / 粉 / 藍）
   let loaderTimer = 0;
   let loaderActive = false;
   let loaderReady  = false;   // render 完成、等當前色塊 1s 走完才揭露
-  let lastColorIdx = -1;
 
   // ── Zoom 狀態（對齊 activities-lightbox album viewer 邏輯）────────────────
   // 內部 zoom.scale 恆以「fit-to-stage」為 1（同 album）。
@@ -451,10 +448,10 @@ export function initPdfViewer() {
     updateWatermarkClip();
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = isDragging
-      ? `url('${sitePath('custom-cursor/drag_2.svg')}') 10 10, grabbing`
+      ? 'var(--cursor-grabbing)'
       : (canPan
-          ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
-          : `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`);
+          ? 'var(--cursor-grab)'
+          : 'var(--cursor-default)');
     updateZoomUI();
     scheduleSharpen();
   }
@@ -580,18 +577,12 @@ export function initPdfViewer() {
 
   // ── 載入色塊（取代舊 LQIP 馬賽克墊圖）─────────────────────────────────────
   // 三原色隨機不重複；render 完成前每 1s 換色（新色從隨機一邊 clip-reveal 掃入），完成後隨機四方向 clip-reveal 揭露頁面。
-  function pickLoaderColor() {
-    let i;
-    do { i = Math.floor(Math.random() * LOADER_COLORS.length); } while (i === lastColorIdx);
-    lastColorIdx = i;
-    return LOADER_COLORS[i];
-  }
   // 隨機四方向 inset（全 % — 混單位 GSAP 會直接跳終值，見 lightbox-shell memory）。
   // 揭露用作「收往該邊」終值；換色 swipe 用作「從該邊掃入」起值。
   const LOADER_DIRS = ['inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 100% 0%)'];
   // 換色不 snap：新色在 swipe 子層從隨機一邊 clip-reveal 掃入、掃完落定到底層背景（user 2026-09-01）
   function swipeLoaderColor() {
-    const c = pickLoaderColor();
+    const c = SCCDHelpers.getRandomAccentColor();
     // 色塊還沒顯示（等真尺寸）或無 gsap → 掃入沒人看得到，直接換底色
     if (!colorSwipeEl || typeof gsap === 'undefined' || colorLoaderEl.style.display === 'none') {
       colorLoaderEl.style.background = c;
@@ -656,14 +647,13 @@ export function initPdfViewer() {
     loaderActive = true;
     loaderReady = false;
     loaderVeilUp = true;   // 色塊蓋著期間 minimap 不出現（揭露完 hide() 才放行）
-    lastColorIdx = -1;
     // loading 期間不顯示浮水印（user 2026-08-23）：浮水印是 .pdf-zoom-stage 全幅覆蓋(z20，蓋在色塊之上)，
     // 色塊只有頁面大小 → 不藏的話浮水印會蓋到色塊外圍看起來「跑到 pdf 外」。揭露時才 fade 回來。
     if (watermarkEl) { if (typeof gsap !== 'undefined') gsap.killTweensOf(watermarkEl); watermarkEl.style.opacity = '0'; }
     if (typeof gsap !== 'undefined') { gsap.killTweensOf(colorLoaderEl); if (colorSwipeEl) gsap.killTweensOf(colorSwipeEl); }
     colorLoaderEl.style.clipPath = '';
     if (colorSwipeEl) { colorSwipeEl.style.display = 'none'; colorSwipeEl.style.clipPath = ''; colorSwipeEl.style.background = ''; }
-    colorLoaderEl.style.background = pickLoaderColor();   // 第一個色塊備好（尺寸未知前先藏）
+    colorLoaderEl.style.background = SCCDHelpers.getRandomAccentColor();   // 第一個色塊備好（尺寸未知前先藏）
     // ⭐尺寸一律等「真頁面可視矩形」算出才顯示，不在 open 時猜（press 裁頂 1.5 封面看不出真 aspect →
     // 猜 reading 對 <2 的頁會太大，user 2026-08-24「色塊太大、pdf 沒那麼大」）。誰負責顯示：
     //  • 非 press：cover onload 用真封面 fit 尺寸撐好才顯示（封面非裁頂＝準）。
@@ -727,7 +717,7 @@ export function initPdfViewer() {
     rendering = true;
     try {
 
-    // 先對齊 logo 下緣（再讀 stageEl.clientHeight，下方讀取會強制 reflow 拿到正確高度）
+    // 先對齊 logo（再讀 stageEl.clientHeight，下方讀取會強制 reflow 拿到正確高度）
     positionPdfStageRelativeToLogo();
 
     const totalPages = pdfDoc.numPages;
@@ -978,12 +968,13 @@ export function initPdfViewer() {
     shareBtnEl.style.left = (anchor.getBoundingClientRect().right + PILL_GAP) + 'px';
   }
 
-  // 把 stage 上緣推到 header logo 底邊以下，鏡像 activities-lightbox positionUIRelativeToLogo
-  // （讓 PDF fit 高度 == album fit 高度；user 2026-06-02 拍板「PDF 對齊 album」）。
-  // SHELL_PT=24：lightbox-shell padLightboxTops 已給 modal root 加 1.5rem(24px)，這裡扣回避免雙重下推
-  // → 淨 gap = logoBottom + ZOOM_GAP(36)。無 logo 時 early return，main row 維持原 py-xl 上緣。
-  // ZOOM_GAP 36：對齊 atlas 歷屆教師 nav btn 與 logo 底邊的距離（user 2026-08-24 嫌太靠近 logo；實測 atlas 36px）。
+  // 桌面 stage（＝書的渲染範圍／放大遮罩）：上緣＝logo 中線、左右界≥logo 右緣（右側鏡像；真桌面＝logo 右緣～col-4 中點，見下）
+  // （user 2026-10-02「預設高度拉到小 logo 一半、放大最大寬度減少、不超過 logo」；取代 06-02 起的「logo 底＋36」）。
+  // 量實際 logo rect：library 小 logo 100 → 上緣 98、左右 160；大 logo 頁（alumni 會議紀錄）自動跟著讓。
+  // SHELL_PT=24：lightbox-shell padLightboxTops 已給 modal root 加 1.5rem(24px)，這裡扣回避免雙重下推。
+  // logo 沒顯示（rect 全 0）＝維持舊式 ZOOM_GAP−SHELL_PT 上緣、左右用 class 的 px-32。
   function positionPdfStageRelativeToLogo() {
+    if (mainRowEl) { mainRowEl.style.removeProperty('padding-left'); mainRowEl.style.removeProperty('padding-right'); }   // 先清（見下左右界；縮成手機也不殘留）
     // 手機：單頁置中，padding-top 推到手機 logo 底邊下方（避免頁面上緣被 logo 蓋；控制列在底部 bar 不在此處理）
     if (isMobile()) {
       const mlogo = document.querySelector('#header-logo-mobile');
@@ -995,7 +986,15 @@ export function initPdfViewer() {
     if (!logo || !mainRowEl) return;
     const ZOOM_GAP = 36;
     const SHELL_PT = 24;
-    mainRowEl.style.paddingTop = `${Math.max(0, logo.getBoundingClientRect().bottom + ZOOM_GAP - SHELL_PT)}px`;
+    const r = logo.getBoundingClientRect();
+    if (!r.width) { mainRowEl.style.paddingTop = `${ZOOM_GAP - SHELL_PT}px`; return; }
+    mainRowEl.style.paddingTop = `${Math.max(0, r.top + r.height / 2 - SHELL_PT)}px`;
+    // 左右界：真桌面 lightbox.css 釘 col-4（!important）；user 2026-10-03「再靠近 logo、gap 減半」→ 取 logo 右緣與
+    // col-4 的中點（inline important 才蓋得過）。開頭已清 inline＝量到的是 CSS 的 col-4；768–1023 無該規則＝量到 px-32 < logo 右緣 → 照舊 logo 右緣。
+    const col4 = parseFloat(getComputedStyle(mainRowEl).paddingLeft) || 0;
+    const side = `${col4 > r.right ? (r.right + col4) / 2 : r.right}px`;
+    mainRowEl.style.setProperty('padding-left', side, 'important');
+    mainRowEl.style.setProperty('padding-right', side, 'important');
   }
 
   // ══ 手機版觸控手勢（沿用桌面單頁引擎 renderPage / zoomAt / clampPan / turnPage，不另建渲染路徑）═══════════
@@ -1148,7 +1147,7 @@ export function initPdfViewer() {
     // canvas 先藏：非 press 又無封面時色塊整段藏著（等 renderPage 才知尺寸），此時 bg-white 的 canvas 會殘留
     // 上一本的 stale 尺寸＝黑底上閃一塊「錯尺寸白矩形」（2026-08-24 workflow 抓到）。renderPage 畫好頁面才顯示。
     canvasL.style.visibility = 'hidden';
-    // 先把 stage 對齊 logo 下緣（renderPage 也會跑、idempotent）：cover onload / sizeLoaderToPage 讀
+    // 先把 stage 對齊 logo（renderPage 也會跑、idempotent）：cover onload / sizeLoaderToPage 讀
     // stageEl.clientHeight 才是「最終」高度，色塊尺寸不受 padding-top 之後變動影響（user 2026-08-24）。
     positionPdfStageRelativeToLogo();
     // 載入色塊：每秒換三原色蓋住頁面直到 render 完成（取代舊 LQIP 馬賽克墊圖）。open 時先藏——
@@ -1270,7 +1269,7 @@ export function initPdfViewer() {
     if (!canPan || e.button !== 0) return;
     isDragging = true;
     dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
-    rowEl.style.cursor = `url('${sitePath('custom-cursor/drag_2.svg')}') 15 15, grabbing`;
+    rowEl.style.cursor = 'var(--cursor-grabbing)';
     e.preventDefault();
   });
   window.addEventListener('mousemove', (e) => {
@@ -1285,8 +1284,8 @@ export function initPdfViewer() {
     isDragging = false;
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = canPan
-      ? `url('${sitePath('custom-cursor/drag_1.svg')}') 10 10, grab`
-      : `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`;
+      ? 'var(--cursor-grab)'
+      : 'var(--cursor-default)';
   });
 
   modal.addEventListener('click', (e) => {
