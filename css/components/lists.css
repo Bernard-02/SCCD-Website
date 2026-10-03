@@ -1218,7 +1218,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
    - padding-right 額外留右欄文字與 scrollbar 的 gap。*/
 .tl-list-content {
   position: absolute;
-  inset: var(--spacing-lg);          /* 四邊 padding 32px（比照 slide-in 左右 container-padding，user 2026-08-13）*/
+  inset: var(--spacing-sm) var(--spacing-lg);   /* 上下 sm（user 2026-10-03 由 lg 收）、左右 lg（比照 slide-in 左右 container-padding，user 2026-08-13）*/
   overflow-y: auto;
   padding-right: var(--spacing-md);  /* 右欄文字 ↔ scrollbar 之間的 gap（24px）*/
   color: #000;           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
@@ -1258,7 +1258,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   top: 0;
   z-index: 2;
   background: var(--tl-card-bg);
-  padding-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);   /* user 2026-10-03 由 md 收、全視口同 sm */
 }
 /* 年份 sticky：釘在該年份列頂、標籤下方（右側說明捲、年份留住）。年份欄／說明欄各自成欄不重疊、免遮擋底色
    ——顏色（含 mode 切換 fade）由 typography.css .timeline-card-inner * 白名單處理。
@@ -1349,11 +1349,7 @@ body.mode-color .tl-list-next-btn .tl-icon-btn-inner {
     width: auto;          /* 窄屏滿版、不吃桌面「高×1.65−era 欄」寬 */
     justify-self: auto;
   }
-  /* 窄屏：era 標籤 EN/ZH 上下兩行（桌面一行；兩層 sticky 機制見上方 base 說明）；
-     標籤↔年份留白收成 sm（user 2026-09-08）。 */
-  .tl-era-label {
-    padding-bottom: var(--spacing-sm);
-  }
+  /* 窄屏：era 標籤 EN/ZH 上下兩行（桌面一行；兩層 sticky 機制見上方 base 說明）。 */
   .tl-era-en,
   .tl-era-zh { display: block; }
   .tl-era-en { margin-bottom: var(--space-en-zh-s); }

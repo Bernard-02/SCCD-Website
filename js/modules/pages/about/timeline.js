@@ -491,9 +491,11 @@ export function initTimeline() {
     area.appendChild(btnGrid);
     // icon 固定三條線 icon-atlas-list、開/關不換 glyph（user 2026-09-10；舊 icon-atlas-view 互換＋clip-reveal swap 已撤）
     // hover/click 隨機角度（arrow-spin，全站箭頭統一 −4~+6；取代 lists.css 舊 :hover +8° 固定角）。
-    // 轉 inner 黑方塊；鈕跨開合共用同一顆→定案角自然留住
+    // 轉 inner 黑方塊；鈕跨開合共用同一顆→定案角自然留住。active（開著）點擊關閉＝只變色不轉角（user 2026-10-03；
+    // arrow-spin 的 click 先於下方 toggle 綁定→判斷時 .active 還在）
     const listBtnInner = /** @type {HTMLElement|null} */ (listBtn.querySelector('.tl-icon-btn-inner'));
-    if (listBtnInner) bindArrowSpin(listBtn, (/** @type {number} */ d) => { listBtnInner.style.transform = `rotate(${d}deg)`; });
+    if (listBtnInner) bindArrowSpin(listBtn, (/** @type {number} */ d) => { listBtnInner.style.transform = `rotate(${d}deg)`; },
+      { clickReroll: () => !listBtn.classList.contains('active') });
     // hover 隨機三原色（同全站 nav btn：data-nav-hover + --nav-hover，桌面 gate 在 helper）；開著（.active）沿用點下去的色、
     // 關回黑（lists.css #timeline-list-btn 規則；user 2026-09-28）
     bindNavBtnHover(listBtn);

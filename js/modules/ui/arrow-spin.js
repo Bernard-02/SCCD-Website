@@ -19,8 +19,8 @@ export function randomSpinAngle(from) {
 /**
  * @param {HTMLElement} el
  * @param {(deg: number) => void} setAngle
- * @param {{ initial?: number, onCommit?: (deg: number) => void, ignoreEnter?: (e: MouseEvent) => boolean, clickReroll?: boolean }} [opts]
- *   clickReroll:false＝點擊不重抽（只定案 hover 角；沒 hover 就維持現角）
+ * @param {{ initial?: number, onCommit?: (deg: number) => void, ignoreEnter?: (e: MouseEvent) => boolean, clickReroll?: boolean | (() => boolean) }} [opts]
+ *   clickReroll:false＝點擊不重抽（只定案 hover 角；沒 hover 就維持現角）；傳函式＝點擊當下判斷
  */
 export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter, clickReroll = true } = {}) {
   let committed = initial;
@@ -38,7 +38,10 @@ export function bindArrowSpin(el, setAngle, { initial = 0, onCommit, ignoreEnter
     el.addEventListener('mouseleave', () => { if (pending != null) committed = pending; pending = null; });
   }
   el.addEventListener('click', () => {
-    committed = pending ?? (clickReroll ? rand() : committed);
+    const reroll = typeof clickReroll === 'function' ? clickReroll() : clickReroll;
+    // 沒 hover 角又不重抽＝角度不動、不寫回（現角可能是 CSS 預設，如 history 鈕 −8°，跟 committed 初值 0 對不上）
+    if (pending == null && !reroll) return;
+    committed = pending ?? rand();
     pending = null;   // 同一次 hover 內再點＝重抽（不清的話連點會一直定同一個角）
     setAngle(committed);
     if (onCommit) onCommit(committed);
