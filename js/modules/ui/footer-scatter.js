@@ -759,6 +759,11 @@ export async function initFooterScatter(scope, opts = {}) {
   // 群組顯隱先套（CMS 化後由 JS 管，見 applyGroupVisibility）→ 下面 offsetParent 過濾才會排除非 active 群組
   applyGroupVisibility(area);
 
+  // 進場版（切分頁／跨斷點）：說明文字 CSS 是 opacity 1（不像散佈卡 anchor 預設 0 藏著），transform 又被 unwrap 清掉
+  // → 下面 await 期間會先閃一下才 clip-reveal（user 2026-10-03）→ 同步先藏進遮罩
+  const noteInnerEarly = animate ? getFooterNoteInner(area) : null;
+  if (noteInnerEarly && typeof gsap !== 'undefined') gsap.set(noteInnerEarly, { yPercent: CLIP_HIDE_YPERCENT });
+
   const rawItems = /** @type {HTMLElement[]} */ (
     Array.from(footer.querySelectorAll(ITEM_SELECTORS.join(',')))
       // 排除 display:none 的 item。不排除的話 wrapItemsInAnchors 會把 0×0 元素也包進 anchors，

@@ -666,10 +666,7 @@
       overflow: clip;
       color: var(--footer-fg, #fff);
     }
-    .footer-random .footer-note-title {
-      margin-bottom: var(--spacing-sm);
-    }
-    /* 照後台換行顯示、不自動折行；(0,2,0) 壓過 `.footer-random p` 的 nowrap。
+    /* 標題與內文之間無間距（user 2026-10-03）。照後台換行顯示、不自動折行；(0,2,0) 壓過 `.footer-random p` 的 nowrap。
        中英混排（如「Mon - Fri 週一至週五」）沒標 lang → 原吃英文 s 行距 1.3 顯擠，改中文 s 行距 1.4（user 2026-10-03） */
     .footer-random .footer-note-body {
       white-space: pre;
