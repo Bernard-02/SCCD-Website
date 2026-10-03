@@ -68,11 +68,8 @@
       height: 100%;
     }
 
+    /* 展開卡整張 default（body 繼承）；inactive 卡露出的圖／文字區照 item pointer（可點切換，user 2026-10-03） */
     .accordion-item.active {
-      cursor: var(--cursor-default);
-    }
-
-    .accordion-body-inner {
       cursor: var(--cursor-default);
     }
   }

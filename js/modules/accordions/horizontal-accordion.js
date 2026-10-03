@@ -61,11 +61,12 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
   if (!items.length) return;
 
   // 每個 item 隨機旋轉 ±2°（排除接近 0°）
-  const rotations = items.map(() => {
+  const randomRot = () => {
     let r = 0;
     while (Math.abs(r) < 0.5) r = (Math.random() * 4 - 2);
     return parseFloat(r.toFixed(2));
-  });
+  };
+  const rotations = items.map(randomRot);
 
   // wrapper：相對定位容器（高度改由 accordion.css `.colored-accordion` min() 控制＝矮螢幕自動封頂、
   // resize 免重算；items height:100% 依 CSS 定高撐開）
@@ -111,8 +112,9 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
       item.style.display = 'flex';
       item.style.flexDirection = 'row';
       item.style.alignItems = 'stretch';
-      // top right：展開時向左延伸，右上角保持固定
-      item.style.transformOrigin = 'top right';
+      // 繞 item 中心（全站旋轉一律中心，user 2026-10-03 撤 top right）：收合時 item＝標題 box → 標題中心；
+      // 展開時 item＝整張卡 → 卡中心。展收中 width tween 時錨點跟著移屬預期
+      item.style.transformOrigin = 'center';
       item.style.transform = `rotate(${rot}deg)`;
       item.style.zIndex = i + 1;
       item.style.overflow = 'hidden';
@@ -240,6 +242,12 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
       label.style.background = 'var(--theme-fg)';
       if (textWrap) textWrap.style.background = 'var(--theme-fg)';
       if (imgWrap) imgWrap.style.background = 'var(--theme-fg)';
+      // hover 抽新角、離開保持（全站 hover 旋轉定案；user 2026-10-03 resources 補上）；寫回 rotations＝applyLayout／點開沿用。
+      // 走 GSAP rotation（不直接寫 style.transform）：GSAP 快取同步，離頁飛回退場才不跳回舊角
+      let r;
+      do r = randomRot(); while (Math.abs(r - rotations[i]) < 1);
+      rotations[i] = r;
+      gsap.to(item, { rotation: r, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
     });
     item.addEventListener('mouseleave', () => {
       if (i === openIndex) return;
