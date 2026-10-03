@@ -312,12 +312,11 @@ body.mode-inverse .courses-grid-card:not([style*="background"]) {
 body.mode-inverse .courses-grid-card[style*="background"] {
   color: black !important;
 }
-/* Sitemap 卡編號 box（user 2026-09-12 五修定案）：mode1 的鏡像——深灰卡上「淺灰 box＋黑數字」
- * （mode1＝淺灰卡上深灰 box 白數字）。 */
-body.mode-inverse .legal-map-num {
-  background: var(--light-gray);
-  color: #000;
-}
+/* Sitemap 卡（news banner 同款，user 2026-10-03）：同首頁 news inverse——標題區白底黑字、編號 box 維持 rgb；
+ * hover 對調＝標題區吃 rgb、box 變白底黑字 */
+body.mode-inverse .legal-map-card { --map-body-bg: #fff; color: #000; }   /* 兩區底色走 --map-*-bg var（legal.css） */
+body.mode-inverse .legal-map-card.is-swap { --map-num-bg: #fff; --map-body-bg: var(--map-accent); }
+body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: #000; }
 
 /* ===== About Anchor Nav ===== */
 /* inactive 黑底 100% 白字（user 2026-09-28；hover 色見 navigation.css「nav btn hover」段）；#anchor-nav / #sticky-events-nav 同套 */
@@ -399,6 +398,11 @@ body.mode-inverse .homepage-marquee-link {
 
 body.mode-inverse .homepage-marquee-text,
 body.mode-inverse .homepage-marquee-clone {
+  color: black !important;
+}
+/* hover 對調（bar 吃 rgb 走 lists.css 通用規則）：方塊變 bar 色＝白底黑字 */
+body.mode-inverse .hm-banner-row.is-swap .hm-banner-num {
+  background: white !important;
   color: black !important;
 }
 

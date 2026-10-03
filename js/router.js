@@ -43,8 +43,9 @@ const routes = {
   '/regulations.html':        { page: 'regulations',             htmlFile: 'pages/regulations.html' },
   '/policy-and-statements':      { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
   '/policy-and-statements.html': { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
-  '/accessibility':           { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
-  '/accessibility.html':      { page: 'accessibility',           htmlFile: 'pages/accessibility.html' },
+  // 舊 slug /accessibility（10-03 改名）不留 alias：冷載入走 tryShortLink → 後台 redirects 設一筆即可
+  '/sitemap':                 { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
+  '/sitemap.html':            { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
   '/404':                     { page: '404',                     htmlFile: 'pages/404.html' },
   '/404.html':                { page: '404',                     htmlFile: 'pages/404.html' },
 };

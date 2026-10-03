@@ -6,12 +6,12 @@
   <link rel="icon" type="image/webp" href="../images/favicon.webp">
   <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
   <meta name="description" content="SCCD 網站導覽與無障礙聲明。Site map and accessibility statement.">
-  <link rel="canonical" href="https://sccd.usc.edu.tw/accessibility">
+  <link rel="canonical" href="https://sccd.usc.edu.tw/sitemap">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="SCCD 實踐大學媒體傳達設計學系">
   <meta property="og:title" content="Site Map - SCCD">
   <meta property="og:description" content="SCCD 網站導覽與無障礙聲明。Site map and accessibility statement.">
-  <meta property="og:url" content="https://sccd.usc.edu.tw/accessibility">
+  <meta property="og:url" content="https://sccd.usc.edu.tw/sitemap">
   <meta property="og:image" content="https://sccd.usc.edu.tw/images/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <title>Site Map - SCCD</title>
@@ -31,10 +31,10 @@
 
     <section class="snap-zone legal-page-section legal-sitemap legal-regulations">
       <div class="site-container">
-        <div class="grid-12">
+        <div class="grid-12 min-[1024px]:grid-cols-20">
 
           <!-- 左欄：sticky title chip（左下角，比照 regulations / support / policy-and-statements） -->
-          <div class="legal-title-col col-span-12 md:col-span-5">
+          <div class="legal-title-col col-span-12 md:col-span-5 min-[1024px]:col-span-3">
             <div class="legal-title-block">
               <h1 class="hero-title text-2xl text-black inline-block" data-hero-hl>
                 SITE MAP
@@ -47,7 +47,7 @@
 
           <!-- 右欄：內容（async 由 legal-data-loader 的 loadSitemap 填入 #legal-content）：
                無障礙聲明（zebra 一列）+ 網站地圖（每個主頁一列、卡片列分頁 deep-link）。更新日期在聲明列副標。 -->
-          <div class="legal-content-col col-span-12 md:col-span-7">
+          <div class="legal-content-col col-span-12 md:col-span-7 min-[1024px]:col-start-4 min-[1024px]:col-span-15">
             <div id="legal-content"></div>
           </div>
 
@@ -62,6 +62,7 @@
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>

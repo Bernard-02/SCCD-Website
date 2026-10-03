@@ -57,7 +57,9 @@ export function initLegalTitleRandom() {
   // ⚠️ 量測必須（a）等 fonts.ready——fallback 字型寬不準；（b）暫時解除 .hero-title 的 max-width:100%
   //    clamp——否則長字 chip 被夾到欄寬換行、offsetWidth 讀到欄寬而非真實字寬（實測 697 被讀成 365）。
   // ponytail: 極窄桌面(768~820)長字頁頂到「文字最少 240px」下限，接受殘餘重疊——再窄該縮的是 chip 字級。
-  const content = document.querySelector('.legal-content-col');
+  // 桌面 chip 視覺隱藏（legal.css）→ 不避位，否則 inline padding 把 col-4 起點推掉
+  const content = window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches
+    ? null : document.querySelector('.legal-content-col');
   if (content) {
     const fullWidth = (el) => {
       if (!el) return 0;

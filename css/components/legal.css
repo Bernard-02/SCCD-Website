@@ -94,6 +94,32 @@
   .legal-combined .legal-content-col {
     padding-left: var(--spacing-4xl);
   }
+  /* 桌面標題 chip 已隱藏（見上方 .legal-title-block）→ 不需避位；內容欄＝col 4–18（HTML min-[1024px]:），
+     左緣直接貼 col-4，同 activities / admission 清單起訖（user 2026-10-02）。gate 同 chip 隱藏。 */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    .legal-page-section .legal-content-col {
+      padding-left: 0;
+    }
+    /* sitemap 卡片貼 col-4 且帶旋轉 → 角落凸出內捲框（overflow:auto）左緣被裁（user 2026-10-03）：
+       框兩側各外推 24、內補 24 當旋轉 clearance＝卡片可見左緣仍在 col-4（同 faculty 框外推，lists.css:188） */
+    .legal-sitemap .legal-content-col {
+      margin-left: calc(-1 * var(--spacing-md));
+      width: calc(100% + 2 * var(--spacing-md));
+      padding-inline: var(--spacing-md);
+    }
+    /* 說明文字 sticky 貼內捲框頂（user 2026-10-03），卡片從底下捲過：下方留白改 padding＝底色連空白一起蓋、
+       卡片在固定邊界消失；左右吃掉框的 24 旋轉 clearance＝旋轉角捲過時兩側也蓋住。z-index 壓過帶 transform 的卡片 */
+    /* 不透明底只到 xl−md、再留 md 透明 margin：第一列卡片旋轉（含 hover 抽角）上角伸進這段不被蓋（user 2026-10-03
+       「第一個 item 旋轉後被頂部切到」）；文字到卡片總距仍＝xl，捲動消失邊界上移 md 照樣固定 */
+    .legal-sitemap .legal-map-desc {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--theme-bg);
+      margin: 0 calc(-1 * var(--spacing-md)) var(--spacing-md);
+      padding: 0 var(--spacing-md) calc(var(--spacing-xl) - var(--spacing-md));
+    }
+  }
 
   /* chip 共用：defensive 預設綠底，等 hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent
      （避免 JS 延遲時 mode-inverse 下黑字 on 黑 body 看起來空白）
@@ -618,8 +644,7 @@
     padding: var(--spacing-sm) 8px;
     margin: 0 -8px;
     background: var(--item-color-deep, transparent);
-    color: black;
-    transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
+    color: black;   /* hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
   }
   /* 第二欄 box 右緣延伸吃掉整個 column-gap 與第三欄 box 相接＝一條連續色帶（user 2026-09-09e「整條過去」）：
      name 右伸 gap−8（unit 左已伸 8）→ 24px gap 剛好補滿；負 margin 同值抵銷、track 佈局不變。 */
@@ -703,59 +728,105 @@
   }
   .legal-map-desc p:not(:last-child) { margin-bottom: var(--space-en-zh-body); }
   .legal-map-desc p[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
-  /* 卡片 2 欄 grid（user 2026-09-09f：同主頁自成一組 .legal-map-pgroup＝主卡+分頁卡直排，組間才有大距）；
-     卡片本體沿用 .courses-grid-card（courses.css 樣式＋三 mode 規則現成），此處只補 a 化細節 */
+  /* 同主頁自成一組 .legal-map-pgroup＝主卡＋.legal-map-subs（分頁卡），組間才有大距。
+     手機窄：單欄、組內直排（雙欄 ~160px 會把卡片標題擠爆） */
   .legal-map-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-lg) var(--spacing-md);
     align-items: start;
   }
-  .legal-map-pgroup {
+  .legal-map-pgroup,
+  .legal-map-subs {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
     align-items: flex-start;
     min-width: 0;
   }
-  @media (max-width: 767px) {
-    /* 手機窄：單欄（雙欄 ~160px 會把 nowrap 卡片標題裁掉） */
-    .legal-map-grid { grid-template-columns: minmax(0, 1fr); }
+  .legal-map-subs { align-self: stretch; }   /* 寬＝組寬 → 卡片 max-width:100% 有明確基準 */
+  @media (min-width: 768px) {
+    /* user 2026-10-03：全體 4 等寬欄——col1＝主卡、後 3 欄＝其分頁卡；一組一列由上而下。
+       pgroup display:contents → 主卡／subs 直接當 grid item，主卡鎖 col1＝沒分頁的組自動換列 */
+    /* 組間（頁面之間）距 2xl＝原 lg 的兩倍（user 2026-10-03）；column-gap 須＝.legal-map-subs 的＝欄線才對齊 */
+    .legal-map-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: var(--spacing-2xl); }
+    .legal-map-pgroup { display: contents; }
+    .legal-map-pgroup > .legal-map-card { grid-column: 1; }
+    /* 分頁區 3 欄（column-gap 同外層 → 欄線跟外層 4 欄對齊）：每張卡佔幾欄由 JS layoutMapCards 依貼字寬回寫 span，裝不下自動換列 */
+    .legal-map-subs {
+      grid-column: 2 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--spacing-sm) var(--spacing-md);
+      align-items: start;
+      justify-items: start;
+    }
   }
-  /* max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬（超出就重折行） */
-  .legal-map-card { text-decoration: none; max-width: 100%; }
-  /* 卡內兩欄（user 2026-09-10）：左＝編號、右＝英中標題直排。base .courses-grid-card 是 column → 翻成 row */
+  /* 卡片＝首頁 news banner 同款（user 2026-10-03）：標題區黑底白字、編號 box 吃 --map-accent（JS 依頁面分組
+     粉/綠/藍輪）黑字；hover（JS .is-swap）兩區配色對調。不再借 .courses-grid-card（它三 mode 都有強制灰底
+     !important 規則），base 排版照搬：6/8/5 padding＝全站 nav btn、text-s、transform 過渡給 hover 抽角
+     （底/字色不過渡＝hover 變色瞬間）。mode2/mode3 見 inverse.css / color.css。
+     卡內兩欄（user 2026-09-10）：左＝編號、右＝英中標題直排。
+     max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬（超出就重折行） */
   .legal-map-card {
+    display: inline-flex;
     flex-direction: row;
     align-items: flex-start;
     column-gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 6px 8px 5px;
+    /* 兩區各自純色塊、卡片本身無底（user 2026-10-03）：
+       ①舊＝卡片黑底上疊 accent 編號框 → 旋轉後編號框外緣跟底下黑底一起反鋸齒＝漏 1px 黑邊
+       ②一層 gradient 畫兩區 → 交界是 gradient 硬切換點、旋轉時無反鋸齒＝明顯鋸齒（user「鋸齒也太明顯」）
+       現行：黑區＝::before 從編號欄右緣 −1px 起（z-index:-1 墊在編號框下、只重疊 1px）→ 編號框外緣下面沒有黑、
+       交界由編號框的反鋸齒邊蓋在黑上（不鋸齒、不漏背景）。--map-num-w＝編號欄寬（JS equalizeMapNumWidth 寫在容器上）；
+       各 mode／hover 只換這兩個 var（inverse.css / color.css） */
+    --map-num-bg: var(--map-accent);
+    --map-body-bg: #000;
+    position: relative;
+    color: #fff;
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+    text-decoration: none;
+    cursor: var(--cursor-pointer);
+    user-select: none;
+    transition: transform var(--dur-micro) ease, opacity var(--dur-fast) ease;
+    box-sizing: border-box;
   }
-  /* 編號（1 / 1-1 / 1-1-1…，user 2026-09-12 去掉尾點）：白字坐在**深灰小 box**（「烟頭」）上——box 深灰、
-     數字維持白（user 2026-09-12：不是數字變深灰、是 box 變深灰）。width 由 JS equalizeMapNumWidth 量最寬者回寫
-     （box-sizing:border-box → 等寬含 padding、標題左緣對齊）；text-align:center 讓短號在 box 內置中。
+  .legal-map-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 calc(var(--map-num-w, 0px) - 1px);
+    z-index: -1;                 /* 卡片帶 transform＝自成 stacking context，-1 仍在卡內、墊在編號框底下 */
+    background: var(--map-body-bg);
+  }
+  .legal-map-card.is-swap { --map-num-bg: #000; --map-body-bg: var(--map-accent); color: #000; }
+  /* 編號（1 / 1-1 / 1-1-1…，user 2026-09-12 去掉尾點）。width 由 JS equalizeMapNumWidth 量最寬者回寫
+     （box-sizing:border-box → 等寬含 padding、標題左緣對齊）。
      烟頭幾何（user 2026-09-12 三修）：box 貼齊卡片左緣並「直接到底」＝stretch 撐滿卡高（負 margin 吃掉
-     卡 6/8/5 padding）、自帶卡片同款 padding 6/8/5 → 數字行與右側 EN 標題行同高對齊；數字一律靠左。
-     灰階（user 2026-09-12 五修定案，語彙 token 化）：mode1＝淺灰卡＋深灰 box 白字；mode2 鏡像＝
-     深灰卡＋淺灰 box 黑字（見 inverse.css）；mode3 不分灰、box 同卡片半透明白（見 color.css）。 */
+     卡 6/8/5 padding）、自帶卡片同款 padding 6/8/5 → 數字行與右側 EN 標題行同高對齊；數字一律靠左。 */
   .legal-map-num {
     flex-shrink: 0;
     box-sizing: border-box;
     align-self: stretch;
     font-weight: var(--font-weight-bold);
-    font-variant-numeric: tabular-nums;
-    background: var(--dark-gray);
-    color: #fff;
+    /* 不用 tabular-nums：Inter 的等寬「1」帶底座、跟一般 Inter 字形不同（user 2026-10-02）；
+       格寬已由 equalizeMapNumWidth 統一，標題左緣照樣對齊 */
+    background: var(--map-num-bg);
+    color: #000;
     padding: 6px 8px 5px;
     margin: -6px 0 -5px -8px;
     text-align: left;
   }
+  .legal-map-card.is-swap .legal-map-num { color: #fff; }
   .legal-map-txt {
     display: flex;
     flex-direction: column;
     gap: var(--space-en-zh-s);   /* 英中距＝courses 卡原本的行距 token */
     min-width: 0;
   }
-  /* 沿用的 courses 卡標題是 nowrap＋hover marquee；sitemap 無 marquee → 長標題（如 4-1 BFA 組名）改直接折行不裁字 */
+  /* 標題 span 沿用 courses 卡的 -en/-zh class（字重/display），那邊 nowrap＋hover marquee；sitemap 無 marquee → 長標題（如 4-1 BFA 組名）改直接折行不裁字 */
   .legal-map-card .courses-grid-card-en,
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
 

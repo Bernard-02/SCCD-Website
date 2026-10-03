@@ -496,16 +496,12 @@ body.mode-color .courses-grid-card[style*="background"] {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Sitemap 卡編號 box（user 2026-09-12「mode3 不要分灰色，直接都是半透明白」）：
- * box 同卡片 rest 的半透明白（疊在卡上自然亮一階＝mode3 zebra 慣例），數字跟卡片字色走 theme-fg；
- * hover 卡翻黑（theme-fg）時數字翻白（theme-fg-inverse）維持可讀。 */
-body.mode-color .legal-map-num {
-  background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
-  color: var(--theme-fg);
-}
-body.mode-color .legal-map-card[style*="background"] .legal-map-num {
-  color: var(--theme-fg-inverse);
-}
+/* Sitemap 卡（news banner 同款，user 2026-10-03）：同首頁 news mode3 strict 黑白——標題區 theme-fg 底、
+ * 編號 box 反色（不用 rgb）；hover 兩區黑白對調 */
+body.mode-color .legal-map-card { --map-num-bg: var(--theme-fg-inverse); --map-body-bg: var(--theme-fg); color: var(--theme-fg-inverse); }   /* 兩區底色走 --map-*-bg var（legal.css） */
+body.mode-color .legal-map-num { color: var(--theme-fg); }
+body.mode-color .legal-map-card.is-swap { --map-num-bg: var(--theme-fg); --map-body-bg: var(--theme-fg-inverse); color: var(--theme-fg); }
+body.mode-color .legal-map-card.is-swap .legal-map-num { color: var(--theme-fg-inverse); }
 
 /* Alumni sponsor 卡片 — 對齊 courses-grid-card mode-color pattern：
  * default 灰底 + fg 字；hover/active（JS 設 inline bg=accent）走 strict B/W */
@@ -1062,6 +1058,17 @@ body.mode-color .homepage-marquee-clone {
 /* News marquee 數字方塊（JS 設 inline accent bg）→ mode-color 切 strict 反色（bar 是 --theme-fg，square 用反色） */
 body.mode-color .hm-banner-num[style*="background"] {
   background: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
+}
+/* hover 對調：mode3 hover 不用 rgb → 方塊與 bar 的黑白互換 */
+body.mode-color .hm-banner-row.is-swap .hm-banner-num {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+body.mode-color .hm-banner-row.is-swap .homepage-marquee-link {
+  background: var(--theme-fg-inverse) !important;
+}
+body.mode-color .hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) {
   color: var(--theme-fg) !important;
 }
 

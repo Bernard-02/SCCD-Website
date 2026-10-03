@@ -84,7 +84,7 @@ function zebraRow(entry, idx) {
   const row = (inner) => `<div class="legal-reveal"><div class="list-reveal-row" style="transform: translateY(110%)">${inner}</div></div>`;
   const sub = zebraSub(entry);
   return `<div class="list-item${zebra}" style="clip-path: inset(100% 0% 0% 0%)">`
-    + `<div class="list-header cursor-pointer group transition-colors duration-fast flex items-stretch justify-between gap-sm px-sm py-sm">`
+    + `<div class="list-header cursor-pointer group flex items-stretch justify-between gap-sm px-sm py-sm">`
     +   `<div class="legal-zebra-titlecol">`
     +     row(
             `<h3 class="legal-zebra-title-en">${esc(entry.titleEn)}</h3>`
@@ -281,10 +281,9 @@ function regTableEntry(reg) {
   };
 }
 
-// ── 網站導覽卡片（user 2026-09-09d：捨 accordion outline、改 curriculum 卡片設計）──────
-// 沿用 .courses-grid-card class（courses.css 樣式 + inverse/color.css 三 mode 規則全現成）：
-//   2 欄 grid、每卡英中兩行、出生隨機小旋轉、hover 隨機 accent 底＋re-roll 角度（同 courses-map
-//   applyHoverColor/applyHoverRot）、點擊＝<a> 由 router 攔截 SPA 跳轉（分頁 deep-link fromUserNav 生效）。
+// ── 網站導覽卡片（user 2026-09-09d 捨 accordion outline；10-03 改首頁 news banner 款，見 mapCardHtml）──────
+//   每卡英中兩行、出生隨機小旋轉、hover 配色對調＋re-roll 角度、點擊＝<a> 由 router 攔截 SPA 跳轉
+//   （分頁 deep-link fromUserNav 生效）。
 function pickCardRot() {
   // ±2° 排除 ±0.5（同 courses-map pickRotation：小角度、卡片間不貼）
   let r = 0;
@@ -301,7 +300,9 @@ const MAP_HIDE_CLIP = {
 const labelSeg = (key, part, text) => key
   ? `<span data-label-key="${esc(key)}" data-label-part="${part}">${esc(text)}</span>`
   : esc(text);
-function mapCardHtml(item, num) {
+// 卡片＝首頁 news banner 同款（user 2026-10-03）：編號 box 吃 accent（--map-accent，同組同色）、標題區黑底白字；
+// hover 兩區配色對調（.is-swap），三 mode 規則見 legal.css / inverse.css / color.css
+function mapCardHtml(item, num, accent) {
   const rot = pickCardRot();
   const dir = pickNavDir();   // 無 el＝純 4 方向隨機（同 curriculum 卡片 pickCardDir：要多樣性）
   // 進場＝curriculum 卡同款（user 2026-09-10）：卡片「自身」clip-path＋translate 同步（navChipHidden，
@@ -309,14 +310,14 @@ function mapCardHtml(item, num) {
   //   translate 用獨立屬性、與 inline rotate 共存）。出生先烙單邊 100% clip 全藏，reveal 前才量尺寸補 translate。
   // 卡內兩欄：左＝編號（1. / 1-1. / 1-1-1.）｜右＝英中標題直排；全部靠左對齊（user 2026-09-10 撤深度縮排）。
   // 名稱吃 ui_labels（labelKey 對應 row.key；json 文字＝最終 fallback），loadSitemap 渲染後 applyUiLabels 填入。
-  // prefixKey（faculty 子項）＝前綴另一個 ui_labels key（如 faculty.dept.sccd「DCD」）：前綴與名稱各自
+  // prefixKey（curriculum BFA 子項）＝前綴另一個 ui_labels key（如 curriculum.group.bfa「BFA」；faculty 的 DCD 前綴 10-03 撤）：前綴與名稱各自
   // 獨立 key span，applyUiLabels 逐 span 換字＝後台改任一邊都跟上、不 hardcode 組合字串。
   const enInner = (item.prefixKey ? labelSeg(item.prefixKey, 'en', item.prefixEn || '') + ' ' : '')
     + labelSeg(item.labelKey, 'en', item.labelEn);
   const zhInner = (item.prefixKey ? labelSeg(item.prefixKey, 'zh', item.prefixZh || '') + ' ' : '')
     + labelSeg(item.labelKey, 'zh', item.labelZh);
-  return `<a class="courses-grid-card legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
-    + ` style="transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};">`
+  return `<a class="legal-map-card" href="${esc(item.url)}" data-base-rot="${rot}" data-reveal-dir="${dir}"`
+    + ` style="--map-accent: ${accent}; transform: rotate(${rot}deg); clip-path: ${MAP_HIDE_CLIP[dir]};">`
     +   `<span class="legal-map-num">${num}</span>`
     +   `<span class="legal-map-txt">`
     +     `<span class="courses-grid-card-en">${enInner}</span>`
@@ -324,19 +325,24 @@ function mapCardHtml(item, num) {
     +   `</span>`
     + `</a>`;
 }
-// 同一主頁自成一組（.legal-map-pgroup：主卡+其分頁卡直排一起，組間才有大距）；編號遞迴支援任意深度（1-1-1…）
+// 同一主頁自成一組（.legal-map-pgroup＝主卡＋.legal-map-subs 分頁卡；桌面主卡 col1、分頁卡 col2，見 legal.css）；
+// 編號遞迴支援任意深度（1-1-1…，全攤平進 subs）
 function mapGroupHtml(pg, n) {
-  let html = mapCardHtml(pg, String(n));
-  const walk = (subs, prefix) => {
+  // 以頁面分色：第 n 組依全站 rgb 順序（粉/綠/藍，同首頁 news）往下輪，分頁卡跟主卡同色
+  const accent = SCCDHelpers.ACCENT_COLORS[(n - 1) % SCCDHelpers.ACCENT_COLORS.length];
+  let subs = '';
+  const walk = (list, prefix) => {
     // hidden＝這版還沒上線的分頁（coming soon）先不列卡；恢復＝拿掉 json 的 hidden
-    (subs || []).filter(s => !s.hidden).forEach((s, i) => {
+    (list || []).filter(s => !s.hidden).forEach((s, i) => {
       const num = `${prefix}-${i + 1}`;
-      html += mapCardHtml(s, num);
+      subs += mapCardHtml(s, num, accent);
       walk(s.subs, num);
     });
   };
   walk(pg.subs, String(n));
-  return `<div class="legal-map-pgroup">${html}</div>`;
+  return `<div class="legal-map-pgroup">${mapCardHtml(pg, String(n), accent)}`
+    + (subs ? `<div class="legal-map-subs">${subs}</div>` : '')
+    + `</div>`;
 }
 // 卡片貼字寬（user 2026-09-11「卡片根據文字寬度調整」，同 about 說明卡 hug 精神）：
 // 長標題折行後 box 仍佔滿欄寬＝右側留一段空底（hover 色帶特別明顯）→ 量實際 line boxes 的最寬右緣、
@@ -363,16 +369,41 @@ function fitMapCardsToText(root) {
   });
 }
 
-// hover（user 2026-09-12）：卡片淺灰底換成 rgb 三原色（「改變它淺灰色的顏色」）＋角度重抽；
-//   數字 box 維持深灰白字不動。mode3 下 inline bg=accent 由 color.css .courses-grid-card[style*="background"] 翻 strict B/W。
+// 分頁卡等寬欄自動排（user 2026-10-03）：桌面 .legal-map-subs＝3 欄 grid（欄數以 CSS 為準），每張卡依貼字寬佔 N 欄
+// （N＝裝得下它的最少欄數，上限＝欄數）；本列剩下的欄裝不下＝grid 自動換下一列（sparse 不回填＝順序不亂）。
+// 先讓卡全寬（1 / -1）再量貼字寬＝量到不被單欄擠折的自然寬，才回寫 span。手機 subs 是 flex＝不分欄。
+function layoutMapCards(root) {
+  const subsList = /** @type {HTMLElement[]} */ (Array.from(root.querySelectorAll('.legal-map-subs')));
+  subsList.forEach(s => s.querySelectorAll('.legal-map-card').forEach(c => { /** @type {HTMLElement} */ (c).style.gridColumn = '1 / -1'; }));
+  fitMapCardsToText(root);
+  // 讀寫分離：subs 欄寬只看外層 col2、不受 span 影響 → 先全讀再全寫
+  const metrics = subsList.map(s => {
+    const cs = getComputedStyle(s);
+    if (cs.display !== 'grid') return null;
+    const cols = cs.gridTemplateColumns.split(' ').length;
+    const gap = parseFloat(cs.columnGap) || 0;
+    return { cols, gap, colW: (s.clientWidth - gap * (cols - 1)) / cols };
+  });
+  subsList.forEach((s, i) => {
+    const m = metrics[i];
+    if (!m) return;
+    s.querySelectorAll('.legal-map-card').forEach(c => {
+      const card = /** @type {HTMLElement} */ (c);
+      const w = parseFloat(card.style.width) || card.offsetWidth;
+      card.style.gridColumn = `span ${Math.min(m.cols, Math.ceil((w + m.gap) / (m.colW + m.gap)))}`;
+    });
+  });
+}
+
+// hover：編號 box 與標題區配色對調（.is-swap，同首頁 news，user 2026-10-03）＋角度重抽（user 2026-09-12）
 function bindMapCardHover(root) {
   root.querySelectorAll('.legal-map-card').forEach((card) => {
     card.addEventListener('mouseenter', () => {
-      card.style.background = SCCDHelpers.getRandomAccentColor();
+      card.classList.add('is-swap');
       card.style.transform = `rotate(${pickCardRot()}deg)`;
     });
     card.addEventListener('mouseleave', () => {
-      card.style.background = '';
+      card.classList.remove('is-swap');
       card.style.transform = `rotate(${card.dataset.baseRot || 0}deg)`;
     });
   });
@@ -387,7 +418,10 @@ function equalizeMapNumWidth(root) {
   nums.forEach(n => { n.style.width = ''; });   // 先清（重量）
   let max = 0;
   nums.forEach(n => { const w = n.getBoundingClientRect().width; if (w > max) max = w; });
-  if (max > 0) nums.forEach(n => { n.style.width = Math.ceil(max) + 'px'; });
+  if (max > 0) {
+    nums.forEach(n => { n.style.width = Math.ceil(max) + 'px'; });
+    root.style.setProperty('--map-num-w', Math.ceil(max) + 'px');   // 黑區 ::before 起點（legal.css .legal-map-card）
+  }
 }
 
 // policy_and_statements 內的「無障礙聲明」段判定（合併頁去掉它、導覽頁只留它）。
@@ -432,7 +466,7 @@ export async function loadSupport() {
   }
 }
 
-// Site Map（accessibility.html，user 2026-09-09d 改版）：無 accordion ——
+// Site Map（sitemap.html，user 2026-09-09d 改版；10-03 slug accessibility→sitemap）：無 accordion ——
 //   ①無障礙聲明＝普通粗體文字（只留說明段 overview，英中兩段）②地圖＝curriculum 卡片 2 欄
 //   （全部主頁與分頁攤平，點擊 SPA 跳轉）。地圖資料＝本地 data/accessibility.json。
 export async function loadSitemap() {
@@ -462,9 +496,14 @@ export async function loadSitemap() {
     html += `<div class="legal-map-grid">${groups}</div>`;
     contentEl.innerHTML = html;
     applyUiLabels(labels, contentEl);   // 換上後台名稱（在 reveal 前＝不會揭到一半換字）
-    equalizeMapNumWidth(contentEl);     // 編號欄等寬（以最寬者為主）→ 標題左緣對齊；須在 fitMapCardsToText 前
-    fitMapCardsToText(contentEl);       // 換完字才量＝量到最終文字
-    document.fonts?.ready?.then(() => { equalizeMapNumWidth(contentEl); fitMapCardsToText(contentEl); });   // 冷載入字體晚到字寬會變 → 補量一次（函式自清 width 重量）
+    equalizeMapNumWidth(contentEl);     // 編號欄等寬（以最寬者為主）→ 標題左緣對齊；須在貼字寬前
+    layoutMapCards(contentEl);          // 貼字寬＋分頁卡佔欄；換完字才量＝量到最終文字
+    document.fonts?.ready?.then(() => { equalizeMapNumWidth(contentEl); layoutMapCards(contentEl); });   // 冷載入字體晚到字寬會變 → 補量一次（函式自清 width 重量）
+    // 欄寬隨視窗變 → 佔欄數重算（rAF 合批）
+    let layoutRaf = 0;
+    const onResize = () => { cancelAnimationFrame(layoutRaf); layoutRaf = requestAnimationFrame(() => layoutMapCards(contentEl)); };
+    window.addEventListener('resize', onResize);
+    registerPageCleanup(() => { window.removeEventListener('resize', onResize); cancelAnimationFrame(layoutRaf); });
     bindMapCardHover(contentEl);
     // 進退場＝curriculum 卡片同款「自身 clip-path＋translate 同步」（user 2026-09-10：四方向隨機；
     //   遮罩在卡片自己的 local box 上跟著旋轉走＝角不被裁、無外層遮罩＝不再「被切到再還原」；
@@ -476,7 +515,7 @@ export async function loadSitemap() {
       gsap.to(targets, {
         ...NAV_CHIP_SHOWN,
         duration: DUR.base,
-        ease: 'cubic-bezier(0.25, 0, 0, 1)',   // 同 curriculum 灰卡
+        ease: EASE.wipe,   // 同 curriculum 灰卡
         stagger: { amount: 0.25 },
         overwrite: true,
         clearProps: 'clipPath,translate',

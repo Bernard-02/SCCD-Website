@@ -27,36 +27,24 @@
           "labelEn": "Full-time Professors",
           "labelZh": "專任教師",
           "labelKey": "faculty.fulltime",
-          "url": "faculty.html?section=fulltime",
-          "prefixKey": "faculty.dept.sccd",
-          "prefixEn": "DCD",
-          "prefixZh": "媒體傳達設計學系"
+          "url": "faculty.html?section=fulltime"
         },
         {
           "labelEn": "Part-time Professors",
           "labelZh": "兼任教師",
           "labelKey": "faculty.parttime",
-          "url": "faculty.html?section=parttime",
-          "prefixKey": "faculty.dept.sccd",
-          "prefixEn": "DCD",
-          "prefixZh": "媒體傳達設計學系"
+          "url": "faculty.html?section=parttime"
         },
         {
           "labelEn": "Administrators",
           "labelZh": "行政管理",
           "labelKey": "faculty.admin",
-          "url": "faculty.html?section=admin",
-          "prefixKey": "faculty.dept.sccd",
-          "prefixEn": "DCD",
-          "prefixZh": "媒體傳達設計學系"
+          "url": "faculty.html?section=admin"
         },
         {
           "labelEn": "Founder",
           "labelZh": "創辦人",
           "labelKey": "faculty.founder",
-          "prefixKey": "faculty.dept.sccd",
-          "prefixEn": "DCD",
-          "prefixZh": "媒體傳達設計學系",
           "url": "faculty.html?section=founder"
         }
       ]

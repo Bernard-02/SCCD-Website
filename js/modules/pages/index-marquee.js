@@ -35,14 +35,8 @@ const WIDTH_MOBILE_MAX = 480;
 const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WIDTH_MOBILE_MAX);
 const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
 const BAR_PADDING_X = 12;     // bar 左右內縮：library 色塊 axisPad(24) 的一半，文字不貼邊
-function isMobile() {
-  // 矮橫向也走手機參數（slot 座標 / banner 寬；user 2026-07-04「首頁比照手機版」，gate 同 landscape.css）
-  if (window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return true;
-  return window.SCCDHelpers ? window.SCCDHelpers.isMobile() : window.innerWidth < 768;
-}
 // 數字方塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
 // cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
-const RGB_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 // hover WATCH 卡時整條 news 被遮蔽：數字方塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
 // clip-path wipe（跟浮卡 newsOverlay 同款 0.5s cubic-bezier）。四個藏起方向（上/下/右/左）；進場一律 wipe 到滿版，
 // 退場改抽一個新隨機方向 wipe 出去 → 下次進場自然從那個新方向進來，四方向輪替（user 2026-09-04）。
@@ -67,7 +61,7 @@ const SLOT_X_MOBILE = MOBILE_PADDING_X;
 const SLOT_GAP = 20;          // 10 → 20（user 2026-09-28「gap 再大一點」）；順帶給 ±1° rotation 右緣 ~8px 位移更多餘裕
 let measuredBarH = BAR_HEIGHT;
 function slotConfigs() {
-  const x = isMobile() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
+  const x = SCCDHelpers.isMobileLayout() ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
   const step = measuredBarH + SLOT_GAP;
   return [
     { x, y: -70 - step * 2 },
@@ -130,9 +124,9 @@ export function initMarquee() {
       await preloadOrientations(items);
       let disposeStack = runMarqueeStack(stack, items);
       // 轉向（跨矮橫向 gate）重建 banner stack（user 2026-07-04「轉向重 run」）：
-      // banner 寬 / slot 座標是 create 時以當時 viewport 算的（isMobile()/WIDTH_MOBILE()），
+      // banner 寬 / slot 座標是 create 時以當時 viewport 算的（SCCDHelpers.isMobileLayout()/WIDTH_MOBILE()），
       // 轉向後不重建會殘留舊寬度與座標 → dispose（清 timer + 殺 tween + 拔 DOM）再以新參數重跑
-      const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
+      const rotateGateMq = window.matchMedia(SCCDHelpers.LANDSCAPE_GATE);
       const onRotateGate = () => requestAnimationFrame(() => {
         if (!stack.isConnected) return;
         disposeStack?.();
@@ -165,7 +159,7 @@ async function preloadOrientations(items) {
 
 function createBanner(item, squareColor) {
   // 手機統一寬度（max-width 視 viewport），桌面依 poster orientation
-  const barWidth = isMobile()
+  const barWidth = SCCDHelpers.isMobileLayout()
     ? WIDTH_MOBILE() - BAR_HEIGHT
     : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
   const totalWidth = BAR_HEIGHT + barWidth;
@@ -201,6 +195,7 @@ function createBanner(item, squareColor) {
     align-items: stretch;
     will-change: transform;
   `;
+  row.style.setProperty('--hm-accent', squareColor);   // hover 對調（.is-swap）時 bar 吃這個色，見 lists.css
 
   // 數字方塊（隨機 accent bg，後臺順序）；中英兩行後 bar 變高、方塊隨 row stretch 撐滿，
   // 數字靠頂（user 2026-09-15）：padding-top 對齊 link 的 0.35rem 上內距
@@ -237,7 +232,6 @@ function createBanner(item, squareColor) {
     background: #000;
     padding: 0.35rem ${BAR_PADDING_X}px;
     text-decoration: none;
-    cursor: ${hasLink ? 'pointer' : 'default'};
   `;
 
   // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
@@ -248,6 +242,7 @@ function createBanner(item, squareColor) {
   if (!lineTexts.length && item.text) lineTexts.push(item.text);
   const lines = lineTexts.map((txt, i) => {
     const viewport = document.createElement('div');
+    viewport.className = 'hm-banner-viewport';   // mode 切換時這個裁切窗（字一直在捲）只顯示即時畫面（theme-toggle.js MODE_VT_LIVE_LAYERS）
     // 英中距＝lg 字級全域 token（text-lg → --space-en-zh-lg，同 faculty/alumni 卡人名慣例）
     viewport.style.cssText = `overflow: hidden;${i > 0 ? ' margin-top: var(--space-en-zh-lg);' : ''}`;
     const inner = document.createElement('div');
@@ -274,7 +269,7 @@ function createBanner(item, squareColor) {
   row.style.position = 'relative';
   const rowMask = document.createElement('div');
   rowMask.className = 'hm-banner-row-mask';
-  rowMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path 0.5s cubic-bezier(0.25,0,0,1);`;
+  rowMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path var(--dur-medium) var(--ease-wipe);`;
 
   let curHidden = randMaskHidden();
   rowMask.style.clipPath = curHidden;
@@ -307,7 +302,7 @@ function createBanner(item, squareColor) {
       overflow: hidden;
       max-height: 0;
       pointer-events: auto;
-      cursor: ${hasLink ? 'pointer' : 'default'};
+      cursor: ${hasLink ? 'var(--cursor-pointer)' : 'var(--cursor-default)'};
     `;
     const img = document.createElement('img');
     img.src = item.poster;
@@ -407,7 +402,7 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     onLeave();
   };
 
-  if (isMobile()) {
+  if (SCCDHelpers.isMobileLayout()) {
     // 手機：點 title (link / square / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
     // link <a> 預設 click 會跳轉，preventDefault 改成 toggle
     const toggleHandler = (e) => {
@@ -429,14 +424,19 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     // 桌面：hover 開展 + 抽新角（全站卡片 hover 語彙），離開收合、角度保持（user 2026-09-28）。
     // 角度仍走本檔小範圍 randomRotation（不用 arrow-spin 的 −4~+6：離開保持後大角會永久疊到上下 banner）；
     // 翻到相反符號＝小範圍內最明顯的變化。寫回 b.rotation 讓之後 cycle 平移沿用新角、不彈回舊角。
+    // 同時數字方塊與 bar 配色對調（user 2026-10-03：bar 吃方塊的 rgb、方塊變 bar 色），瞬間切換
     b.el.addEventListener('mouseenter', () => {
       openPoster();
+      b.row.classList.add('is-swap');
       let deg = randomRotation();
       if (Math.sign(deg) === Math.sign(b.rotation)) deg = -deg;
       b.rotation = deg;
       gsap.to(b.el, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
     });
-    b.el.addEventListener('mouseleave', closePoster);
+    b.el.addEventListener('mouseleave', () => {
+      b.row.classList.remove('is-swap');
+      closePoster();
+    });
   }
 }
 
@@ -541,7 +541,7 @@ function runMarqueeStack(stack, items) {
   // 初始排列：靠底（slotOffset 已在上方算好）→ 單則落最底 slot，不懸在 slot 0 留空白
   for (let i = 0; i < visibleCount; i++) {
     // 顏色仍依 item 順序 R/G/B（不足 3 個用前 N 個顏色）
-    const b = createBanner(items[i], RGB_COLORS[i % RGB_COLORS.length]);
+    const b = createBanner(items[i], SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length]);
     stack.appendChild(b.el);
     // 首個 banner 進 DOM 後量 bar 實高（中英兩行 > 舊常數 40）→ slotConfigs 以實高排 slot 間距
     if (i === 0) measuredBarH = b.el.offsetHeight || BAR_HEIGHT;

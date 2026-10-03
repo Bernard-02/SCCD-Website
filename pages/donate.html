@@ -32,10 +32,10 @@
 
     <section class="snap-zone legal-page-section legal-support">
       <div class="site-container">
-        <div class="grid-12">
+        <div class="grid-12 min-[1024px]:grid-cols-20">
 
           <!-- 左欄：sticky title chip（左下角，比照 regulations / policy-and-statements） -->
-          <div class="legal-title-col col-span-12 md:col-span-5">
+          <div class="legal-title-col col-span-12 md:col-span-5 min-[1024px]:col-span-3">
             <div class="legal-title-block">
               <h1 class="hero-title text-2xl text-black inline-block" data-hero-hl>DONATE</h1>
               <h1 class="hero-title-cn text-2xl text-black inline-block" data-hero-hl>捐贈</h1>
@@ -45,7 +45,7 @@
           <!-- 右欄：內文（async 由 legal-data-loader 填入 #legal-content；資料見 data/support.json）
                support 無「最後更新」故不放 #legal-updated 區塊
                inner-scroll-scroll-col：同 regulations.html——box 捲動路徑、開 item 不關 window 磁吸 -->
-          <div class="legal-content-col inner-scroll-scroll-col col-span-12 md:col-span-7">
+          <div class="legal-content-col inner-scroll-scroll-col col-span-12 md:col-span-7 min-[1024px]:col-start-4 min-[1024px]:col-span-15">
             <!-- 手機 header blocker（同 activities/admission）：透明 fixed site-header 下、sticky zebra title 上方
                  透明帶會露出捲上來的展開內容 → sticky theme-bg 帶補實。放 col 內（非 section 第一子）：
                  legal section 無 padding-top，margin-top:-8rem 會 parent-child margin collapse 整段上移；
@@ -65,6 +65,7 @@
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
