@@ -453,12 +453,11 @@ export async function initProgramStructure() {
   const tier1 = [...root.querySelectorAll('.prog-children--root > .prog-node > .prog-row > .prog-box.prog-tilt')]; // BFA / MDES
   const tier2 = [...root.querySelectorAll('.prog-children--root .prog-children .prog-box.prog-tilt')];             // 動畫 / 創媒
 
-  // ── 手機：chip 收到「實際文字最長行」寬（user 09-10 三輪「卡片寬度以文字寬度為主」）——
-  //    inline-flex 盒折行後會撐到 max-width 不 hug（房規，同桌面逐 chip px 調法），手機文字後台可編、
-  //    改用 Range 量 wrapped lines 取最長行寫回 width（同 hero tightenParagraphWidths）。旋轉 ±3° 的
-  //    client rect 誤差 ~1px 可忽略。桌面不動（有各自 px max-width tuning）。──
+  // ── chip 收到「實際文字最長行」寬（user 09-10 三輪「卡片寬度以文字寬度為主」；10-03 桌面也套）——
+  //    inline-flex 盒折行後會撐到 max-width 不 hug；文字後台可編，桌面逐 chip px max-width 只管折行位置、
+  //    改字就留右側空白 → 用 Range 量 wrapped lines 取最長行寫回 width（同 hero tightenParagraphWidths）。
+  //    旋轉 -4~+6° 的 client rect 誤差 ~1px 可忽略。──
   function hugChipWidths() {
-    if (window.innerWidth >= 768) return;
     const range = document.createRange();
     root.querySelectorAll('.prog-box').forEach((box) => {
       box.style.width = '';   // 先清上一輪，量測回 max-width 自然 wrap（idempotent）
@@ -492,10 +491,15 @@ export async function initProgramStructure() {
   //    置中後整棵樹右移：取「左界(col-4/nav)閃避」與「大螢幕想右移」較大者；BPAIDC 永不出視窗。 ──
   const RIGHT_MARGIN = 64;   // BPAIDC 右緣至少離視窗右緣的留白
   const WANT_SHIFT = 200;    // 大螢幕(≥1600)想把整棵樹往右移的量（user：大螢幕才右移、窄螢幕維持不裁）
+  const LEGEND_PR = 24;      // BPAIDC 右緣離 Term 卡右緣（--spacing-md）
+  const legendStack = root.querySelector('.prog-legend-stack');
+  let linkBaseW = 0;         // 連結橫綫 CSS 原長（layoutLineLengths 縮綫的下限）
   function layoutFan() {
     if (!rootChildren) return;
     rootChildren.style.marginLeft = '';
     if (progTree) progTree.style.transform = '';
+    links.forEach((l) => { l.style.width = ''; });
+    linkBaseW = links[0] ? links[0].offsetWidth : 0;
     if (window.innerWidth < 768) return;   // 手機直向堆疊，不置中
     const dcd = tier0[0], bfa = tier1[0], mdes = tier1[1];
     if (!dcd || !bfa || !mdes) return;
@@ -520,6 +524,63 @@ export async function initProgramStructure() {
     const wantPush = window.innerWidth >= 1600 ? Math.min(WANT_SHIFT, contentRoom) : 0;
     const push = Math.max(navPush, wantPush);
     if (push > 0) progTree.style.transform = `translateX(${push.toFixed(2)}px)`;
+    // ③ 桌面：BPAIDC 往右頂到 Term 卡右緣 − md（user 2026-10-03）＝連結橫綫吃掉中間距離（長度由卡片位置算）；
+    //    右緣用「不含旋轉」量（中心＋半寬），同說明卡右緣的定位基準。窄螢幕頂列本就比範圍寬＝不受此界、
+    //    維持 CSS 長度往右超出（user 同日拍板；不裁仍由上方 viewRoom 保證）。
+    if (links[0] && legendStack && SCCDHelpers.isDesktopLayout()) {
+      const r = restRect(bpaidc);
+      const extra = legendStack.getBoundingClientRect().right - LEGEND_PR - (r.left + r.width / 2 + bpaidc.offsetWidth / 2);
+      if (extra > 0) links[0].style.width = `${(links[0].offsetWidth + extra).toFixed(2)}px`;
+    }
+  }
+
+  // ── 桌面：斜綫長度跟隨 SCCD↔AI 連結橫綫（user 2026-10-03）＝每層層距反推：可見長＝hypot(dx, dy) − 2×GAP，
+  //    dx 不受層距影響、dy 跟層距 1:1 → 從當下狀態量一次就能解（不必先歸零）。
+  //    上限＝生長範圍（樹高不超出框＝底到 Degree 卡底）：放不下就二分找最長可放的長度、橫綫一起縮＝全部等長
+  //    （此時 BPAIDC 會離開 Term 右緣）。下限 2xl：窄螢幕橫綫只剩 CSS 原長，斜綫短不到那麼短。──
+  const MIN_LEVEL_GAP = 64;   // --spacing-2xl 桌面值
+  function layoutLineLengths() {
+    const levelBoxes = [...root.querySelectorAll('.prog-children')];
+    if (!links[0] || !legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
+      levelBoxes.forEach((c) => { c.style.marginTop = ''; });
+      return;
+    }
+    const lv = [1, 2].map((level) => {
+      const ls = lines.filter((l) => l.level === level);
+      if (!ls.length) return null;
+      let dx = 0, dy = 0;
+      ls.forEach((l) => {
+        const p = restRect(l.parentBox), c = restRect(l.childBox);
+        dx += Math.abs((c.left + c.width / 2) - (p.left + p.width / 2));
+        dy += c.top - p.bottom;
+      });
+      const boxes = [...new Set(ls.map((l) => l.childBox.closest('.prog-children')))];
+      return { dx: dx / ls.length, dy: dy / ls.length, g0: parseFloat(getComputedStyle(boxes[0]).marginTop) || 0, boxes };
+    }).filter(Boolean);
+    const gapsFor = (L) => lv.map((v) => {
+      const span = L + 2 * GAP;
+      const dyT = span > v.dx ? Math.sqrt(span * span - v.dx * v.dx) : 0;
+      return Math.max(MIN_LEVEL_GAP, v.g0 + dyT - v.dy);
+    });
+    const h0 = roots.offsetHeight;
+    const heightFor = (L) => gapsFor(L).reduce((h, g, i) => h + g - lv[i].g0, h0);
+    const frame = legendStack.getBoundingClientRect().bottom - root.getBoundingClientRect().top - (parseFloat(getComputedStyle(root).paddingTop) || 0);
+    let L = links[0].offsetWidth;
+    if (heightFor(L) > frame) {
+      let lo = 0, hi = L;
+      for (let i = 0; i < 20; i++) { const mid = (lo + hi) / 2; if (heightFor(mid) > frame) hi = mid; else lo = mid; }
+      L = lo;
+      links[0].style.width = `${Math.max(L, linkBaseW).toFixed(2)}px`;
+    }
+    // 窄螢幕：層間 dx 就比橫綫長、斜綫短不到 → 下限＝各層在最小層距時的最長那層，橫綫反過來拉到同長
+    //（BPAIDC 往右多凸，小螢幕本就可超出）
+    const minLen = Math.max(...lv.map((v) => Math.hypot(v.dx, v.dy + MIN_LEVEL_GAP - v.g0) - 2 * GAP));
+    if (L < minLen) {
+      L = minLen;
+      links[0].style.width = `${L.toFixed(2)}px`;
+    }
+    gapsFor(L).forEach((g, i) => lv[i].boxes.forEach((b) => { b.style.marginTop = `${g.toFixed(2)}px`; }));
+    reserveHeights();   // 子列 margin 變了 → 重量父節點佔位高
   }
 
   // ── 連綫：綁 parentBox/childBox，端點快取在 rest 位置（減掉 reveal translate）＋draw 進度 ──
@@ -732,12 +793,13 @@ export async function initProgramStructure() {
 
   // ── 量測 + 建綫（layout 就緒後）；藏起初態；字體 / resize 重量重畫 ──
   // hug 在最前（寬度變了其餘量測才準）；layoutMobileLink 在 cacheEndpoints 後（吃落定位置）
-  const remeasure = () => { hugChipWidths(); reserveHeights(); layoutFan(); cacheEndpoints(); layoutMobileLink(); drawAll(); };
+  const remeasure = () => { hugChipWidths(); reserveHeights(); layoutFan(); layoutLineLengths(); cacheEndpoints(); layoutMobileLink(); drawAll(); };
   readGap();
   hugChipWidths();
   reserveHeights();
   layoutFan();
   buildLines();
+  layoutLineLengths();   // 要 lines 才知道每層的父子對（buildLines 之後）
   cacheEndpoints();
   layoutMobileLink();
   if (willAnimate) {

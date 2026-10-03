@@ -155,15 +155,14 @@
     gap: var(--spacing-sm);                    /* 兩卡間距（各自旋轉不相撞） */
   }
   /* ≥1200 resources 卡底改為「視窗底 − logo 中線 98」（accordion.css，user 2026-09-28）→ 說明卡底跟著對齊；
-     樹頂也同 resources 卡：從縮小態 logo 中線開始（撤 nav line 160/184 對齊）。pt 是 utilities layer 的
+     樹框同 resources 卡：上下 logo 中線 98；框內樹矮＝頂對齊第一顆 nav btn、放不下＝上下同距置中（同 Vision，spacer 在 scroll-snap.css）。pt 是 utilities layer 的
      md:pt-[var(--nav-line)]，components 內要 !important 才蓋得掉（同 accordion.css #resources）。平板 768-1199 維持 nav line。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .prog-legend-stack { top: calc(100svh - var(--header-logo-mid)); }
     #program-structure { padding-top: var(--header-logo-mid) !important; padding-bottom: var(--header-logo-mid) !important; }   /* 上下同錨（user 2026-09-29，見 scroll-snap.css about 框） */
-    /* 層距隨可用高收：樹本體（chip＋reserve，扣掉兩段層距）實測 ~280 固定，兩段層距分「框高 − 本體」；
-       高螢幕封頂原 128（4xl）、扁螢幕最低 64（2xl，再矮就讓 section 長高照舊往下捲）→ 樹不溢出 98 框。
-       內容尺寸（字級／chip）不縮，只縮宏觀留白（分桶原則）；連綫／fan 由 JS 量實際位置、自動跟上。 */
-    #program-structure { --prog-level-gap: clamp(var(--spacing-2xl), calc((100svh - 2 * var(--header-logo-mid) - 280px) / 2), var(--spacing-4xl)); }
+    /* 層距起始值 3xl；實際由 JS 改寫：斜綫長度跟隨 SCCD↔AI 連結橫綫（about-structure.js layoutLineLengths，user 2026-10-03），
+       橫綫＝AI 學程卡頂到 Term 卡右緣 − md（layoutFan）；樹高超出框（底到 Degree 卡底）就全部等長縮短。 */
+    #program-structure { --prog-level-gap: var(--spacing-3xl); }
   }
   /* mode3：右下角有全域 mode-color-panel 浮鈕（鉛筆 48 / 色輪 104），stack 左移避讓（比照 atlas.css #atlas-detail-mask）。 */
   @media (min-width: 768px) {

@@ -169,21 +169,28 @@ html {
 /* ===== about 桌面 ≥1200「上下同錨」框（user 2026-09-29）=====
    每個一屏區塊上下都從縮小態 logo 中線（--header-logo-mid 98）起算：區塊高 100svh、框內可用高 100svh − 2×98，
    扁／高螢幕上下留白恆等＝看起來一致。不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。
-   例外：Vision 文字頂對齊左側 nav btn（nav line 184，user 2026-08-31），底仍 98。
+   例外：Vision 文字頂對齊左側 nav btn（nav line 184，user 2026-08-31），底仍 98；盒長到放不下時改上下同距置中（10-03）。
    不分高度（≥501）都套＝在 ≥1200 取代上面 ≥900 的 100vh gate 與 501–899 的舊落點；平板 768–1199 維持舊規則。
    同框的另兩處在各自檔內：resources（accordion.css）、學制樹（about-structure.css）。
    ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'）。 */
 @media (min-width: 1024px) and (min-height: 501px) {
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
+  /* Vision／學制樹 上下框 98／98，上下兩個 spacer 均分剩餘高：上 spacer 封頂 nav line−98 → 內容矮時頂對齊第一顆 nav btn；
+     窄螢幕文字折多、內容長到放不下時上 spacer 跟著縮＝上下同距置中，最高到 98 框（user 2026-10-03）。
+     樹的 98 padding 在 about-structure.css（!important 蓋 md:pt utility）。 */
   #overview {
     height: 100svh;
-    padding-top: var(--nav-line);
+    padding-top: var(--header-logo-mid);
     padding-bottom: var(--header-logo-mid);
-    display: flex;
-    align-items: flex-start;
   }
+  #overview, #program-structure { display: flex; flex-direction: column; }
+  :is(#overview, #program-structure)::before,
+  :is(#overview, #program-structure)::after { content: ''; flex: 1 1 0; }
+  :is(#overview, #program-structure)::before { max-height: calc(var(--nav-line) - var(--header-logo-mid)); }
   #overview > .site-container { width: 100%; }
+  /* 英↔中盒距＝program 鈕列 gap（gutter+sm，about.html #class-buttons-sticky）：grid gap 外補 sm */
+  #overview .grid-20 > div:nth-child(2) { margin-left: var(--spacing-sm); }
 
   /* Programs／Works 共用的 division 鈕列：sticky 貼頂 0（原 inline top:100 是舊 marker 落點）。
      可見頂＝「BFA 學士班」小標題頂＝98 線：小標題 absolute 掛鈕上方、不佔 flow → pt 要加小標題塊高
@@ -214,7 +221,7 @@ html {
   #overview [data-overview-text].has-scroll-pr,
   .class-info-panel [data-class-text].has-scroll-pr,
   .class-works-panel [data-works-text].has-scroll-pr { padding-right: var(--spacing-sm); }
-  #overview [data-overview-text] { max-height: max(8rem, calc(100svh - var(--nav-line) - var(--header-logo-mid) - 1em)); }
+  #overview [data-overview-text] { max-height: max(8rem, calc(100svh - 2 * var(--header-logo-mid) - 1em)); }
   .class-info-panel [data-class-text],
   .class-works-panel [data-works-text] { max-height: max(8rem, calc(100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid) - 1em)); }
 
