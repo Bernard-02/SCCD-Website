@@ -120,8 +120,7 @@ export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0
 // 通用給 about program/works/vision（皆 fitCardToText 內叫；vision 2026-09-05 起也 hug）。
 export function toggleScrollPr(scroller) {
   if (!scroller) return;
-  const desktop = window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const desktop = SCCDHelpers.isDesktopLayout();
   scroller.classList.toggle('has-scroll-pr', desktop && scroller.scrollHeight > scroller.clientHeight + 1);
 }
 
@@ -131,8 +130,7 @@ export function toggleScrollPr(scroller) {
 // ⚠️ 必須在 reveal 動畫「之前」呼叫：揭露後才縮會看到寬度跳一下（box 隨 translate 量寬不受影響、可在隱藏態量）。
 export function fitCardToText(box) {
   if (!box) return;
-  const desktop = window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const desktop = SCCDHelpers.isDesktopLayout();
   const scroller = box.querySelector('[data-class-text], [data-works-text], [data-overview-text]'); // 內層捲動盒（有才是 about 說明卡）
   if (!desktop) { box.style.width = 'fit-content'; toggleScrollPr(scroller); return; } // 手機色卡走內捲盒，維持原生 fit-content
   box.style.width = 'fit-content';   // 先回 fit-content 讓文字在 cell 寬內重新換行後再量
@@ -339,7 +337,7 @@ export function playClipPathExit(elements, { stagger = 0.04, fromEnd = true, dur
       const to = {
         clipPath: _EXIT_CLIP_DIRS[Math.floor(Math.random() * _EXIT_CLIP_DIRS.length)],
         duration,
-        ease: 'cubic-bezier(0.25, 0, 0, 1)',
+        ease: EASE.wipe,
         delay: (fromEnd ? n - 1 - i : i) * stagger,
         overwrite: true,
         onComplete: done,

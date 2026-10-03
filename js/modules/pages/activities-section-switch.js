@@ -10,7 +10,7 @@ import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, flashDeepLinkDim, navHoverColor } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown, exitRows, hideRows, revealRows } from '../ui/list-row-reveal.js';
@@ -161,8 +161,7 @@ function waitForItemRevealed(item, timeout = 8000) {
 // user 2026-07-03）。桌面 vertical sticky 不需要。btn 位置是靜態 layout，隨時可量；smooth 水平捲與垂直捲動互不干擾。
 function centerSectionNavBtn(section) {
   // 矮橫向 bar 也是水平 strip（landscape.css 5f 單行 scroll）→ 同樣要置中；真桌面 vertical sticky 不需要
-  if (window.innerWidth >= 768
-    && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return;
+  if (SCCDHelpers.isDesktopLayout()) return;
   const btn = /** @type {HTMLElement | null} */ (document.querySelector(`.activities-section-btn[data-section="${section}"]`));
   const bar = /** @type {HTMLElement | null} */ (btn && btn.closest('.activities-section-bar'));
   if (!btn || !bar) return;
@@ -280,7 +279,6 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
-        flashDeepLinkDim(target);                  // 落地窗口其餘列半透明（比照 library deep-link dim）
         header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
         header.style.background = boxFlashColor;
         // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
@@ -301,8 +299,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
       const itemInBox = target.getBoundingClientRect().top - boxScroller.getBoundingClientRect().top + boxScroller.scrollTop;
       boxScroller.scrollTop = Math.max(0, Math.round(itemInBox - (Number.isNaN(stickyTopVal) ? 0 : stickyTopVal)));
       await waitForItemRevealed(target);
-      flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
-      target.style.transition = 'background 0.3s';
+      target.style.transition = 'background var(--dur-fast)';
       target.style.background = boxFlashColor;
       setTimeout(() => {
         target.style.background = '';
@@ -330,7 +327,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   // （桌面原本誤以為「bar 是 sticky、proceedOpen 不變式已處理」而不收 → deep-link 落點與手動點開差 ~80px。）
   if (filterBar && !filterBar.classList.contains('bar-hidden')) {
     filterBar.classList.add('bar-hidden');
-    await new Promise(r => setTimeout(r, 350)); // CSS 0.3s transition 收完 + ResizeObserver 更新 var 才量
+    await new Promise(r => setTimeout(r, 350)); // CSS var(--dur-fast) transition 收完 + ResizeObserver 更新 var 才量
   }
 
   // 落點＝list-accordion 開啟時 header 釘的位置：桌面讀 `--list-header-sticky-top`（activities-data-loader
@@ -366,8 +363,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   const flashColor = currentSectionColor || '#00FF80';
   const flashThenOpenAccordion = async () => {
     await waitForItemRevealed(target);
-    flashDeepLinkDim(target);  // flash 期間其餘列半透明（比照 library deep-link dim）
-    target.style.transition = 'background 0.3s';
+    target.style.transition = 'background var(--dur-fast)';
     target.style.background = flashColor;
     setTimeout(() => {
       target.style.background = '';
@@ -405,7 +401,6 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
-        flashDeepLinkDim(target);  // 落地窗口其餘列半透明（比照 library deep-link dim）
         header.dataset.skipOpenScroll = '1';
         header.dataset.accentHex = flashColor;
         header.style.background = flashColor;
@@ -538,14 +533,13 @@ function playFilterChipsExit(panel) {
 
 // ── 左側 section nav 進場/退場──────────────────────
 // hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline rotate 共存）＋同步 clip-path 滑動揭露
-// （navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）、DUR.base + cubic-bezier(0.25,0,0,1) + stagger。
+// （navChipHidden，見 scroll-animate.js；旋轉角不裁、不疊鄰）、DUR.base + EASE.wipe + stagger。
 // ⚠️ activities 專屬用「4 方向隨機」（user 2026-07-17，每顆固定一方向 navDir）；其他頁（faculty/admission/
 //    courses 等）2026-07-17 統一 'bottom' 由下而上 → 本頁與它們刻意分歧，勿一起改回。
 // 進場只在頁面初次載入（content section 進視窗）跑一次、
 // 切左側分頁不重播；退場只在離頁且「已進場」才跑（沒滑到沒看過不閃）、fromTo 顯式起點 SHOWN（clearProps 後
 // computed=none 補不間）、from:'end' 反向 stagger。⚠️ .anchor-nav-inner 帶 navigation.css `transition: all`（含 clip/translate）
 // → 動畫期間 inner.style.transition='none' 免 CSS transition 追 GSAP 卡頓，跑完還原（hover/切分頁仍要那條 transition）。
-const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 
 function setupSectionNavReveal() {
   if (typeof gsap === 'undefined') return;
@@ -564,7 +558,7 @@ function setupSectionNavReveal() {
   // 「hero 之後才 reveal、回 hero 出場隱藏」＝嚴格 hero gate（觀察 hero 本體底緣離開視窗頂 −8px；
   // 同 admission setNav，clip-path 非 opacity）。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
   const sectionEl = document.getElementById('activities-content-section');
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isLandscapeGate = SCCDHelpers.isLandscapeGate();
   if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
     const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
     if (navCol) navCol.style.pointerEvents = 'none';
@@ -578,7 +572,7 @@ function setupSectionNavReveal() {
       gsap.to(inners, {
         clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
         translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-        duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+        duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
         onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
       });
     };
@@ -608,7 +602,7 @@ function setupSectionNavReveal() {
       const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
       gsap.fromTo(inners,
         { ...NAV_CHIP_SHOWN },
-        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true, onComplete: resolve });
+        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true, onComplete: resolve });
     }));
     return;
   }
@@ -625,7 +619,7 @@ function setupSectionNavReveal() {
     gsap.killTweensOf(inners);
     killTransition();
     gsap.to(inners, {
-      ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.02, overwrite: true, clearProps: 'clipPath,translate',
+      ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.02, overwrite: true, clearProps: 'clipPath,translate',
       onComplete: () => inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }),
     });
     const panel = visiblePanel();
@@ -639,7 +633,7 @@ function setupSectionNavReveal() {
     const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
       { ...NAV_CHIP_SHOWN },
-      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true });
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.02, from: 'end' }, overwrite: true });
     const panel = visiblePanel();
     if (panel) {
       playFilterChipsExit(panel);   // chipsScrollHidden 此刻仍 false → 會跑；跑完標旗
@@ -700,7 +694,7 @@ function setupSectionNavReveal() {
     const hid = inners.map(inner => navChipHidden(inner, navDir.get(inner)));
     gsap.fromTo(inners,
       { ...NAV_CHIP_SHOWN },
-      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.02, from: 'end' }, overwrite: true, onComplete: resolve });
   }));
 }
 

@@ -18,7 +18,7 @@
 
 import { reloadCurrentRoute } from '../../router.js';
 
-const GATE = '(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)';
+const GATE = SCCDHelpers.LANDSCAPE_GATE;
 
 export function initOrientationReload() {
   const mq = window.matchMedia(GATE);

@@ -5,7 +5,7 @@
  * 一律經 sitePath() 換算成「以站台根為基準」的絕對 URL，本地根目錄與子路徑部署都成立。
  *
  * 以本檔案 URL 推導：js/modules/ui/site-base.js → 上三層 = 站台根。
- * classic scripts（generate-app）不能 import，用 helpers.js 的 window.SCCDHelpers.sitePath。
+ * sitePath 本體在 helpers.js（classic script，每頁都比 module 先載入；generate-app 也用它），這裡只轉呼叫。
  */
 
 export const SITE_BASE = new URL('../../../', import.meta.url).href;
@@ -14,10 +14,4 @@ export const SITE_BASE = new URL('../../../', import.meta.url).href;
 export const SITE_BASE_PATHNAME = new URL(SITE_BASE).pathname;
 
 /** @param {string} path 站內路徑，開頭有無 '/' 皆可（'data/x.json' 或 '/data/x.json'） */
-export function sitePath(path) {
-  const key = String(path).replace(/^\//, '');
-  // site-assets.js 填的後台覆蓋（icon/cursor 後台換檔改走 CDN）；未載入或沒對到＝本地檔
-  const ov = window.__SCCD_ASSET_OVERRIDES;
-  if (ov && ov[key]) return ov[key];
-  return new URL(key, SITE_BASE).href;
-}
+export const sitePath = (path) => window.SCCDHelpers.sitePath(path);

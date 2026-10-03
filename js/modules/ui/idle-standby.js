@@ -183,7 +183,7 @@ async function enterStandby() {
   if (window.innerWidth < 768) return;
   // 矮橫向（橫向手機）也不進（user 2026-07-04「橫向自然不該有待機」）：atlas 星雲在 <500px 高是文字湯，
   // gate 同 landscape.css（orientation:landscape + max-height:500px）
-  if (window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return;
+  if (SCCDHelpers.isLandscapeGate()) return;
   // 背景分頁進待機：rAF 暫停＋沒人在看 → 直接定態（不 fade），使用者切回本 tab 時「已經是待機」，
   // 不是「當著面才 fade 進待機」。fade 只在停在本 tab 不動才跑。user 2026-06-24。
   const instant = document.hidden;
@@ -329,8 +329,7 @@ export function initIdleStandby() {
     if (resizeTimer) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(async () => {
       if (!isStandby || isTransitioning) return;
-      if (window.innerWidth < 768
-        || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+      if (SCCDHelpers.isMobileLayout()) {
         exitStandby();
         return;
       }

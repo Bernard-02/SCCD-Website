@@ -23,7 +23,7 @@
 │   ├── about / faculty / courses / works / activities / admission / awards
 │   ├── degree-show / degree-show-detail
 │   ├── alumni / library / atlas / create
-│   ├── support / privacy-policy / accessibility / 404
+│   ├── support / privacy-policy / sitemap / 404
 │   ├── header.html             # async fetch 載入到 #site-header
 │   └── footer.html             # async fetch 載入到 #site-footer（SPA 容器）
 ├── css/
@@ -146,7 +146,7 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 
 ### 顏色
 - **主色**：黑 `#000000` / 白 `#FFFFFF`
-- **三原色（ACCENT_COLORS / 「rgb」）**：綠 `#00FF80` / 粉 `#FF448A` / 藍 `#26BCFF`
+- **三原色（ACCENT_COLORS / 「rgb」）**：綠 `#00FF80` / 粉 `#FF448A` / 藍 `#26BCFF`；JS 端一律用 `SCCDHelpers.ACCENT_COLORS`（粉綠藍）／`SCCDHelpers.getRandomAccentColor()`（不連續重複），勿在模組內自建陣列
 - **灰階**：`--gray-0` ~ `--gray-9`（注意：是 `--gray-N` 不是 `--color-gray-N`）
 - 中性灰用 `var(--gray-N)` 不要用 `rgba(0,0,0,X)` 透明黑（mode 切換時透明黑會疊底色脫節）
 
@@ -158,14 +158,18 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 
 切換由 `theme-toggle.js` 控制；`/create` 頁特殊（body class 暫停，由 generate-app 自己處理）。
 
-### 模式切換 transition（whitelist）
-`css/base/typography.css` 有一段 whitelist 規則，列舉哪些元件 mode 切換時要 0.4s fade 而不是 snap。新增 mode-aware 元件必須補進 whitelist（不在 list 內 = 視覺 snap）。已含：header / nav-link / [data-bar] / bg-* / text-* / timeline-card / list-header / footer / scrollbar / alumni-* / courses-* / atlas-* / library-* 等。
+### 模式切換 transition（兩套，分開維護；2026-10-03 user 定案）
+- **View Transition**（atlas、/create 以外的頁面）：`theme-toggle.js` runModeViewTransition 整頁快照交叉淡入，一般元件不用登記。一直在動的區塊＝「即時層」（照動不暫停、層內顏色自己 transition）：`MODE_VT_LIVE_LAYERS` 與 typography.css 的同一串 selector 兩邊同步
+- **舊 `.mode-switching` 逐元素 fade**（atlas 頁＋不支援 VT 的瀏覽器）：`css/base/typography.css` whitelist 只淡登記的元件（不在 list 內＝snap）。atlas 星雲節點/連線刻意不淡（試過 VT 即時層較卡）；atlas 新增 mode-aware 元件要補進 whitelist
 
 ### Theme variables（推薦給新元件用）
 - `--theme-fg` / `--theme-bg`：fg / bg，依 mode 切換
 - `--theme-fg-inverse`：fg 的對比色（strict B/W 用），三 mode 都已定義（2026-05-18 起）
 - `--theme-fg-rgb` / `--theme-bg-rgb` / `--theme-fg-inverse-rgb`：RGB 三元組，給 `rgba(var(--X), 0.5)` 用
 - 新元件 mode-aware 規則優先寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條，取代雙寫
+
+### 游標
+- 全站一律寫 `var(--cursor-X)`（CSS、JS inline、HTML inline 皆同；Tailwind `cursor-*` 已映射成 var）；`--cursor-*` 唯一定義在 `js/utils/helpers.js`。勿寫裸 keyword（`cursor:pointer`）＝露系統游標。`css/components/cursor.css` 只補瀏覽器內建游標，新元件不用登記
 
 ### 字體
 - **標題**：H1 (8rem) ~ H6 (1.25rem)
@@ -185,17 +189,18 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 1. **CSS Variables**：預設值 = 桌面版（不可改），手機版用 `@media (max-width: 767px)` 覆蓋
 2. **Tailwind classes**：**只用 `md:` prefix**（不用 `sm:`）；預設 class = 手機，`md:` = 桌面 (768px+)
 3. **Hover**：手機版不應有 hover；所有 hover 包在 `@media (min-width: 768px)` 內
-4. **JavaScript**：條件式執行
+4. **JavaScript**：條件式執行，版型判斷一律用 helpers.js（唯一來源，已含矮橫向 gate）：
    ```js
-   function isMobile() { return window.innerWidth < 768; }
-   function isDesktop() { return window.innerWidth >= 768; }
+   SCCDHelpers.isMobileLayout()   // 直向手機 <768 或 gate（＝手機排版）
+   SCCDHelpers.isDesktopLayout()  // 其餘（≥1024 且高 >500）
+   SCCDHelpers.isLandscapeGate()  // 只看 gate；監聽轉向用 matchMedia(SCCDHelpers.LANDSCAPE_GATE)
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(min-width: 1024px) and (min-height: 501px)`**（HTML 用 `min-[1024px]:`；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024）
 6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）
 
 ### 矮橫向（landscape gate）
-- **Gate**：`@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)`（CSS）／`matchMedia` 同式（JS，逗號清單）——前半＝橫向手機（寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱，原理見《docs/橫向手機版最佳實踐.md》）；後半＝iPad 直向／768–1023 的視窗（user 2026-10-01：iPad 沿用橫向手機排版、只是比較高）。兩半必須一起寫，新模組照抄整串。例外：/create 有自己的斷點（create.css／generate-app/js/utils.js），不吃後半
-- **原則**：「一切以手機版為主」——字級/spacing 變數、header、footer、menu 全套手機值；規則集中在 `css/layout/landscape.css`（分頁編號 5a~5j 區塊）；JS 端各模組的 isMobile 判斷要併入 gate
+- **Gate**：`@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)`（CSS）／`matchMedia` 同式（JS，逗號清單）——前半＝橫向手機（寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱，原理見《docs/橫向手機版最佳實踐.md》）；後半＝iPad 直向／768–1023 的視窗（user 2026-10-01：iPad 沿用橫向手機排版、只是比較高）。兩半必須一起寫：CSS 照抄整串，JS 用 `SCCDHelpers` 版型判斷（見上，勿再抄字串）。例外：/create 有自己的斷點（create.css／generate-app/js/utils.js），不吃後半
+- **原則**：「一切以手機版為主」——字級/spacing 變數、header、footer、menu 全套手機值；規則集中在 `css/layout/landscape.css`（分頁編號 5a~5j 區塊）；JS 端用 `SCCDHelpers.isMobileLayout()`（已併入 gate）
 - **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）；iPad 直↔橫（跨 1024）同樣走這條
 - ⚠️ landscape.css 是 unlayered：同特異度的純 class 蓋不掉 output.css 的 `md:` utility（source order 輸）→ 要用 `#id` 或多層 selector 提特異度；`!important` 也輸給 @layer 內的 `!important`
 - ⚠️ 動態載入的頁面 CSS（library/atlas/create/alumni）link 在 output.css 之後 = cascade 贏 landscape.css，改 <768 規則要 portrait 限定
@@ -251,6 +256,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - 重複跑的動畫用 **transform**（clip-reveal）不用 **clip-path**（每幀 full repaint）；判準＝文字有沒有位移
 - 切分頁 reveal/exit 加 **viewport-cull**（視窗外項目 snap 不動畫）
 - GSAP reveal 完要沉澱成 `translate(0px, 0px)`（非 0%）
+- 時長/曲線走 token：GSAP 用 `motion.js` 的 `DUR.*`／`EASE.*`，CSS（含 JS inline transition 字串）用 `var(--dur-*)`／`var(--ease-*)`。⚠️ 勿傳 `'cubic-bezier(...)'` 字串給 GSAP（core 不認、靜默退回 power1.out）；要 bezier 曲線＝helpers.js 用 CustomEase 具名註冊（現有 `EASE.wipe`＝`--ease-wipe`）
 
 ### 圖片
 - 縮圖 `decoding="async"`；⚠️ poster/strip **勿** `loading="lazy"`（會破 reveal gate）；縮圖不寫 >1600px

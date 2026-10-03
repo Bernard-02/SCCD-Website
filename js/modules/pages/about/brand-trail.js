@@ -16,13 +16,6 @@ let TRAIL_IMAGES = [];
 // 而不是被 innerHTML swap 硬砍（overview trail 在 #page-content 內、desktop trail 在 body 上均涵蓋）。
 const aliveTrail = new Set();
 
-// 從 CSS variables 讀取三原色
-const CSS_ACCENT_COLORS = ['--color-green', '--color-pink', '--color-blue'];
-function getAccentColors() {
-  const style = getComputedStyle(document.documentElement);
-  return CSS_ACCENT_COLORS.map(v => style.getPropertyValue(v).trim());
-}
-
 // 滑入 4 方向藏定位（reveal 語彙：wrapper＝遮罩、img 在內滑動；±110 過衝防 dpr hairline）
 const SLIDE_DIRS = [
   'translate(0, -110%)',  // 從上滑入
@@ -71,9 +64,8 @@ export async function initBrandTrail() {
 function initClassHighlight() {
   const panels = document.querySelectorAll('.class-info-panel');
   if (!panels.length) return;
-  const colors = getAccentColors();
   panels.forEach(panel => {
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    const color = SCCDHelpers.getRandomAccentColor();
     /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-class-hl]')).forEach(el => {
       el.style.background = color;
     });
@@ -84,9 +76,8 @@ function initClassHighlight() {
 function initWorksHighlight() {
   const panels = document.querySelectorAll('.class-works-panel');
   if (!panels.length) return;
-  const colors = getAccentColors();
   panels.forEach(panel => {
-    const color = colors[Math.floor(Math.random() * colors.length)];
+    const color = SCCDHelpers.getRandomAccentColor();
     /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-works-hl]')).forEach(el => {
       el.style.background = color;
     });
@@ -101,8 +92,7 @@ function initWorksHighlight() {
 function initOverviewHighlight() {
   const hls = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('[data-overview-hl]')));
   if (!hls.length) return;
-  const colors = getAccentColors();
-  const color = colors[Math.floor(Math.random() * colors.length)];
+  const color = SCCDHelpers.getRandomAccentColor();
   hls.forEach(el => { el.style.background = color; });
 
   if (typeof gsap === 'undefined') return;
@@ -165,7 +155,7 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
     max-height: 260px;
     display: block;
     transform: ${revealDir};
-    transition: transform 0.5s cubic-bezier(0.25,0,0,1);
+    transition: transform var(--dur-medium) var(--ease-wipe);
   `;
 
   wrapper.appendChild(img);

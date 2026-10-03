@@ -401,7 +401,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 桌面：search 列（search／filter／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
     // 搬成 panel 直接子層：留在內容 grid 裡會被 grid 的進場 clip-path 裁掉（工具列定位在 grid 外的底部標題列）。
     // 必須在 initLibraryPanels 前搬＝它結尾的 hidePanelChildren 才會把工具列一起藏進 phase 1。手機／矮橫向維持原 DOM。
-    if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+    if (SCCDHelpers.isDesktopLayout()) {
       document.querySelectorAll('[id^="lib-panel-"]').forEach(panel => {
         const row = panel.querySelector('[style*="align-items: flex-end"][style*="display: flex"]');
         if (!row) return;
@@ -455,8 +455,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 改用頂端 tab bar 直接 panels.showPanel；layout 由 CSS 處理
     // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
     // 矮橫向（橫向手機）也走此路徑（user 2026-07-04）：landscape.css 5h 把 tabs 排左欄、灰卡佔右側
-    if (window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+    if (SCCDHelpers.isMobileLayout()) {
       const tabsRoot = document.getElementById('library-mobile-tabs');
 
       // 手機進場（user 2026-06-12：原本 showPanel+onEntranceDone 同步跑完＝完全沒進場動畫）：
@@ -630,7 +629,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     loadSupport();
   }
   // 網站導覽（無障礙頁）：無障礙聲明（policy_and_statements 的無障礙段）+ 網站地圖（data/accessibility.json）
-  if (page === 'accessibility') {
+  if (page === 'sitemap') {
     loadSitemap();
   }
 
@@ -657,13 +656,28 @@ document.addEventListener('DOMContentLoaded', function () {
   initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新
 
-  // Lottie 分頁隱藏凍結（09-25，user 報切回分頁時旋轉 logo 跳一下）：lottie-web 以 rAF 間的真實時間差推進，
-  // 分頁隱藏時 rAF 停、時鐘照走 → 切回首幀把整段隱藏時間一次推進（對 loop 取模）＝相位瞬跳；GSAP 有內建
-  // lagSmoothing、lottie 沒有。freeze 停排程、unfreeze 重啟走 first() 重置基準時鐘＝從原幀無縫續播。
+  // Lottie 切回分頁不跳角度（09-25 報、10-03 重修）：lottie-web 以 rAF 間的真實時間差推進、沒有 GSAP 的
+  // lagSmoothing → 切回首幀把整段隱藏時長一次推進（對 loop 取模）＝旋轉 logo 相位瞬跳。
+  // ⚠️ 舊解 lottie.freeze()/unfreeze() 實機無效：freeze 只立旗標、要 rAF 回呼才讀得到，但分頁隱藏後 rAF 一幀都不跑
+  //    → 時鐘從沒停、unfreeze 也不重置（headless 假 hidden 時 rAF 照跑＝假通過）。
+  // 現解：隱藏時 pause 正在播的（立即退出 playing 計數）；切回隔一幀才 play——lottie 排隊中的那幀先跑（paused 不推進）
+  //    並自己停鐘，play 再重啟＝重置基準時鐘、從離開那格續播。只 play 隱藏前在播的＝不喚醒 lottie-visibility 停在畫面外的。
   // document 級一次性、蓋 header/footer/intro 全部 Lottie 實例；typeof 在事件當下判＝CDN defer 晚載也安全。
+  /** @type {any[]} */
+  let lottieHeld = [];
   document.addEventListener('visibilitychange', () => {
     if (typeof lottie === 'undefined') return;
-    if (document.hidden) lottie.freeze(); else lottie.unfreeze();
+    if (document.hidden) {
+      lottieHeld = lottie.getRegisteredAnimations().filter((/** @type {any} */ a) => !a.isPaused);
+      lottieHeld.forEach(a => a.pause());
+      return;
+    }
+    const held = lottieHeld;
+    lottieHeld = [];
+    requestAnimationFrame(() => {
+      const live = lottie.getRegisteredAnimations();   // 期間被 destroy 的（mode 切換重載）不碰
+      held.forEach(a => { if (live.includes(a)) a.play(); });
+    });
   });
 
   // 全站禁右鍵下載 img / svg / video（嚇阻隨手「另存」；對齊 PDF viewer 的 contextmenu 防護）

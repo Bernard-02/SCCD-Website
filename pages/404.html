@@ -63,14 +63,13 @@
 
       .error-404-card.is-btn {
         font-size: var(--icon-hero);
-        cursor: pointer;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         /* 對稱 padding（上下=左右）讓底色成正方形 —— icon 為 1em×1em 方形（繼承 parent h3 font-size），
            padding 對稱 → 整個 box 自然成 square；之前 0.5rem 0.8rem 不對稱會壓成橫向 rectangle */
         padding: 0.5rem;
-        transition: opacity 0.2s ease;
+        transition: opacity var(--dur-micro) ease;
       }
 
       @media (min-width: 768px) {
@@ -111,6 +110,7 @@
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>

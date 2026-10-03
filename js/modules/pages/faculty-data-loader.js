@@ -11,6 +11,7 @@
 import { getFacultyData, resetFacultyCache } from './faculty-source.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { EASE } from '../ui/motion.js';
 
 // 卡片職稱 marquee：hover 整張卡才跑（cards.css 的 hover 目標是 .faculty-card，不是個別 title-group）。
 // 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
@@ -36,7 +37,7 @@ function bindFacultyCardMarquee(container) {
     const playAll  = () => { if (ret) { ret.kill(); ret = null; } groups.forEach((g) => g.tl.play()); };
     const pauseAll = () => {
       groups.forEach((g) => g.tl.pause());
-      ret = gsap.to(groups.flatMap((g) => g.els), { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: () => { groups.forEach((g) => g.tl.progress(0)); ret = null; } });
+      ret = gsap.to(groups.flatMap((g) => g.els), { x: 0, duration: 0.45, ease: EASE.wipe, onComplete: () => { groups.forEach((g) => g.tl.progress(0)); ret = null; } });
     };
     card.addEventListener('mouseenter', playAll);
     card.addEventListener('mouseleave', pauseAll);
@@ -189,7 +190,6 @@ function bindPlaceholderThemeListener() {
   });
 }
 
-const CARD_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 // 圖片進場用：4 個方向 random 抽，filter 用 setupFacultyCardAnim 讀 data-img-dir
 const IMG_ENTRY_DIRS = ['top', 'right', 'bottom', 'left'];
 
@@ -251,7 +251,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     // 真實照片 decoding async：1600² 原圖單張解碼 15–18ms，同步解碼會卡住進場／捲動那幀（user 2026-10-01 掉幀診斷）。
     // 代用 logo 不加：hover／切 mode 會換 src，async 可能先畫一格空白才出新圖
     const asyncDecode = !isModePlaceholder(item);
-    const color = CARD_COLORS[index % CARD_COLORS.length];
+    const color = SCCDHelpers.ACCENT_COLORS[index % SCCDHelpers.ACCENT_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
     const imgDir = randomImgDir();

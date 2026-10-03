@@ -27,13 +27,6 @@ import { bindNavBtnHover, navHoverColor } from '../ui/section-switch-helpers.js'
 // 七輪：分頁封面「載好才滑入」的隨機四向（同 activities POSTER_SLIDE_DIRS / library COVER_SLIDE_DIRS 語彙）
 const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
 
-// 「用手機版做法」的 gate：直向手機（<768）＋矮橫向手機（同全站 landscape.css：orientation:landscape
-// + max-height:500）。矮橫向手機寬常 ≥768 會誤吃桌面分支 → 併進來，detail 頁 body/hero 全走手機路徑。
-function isMobileView() {
-  return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
-}
-
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
 // 上限，色卡實際寬仍會撐到 max-width（短末行右側空一大塊 accent 底）；用 Range 量 wrapped lines 取最寬行寫回
 // width 收緊。隱藏（另一 viewport chip display:none）→ offsetParent null 跳過。hero 與上下屆標題共用。
@@ -87,10 +80,9 @@ export async function loadDegreeShowListInto(containerId) {
         item,
         showYear: itemIndex === 0,
       })));
-    const colors = ['#FF448A', '#00FF80', '#26BCFF'];
 
     shows.forEach(({ year, item, showYear }, idx) => {
-      const color = colors[idx % colors.length];
+      const color = SCCDHelpers.ACCENT_COLORS[idx % SCCDHelpers.ACCENT_COLORS.length];
       const titleEn = item.title_en || item.titleEn || '';
       const titleZh = item.title || item.titleZh || '';
       const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
@@ -128,7 +120,7 @@ export async function loadDegreeShowListInto(containerId) {
                share 按鈕當兄弟以 z-10 浮在其上。 -->
           <!-- data-accent-hex＝該卡 hover 底色（--card-color）；share-modal 讀它讓分享卡跟 hover 同色
                （同 list-header.dataset.accentHex 機制；mode-color 下 share-modal 自動略過→白卡）。 -->
-          <div class="degree-show-card-content list-item relative col-span-12 md:col-start-2 md:col-span-11 px-sm py-sm md:ml-[41px] transition-colors duration-fast" data-accent-hex="${color}">
+          <div class="degree-show-card-content list-item relative col-span-12 md:col-start-2 md:col-span-11 px-sm py-sm md:ml-[41px]" data-accent-hex="${color}">
             <!-- z-[1]：reveal-row 被 .clip-reveal-wrapper 包住，reveal 中殘留 transform（＝暫時 stacking context），且在 DOM
                  晚於本 <a> → 純 absolute（z auto）會被它們蓋在下面、點標題不導航。給正 z 提到它們之上、仍低於 share(z-10)。 -->
             <a href="/degree-show-detail?${detailQuery}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
@@ -173,7 +165,7 @@ export async function loadDegreeShowListInto(containerId) {
       const reveal = () => {
         if (!img.dataset.pendingReveal) return;
         delete img.dataset.pendingReveal;
-        img.style.transition = 'transform 0.6s cubic-bezier(0.25, 0, 0, 1)';   // EASE.enter
+        img.style.transition = 'transform var(--dur-slow) var(--ease-wipe)';
         img.style.transform = 'translate(0%, 0%)';
         const clr = (e) => {
           if (e.target !== img || e.propertyName !== 'transform') return;
@@ -525,7 +517,7 @@ export async function loadDegreeShowDetail() {
 // chip 包進 wrapper 後不再是直接子 → 把 chip 的 inline rotation var 轉移到 wrapper（旋轉跟著 wrapper，
 // chip 在 rotated mask 內滑動，同桌面 wrapper rotate + child slide 的結構）。margin 同理轉移。
 function setupHeroMobileEntrance() {
-  if (!isMobileView() || typeof gsap === 'undefined') return;
+  if (!SCCDHelpers.isMobileLayout() || typeof gsap === 'undefined') return;
   const mobile = document.querySelector('.hero-mobile');
   if (!mobile) return;
   const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
@@ -630,7 +622,6 @@ function revealVideoOnScroll(wrapper) {
 function setupNextProject(prev, next) {
   const { year: prevYear, data: prevData } = prev;
   const { year: nextYear, data: nextData } = next;
-  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
   const CLIP_DIRS = [
     { hidden: 'inset(100% 0 0 0)', shown: 'inset(0% 0 0 0)' },   // 上→下
     { hidden: 'inset(0 0 100% 0)', shown: 'inset(0 0 0% 0)' },   // 下→上
@@ -665,8 +656,8 @@ function setupNextProject(prev, next) {
 
   // 手機左右並排色塊卡（user 2026-07-09 取消 poster thumbnail）：隨機 accent 底 + 隨機旋轉 +
   // 年份 / 英文名 / 中文名；兩張互異色。版面（並排 / 高低落差 / 黑字）在 variables.css .dsd-next-card-m
-  const mobPrevColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
-  const mobNextPool = ACCENT.filter(c => c !== mobPrevColor);
+  const mobPrevColor = SCCDHelpers.getRandomAccentColor();
+  const mobNextPool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== mobPrevColor);
   const mobNextColor = mobNextPool[Math.floor(Math.random() * mobNextPool.length)];
   const setMobile = (key, year, data, color) => {
     const link = /** @type {HTMLAnchorElement | null} */ (document.getElementById(`${key}-link-m`));
@@ -687,7 +678,7 @@ function setupNextProject(prev, next) {
 
   // 上下屆標題過長 → 換行（不再 marquee，user 2026-08-17）；wrap 規則在 lists.css .dshow-next-title
 
-  if (isMobileView()) {
+  if (SCCDHelpers.isMobileLayout()) {
     // 手機點擊 next/prev 離頁：色塊卡 clip-reveal 收出（user 2026-09-11「手機點 next/prev 也要 clip-reveal 出場」）。
     // clip-path inset 收（不 wrap DOM、不動兩卡 overlap/stagger 佈局）；隨機四方向、只收視窗內的卡。inset(0) 起點供 gsap interpolate。
     const mCards = /** @type {HTMLElement[]} */ ([document.getElementById('prev-link-m'), document.getElementById('next-link-m')].filter(Boolean));
@@ -752,7 +743,7 @@ function setupNextProject(prev, next) {
   const LABEL_IDS = ['year', 'title-en', 'title'];
   // hero 式 clip-reveal（滑動＋遮罩，同全站 nav chip）：原 HTML 只 transition clip-path，補上 translate 讓遮罩之外
   // 再加滑入位移（navChipHidden 沿旋轉軸算、與 inline rotate 共存）。
-  const LABEL_TRANSITION = 'clip-path 0.5s cubic-bezier(0.25,0,0,1), translate 0.5s cubic-bezier(0.25,0,0,1)';
+  const LABEL_TRANSITION = 'clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe)';
   // 保留每次 hover 的不同構圖，但只從安全位置預設中挑選。
   const LABEL_PLACEMENTS = {
     prev: [
@@ -906,7 +897,7 @@ function setupNextProject(prev, next) {
 
       // 每次 hover 重新挑 cardColor（不一定每次都一樣），同步套到 3 個 chip
       // 同時每次 hover 重新 random 旋轉角度（chip 此時 clip-path 還是 hidden，新角度會在 reveal 時直接呈現）
-      const myCardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
+      const myCardColor = SCCDHelpers.getRandomAccentColor();
       myLink.dataset.cardColor = myCardColor;
       if (myLabels) {
         // labels HTML 已從 h4/h2 改 <p>（舊 selector 抓不到 = hover 年份/標題全滅，user 2026-07-13 報修）
@@ -951,14 +942,14 @@ function setupNextProject(prev, next) {
       // 隨機方向 + 隨機色，先 disable transition snap 到 hidden 再 reflow + apply shown
       // clip color 從候選排除掉「被 hover 卡片的 cardColor」，避免文字底色與覆蓋色撞色
       const dir = CLIP_DIRS[Math.floor(Math.random() * CLIP_DIRS.length)];
-      const clipPool = ACCENT.filter(c => c !== myCardColor);
+      const clipPool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== myCardColor);
       const color = clipPool[Math.floor(Math.random() * clipPool.length)];
       otherClip.dataset.hiddenClip = dir.hidden;
       otherClip.style.transition = 'none';
       otherClip.style.clipPath = dir.hidden;
       otherClip.style.background = color;
       void otherClip.offsetHeight;
-      otherClip.style.transition = 'clip-path 0.5s cubic-bezier(0.25,0,0,1)';
+      otherClip.style.transition = 'clip-path var(--dur-medium) var(--ease-wipe)';
       otherClip.style.clipPath = dir.shown;
     });
 
@@ -997,7 +988,7 @@ function setupNextProject(prev, next) {
         trigger: el.parentElement || el,
         start: 'top 85%',
         once: true,
-        onEnter: () => gsap.to(el, { xPercent: 0, duration: DUR.medium, ease: 'cubic-bezier(0.25, 0, 0, 1)' }),
+        onEnter: () => gsap.to(el, { xPercent: 0, duration: DUR.medium, ease: EASE.wipe }),
       });
     });
   };
@@ -1026,7 +1017,7 @@ function setupNextProject(prev, next) {
       chip.style.clipPath = hid.clipPath;
       chip.style.translate = hid.translate;
     });
-    return new Promise(res => setTimeout(res, 500));   // 同 LABEL_TRANSITION 0.5s
+    return new Promise(res => setTimeout(res, DUR.medium * 1000));   // 同 LABEL_TRANSITION（--dur-medium）
   };
   registerPageExit(() => Promise.all([exitCard(prevCard, -110), exitCard(nextCard, 110), exitLabels()].filter(Boolean)));
 }
@@ -1074,7 +1065,7 @@ async function renderEventGalleries(data) {
 
   // 手機子展覽 tab strip（user 2026-07-09）：event 標題從 per-section chip 改成
   // 主影片下方的 sticky tab 列（點擊捲到該子展覽 + scroll-spy 高亮）
-  if (isMobileView()) buildMobileEventStrip(root);
+  if (SCCDHelpers.isMobileLayout()) buildMobileEventStrip(root);
 }
 
 // 手機子展覽 tab strip（user 2026-07-09，取代原 per-section 標題 chip）：
@@ -1089,14 +1080,12 @@ function buildMobileEventStrip(root) {
     .filter(s => s.dataset.branchEn || s.dataset.branchZh);
   if (sections.length === 0) return;
 
-  const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
-  const randAccent = () => ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
   const randRot = () => window.SCCDHelpers.getRandomRotation();   // −4~+6 全站統一（2026-09-16；原 −3~+3）
 
   // 矮橫向：tab 改進 header 帶（user 2026-07-11「比照 activities 放 header、可左右滑」）——
   // fixed 定位 + 全寬 blocker + hero gate 由 landscape.css .dsd-event-strip-header + setupStripHeaderGate 接管；
   // 直向手機維持 sticky top:96 原樣。
-  const landscapeHeader = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const landscapeHeader = SCCDHelpers.isLandscapeGate();
   const wrap = document.createElement('div');
   wrap.className = 'md:hidden sticky z-40 dsd-event-strip-wrap';
   if (landscapeHeader) {
@@ -1140,7 +1129,7 @@ function buildMobileEventStrip(root) {
     const hid = vis.map(b => navChipHidden(b, pickNavDir(b)));
     gsap.fromTo(vis,
       { ...NAV_CHIP_SHOWN },
-      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+      { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
   }));
 
   let activeIdx = -1;
@@ -1150,7 +1139,7 @@ function buildMobileEventStrip(root) {
     btns.forEach((b, i) => {
       if (i === idx) {
         b.classList.add('active');
-        b.style.background = randAccent();
+        b.style.background = SCCDHelpers.getRandomAccentColor();
         b.style.color = '#000000';
         // active 保持初始隨機角、不重抽（user 2026-09-16「不要 click/捲之後又換角度」）；只換色
         b.style.transform = `rotate(${baseRots[i]}deg)`;
@@ -1232,7 +1221,6 @@ function setupStripHeaderGate(wrap, strip, blocker) {
   const killTransition = () => btns.forEach(b => { b.style.transition = 'none'; });
   const BLK_HIDDEN = 'inset(0% 0% 100% 0%)';
   const BLK_SHOWN = 'inset(0% 0% 0% 0%)';
-  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';   // 同 activities NAV_EASE，統一進出場曲線
   let revealed = null;
   killTransition();
   btns.forEach(b => gsap.set(b, navChipHidden(b, navDir.get(b))));
@@ -1248,10 +1236,10 @@ function setupStripHeaderGate(wrap, strip, blocker) {
     gsap.to(btns, {
       clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
       translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-      duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+      duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
       onComplete: () => { if (reveal) btns.forEach(b => { b.style.transition = ''; }); },
     });
-    gsap.to(blocker, { clipPath: reveal ? BLK_SHOWN : BLK_HIDDEN, duration: DUR.base, ease: NAV_EASE, overwrite: true });
+    gsap.to(blocker, { clipPath: reveal ? BLK_SHOWN : BLK_HIDDEN, duration: DUR.base, ease: EASE.wipe, overwrite: true });
   };
   // 雙 IO（hero + footer，同 activities-section-switch）：hero 或 footer 在畫面 → 藏；中間內容區才現。
   // 各記 flag 統一 apply（各自 toggle 會被初始 delivery 順序互蓋，同 admission/about 的坑）。
@@ -1288,7 +1276,7 @@ function appendExhibitionSection(root, index, pool, branchEn, branchZh) {
 
   // 手機單圖輪播（user 2026-07-09）：一次一張置中、原地 clip 換圖（同 about class 手機 pattern）。
   // --degree-show class 原由 initDegreeShowGallery 加（手機容器高 350 的 CSS 錨點），這裡手動補。
-  if (isMobileView()) {
+  if (SCCDHelpers.isMobileLayout()) {
     gallery.classList.add('division-images--degree-show');
     // 3-slot 主圖置中輪播（user 2026-09-10「像桌面版、主圖在中間、左右各露一點、從右往左切」）：slotXPercent -50 讓
     // 每張圖以自己的 left% 為中心 → 中間 50% 是主圖、-16%/116% 是左右露邊 peek；tick 左移＝右邊 peek 遞補進中間。
@@ -1448,13 +1436,12 @@ async function setupRefBtn(data) {
   // 卡片旋轉角度跟隨 ref btn（user 2026-06-02）：btn rotation 由 setupStickyAndHeroChips 設、晚於此處 render，
   // 故不在 render 時讀，改在 openPopover 開啟前即時讀 btn.style.transform 套上（同 lightbox-ref-btn.js 卡片跟隨 pill 角度）
 
-  const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
   resolved.forEach(ref => {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'lightbox-ref-chip';
     // mode1/2 hover 隨機三原色（mode3 仍 strict B/W，見 hero.css）；每 chip 固定一色（render 時定一次）
-    const accent = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    const accent = SCCDHelpers.getRandomAccentColor();
     row.style.setProperty('--ref-accent', accent);
     row.dataset.refSection = ref.section;
     row.dataset.refItem = ref.itemId;
@@ -1653,7 +1640,7 @@ function resetRefChipMarquee(chip, animate) {
   const strip = () => { track.style.transform = ''; while (track.children.length > 1) track.removeChild(track.lastElementChild); };
   if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
   if (animate && typeof gsap !== 'undefined') {
-    gsap.to(track, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: strip });
+    gsap.to(track, { x: 0, duration: 0.45, ease: EASE.wipe, onComplete: strip });
   } else {
     if (typeof gsap !== 'undefined') gsap.set(track, { x: 0 });
     strip();
@@ -1671,7 +1658,7 @@ function setupChipMarquees(stack, popover) {
     popover.style.visibility = 'hidden';
     popover.style.display = 'block';
   }
-  const mobile = isMobileView();
+  const mobile = SCCDHelpers.isMobileLayout();
   stack.querySelectorAll('.lightbox-ref-chip').forEach(chip => {
     if (mobile) { playRefChipMarquee(chip); return; } // 手機：自動跑
     resetRefChipMarquee(chip);                        // 桌面：靜態截斷，等 hover
@@ -1731,7 +1718,7 @@ function snugChipWidth(inner) {
 /** @param {{ title?: string, title_en?: string }} data */
 function setupStickyAndHeroChips(data, year) {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-  if (isMobileView()) return; // 手機／矮橫向不做（用手機式堆疊 hero；桌面 sticky chip 系統跳過）
+  if (SCCDHelpers.isMobileLayout()) return; // 手機／矮橫向不做（用手機式堆疊 hero；桌面 sticky chip 系統跳過）
 
   const card = document.getElementById('sticky-info-card');
   const yearChip = document.getElementById('sticky-year-chip');
@@ -1762,9 +1749,8 @@ function setupStickyAndHeroChips(data, year) {
   // 隨機 accent + 旋轉
   // - bg 套到 .sticky-chip-inner（撐 padding 的 element）
   // - rotation + clip-path 套到外 .sticky-chip wrapper（reveal 時整塊 chip 含 padding 一起被 wipe）
-  const ACCENT = ['#00FF80', '#FF448A', '#26BCFF'];
-  const cardColor = ACCENT[Math.floor(Math.random() * ACCENT.length)];
-  const branchPool = ACCENT.filter(c => c !== cardColor);
+  const cardColor = SCCDHelpers.getRandomAccentColor();
+  const branchPool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== cardColor);
   let branchColor = branchPool[Math.floor(Math.random() * branchPool.length)]; // active event chip 底色（跟 title 錯開；點 chip 時換成它的 hover 色）
   const randRot = () => window.SCCDHelpers.getRandomRotation();   // −4~+6 全站統一（2026-09-16；原 −3~+3）
 

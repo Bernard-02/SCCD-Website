@@ -110,12 +110,11 @@ function fetchPlaylist(listId) {
 // accent 底設在 scroll 層而非外盒：scroll 層是 works cross-slide 動畫的共同 target（見 bfa-division-toggle
 // 'iframe, .works-playlist-scroll'），色塊要跟縮圖一起滑、外盒（遮罩）保持透明。
 // scroll 層晚於 works 進場 gsap.set 出生 → 出生時同步 iframe 當前 x/yPercent（iframe 藏著等 reveal 就跟著藏）。
-const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
 function renderPlaylist(box, iframe, listId, vids) {
   if (!vids.length) return;
   const scroll = document.createElement('div');
   scroll.className = 'works-playlist-scroll';   // 滑動層＝色底＋動畫 target；捲動在內層
-  scroll.style.background = ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+  scroll.style.background = SCCDHelpers.getRandomAccentColor();
   // 內捲層退縮在色塊內（inset）＝scrollbar 貼內層右緣、離色塊邊緣一個 padding（同 vision 卡：捲動容器≠色卡本身）
   const inner = document.createElement('div');
   inner.className = 'works-playlist-inner list-scroll';

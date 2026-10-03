@@ -110,7 +110,7 @@ function bindFacultyMarqueeReturn(scope) {
     cell.addEventListener('mouseleave', () => {
       tl.pause();
       returnTween = gsap.to(inners, {
-        x: 0, duration: 0.45, ease: 'cubic-bezier(0.25, 0, 0, 1)',
+        x: 0, duration: 0.45, ease: EASE.wipe,
         onComplete: () => { tl.progress(0); returnTween = null; },
       });
     });
@@ -288,7 +288,7 @@ export function initFacultySlideIn() {
       //   桌機＋直向手機 → 進 #faculty-detail-lead（不旋轉、單獨一塊、sticky 釘在 Education 上方）。
       //   只有矮橫向（landscape gate）沿用舊版 → 旋轉塞在 profile 左欄名字下方（右欄只留 sections）。
       // 每次開卡即時判斷（跨斷點靠 orientation-reload 自癒，比照本頁其他 isMobile 判斷）。
-      const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+      const isLandscapeGate = SCCDHelpers.isLandscapeGate();
 
       // 圖片：沒真實照片的 fulltime/parttime/admin → 用代用 logo。slide-in 底色一直是彩色 accent（panelBg），
       // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
@@ -461,7 +461,7 @@ export function initFacultySlideIn() {
         // panel 此時仍 invisible(visibility，非 display:none) → 仍可量 offsetWidth。
         // 等字型載入避免 fallback 字寬誤判溢出（見 memory feedback_measure_text_layout_wait_fonts_ready）。
         // 矮橫向不跑（landscape gate 詳情 row 走手機自然換行；marquee 會把溢出欄換成兩份 copy＝換行下文字重複）。
-        if (window.innerWidth >= 768 && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+        if (SCCDHelpers.isDesktopLayout()) {
           const runMarquee = () => {
             applyMarqueeOverflow(sectionsContainer, '.faculty-marquee-line', '.faculty-marquee-inner');
             bindFacultyMarqueeReturn(sectionsContainer);   // JS 驅動 row marquee + 離場平滑捲回

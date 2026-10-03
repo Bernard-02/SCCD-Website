@@ -3,16 +3,8 @@
    ======================================== */
 
 :root {
-  /* ===== Custom Cursors（全站自製 cursor，2026-05-20 改 var() 統一管理） =====
-   * 任何 component CSS 用 cursor: var(--cursor-X) 就自動套自製圖；改 cursor 圖只動這裡。
-   * JS inline style.cursor 無法用 var()，仍需寫完整 url() 字串。
-   * Hotspot 對齊 SVG 30px 渲染尺寸的尖端座標（viewBox 32 × 0.9375）。 */
-  --cursor-default:  url('../custom-cursor/default.svg') 9 2, default;
-  --cursor-pointer:  url('../custom-cursor/pointer.svg') 14 1, pointer;
-  --cursor-text:     url('../custom-cursor/typing.svg') 15 15, text;
-  --cursor-w-resize: url('../custom-cursor/left.svg') 2 15, w-resize;
-  --cursor-e-resize: url('../custom-cursor/right.svg') 28 15, e-resize;
-  --cursor-not-allowed: url('../custom-cursor/ban.svg') 16 16, not-allowed;
+  /* Custom Cursors：--cursor-* 由 js/utils/helpers.js setCursorVars() 開機寫在 :root（絕對 URL＋後台覆蓋），
+   * 檔名/hotspot 只在那裡改。CSS 與 JS inline 一律寫 var(--cursor-X)，勿寫裸 keyword（會露系統游標）。 */
 
   /* ===== Colors ===== */
 
@@ -137,7 +129,7 @@
 
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
-  --transition-fast: 0.2s ease;
+  --transition-fast: var(--dur-micro) ease;
 
   /* ===== Motion tokens（動畫時長 + ease，全站單一來源；2026-06-04 統一） =====
    * duration：GSAP 端由 js/modules/ui/motion.js 用 getComputedStyle 讀進來

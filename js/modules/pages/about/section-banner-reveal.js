@@ -30,20 +30,8 @@ function randomTextRotation() {
   return values[Math.floor(Math.random() * values.length)];
 }
 
-// 從 CSS variables 讀取三原色
-function getAccentColors() {
-  const style = getComputedStyle(document.documentElement);
-  return [
-    style.getPropertyValue('--color-green').trim(),
-    style.getPropertyValue('--color-pink').trim(),
-    style.getPropertyValue('--color-blue').trim(),
-  ];
-}
-
 export function initSectionBannerReveal() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-
-  const accentColors = getAccentColors();
 
   // 隨機套用封鎖線位置／旋轉（初始 + 每次 replay 都呼叫）
   /** @param {HTMLElement} titleEl */
@@ -125,7 +113,7 @@ export function initSectionBannerReveal() {
     if (window.innerWidth < 768) {
       gsap.set(titleEl, { clipPath: CLIP_END });
       // 手機版也需要底色，從 accent 取
-      const mobileColor = accentColors[Math.floor(Math.random() * accentColors.length)];
+      const mobileColor = SCCDHelpers.getRandomAccentColor();
       titleEl.style.background = mobileColor;
       titleEl.dataset.accentHex = mobileColor;  // 原始 hex，給 bfa-division-toggle exclude 比對
     }

@@ -21,10 +21,8 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return new URL(key, Helpers.siteBase).href;
   };
 
-  // --cursor-* 變數內的相對 url() 由「使用 var() 的 stylesheet」基準解析（Chromium 行為）：
-  // variables.css 寫 '../custom-cursor/' 以 css/ 為基準正確，但被直接載入的頁面 CSS
-  // （css/components/create.css 等，loadPageCSS）引用時基準變 css/components/ → 差一層 404。
-  // 啟動時以絕對 URL 覆寫整批變數，消除基準歧義（值對齊 variables.css 的 hotspot / fallback）。
+  // 全站 --cursor-* 唯一定義處（CSS 與 JS inline 都寫 var(--cursor-X)）。用絕對 URL：var() 內的相對 url()
+  // 由「使用處」解析（stylesheet 深度不同／inline＝文件基準）會差層 404 退回系統游標。
   function setCursorVars() {
     var cursors = {
       'default':     ['default.svg',  '9 2',   'default'],
@@ -51,13 +49,13 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   // site-assets.js 拿到後台 cursor 覆蓋後重建一次（經 sitePath 換 CDN URL）
   Helpers.refreshCursorVars = setCursorVars;
 
-  Helpers.isMobile = function() {
-    return window.innerWidth < 768;
-  };
-
-  Helpers.isDesktop = function() {
-    return window.innerWidth >= 768;
-  };
+  // 版型判斷唯一來源。gate＝矮橫向手機＋768–1023（iPad），沿用手機排版；同 css/layout/landscape.css 等處的
+  // @media（CSS 無法共用 media query，改這串要同步 CSS）。/create 例外：generate-app/js/utils.js 自有斷點。
+  Helpers.LANDSCAPE_GATE = '(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)';
+  Helpers.isLandscapeGate = function() { return window.matchMedia(Helpers.LANDSCAPE_GATE).matches; };
+  // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（≥1024 且高 >500）
+  Helpers.isMobileLayout = function() { return window.innerWidth < 768 || Helpers.isLandscapeGate(); };
+  Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
 
   Helpers.scrollToElement = function(target, offset, behavior) {
     offset = offset || 0;
@@ -98,14 +96,16 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     });
   };
 
-  const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
+  // 三原色唯一來源（＝ variables.css --color-pink / green / blue）；順序＝全站「rgb」慣例 粉／綠／藍
+  Helpers.ACCENT_COLORS = Object.freeze(['#FF448A', '#00FF80', '#26BCFF']);
   let _lastColorIndex = -1;
 
+  // 隨機一色，不跟上一次（全站共用）重複
   Helpers.getRandomAccentColor = function() {
     let index;
-    do { index = Math.floor(Math.random() * ACCENT_COLORS.length); } while (index === _lastColorIndex);
+    do { index = Math.floor(Math.random() * Helpers.ACCENT_COLORS.length); } while (index === _lastColorIndex);
     _lastColorIndex = index;
-    return ACCENT_COLORS[index];
+    return Helpers.ACCENT_COLORS[index];
   };
 
   Helpers.getRandomRotation = function() {
@@ -121,5 +121,8 @@ if (typeof gsap !== 'undefined') {
   const plugins = [];
   if (typeof ScrollTrigger !== 'undefined') plugins.push(ScrollTrigger);
   if (typeof ScrollToPlugin !== 'undefined') plugins.push(ScrollToPlugin);
+  if (typeof CustomEase !== 'undefined') plugins.push(CustomEase);
   if (plugins.length > 0) gsap.registerPlugin(...plugins);
+  // GSAP core 不認 'cubic-bezier(...)' 字串（靜默退回 power1.out）→ 具名註冊，motion.js EASE.wipe 用
+  if (typeof CustomEase !== 'undefined') CustomEase.create('wipe', '0.25,0,0,1');   // ＝ CSS --ease-wipe
 }

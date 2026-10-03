@@ -54,8 +54,6 @@ const GATHERINGS_URL = '/data/alumni-gatherings.json';
 
 const SAMPLE_PDF_URL = sitePath('assets/sample.pdf');
 
-const ACCENT_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
-function randAccent() { return ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)]; }
 function randDeg(min = 3, max = 6) {
   const sign = Math.random() < 0.5 ? -1 : 1;
   return +(sign * (min + Math.random() * (max - min))).toFixed(2);
@@ -70,13 +68,7 @@ function renderVision(data) {
   const zh = document.getElementById('alumni-vision-zh');
   if (en) en.textContent = data.vision?.en || '';
   if (zh) zh.textContent = data.vision?.zh || '';
-  const style = getComputedStyle(document.documentElement);
-  const colors = [
-    style.getPropertyValue('--color-green').trim() || '#00FF80',
-    style.getPropertyValue('--color-pink').trim()  || '#FF448A',
-    style.getPropertyValue('--color-blue').trim()  || '#26BCFF',
-  ];
-  const color = colors[Math.floor(Math.random() * colors.length)];
+  const color = SCCDHelpers.getRandomAccentColor();
   document.querySelectorAll('[data-overview-hl]').forEach(el => {
     /** @type {HTMLElement} */ (el).style.background = color;
   });
@@ -100,7 +92,7 @@ function renderMembers(data) {
   const container = document.getElementById('alumni-members-list');
   if (!container) return;
   container.innerHTML = (data.members || []).map((m, i) => {
-    const color = ACCENT_COLORS[i % ACCENT_COLORS.length];
+    const color = SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length];
     const initDeg = randDeg(3, 6);
     const imgDir = IMG_DIRS[Math.floor(Math.random() * IMG_DIRS.length)];
     return `
@@ -180,7 +172,7 @@ function renderSponsors(data) {
   const cards = container.querySelectorAll('.alumni-sponsor-card');
   cards.forEach(card => {
     card.addEventListener('mouseenter', () => {
-      /** @type {HTMLElement} */ (card).style.background = randAccent();
+      /** @type {HTMLElement} */ (card).style.background = SCCDHelpers.getRandomAccentColor();
     });
     card.addEventListener('mouseleave', () => {
       /** @type {HTMLElement} */ (card).style.background = '';
@@ -195,7 +187,7 @@ function renderSponsors(data) {
     gsap.to(cards, {
       clipPath: 'inset(0% 0% 0% 0%)',
       duration: DUR.base,
-      ease: 'cubic-bezier(0.25, 0, 0, 1)',
+      ease: EASE.wipe,
       stagger: 0.04,
       overwrite: true,
       clearProps: 'clipPath',
@@ -258,14 +250,14 @@ async function renderGatherings(data) {
 
   // 初始 active 給三原色
   const firstActive = tagRow.querySelector('.alumni-city-btn.active');
-  if (firstActive) colorizeCityTab(firstActive, randAccent());
+  if (firstActive) colorizeCityTab(firstActive, SCCDHelpers.getRandomAccentColor());
 
   tabs.forEach(btn => {
     // Hover：inactive 抽新角＋隨機三原色（離開清色、角保持）；active 不轉不變色（user 2026-09-29 全站 btn 規則）
     btn.addEventListener('mouseenter', () => {
       if (btn.classList.contains('active')) return;
       /** @type {HTMLElement} */ (btn).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
-      colorizeCityTab(btn, randAccent());
+      colorizeCityTab(btn, SCCDHelpers.getRandomAccentColor());
     });
     btn.addEventListener('mouseleave', () => {
       if (btn.classList.contains('active')) {
@@ -280,7 +272,7 @@ async function renderGatherings(data) {
       const hoverColor = btn.style.background;
       tabs.forEach(b => { b.classList.remove('active'); resetCityTab(b); });
       btn.classList.add('active');
-      colorizeCityTab(btn, hoverColor || randAccent());
+      colorizeCityTab(btn, hoverColor || SCCDHelpers.getRandomAccentColor());
       const city = btn.getAttribute('data-city');
       showGatheringCity(city);
     });
@@ -340,7 +332,7 @@ function bindMeetingMinutesPdf() {
       const title = titleLines.length
         ? { en: titleLines[0]?.textContent?.trim() || '', zh: titleLines[1]?.textContent?.trim() || '' }
         : null;
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color: randAccent() } }));
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title, color: SCCDHelpers.getRandomAccentColor() } }));
     });
   });
 }
@@ -388,7 +380,7 @@ async function renderOrganization(terms) {
       e.preventDefault();
       e.stopImmediatePropagation();
       const pdfUrl = charter.getAttribute('data-pdf-href') || SAMPLE_PDF_URL;
-      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title: { en: 'Charter', zh: '章程' }, color: randAccent() } }));
+      document.dispatchEvent(new CustomEvent('sccd:open-pdf', { detail: { pdfUrl, title: { en: 'Charter', zh: '章程' }, color: SCCDHelpers.getRandomAccentColor() } }));
     });
 
     // 用 IntersectionObserver 控 visibility：只有 org section 進 viewport 才顯示 charter（sticky 仍永久 on）

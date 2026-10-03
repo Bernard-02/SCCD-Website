@@ -844,13 +844,7 @@ export function initHeroAnimation() {
   // 跑在 gsap 早返回之前，確保無 gsap 也會套色
   const heroHls = document.querySelectorAll('[data-hero-hl]');
   if (heroHls.length > 0) {
-    const cs = getComputedStyle(document.documentElement);
-    const accentColors = [
-      cs.getPropertyValue('--color-green').trim(),
-      cs.getPropertyValue('--color-pink').trim(),
-      cs.getPropertyValue('--color-blue').trim(),
-    ];
-    const color = accentColors[Math.floor(Math.random() * accentColors.length)];
+    const color = SCCDHelpers.getRandomAccentColor();
     heroHls.forEach(el => {
       /** @type {HTMLElement} */ (el).style.background = color;
       /** @type {HTMLElement} */ (el).style.padding = '0.5rem 0.6rem';

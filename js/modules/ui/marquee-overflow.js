@@ -26,6 +26,7 @@
  */
 import { prefersReducedMotion } from './reduce-motion.js';
 import { registerPageCleanup } from './page-cleanup.js';
+import { EASE } from './motion.js';
 
 /**
  * 全站 marquee 速度單一來源（user 2026-09-15）：手機字級較小＋容器窄，同 80px/s 每秒滑過字數多、
@@ -33,7 +34,7 @@ import { registerPageCleanup } from './page-cleanup.js';
  * 各檔自算 duration 的 text marquee 一律呼叫這裡，勿再硬編 80。
  */
 export function marqueeSpeed() {
-  return (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) ? 60 : 80;
+  return (SCCDHelpers.isMobileLayout()) ? 60 : 80;
 }
 
 // 離屏暫停 observer：全 util 共用一顆，SPA 換頁 drain 時 disconnect（row 隨 #page-content 銷毀，
@@ -173,10 +174,10 @@ export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {
   if (typeof gsap === 'undefined' || !hoverEl || /** @type {any} */ (hoverEl)._mqReturnBound) return () => {};
   // 自我 gate 桌面（同 isMobileView）：手機 / 矮橫向無 hover，維持各元件 CSS 自動循環，本函式不介入。
   // caller 可無條件呼叫、不必各自重複判斷（init 時決定一次；跨 gate 轉向由全站 orientation-reload 自癒）。
-  if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) return () => {};
+  if (SCCDHelpers.isMobileLayout()) return () => {};
   /** @type {any} */ (hoverEl)._mqReturnBound = true;
   const returnDur = opts.returnDur ?? 0.45;
-  const ease = opts.ease ?? 'cubic-bezier(0.25,0,0,1)';
+  const ease = opts.ease ?? EASE.wipe;
 
   // 桌面立刻關掉 CSS keyframe（inner 全設 animation:none），避免首次 hover 前/中 CSS 跟 GSAP 搶同一個 transform
   hoverEl.querySelectorAll(innerSelector).forEach((i) => { /** @type {HTMLElement} */ (i).style.animation = 'none'; });

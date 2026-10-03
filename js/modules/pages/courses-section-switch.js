@@ -13,7 +13,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, flashDeepLinkDim, bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -29,8 +29,7 @@ import { scrollWindowNoSnap, clampBelowFooter } from '../ui/snap-scroll.js';
 // 矮橫向（橫向手機）走手機 window-scroll 路徑：landscape.css 5d 已把 curriculum 的 inner-scroll
 // frame 拆掉（section 自然高、box 不捲），gate 同 footer-scatter usesMobileFooter()
 function usesWindowScroll() {
-  return window.innerWidth < 768
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  return SCCDHelpers.isMobileLayout();
 }
 
 
@@ -267,9 +266,6 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       const openCard = () => {
         waitForGridRevealed(panel).then(() => {
           const card = highlightCardBySlugInPanel(initialProgram, itemSlug);
-          // highlight 窗口其餘卡/label 半透明（比照 activities deep-link dim，courses.css .is-hovered 版）；
-          // 時長取 OPEN_DELAY＝slide-in 開啟那刻結束，不跟 slide-in 自己的 overlay 變暗疊加
-          flashDeepLinkDim(card, OPEN_DELAY_MS);
           // slide-in 完全滑入才解除 deep-link 操作鎖；找不到卡（slug 對不上）＝不開，直接解
           setTimeout(() => { if (!selectCardBySlugInPanel(initialProgram, itemSlug, unlock)) unlock(); }, OPEN_DELAY_MS);
         });
@@ -335,7 +331,6 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   // 對象 = 每顆 program btn 的 .anchor-nav-inner（色塊）+ 每個 .courses-bfa-label（整條 nav 一起 reveal）。
   // querySelectorAll = DOM 序 → label1,inner1,label2,inner2,inner3（上到下）。
   // ⚠️ 動畫期間關 inner/label 的 CSS transition:all（hover/切 program 過場用的），否則追著 GSAP 每幀寫入跑會卡頓，跑完還原。
-  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡
   const navTargets = Array.from(document.querySelectorAll(
     '.courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner'
   ));
@@ -348,7 +343,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、
     // 緊接 hero 之下 → 走下面 once-reveal（section 進 90% 線就現），不能等 hero 完全捲出才出現
     // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
-    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+    const isLandscapeGate = SCCDHelpers.isLandscapeGate();
     if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 run、hero 時出場隱藏」（user 2026-07-09）：
       // IO 偵測 content section 佔到視窗中段（捲過 hero）→ 每顆 btn 個別方向、同時（stagger:0）clip-reveal；
@@ -369,7 +364,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
         gsap.to(navTargets, {
           clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
           translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
           onComplete: () => { if (reveal) navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }); },
         });
       };
@@ -399,7 +394,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
         navRevealed = true;
         gsap.to(navTargets, {
           ...NAV_CHIP_SHOWN,
-          duration: DUR.base, ease: NAV_EASE, stagger: 0.04, clearProps: 'clipPath,translate',
+          duration: DUR.base, ease: EASE.wipe, stagger: 0.04, clearProps: 'clipPath,translate',
           onComplete: () => navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }),
         });
       };
@@ -447,7 +442,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       const hid = clipOn.map(el => navChipHidden(el, pickCardDir(el)));
       gsap.fromTo(clipOn,
         { ...NAV_CHIP_SHOWN },
-        { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
+        { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
       );
     }
     if (navExit.length) {
@@ -458,7 +453,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       const hid = navExit.map(el => navChipHidden(el, navDir.get(el)));
       gsap.fromTo(navExit,
         { ...NAV_CHIP_SHOWN },
-        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
+        { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { amount: 0.2, from: 'end' }, overwrite: true, onComplete: done }
       );
     }
     if (slideInners.length) {
@@ -595,7 +590,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
               clipPath: (/** @type {number} */ i) => hid[i].clipPath,
               translate: (/** @type {number} */ i) => hid[i].translate,
               duration: DUR.fast,
-              ease: 'cubic-bezier(0.25, 0, 0, 1)',
+              ease: EASE.wipe,
               overwrite: true,
               onComplete: finishExit,
             }
@@ -679,7 +674,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
           gsap.to(on, {
             ...NAV_CHIP_SHOWN,
             duration: DUR.base,
-            ease: 'cubic-bezier(0.25, 0, 0, 1)',
+            ease: EASE.wipe,
             // 固定總時長攤給所有卡（amount）不用 per-card（each）：~40+ 張時 each:0.02 會拖到 ~0.9s 一張張慢慢冒出
             // ＝user 報的「灰卡慢出現」。對齊 exit 已用的 { amount: 0.2 }，整片在 ~0.25s 內 reveal 完。
             stagger: isSwitch ? 0 : { amount: 0.25 },

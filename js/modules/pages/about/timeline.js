@@ -49,21 +49,12 @@ export function initTimeline() {
   };
 
   // --- 工具函數 ---
-  const ACCENT_COLORS = (() => {
-    const s = getComputedStyle(document.documentElement);
-    return [
-      s.getPropertyValue('--color-green').trim(),
-      s.getPropertyValue('--color-pink').trim(),
-      s.getPropertyValue('--color-blue').trim(),
-    ];
-  })();
-
   let lastColorIndex = -1;
   function randomColor() {
     let i;
-    do { i = Math.floor(Math.random() * ACCENT_COLORS.length); } while (i === lastColorIndex);
+    do { i = Math.floor(Math.random() * SCCDHelpers.ACCENT_COLORS.length); } while (i === lastColorIndex);
     lastColorIndex = i;
-    return ACCENT_COLORS[i];
+    return SCCDHelpers.ACCENT_COLORS[i];
   }
 
   function pickUniqueRotations(n, min, max) {
@@ -222,7 +213,7 @@ export function initTimeline() {
     // section=area 剛好 landing→viewport 底、控制鈕不出畫面。svh 免手機工具列高估溢出。
     // 矮橫向此值只當 flex-basis（landscape.css #history/#timeline-area flex 撐滿覆寫）。
     // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
-    if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+    if (SCCDHelpers.isMobileLayout()) {
       area.style.height = 'calc(100svh - 178px)';
     }
     const pageW = area.offsetWidth;
@@ -594,7 +585,7 @@ export function initTimeline() {
       // click 沿用 hover 當下的色（全站 nav btn 規則，點下去不跳色）→ 卡也用它；進頁自動開（沒 hover）才另抽
       const hoverColor = navHoverColor(listBtn);
       const cardColor = hoverColor || randomColor();
-      if (hoverColor) lastColorIndex = ACCENT_COLORS.findIndex(c => c.toLowerCase() === hoverColor.toLowerCase());
+      if (hoverColor) lastColorIndex = SCCDHelpers.ACCENT_COLORS.findIndex(c => c.toLowerCase() === hoverColor.toLowerCase());
       listBtn.classList.add('active');
       listBtn.style.setProperty('--nav-active', cardColor);
       listRect.style.background = cardColor;

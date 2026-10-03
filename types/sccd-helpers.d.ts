@@ -5,9 +5,11 @@
 
 // ===== SCCDHelpers API =====
 interface SCCDHelpersAPI {
-  // 響應式判斷
-  isMobile(): boolean;
-  isDesktop(): boolean;
+  // 版型判斷（gate 同 landscape.css）
+  LANDSCAPE_GATE: string;
+  isLandscapeGate(): boolean;
+  isMobileLayout(): boolean;
+  isDesktopLayout(): boolean;
 
   // DOM 操作
   scrollToElement(target: HTMLElement | string, offset?: number, behavior?: ScrollBehavior): void;
@@ -19,7 +21,8 @@ interface SCCDHelpersAPI {
     dataAttribute?: string
   ): void;
 
-  // 隨機樣式
+  // 三原色 / 隨機樣式
+  ACCENT_COLORS: readonly string[];
   getRandomAccentColor(): string;
   getRandomRotation(): number;
 
@@ -59,6 +62,7 @@ interface HTMLElement {
 declare var gsap: any;
 declare var ScrollTrigger: any;
 declare var ScrollToPlugin: any;
+declare var CustomEase: any;
 declare var lottie: any;
 declare var pdfjsLib: any;
 declare var p5: any;

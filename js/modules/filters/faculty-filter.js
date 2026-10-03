@@ -29,8 +29,7 @@ const SLIDE_MAP = {
 // rotate 共存）＋同步 clip-path 滑動揭露（navChipHidden，見 scroll-animate.js）。
 // 🔑 仍套在 `.anchor-nav-inner`（色塊本身）**不是** btn——clip 在旋轉前的 local box 生效、跟著 chip 旋轉：
 //   旋轉角不裁、不疊鄰、免 wrapper（原 wipe 版的三個優點全保留），位移向量旋轉 θ 讓窗口錨點釘死。
-// 方向統一由下而上（hero 語彙；2026-07-17 隨機四方向退役）；DUR.base、cubic-bezier(0.25,0,0,1)、stagger 0.02、clearProps。
-const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';  // 同灰卡 courses-grid-card
+// 方向統一由下而上（hero 語彙；2026-07-17 隨機四方向退役）；DUR.base、EASE.wipe、stagger 0.02、clearProps。
 
 function setupFacultyCardAnim(card) {
   if (typeof gsap === 'undefined') return;
@@ -326,7 +325,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
-    const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+    const isLandscapeGate = SCCDHelpers.isLandscapeGate();
     if (isLandscapeGate && 'IntersectionObserver' in window && section) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」（user 2026-07-10
       // 指定 clip-path 非 opacity，同 curriculum）：IO 偵測 cards section 佔視窗中段 → 各 inner 個別方向、
@@ -355,7 +354,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
         gsap.to(bandInners, {
           clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
           translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
           onComplete: () => { if (reveal) bandInners.forEach(inner => { inner.style.transition = ''; }); },
         });
       };
@@ -386,7 +385,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
         gsap.to(navInners, {
           ...NAV_CHIP_SHOWN,
           duration: DUR.base,
-          ease: NAV_EASE,
+          ease: EASE.wipe,
           stagger: 0.02,
           clearProps: 'clipPath,translate',
           onComplete: () => navInners.forEach(inner => { inner.style.transition = ''; }),
@@ -413,7 +412,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
         clipPath: (i) => hid[i].clipPath,
         translate: (i) => hid[i].translate,
         duration: DUR.base,
-        ease: NAV_EASE,
+        ease: EASE.wipe,
         stagger: { each: 0.02, from: 'end' },
         overwrite: true,
         onComplete: resolve,
@@ -446,7 +445,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
       // 手機 filter bar 是水平 scroll strip：點到的 btn 捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
       // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
       // 矮橫向（landscape gate 拆 frame、nav 回水平 strip）同樣要對齊。
-      if (window.innerWidth < 768 || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches) {
+      if (SCCDHelpers.isMobileLayout()) {
         const bar = this.parentElement;
         if (bar) {
           const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;

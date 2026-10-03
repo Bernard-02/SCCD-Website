@@ -25,7 +25,6 @@ import { DUR, EASE } from '../ui/motion.js';
 import { loadCourses } from './courses-source.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 
-const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
 const BFA_GRADES = [
   { key: 'freshman',  en: 'Freshman',  zh: '一年級' },
@@ -95,7 +94,7 @@ function escapeAttr(s) {
 }
 
 function pickAccent() {
-  return PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+  return SCCDHelpers.getRandomAccentColor();
 }
 function pickRotation() {
   // -2 ~ 2 deg，排除 ±0.5；±2° 對 ~232px 寬卡片 corner protrusion ≈ 4px，
@@ -201,7 +200,7 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
         const hid = exitItems.map(el => navChipHidden(el, pickNavDir()));
         gsap.fromTo(exitItems,
           { ...NAV_CHIP_SHOWN },
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.fast, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, onComplete: resolve }
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.fast, ease: EASE.wipe, overwrite: true, onComplete: resolve }
         );
       });
       delete mobileGrid.dataset.gradeSwitching;
@@ -230,7 +229,7 @@ async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
         const hid = enterItems.map(el => navChipHidden(el, pickNavDir()));
         gsap.fromTo(enterItems,
           { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
-          { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: 'cubic-bezier(0.25, 0, 0, 1)', overwrite: true, clearProps: 'clipPath,translate' }
+          { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, overwrite: true, clearProps: 'clipPath,translate' }
         );
       }
     }
@@ -376,8 +375,7 @@ function openCourseSlideIn(card, onOpened) {
   // 只桌面（gap-lg 生效）；手機/矮橫向 title 自帶 padding-bottom，且 inline margin 會蓋掉 landscape override → 清空。
   const descWrap = panel.querySelector('.courses-detail-desc-wrapper');
   if (descWrap) {
-    const isDesktopLayout = window.innerWidth >= 768
-      && !window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+    const isDesktopLayout = SCCDHelpers.isDesktopLayout();
     const sticky = zhT && zhT.closest('.courses-detail-title-sticky');
     if (isDesktopLayout && sticky) {
       const dip = zhT.getBoundingClientRect().bottom - sticky.getBoundingClientRect().bottom;
@@ -767,7 +765,7 @@ export async function renderCoursesGrid(program) {
   // 轉向重量（user 2026-07-04 轉向自癒）：桌面/手機兩套 grid 並存、只有 render 當下「可見」那套被量過
   // （隱藏套 row offsetWidth=0 → applyMarqueeOverflow bail）。轉向後換另一套顯示 → 沒 marquee 或帶舊 dual-copy
   // → 跨矮橫向 gate 時重跑（自帶 reset + 0 寬 bail，兩套各自收斂到正確態）。cleanup 由 page-cleanup 統一解綁。
-  const rotateGateMq = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)');
+  const rotateGateMq = window.matchMedia(SCCDHelpers.LANDSCAPE_GATE);
   const onRotateGate = () => requestAnimationFrame(() => {
     if (!panel.isConnected) return;
     // 表頭 slide 殘留：直向時 program 切換動畫照樣對「隱藏的桌面表頭」跑，inner 停在 ±100%

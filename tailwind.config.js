@@ -16,6 +16,12 @@ module.exports = {
   safelist: ['text-xs', 'text-s', 'text-md', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'],
   theme: {
     extend: {
+      // cursor-* utility 直接吃自製游標（--cursor-* 定義在 js/utils/helpers.js）
+      cursor: Object.fromEntries(
+        ['default', 'pointer', 'text', 'not-allowed', 'grab', 'grabbing', 'zoom-in', 'zoom-out', 'w-resize', 'e-resize']
+          .map(k => [k, `var(--cursor-${k})`])
+      ),
+
       // 顏色系統
       colors: {
         // 主要色

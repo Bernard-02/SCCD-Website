@@ -20,10 +20,9 @@ const prefetchedUrls = new Set();
 
 // mode1/2 卡片底色隨機三原色，跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor：
 // 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。fallback 防 helper 未載入。
-const ACCENT_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 function randomAccent() {
   return window.SCCDHelpers?.getRandomAccentColor?.()
-    ?? ACCENT_COLORS[Math.floor(Math.random() * ACCENT_COLORS.length)];
+    ?? SCCDHelpers.getRandomAccentColor();
 }
 
 // 4 向遮罩滑入：dir → 隱藏起點（xPercent/yPercent ±110，藏在該側遮罩外）

@@ -110,12 +110,11 @@ export function initAnchorNav({ reveal = false } = {}) {
     threshold: 0
   };
 
-  const NAV_COLORS = ['#FF448A', '#00FF80', '#26BCFF'];
   let lastNavColorIndex = -1;
 
   // Programs 區封鎖綫換色時排除「當前 active division tab」顏色，避免兩者撞色
   // 讀 dataset.accentHex 不讀 style.background：瀏覽器把 inline style 的顏色序列化成
-  // rgb(...) 回吐（'#00FF80' 讀回變 'rgb(0, 255, 128)'），跟 NAV_COLORS hex 比永遠不相等 →
+  // rgb(...) 回吐（'#00FF80' 讀回變 'rgb(0, 255, 128)'），跟 SCCDHelpers.ACCENT_COLORS hex 比永遠不相等 →
   // exclude 默默失效。寫色那端（bfa-division-toggle setActive）會同步把原始 hex 存進 dataset。
   function getActiveDivisionColor() {
     const el = /** @type {HTMLElement | null} */ (document.querySelector('.class-division-btn.active'));
@@ -126,16 +125,16 @@ export function initAnchorNav({ reveal = false } = {}) {
 
   function getNavColor(excludeColor) {
     const excludeIdx = excludeColor
-      ? NAV_COLORS.findIndex(c => c.toLowerCase() === excludeColor.toLowerCase())
+      ? SCCDHelpers.ACCENT_COLORS.findIndex(c => c.toLowerCase() === excludeColor.toLowerCase())
       : -1;
     let index;
     let safety = 0;
     do {
-      index = Math.floor(Math.random() * NAV_COLORS.length);
+      index = Math.floor(Math.random() * SCCDHelpers.ACCENT_COLORS.length);
       safety++;
     } while ((index === lastNavColorIndex || index === excludeIdx) && safety < 20);
     lastNavColorIndex = index;
-    return NAV_COLORS[index];
+    return SCCDHelpers.ACCENT_COLORS[index];
   }
 
   // 全站 nav btn 統一 −4~+6（2026-09-16 併入，走 SCCDHelpers.getRandomRotation 單一來源；原 −3~+3 無「必須小」理由）
@@ -163,7 +162,7 @@ export function initAnchorNav({ reveal = false } = {}) {
     bindNavBtnHover(btn, {
       pick: (target === 'class-info-anchor' || target === 'works') ? () => {
         const ex = getActiveDivisionColor();
-        const pool = NAV_COLORS.filter(c => c.toLowerCase() !== ex);
+        const pool = SCCDHelpers.ACCENT_COLORS.filter(c => c.toLowerCase() !== ex);
         return pool[Math.floor(Math.random() * pool.length)];
       } : undefined,
     });
@@ -175,8 +174,7 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 第一個內容區進視窗時 once、離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的
   // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
-  const NAV_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
-  const isLandscapeGate = window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isLandscapeGate = SCCDHelpers.isLandscapeGate();
   if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768 && !isLandscapeGate) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {
@@ -188,7 +186,7 @@ export function initAnchorNav({ reveal = false } = {}) {
         if (navRevealed) return;
         navRevealed = true;
         gsap.to(inners, {
-          ...NAV_CHIP_SHOWN, duration: DUR.base, ease: NAV_EASE, stagger: 0.05, clearProps: 'clipPath,translate',
+          ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.05, clearProps: 'clipPath,translate',
           onComplete: () => inners.forEach(el => { el.style.transition = ''; }),
         });
       };
@@ -207,7 +205,7 @@ export function initAnchorNav({ reveal = false } = {}) {
         const hid = inners.map(el => navChipHidden(el, navDir.get(el)));
         gsap.fromTo(inners,
           { ...NAV_CHIP_SHOWN },
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
       }));
     }
   }
@@ -233,7 +231,7 @@ export function initAnchorNav({ reveal = false } = {}) {
         const hid = vis.map(el => navChipHidden(el, mobDir.get(el)));
         gsap.fromTo(vis,
           { ...NAV_CHIP_SHOWN },
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: NAV_EASE, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
+          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.05, from: 'end' }, overwrite: true, onComplete: resolve });
       }));
     }
   }
@@ -248,10 +246,10 @@ export function initAnchorNav({ reveal = false } = {}) {
     // Programs(class-info-anchor) 與 Works 都排除當前 active division tab 色（共用同排 sticky btn）；其他 anchor 不限
     const exclude = (id === 'class-info-anchor' || id === 'works') ? getActiveDivisionColor() : null;
     // click 沿用 hover 色（user 2026-09-28）；撞 division 色才照舊另抽
-    const pickedIdx = picked ? NAV_COLORS.findIndex(c => c.toLowerCase() === picked.toLowerCase()) : -1;
+    const pickedIdx = picked ? SCCDHelpers.ACCENT_COLORS.findIndex(c => c.toLowerCase() === picked.toLowerCase()) : -1;
     let color;
-    if (pickedIdx >= 0 && NAV_COLORS[pickedIdx].toLowerCase() !== exclude) {
-      color = NAV_COLORS[pickedIdx];
+    if (pickedIdx >= 0 && SCCDHelpers.ACCENT_COLORS[pickedIdx].toLowerCase() !== exclude) {
+      color = SCCDHelpers.ACCENT_COLORS[pickedIdx];
       lastNavColorIndex = pickedIdx;
     } else {
       color = getNavColor(exclude);
@@ -399,7 +397,7 @@ export function initAnchorNav({ reveal = false } = {}) {
         gsap.to(inners, {
           clipPath: hide ? (i) => hid[i].clipPath : NAV_CHIP_SHOWN.clipPath,
           translate: hide ? (i) => hid[i].translate : NAV_CHIP_SHOWN.translate,
-          duration: DUR.base, ease: NAV_EASE, stagger: 0, overwrite: true,
+          duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
           onComplete: () => { if (!hide) inners.forEach(el => { el.style.transition = ''; }); },
         });
       };

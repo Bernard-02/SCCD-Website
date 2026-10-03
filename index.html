@@ -54,7 +54,7 @@
 
       <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
            width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流） -->
-      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:pointer; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20;">
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:var(--cursor-pointer); overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20;">
         <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
       </div>
 
@@ -90,7 +90,7 @@
 
         <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置。
              末子＝透明命中層撐到 thumb 高（14px）：只有 4px 線吃得到 hover/點擊，滑到 thumb 凸出處會變回箭頭（2026-10-01） -->
-        <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0;">
+        <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0; cursor:var(--cursor-pointer);">
           <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
             <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
           </div>
@@ -105,7 +105,7 @@
           <button id="video-mute-btn" aria-label="靜音／取消靜音 Mute/Unmute" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume icon-l"></span>
           </button>
-          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s cubic-bezier(0.25,0,0,1); height:4px; background:#000; position:relative; flex-shrink:0;">
+          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s var(--ease-wipe); height:4px; background:#000; position:relative; flex-shrink:0; cursor:var(--cursor-pointer);">
             <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
               <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
             </div>
@@ -167,6 +167,7 @@
 
   <!-- JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>

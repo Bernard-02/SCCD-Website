@@ -1,31 +1,19 @@
-/* 自製 cursor 系統（2026-05-20 方案 B：CSS variable 全域改寫）
+/* 自製 cursor 全域規則
  *
- * 主要邏輯：所有 component CSS 都用 `cursor: var(--cursor-X)` 直接套自製圖。
- * 變數定義在 variables.css，改 cursor 圖只動 variables.css 那一處。
+ * --cursor-* 定義在 js/utils/helpers.js（唯一來源，含後台覆蓋）。全站一律寫 var(--cursor-X)：
+ * component CSS、JS inline、HTML inline 都一樣；Tailwind cursor-* utility 也已映射到 var（tailwind.config.js）。
+ * 勿寫裸 keyword（cursor:pointer/default）——會露出系統游標。
  *
- * 本檔只處理「component CSS 改不到」的場景：
- * 1) Tailwind utility class（build 產物 `.cursor-pointer { cursor: pointer }` 無法改成 var）
- * 2) HTML inline style="cursor:pointer"（指向 div 等沒走 component CSS 的元素）
- * 3) 瀏覽器內建 cursor（a[href] / button / input 預設游標）
- * 4) 特殊 cursor（left / right 方向箭頭）
- *
- * inline style.cursor (spec=1000) 永遠勝過本檔規則，lightbox JS 的 grab/grabbing 不受影響。
+ * 本檔只補「瀏覽器／Tailwind preflight 內建 keyword 游標」的元素，新元件不用來這裡登記。
  */
 
-/* ─────────────────────────────────────────────────────────────
- * 1) Root default — html / body 跟所有未指定 cursor 的元素
- * ───────────────────────────────────────────────────────────── */
-html {
+/* 1) 預設：全站繼承；:disabled 蓋 preflight 的 keyword default */
+html,
+body :disabled {
   cursor: var(--cursor-default);
 }
 
-/* ─────────────────────────────────────────────────────────────
- * 2) 瀏覽器內建 pointer 對應元素 + Tailwind utility .cursor-pointer
- *    這些是 cursor.css 仍需列舉的元素：
- *    - 瀏覽器 user-agent style 對 a[href]/button 套 pointer，但是用 keyword 不是 url()
- *    - Tailwind 編譯產物 .cursor-pointer 也用 keyword
- *    這裡用 body 拉 spec=11 蓋過。
- * ───────────────────────────────────────────────────────────── */
+/* 2) 瀏覽器內建 pointer 的元素（UA / preflight 是 keyword）；body 前綴拉特異度蓋過 preflight */
 body a[href],
 body button:not(:disabled),
 body [role="button"],
@@ -33,15 +21,11 @@ body [type="button"],
 body [type="submit"],
 body [type="reset"],
 body label[for],
-body summary,
-body .cursor-pointer {
+body summary {
   cursor: var(--cursor-pointer);
 }
 
-/* ─────────────────────────────────────────────────────────────
- * 3) Typing cursor（text 輸入）
- *    瀏覽器 user-agent 對 input/textarea 套 text，這裡用 var() 蓋。
- * ───────────────────────────────────────────────────────────── */
+/* 3) 文字輸入（UA 預設 keyword text） */
 body input[type="text"],
 body input[type="search"],
 body input[type="email"],
@@ -55,19 +39,7 @@ body [contenteditable="true"] {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * 4) HTML inline style="cursor:pointer" 寫死 div / 特殊 element
- *    這些 div 沒走 component CSS、也沒 .cursor-pointer class、不是 a/button，
- *    必須點名 id 才能蓋。
- * ───────────────────────────────────────────────────────────── */
-body #homepage-yt-card,
-body #homepage-yt-card *,
-body #video-progress-track,
-body #video-volume-track {
-  cursor: var(--cursor-pointer);
-}
-
-/* ─────────────────────────────────────────────────────────────
- * 5) Left / Right arrow cursors（特殊方向 cursor）
+ * 4) Left / Right arrow cursors（特殊方向 cursor）
  *    timeline 邊界照片 + nav zone
  *    courses / faculty slide-in overlay 點任何處關閉 → 左箭頭暗示
  * ───────────────────────────────────────────────────────────── */

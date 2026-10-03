@@ -29,8 +29,7 @@ export function getHeaderTargets() {
   // 手機 (<768)、平板 (768–1199) 與矮橫向（皆換手機 header，gate 同 navigation.css/landscape.css）：
   // 抓手機 .grid-12 區內的 .mobile-header-btn 兩顆（mode-btn-mobile + menu-btn 外殼），logo 不收——
   // 不加 gate 時走桌面分支去收 display:none 的桌面 bars，手機 mode/menu 鈕在 slide-in/lightbox 上沒人收。
-  const isMobile = window.innerWidth < 1024
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+  const isMobile = SCCDHelpers.isMobileLayout();
   if (isMobile) {
     return /** @type {HTMLElement[]} */ (
       Array.from(header.querySelectorAll(':scope > .site-container > .grid-12 .mobile-header-btn'))

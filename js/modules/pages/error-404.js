@@ -20,7 +20,6 @@ import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-an
 import { registerPageExit } from '../ui/page-exit.js';
 import { EASE } from '../ui/motion.js';
 
-const PRIMARY_COLORS = ['#00FF80', '#FF448A', '#26BCFF'];
 
 const ROTATION_RANGE = 12;          // ±度數
 const SHUFFLE_INTERVAL_MS = 5000;   // 每 5s 重排
@@ -41,7 +40,7 @@ function randRange(min, max) {
 }
 
 function pickColor() {
-  return PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
+  return SCCDHelpers.getRandomAccentColor();
 }
 
 function setAnchorPlacement(anchorEl, { topPct, leftPct, rot }) {

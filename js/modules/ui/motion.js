@@ -37,4 +37,5 @@ export const EASE = {
   exitSoft:  'power2.in',    // 退場 / hide（小）
   move:      'power2.inOut', // 雙向 layout（寬高 / size / marginLeft）
   sway:      'sine.inOut',   // atlas 永久擺動
+  wipe:      'wipe',         // nav chip / clip 擦除 / 回彈：慢起步、快衝、長收尾（＝CSS --ease-wipe；CustomEase 註冊在 helpers.js）
 };

@@ -10,8 +10,7 @@
  *   - 新圖在 slot 4 位置隨機 4 向滑入
  * 每 INTERVAL 自動 tick；hover：旋轉歸 0°（slot 0 不啟用）；click slot 1~4：手動觸發 tick。
  */
-
-import { sitePath } from '../ui/site-base.js';
+import { EASE } from '../ui/motion.js';
 
 // 4 個 slot（桌面，user 2026-08-18「調整到 4 張、更大一些」）：slot-left 用 vw、寬度改「等面積 vw」（見 buildImg）。
 // ⭐等面積(equal-area)取代舊 uniform-px-width：每張圖面積≈GALLERY_TARGET_AREA vw²、保留原始長寬比 → 直式變窄、
@@ -28,7 +27,6 @@ const SLOT_LEFTS_MOBILE = ['-3vw', '29vw', '61vw'];
 const IMG_WIDTH_DESKTOP = '460px';
 const IMG_WIDTH_MOBILE = '42vw';
 const ANIM_DUR = 0.5;
-const ANIM_EASE = 'cubic-bezier(0.25, 0, 0, 1)';
 const HOVER_DUR = 0.3;
 const INTERVAL = 3500;
 
@@ -150,8 +148,8 @@ export function initDegreeShowGallery(container, pool) {
   function updateCursors() {
     slots.forEach((s, i) => {
       s.style.cursor = i === 0
-        ? `url('${sitePath('custom-cursor/default.svg')}') 6 1, default`
-        : `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
+        ? 'var(--cursor-default)'
+        : 'var(--cursor-pointer)';
     });
   }
 
@@ -200,13 +198,13 @@ export function initDegreeShowGallery(container, pool) {
     gsap.to(leaving.firstElementChild, {
       ...randomSlide(),
       duration: ANIM_DUR,
-      ease: ANIM_EASE,
+      ease: EASE.wipe,
       onComplete: () => leaving.remove(),
     });
 
     // slot 1..N-1 → 各自往左一格
     for (let i = 1; i < SLOT_COUNT; i++) {
-      gsap.to(slots[i], { left: SLOT_LEFTS_VW[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
+      gsap.to(slots[i], { left: SLOT_LEFTS_VW[i - 1], duration: ANIM_DUR, ease: EASE.wipe });
     }
 
     const newImg = buildImg(pool[nextIdx % pool.length], IMG_WIDTH, TARGET_AREA);
@@ -215,7 +213,7 @@ export function initDegreeShowGallery(container, pool) {
     placeInSlot(newImg, SLOT_COUNT - 1, SLOT_LEFTS_VW, { rotation: randomRotation() });
     gsap.fromTo(newImg.firstElementChild,
       { ...randomSlide() },
-      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: ANIM_EASE,
+      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: EASE.wipe,
         onComplete: () => {
           isShifting = false;
           reapplyHoverIfPointerInside();
@@ -240,7 +238,7 @@ export function initDegreeShowGallery(container, pool) {
     if (revealed || destroyed) return;
     revealed = true;
     inners.forEach((el, i) => gsap.fromTo(el, revealDirs[i],
-      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: ANIM_EASE, delay: i * 0.08 }));
+      { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: EASE.wipe, delay: i * 0.08 }));
     // pool 至少 SLOT_COUNT+1 張才輪播；否則靜態（避免 tick 重複同一張）
     if (pool.length > SLOT_COUNT) timer = setInterval(tick, INTERVAL);
   }
@@ -263,7 +261,7 @@ export function initDegreeShowGallery(container, pool) {
         slots.forEach(s => gsap.to(s.firstElementChild, {
           ...randomSlide(),
           duration: ANIM_DUR,
-          ease: ANIM_EASE,
+          ease: EASE.wipe,
           overwrite: 'auto',
           onComplete: () => { if (--n <= 0) resolve(); },
         }));

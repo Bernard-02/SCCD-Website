@@ -207,14 +207,14 @@
         <a id="prev-link" href="#" class="block absolute" aria-label="上一屆畢業展 Previous degree show" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
           <div id="prev-card" class="relative">
             <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
-            <div id="prev-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
+            <div id="prev-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></div>
           </div>
         </a>
         <!-- next：newer year，右下（66vw + 右移 -8vw） -->
         <a id="next-link" href="#" class="block absolute" aria-label="下一屆畢業展 Next degree show" style="right: -8vw; width: 66vw; z-index: 1;">
           <div id="next-card" class="relative">
             <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
-            <div id="next-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></div>
+            <div id="next-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></div>
           </div>
         </a>
 
@@ -224,14 +224,14 @@
              - gap 對齊 hero `gap-md`（1.5rem）
              - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
         <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="prev-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="prev-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="prev-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
         </div>
         <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
-          <p id="next-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path 0.5s cubic-bezier(0.25,0,0,1);"></p>
+          <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="next-title-en" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="next-title" class="dshow-next-title text-2xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
         </div>
       </div>
 
@@ -260,6 +260,7 @@
   <!-- JavaScript -->
   <!-- GSAP & ScrollTrigger -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>

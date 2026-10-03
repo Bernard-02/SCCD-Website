@@ -190,7 +190,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     const strip = () => { track.style.transform = ''; while (track.children.length > 1) track.removeChild(track.lastElementChild); };
     if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
     if (animate && typeof gsap !== 'undefined') {
-      gsap.to(track, { x: 0, duration: 0.45, ease: 'cubic-bezier(0.25,0,0,1)', onComplete: strip });
+      gsap.to(track, { x: 0, duration: 0.45, ease: EASE.wipe, onComplete: strip });
     } else {
       if (typeof gsap !== 'undefined') gsap.set(track, { x: 0 });
       strip();

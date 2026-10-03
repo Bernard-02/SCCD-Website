@@ -22,12 +22,12 @@ import { sitePath } from '../../ui/site-base.js';
 import { ensureCardMask, fitCardToText } from '../../ui/scroll-animate.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadAboutClasses } from './about-source.js';
+import { EASE } from '../../ui/motion.js';
 
 // slot 間距：slot 0 起始貼左、slot 1/2 各往右平移 ~28%（從 32% 縮小）
 // 避免 slot 2 + landscape 圖寬度溢出 .division-images 容器右緣（container ~720px 在 1920w，slot2 64% + 462 = ~923 溢出 200px）
 const SLOT_LEFTS = ['0%', '24%', '48%'];
 const ANIM_DUR   = 0.5;
-const ANIM_EASE  = 'cubic-bezier(0.25, 0, 0, 1)';
 const INTERVAL   = 3000;
 const HOVER_DUR  = 0.3;
 
@@ -240,7 +240,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // 舊版 slot 0 = default 是「第一張不可點」時代的殘留（user 2026-09-12 指正）
   function updateCursors() {
     slots.forEach(s => {
-      s.style.cursor = `url('${sitePath('custom-cursor/pointer.svg')}') 9 1, pointer`;
+      s.style.cursor = 'var(--cursor-pointer)';
     });
   }
 
@@ -321,7 +321,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     gsap.to(leaving.firstElementChild, {
       ...revealHiddenT(leaveRandom ? randRevealDir() : 'left'),
       duration: ANIM_DUR,
-      ease: ANIM_EASE,
+      ease: EASE.wipe,
       onComplete: () => leaving.remove(),
     });
 
@@ -333,7 +333,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 
     // 2/3. 其餘 slot 各往左移一格（保留各自旋轉）
     for (let i = 1; i < slotCount; i++) {
-      gsap.to(slots[i], { left: shifted ? shifted[i - 1] : slotLefts[i - 1], duration: ANIM_DUR, ease: ANIM_EASE });
+      gsap.to(slots[i], { left: shifted ? shifted[i - 1] : slotLefts[i - 1], duration: ANIM_DUR, ease: EASE.wipe });
     }
 
     // 新圖在最後一個 slot 隨機 4 向滑入（與上面同時進行）
@@ -345,7 +345,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     whenImgReady(inNew).then(() => {
       // adaptive：寬度此時才定 → 揭露前（仍藏在遮罩外）補到正確位置
       if (adaptive) gsap.set(newImg, { left: adaptiveLefts(slots)[slots.indexOf(newImg)] });
-      gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: ANIM_EASE,
+      gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: EASE.wipe,
         onComplete: () => { isShifting = false; if (!manual) reapplyHoverIfPointerInside(); } });
     });
     if (!manual) attachInteractions(newImg);
@@ -388,15 +388,15 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       // show 先 gate 到 decode 完才滑入（whenImgReady），避免還沒載完就滑進空框、圖再閃出（user 2026-09-11）。
       imgWrappers.forEach(el => {
         const inner = el.firstElementChild;
-        const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne });
+        const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
         if (mode === 'show') whenImgReady(inner).then(run); else run();
       });
-      if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: ANIM_EASE, onComplete: onOne });
+      if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: EASE.wipe, onComplete: onOne });
       // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
       if (revealText) {
         if (mode === 'show') fitTextCard(); // 揭露前貼合寬度（隱藏態量寬 OK，translate 不影響寬）
         const to = mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN;
-        gsap.to(textHlEl, { ...to, duration: ANIM_DUR, ease: ANIM_EASE, overwrite: 'auto', onComplete: onOne });
+        gsap.to(textHlEl, { ...to, duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
       }
     });
   }
@@ -517,8 +517,7 @@ export async function initClassImagesSlideshow() {
     // 手機＝單圖置中自動輪播（user 2026-07-07；同 timeline 手機單格 pattern）：單 slot 下 tick =
     // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
     // 桌面維持 3-slot 左移輪播。矮橫向（landscape gate）同走單圖（user 2026-07-07 wireframe：圖左文右單圖輪播）。
-    const isMobileSlots = window.innerWidth < 768
-      || window.matchMedia('(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)').matches;
+    const isMobileSlots = SCCDHelpers.isMobileLayout();
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
