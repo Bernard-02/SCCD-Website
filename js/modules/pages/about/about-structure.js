@@ -491,7 +491,6 @@ export async function initProgramStructure() {
   //    置中後整棵樹右移：取「左界(col-4/nav)閃避」與「大螢幕想右移」較大者；BPAIDC 永不出視窗。 ──
   const RIGHT_MARGIN = 64;   // BPAIDC 右緣至少離視窗右緣的留白
   const WANT_SHIFT = 200;    // 大螢幕(≥1600)想把整棵樹往右移的量（user：大螢幕才右移、窄螢幕維持不裁）
-  const LEGEND_PR = 24;      // BPAIDC 右緣離 Term 卡右緣（--spacing-md）
   const legendStack = root.querySelector('.prog-legend-stack');
   let linkBaseW = 0;         // 連結橫綫 CSS 原長（layoutLineLengths 縮綫的下限）
   function layoutFan() {
@@ -524,21 +523,36 @@ export async function initProgramStructure() {
     const wantPush = window.innerWidth >= 1600 ? Math.min(WANT_SHIFT, contentRoom) : 0;
     const push = Math.max(navPush, wantPush);
     if (push > 0) progTree.style.transform = `translateX(${push.toFixed(2)}px)`;
-    // ③ 桌面：BPAIDC 往右頂到 Term 卡右緣 − md（user 2026-10-03）＝連結橫綫吃掉中間距離（長度由卡片位置算）；
-    //    右緣用「不含旋轉」量（中心＋半寬），同說明卡右緣的定位基準。窄螢幕頂列本就比範圍寬＝不受此界、
-    //    維持 CSS 長度往右超出（user 同日拍板；不裁仍由上方 viewRoom 保證）。
-    if (links[0] && legendStack && SCCDHelpers.isDesktopLayout()) {
-      const r = restRect(bpaidc);
-      const extra = legendStack.getBoundingClientRect().right - LEGEND_PR - (r.left + r.width / 2 + bpaidc.offsetWidth / 2);
-      if (extra > 0) links[0].style.width = `${(links[0].offsetWidth + extra).toFixed(2)}px`;
-    }
   }
 
-  // ── 桌面：斜綫長度跟隨 SCCD↔AI 連結橫綫（user 2026-10-03）＝每層層距反推：可見長＝hypot(dx, dy) − 2×GAP，
-  //    dx 不受層距影響、dy 跟層距 1:1 → 從當下狀態量一次就能解（不必先歸零）。
-  //    上限＝生長範圍（樹高不超出框＝底到 Degree 卡底）：放不下就二分找最長可放的長度、橫綫一起縮＝全部等長
-  //    （此時 BPAIDC 會離開 Term 右緣）。下限 2xl：窄螢幕橫綫只剩 CSS 原長，斜綫短不到那麼短。──
+  // ── 桌面：同層兩子卡中心對稱落在父中心 ±D、兩層同一個 D（user 2026-10-03「斜率一致」）：綫已等長
+  //    （layoutLineLengths）→ dx 也一樣＝四條斜綫全等、只差左右鏡像。D 取兩層「最小間距 fan-gap 下」較寬那層；
+  //    第三層卡寬不同 → 置中改「兩卡中心的中點」對齊父中心（容器位移 (wB−wA)/4）。
+  //    ponytail: 只處理一層剛好兩顆子卡（現況）；子卡數不是 2 的層維持 CSS 原排法。──
+  function layoutFanSpacing() {
+    const levels = rootChildren ? [rootChildren, ...rootChildren.querySelectorAll('.prog-children')] : [];
+    levels.forEach((c) => { c.style.gap = ''; c.style.transform = ''; });
+    if (!SCCDHelpers.isDesktopLayout()) return;
+    const pairs = levels.map((c) => {
+      const boxes = [...c.children].map((n) => n.querySelector(':scope > .prog-row > .prog-box')).filter(Boolean);
+      return boxes.length === 2
+        ? { c, wA: boxes[0].offsetWidth, wB: boxes[1].offsetWidth, g: parseFloat(getComputedStyle(c).columnGap) || 0 }
+        : null;
+    }).filter(Boolean);
+    if (!pairs.length) return;
+    const D = Math.max(...pairs.map((p) => (p.wA / 2 + p.g + p.wB / 2) / 2));
+    pairs.forEach((p) => {
+      p.c.style.gap = `${(2 * D - (p.wA + p.wB) / 2).toFixed(2)}px`;
+      if (p.c !== rootChildren) p.c.style.transform = `translateX(calc(-50% + ${((p.wB - p.wA) / 4).toFixed(2)}px))`;
+    });
+  }
+
+  // ── 桌面：斜綫以角度為主（user 2026-10-03「三排卡片間距加高、斜率別太扁」，取代同日「跟隨連結橫綫長度／砍半」）：
+  //    四條斜綫同角 LINE_ANGLE；layoutFanSpacing 已讓兩層 dx 相同 → 層距由角度反推（可見長＝hypot(dx, dy) − 2×GAP，
+  //    dy 跟層距 1:1、從當下狀態量一次就能解）＝綫長也相同，SCCD↔AI 連結橫綫寫同長。樹形狀不隨視窗寬變。
+  //    上限＝生長範圍（樹高不超出框＝底到 Degree 卡底）：放不下就二分縮短（角度變平）。下限＝層距 2xl。──
   const MIN_LEVEL_GAP = 64;   // --spacing-2xl 桌面值
+  const LINE_ANGLE = 35 * Math.PI / 180;   // 斜綫與水平夾角（調斜率改這裡）
   function layoutLineLengths() {
     const levelBoxes = [...root.querySelectorAll('.prog-children')];
     if (!links[0] || !legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
@@ -565,20 +579,16 @@ export async function initProgramStructure() {
     const h0 = roots.offsetHeight;
     const heightFor = (L) => gapsFor(L).reduce((h, g, i) => h + g - lv[i].g0, h0);
     const frame = legendStack.getBoundingClientRect().bottom - root.getBoundingClientRect().top - (parseFloat(getComputedStyle(root).paddingTop) || 0);
-    let L = links[0].offsetWidth;
+    let L = Math.max(...lv.map((v) => v.dx / Math.cos(LINE_ANGLE))) - 2 * GAP;
     if (heightFor(L) > frame) {
       let lo = 0, hi = L;
       for (let i = 0; i < 20; i++) { const mid = (lo + hi) / 2; if (heightFor(mid) > frame) hi = mid; else lo = mid; }
       L = lo;
-      links[0].style.width = `${Math.max(L, linkBaseW).toFixed(2)}px`;
     }
-    // 窄螢幕：層間 dx 就比橫綫長、斜綫短不到 → 下限＝各層在最小層距時的最長那層，橫綫反過來拉到同長
-    //（BPAIDC 往右多凸，小螢幕本就可超出）
+    // 下限＝各層在最小層距時的最長那層（太矮的螢幕寧可樹長高往下捲，也不讓層距小於 2xl）
     const minLen = Math.max(...lv.map((v) => Math.hypot(v.dx, v.dy + MIN_LEVEL_GAP - v.g0) - 2 * GAP));
-    if (L < minLen) {
-      L = minLen;
-      links[0].style.width = `${L.toFixed(2)}px`;
-    }
+    L = Math.max(L, minLen);
+    links[0].style.width = `${Math.max(L, linkBaseW).toFixed(2)}px`;
     gapsFor(L).forEach((g, i) => lv[i].boxes.forEach((b) => { b.style.marginTop = `${g.toFixed(2)}px`; }));
     reserveHeights();   // 子列 margin 變了 → 重量父節點佔位高
   }
@@ -793,9 +803,10 @@ export async function initProgramStructure() {
 
   // ── 量測 + 建綫（layout 就緒後）；藏起初態；字體 / resize 重量重畫 ──
   // hug 在最前（寬度變了其餘量測才準）；layoutMobileLink 在 cacheEndpoints 後（吃落定位置）
-  const remeasure = () => { hugChipWidths(); reserveHeights(); layoutFan(); layoutLineLengths(); cacheEndpoints(); layoutMobileLink(); drawAll(); };
+  const remeasure = () => { hugChipWidths(); layoutFanSpacing(); reserveHeights(); layoutFan(); layoutLineLengths(); cacheEndpoints(); layoutMobileLink(); drawAll(); };
   readGap();
   hugChipWidths();
+  layoutFanSpacing();
   reserveHeights();
   layoutFan();
   buildLines();
