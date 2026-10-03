@@ -92,7 +92,8 @@
     max-width: clamp(220px, 28vw, 420px);
   }
 
-  /* Banner：88vw 16:9；JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
+  /* Banner：88vw 16:9（桌面 ≥1024 寬改由 JS inline 設＝hero 四邊 padding 內可用區最大，見 hero-animation.js randomizeHeroLayout）；
+     JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
      文字可疊在 banner 上 → 文字 z-index 高於 banner
      width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
      確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */

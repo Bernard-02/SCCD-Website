@@ -74,20 +74,26 @@ function getPoolKey(grid) {
 // 每次套用 layout（cache hit 的 applyLayoutSnapshot / live build 的 randomizeHeroLayout 結尾、含 pool
 // build 期＝壞 snapshot 在入池前就被矯正）都強制夾回 section 內＝「文字在界外看不見」結構上不可能持續。
 // 文字 TOP_PAD 100：正常 placement 下限 140，被夾到 100 頂多貼近 header 但看得見（rescue 優先於美觀）。
+// 桌面 hero 四邊 padding（字卡＋圖共用，user 2026-10-03）：左右 container-padding 60、下 48（左下頁卡底）、
+// 上＝大 logo 中線（頂 48＋180/2）。圖可疊到 logo 下方；字卡另避 logo／header 鈕（randomizeHeroLayout chromeZones）。
+// 圖的上界另計＝logo 到上緣 48（與下 48 對稱；上界用 logo 中線時圖太小，user 2026-10-03）。
+const DESK_HERO_PAD = { top: 48 + 180 / 2, side: 60, bottom: 48, bannerTop: 48 };
 function clampHeroItemsIntoSection(grid) {
   const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
   if (!section) return;
   const s = section.getBoundingClientRect();
   if (s.height === 0) return;
   const items = [];
+  // 桌面救援邊界＝randomizeHeroLayout 的桌面邊界（圖與字卡同一組 DESK_HERO_PAD）
+  const desk = SCCDHelpers.isDesktopLayout();
+  const P = DESK_HERO_PAD;
   const banner = /** @type {HTMLElement|null} */ (grid.querySelector('.hero-banner'));
-  if (banner) items.push({ el: banner, topPad: 8, bottomPad: 30 });
+  if (banner) items.push({ el: banner, topPad: desk ? P.bannerTop : 8, bottomPad: desk ? P.bottom : 30, sidePad: desk ? P.side : 8 });
   ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach(cls => {
     const el = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`));
-    if (el) items.push({ el, topPad: 100, bottomPad: 30 });
+    if (el) items.push({ el, topPad: desk ? P.top : 100, bottomPad: desk ? P.bottom : 30, sidePad: desk ? P.side : 8 });
   });
-  const SIDE_PAD = 8;
-  items.forEach(({ el, topPad, bottomPad }) => {
+  items.forEach(({ el, topPad, bottomPad, sidePad: SIDE_PAD }) => {
     const r = el.getBoundingClientRect();
     if (r.height === 0) return;  // 還沒 layout（visibility:hidden 仍有 rect，0 高度才是真沒算到）
     let dy = 0, dx = 0;
@@ -121,6 +127,7 @@ function applyLayoutSnapshot(grid, snapshot) {
     banner.style.left = snapshot.banner.left;
     banner.style.top = snapshot.banner.top;
     banner.style.transform = snapshot.banner.transform;
+    banner.style.width = snapshot.banner.width || '';  // 桌面寬由 JS 依 logo 外可用區算（見 randomizeHeroLayout）
   }
   // 直接套用該組 build 時量好的 tighten px 寬（不 live re-tighten）：re-tighten 會在別組殘留的 width/maxWidth
   // 下量到不同值 → chip 寬度進場後跳（user 2026-06-07）。同 session 字型/viewport 不變 → 存的 px 寬有效。
@@ -202,18 +209,21 @@ function randomizeHeroLayout() {
   // 寬才擺得開）、上下 bound / buffer 等比收緊；段落「高」不靠 placement 控——landscape.css 對
   // .hero-text-en/cn 設 max-height 內捲，bbox 量到的就是 cap 後的高。
   const isShort = H < 500;
-  const TEXT_TOP_BOUND = isShort ? 110 : 140;
+  // 桌面（user 2026-10-03）：圖與字卡同在 DESK_HERO_PAD 內；圖可疊到 logo 下方，字卡另避 logo／header 鈕
+  // （下方 chromeZones 逐塊迴避，不再整條頂界 140）。矮橫向／768–1023 維持舊常數。
+  const desk = SCCDHelpers.isDesktopLayout();
+  const TEXT_TOP_BOUND = desk ? DESK_HERO_PAD.top : isShort ? 110 : 140;
   const BANNER_TOP_BOUND = 90;
   // 文字 chip 距 viewport 左右邊界的最小留白：寬螢幕用比例(4%)、48px 下限（user 2026-06-07 反映 chip 太靠邊）。
   // 下限 48 仍保證最寬段落(TEXT_MAX_W_PX 650)在 768px 放得下（650+48*2=746<768）；寬螢幕 4% 給更舒服的 gutter。
   // 矮橫向下限 24：380×2+34×2=828 ≤ 844，兩段落才有機會同帶並排不互撞。
-  const SIDE_MARGIN = Math.max(isShort ? 24 : 48, Math.round(W * 0.04));
-  const BOTTOM_MARGIN = isShort ? 20 : 30;
+  const SIDE_MARGIN = desk ? DESK_HERO_PAD.side : Math.max(isShort ? 24 : 48, Math.round(W * 0.04));
+  const BOTTOM_MARGIN = desk ? DESK_HERO_PAD.bottom : isShort ? 20 : 30;
   // BR/BL chip 額外往上抬的 buffer：wrapper rotate ±3° + 寬到 TEXT_MAX_W_PX=550 時
   // 旋轉後 visual 最低點比 getBoundingClientRect 量到的 bbox 底再低 ~sin(3°)×550 ≈ 29px。
   // 不補 buffer，scroll 時長段落 chip 底部會穿出 `<section h-screen overflow-hidden>` 被切。
   // 只影響下方 corner（上方 corner 撞 header / logo 另有 TEXT_TOP_BOUND 處理）。
-  const BOTTOM_ROTATION_BUFFER = isShort ? 24 : 60;
+  const BOTTOM_ROTATION_BUFFER = desk ? 0 : isShort ? 24 : 60;
   // wrapper rotate ±3° + 長段落 chip 寬可達 TEXT_MAX_W_PX=650：bbox 雖以 visual rect 量但兩 chip 視覺
   // 邊緣仍可能因 rotation 投影貼很近；pad 32 ≈ sin(3°)×650 給足旋轉互不咬的視覺間距。
   // 之前 12 在 user 截圖出現英文 chip 底部「vision.」被中文 chip 頂部蓋住的情況。
@@ -305,42 +315,54 @@ function randomizeHeroLayout() {
       };
     }
   }
+  // 字卡禁區：logo（上）；桌面再加右上 mode＋漢堡鈕列（固定保底 頂 48／高 48／右緣 W−60／兩鈕 48＋間距 24，
+  // 與量測聯集，理由同 FIXED_LOGO_ZONE），外推 BTN_PAD 免字卡貼鈕（user 2026-10-03）。
+  const BTN_PAD = 24;
+  const chromeZones = logoRect ? [logoRect] : [];
+  if (desk) {
+    const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('#mode-btn, #menu-btn')])
+      .map(el => el.getBoundingClientRect()).filter(r => r.width > 0);
+    chromeZones.push({
+      left: Math.min(W - 180, ...btns.map(r => r.left)) - BTN_PAD,
+      top: Math.min(48, ...btns.map(r => r.top)) - BTN_PAD,
+      right: Math.max(W - 60, ...btns.map(r => r.right)) + BTN_PAD,
+      bottom: Math.max(96, ...btns.map(r => r.bottom)) + BTN_PAD,
+    });
+  }
 
   // 對特定 corner 嘗試放置；回傳最佳 (vx, vy, penalty)。不真的 apply。
-  // logo collision 硬規則：絕不接受，candidate 撞 logo 就 skip；整輪 30 次都撞就 return penalty=Infinity
+  // logo／鈕 collision 硬規則：絕不接受，candidate 撞禁區就 skip；整輪 10 次都撞就 return penalty=Infinity
   // 強迫 placeTextWithFallback 試其他 corner（hero 4 個 chip 不能被左上大 logo 擋到）。
   function tryPlaceAtCorner(rect, corner) {
     const bbW = rect.width;
     const bbH = rect.height;
-
-    let effectiveTop = TEXT_TOP_BOUND;
-    if (logoRect && (corner === 'tl' || corner === 'tr')) {
-      const anchorX = (corner === 'tl') ? SIDE_MARGIN : W - bbW - SIDE_MARGIN;
-      const xOverlapsLogo = (logoRect.right > anchorX) && (logoRect.left < anchorX + bbW);
-      if (xOverlapsLogo) effectiveTop = Math.max(TEXT_TOP_BOUND, logoRect.bottom);
-    }
+    const isLeft = (corner === 'tl' || corner === 'bl');
+    const isTop = (corner === 'tl' || corner === 'tr');
 
     // 下方 corner 多扣 BOTTOM_ROTATION_BUFFER：留給 wrapper rotation 投影 + section overflow 邊界 buffer
-    const isBottomCorner = (corner === 'bl' || corner === 'br');
-    const effectiveBottom = BOTTOM_MARGIN + (isBottomCorner ? BOTTOM_ROTATION_BUFFER : 0);
+    const effectiveBottom = BOTTOM_MARGIN + (isTop ? 0 : BOTTOM_ROTATION_BUFFER);
     const xRange = Math.max(0, W - bbW - 2 * SIDE_MARGIN);
-    const yRange = Math.max(0, H - bbH - effectiveTop - effectiveBottom);
+    const yRange = Math.max(0, H - bbH - TEXT_TOP_BOUND - effectiveBottom);
+    const maxVx = W - bbW - SIDE_MARGIN;
+    const maxVy = H - bbH - effectiveBottom;
 
-    let bestVx = SIDE_MARGIN, bestVy = effectiveTop, bestPenalty = Infinity;
+    // 全撞禁區時的落點預設在所有禁區之下（桌面頂界 0，預設 0 會落在 logo 上）
+    let bestVx = SIDE_MARGIN, bestVy = Math.max(TEXT_TOP_BOUND, ...chromeZones.map(z => z.bottom)), bestPenalty = Infinity;
     let anyLogoFree = false;
     for (let i = 0; i < 10; i++) {
       const jx = Math.random() * CORNER_JITTER_FRAC * xRange;
       const jy = Math.random() * CORNER_JITTER_FRAC * yRange;
-      const vx = (corner === 'tl' || corner === 'bl')
-        ? SIDE_MARGIN + jx
-        : W - bbW - SIDE_MARGIN - jx;
-      const vy = (corner === 'tl' || corner === 'tr')
-        ? effectiveTop + jy
-        : H - bbH - effectiveBottom - jy;
+      let vx = isLeft ? SIDE_MARGIN + jx : maxVx - jx;
+      let vy = isTop ? TEXT_TOP_BOUND + jy : maxVy - jy;
+      // 上方 corner 撞 logo／鈕 → 讓開：往下到禁區底；桌面一半機率改往內側讓（logo 右／鈕左的頂帶也用得到）
+      const hit = isTop && chromeZones.find(z => rectsOverlap(z, { left: vx, top: vy, right: vx + bbW, bottom: vy + bbH }, 0));
+      if (hit) {
+        if (desk && Math.random() < 0.5) vx = Math.max(SIDE_MARGIN, Math.min(maxVx, isLeft ? hit.right + jx : hit.left - bbW - jx));
+        else vy = Math.min(maxVy, hit.bottom + jy);
+      }
 
       const candidate = { left: vx, top: vy, right: vx + bbW, bottom: vy + bbH };
-      const collidesLogo = logoRect ? rectsOverlap(logoRect, candidate, 0) : false;
-      if (collidesLogo) continue;  // 硬規則：跳過所有撞 logo 的 candidate
+      if (chromeZones.some(z => rectsOverlap(z, candidate, 0))) continue;  // 硬規則：跳過所有撞禁區的 candidate
       anyLogoFree = true;
       const collidesText = placedTextRects.some(r => rectsOverlap(r, candidate, TEXT_COLLISION_PAD));
       if (!collidesText) { return { vx, vy, penalty: 0, corner }; }
@@ -432,14 +454,24 @@ function randomizeHeroLayout() {
 
   // Banner：偏向「未被文字佔用」的第 4 個 corner，確保所有 corner 都有內容、無完全空白角
   if (banner) {
+    // 桌面：可用區＝DESK_HERO_PAD 內整塊（可疊到 logo 下方，user 2026-10-03）；寬＝該區最大（量 1000px 旋轉後
+    // bbox 等比換算）×0.9–1 隨機。非桌面維持 CSS 寬＋舊邊界。
+    const region = { left: SIDE_MARGIN, top: desk ? DESK_HERO_PAD.bannerTop : BANNER_TOP_BOUND, right: W - SIDE_MARGIN, bottom: H - BOTTOM_MARGIN };
+    banner.style.width = '';
+    if (desk) {
+      banner.style.width = '1000px';
+      const r0 = banner.getBoundingClientRect();
+      const fit = Math.min((region.right - region.left) / r0.width, (region.bottom - region.top) / r0.height);
+      banner.style.width = `${Math.floor(1000 * fit * (0.9 + Math.random() * 0.1))}px`;
+    }
     const rect = banner.getBoundingClientRect();
     const bbW = rect.width;
     const bbH = rect.height;
 
-    const minVx = SIDE_MARGIN;
-    const maxVx = Math.max(minVx + 1, W - bbW - SIDE_MARGIN);
-    const minVy = BANNER_TOP_BOUND;
-    const maxVy = Math.max(minVy + 1, H - bbH - BOTTOM_MARGIN);
+    const minVx = region.left;
+    const maxVx = Math.max(minVx + 1, region.right - bbW);
+    const minVy = region.top;
+    const maxVy = Math.max(minVy + 1, region.bottom - bbH);
 
     // 文字可能因 fallback 換 corner → 用 usedCorners 找實際沒被佔的；4 corners 都被佔則 random 挑一個
     const fallbackCorners = ['tl', 'tr', 'bl', 'br'];
@@ -491,6 +523,7 @@ function runPlacementAndBannerForCache(grid) {
     left: banner.style.left,
     top: banner.style.top,
     transform: banner.style.transform,
+    width: banner.style.width,
   } : null;
 
   // textSig：stored tighten 寬的有效前提＝文字沒被資料源換掉（applyLayoutSnapshot 檢查用）
