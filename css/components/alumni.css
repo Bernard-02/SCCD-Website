@@ -87,9 +87,7 @@ body.page-alumni .list-header.active {
   user-select: none;
   transform: rotate(var(--init-deg, 0deg));
   transform-origin: center center;
-  transition: background var(--dur-fast) var(--ease-wipe),
-              color var(--dur-fast) var(--ease-wipe),
-              transform var(--dur-fast) var(--ease-wipe);
+  transition: transform var(--dur-fast) var(--ease-wipe);   /* hover 底/字色不過渡（hover 變色一律 instant，user 2026-10-02 全站） */
 }
 .alumni-sponsor-card .sponsor-inner {
   display: inline-flex;

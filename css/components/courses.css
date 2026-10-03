@@ -201,7 +201,7 @@
     color: var(--theme-fg);
     background: transparent;
     white-space: nowrap;
-    cursor: pointer;   /* 可點＝點同 group 的 program btn（courses-section-switch.js） */
+    cursor: var(--cursor-pointer);   /* 可點＝點同 group 的 program btn（courses-section-switch.js） */
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
   .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label {
@@ -389,7 +389,7 @@
     line-height: var(--line-height-s);   /* text-s 行距 1.3，跟 courses-program-btn nav 同步 */
     cursor: var(--cursor-pointer);
     user-select: none;
-    transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-micro) ease, opacity var(--dur-fast) ease;
+    transition: transform var(--dur-micro) ease, opacity var(--dur-fast) ease;   /* 底/字色不過渡（hover 變色一律 instant，user 2026-10-02 全站） */
     box-sizing: border-box;
   }
   .courses-grid-card-en,
@@ -428,25 +428,6 @@
   @keyframes courses-marquee {
     0%   { transform: translateX(0); }
     100% { transform: translateX(var(--marquee-distance, -50%)); }
-  }
-
-  /* deep-link 落地 highlight（user 2026-09-11，同 lists.css activities 版）：
-     courses-section-switch 的 openCard 對目標卡掛 .is-hovered（flashDeepLinkDim，到 slide-in 開啟即除）
-     → 其餘卡/row label/col header 半透明。全 viewport（手機 dim 同 grade block 內其他卡）。
-     re-highlight 兩組：目標卡自己的 row label／年級 header 不跟著淡（分組高亮＝卡片的矩陣座標，user 2026-08-04）。
-     真 hover 不再 dim（user 2026-10-01：除 atlas 外 hover 卡片不調不透明度）。 */
-  #courses-content-section:has(.courses-grid-card.is-hovered)
-    :is(.courses-grid-card, .courses-grid-type-label, .courses-grid-col-header):not(.is-hovered) {
-    opacity: 0.25;
-  }
-  #courses-content-section :is(.courses-required-row, .courses-elective-row):has(.courses-grid-card.is-hovered) .courses-grid-type-label {
-    opacity: 1;
-  }
-  #courses-content-section:has(.courses-grid-col-year-1 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-1,
-  #courses-content-section:has(.courses-grid-col-year-2 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-2,
-  #courses-content-section:has(.courses-grid-col-year-3 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-3,
-  #courses-content-section:has(.courses-grid-col-year-4 .courses-grid-card.is-hovered) .courses-grid-col-header.courses-grid-col-year-4 {
-    opacity: 1;
   }
 
   /* ===== Slide-in modal（v9 取代 desc-column）=====

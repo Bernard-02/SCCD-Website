@@ -197,7 +197,7 @@
          不可再被點穿（2026-09-28 驗出點空白帶跳頁）。要露在帶上的元素本就 z>40 或同 z 後出（paint＝hit 在上）照常可點；
          .is-hidden 滑出畫面、app 頁 display:none ＝不擋 */
       pointer-events: auto;
-      transition: transform 0.4s ease;
+      transition: transform var(--dur-base) ease;
     }
     .mobile-header-bg.is-hidden {
       transform: translateY(-100%);
@@ -333,8 +333,10 @@
   span.class-group-label {
     transition: transform var(--dur-fast) var(--ease-standard);
   }
-  /* mode3：小標題＋btn 整組 hover 才翻黑白（user 2026-09-28「hover 小標題也變色」；原本只認 btn:hover，color.css） */
-  body.mode-color #class-buttons-sticky div:has(> .class-division-btn:not(.active)):hover > :is(.class-group-label, .class-division-btn) {
+  /* mode3：小標題＋btn 整組 hover 才翻黑白（user 2026-09-28「hover 小標題也變色」；原本只認 btn:hover，color.css）。
+     組＝「label + btn」的父層：只寫 > .class-division-btn 會連外層 flex 列也命中（MDES 是它的直屬子）→
+     hover 任一鈕 MDES 都翻成 active 色（user 2026-10-02） */
+  body.mode-color #class-buttons-sticky div:has(> .class-group-label + .class-division-btn:not(.active)):hover > :is(.class-group-label, .class-division-btn) {
     background: var(--theme-fg) !important;
     color: var(--theme-fg-inverse) !important;
   }

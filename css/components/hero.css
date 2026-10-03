@@ -274,11 +274,10 @@
     line-height: 1.15;
   }
   /* events nav chip（text-s 雙語）行距對齊 anchor-nav-inner base 行距（同原 branch chip）；英中距吃 s 字級 token（2px）；
-     active/inactive 換色走 micro transition */
+     active/inactive／hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
   .sticky-event-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
     gap: var(--space-en-zh-s);
-    transition: background var(--dur-micro) ease, color var(--dur-micro) ease;
   }
   /* inactive/active/hover 換色不在這裡寫：chip 掛 .anchor-nav-btn/.anchor-nav-inner 直接吃 about nav btn
      整組三 mode 規則（navigation.css #sticky-events-nav scope 白底 / inverse.css 黑底 / color.css bg=theme-bg 跟 hue）；

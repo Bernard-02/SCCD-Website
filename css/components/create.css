@@ -730,7 +730,7 @@ body.mode-color .control-box {
   align-items: center;
   justify-content: center;
   color: var(--disabled-color);
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
+  transition: opacity var(--dur-fast) ease;   /* 字/邊框色不過渡：hover 變色一律 instant（user 2026-10-02 全站） */
   position: relative;
   z-index: 1;
   gap: 2px;
@@ -757,14 +757,14 @@ body.mode-color .control-box {
   border: 2px solid transparent;
 }
 
-/* Rotate 按鈕有過渡效果 */
+/* Rotate 按鈕有過渡效果（色不過渡，同上） */
 .custom-button-rotate {
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
+  transition: opacity var(--dur-fast) ease;
 }
 
 /* Custom 按鈕的過渡效果 */
 .custom-button-custom {
-  transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;   /* 色不過渡，同上 */
   transform: scale(1.07);
 }
 
@@ -774,8 +774,7 @@ body.mode-color .control-box {
 /* Custom 按鈕選中時：按鈕本身不要邊框，保持透明 */
 .custom-button-custom.active {
   border-color: transparent;
-  transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
-  /* 移除 border-color 的 transition，讓 border 瞬間消失 */
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
 /* wireframe模式下Custom按鈕的邊框顏色也保持透明 */
 
@@ -972,7 +971,7 @@ body.mode-color .control-box {
   border: none;
   outline: none;
   padding: 0;
-  cursor: text;
+  cursor: var(--cursor-text);
 }
 
 /* Enabled label 顏色 = 三原色（user 2026-05-20：mode1/2 active 看三原色） */
