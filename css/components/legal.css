@@ -120,6 +120,16 @@
       margin: 0 calc(-1 * var(--spacing-md)) var(--spacing-md);
       padding: 0 var(--spacing-md) calc(var(--spacing-xl) - var(--spacing-md));
     }
+    /* Donate／Regulations 說明段同樣 sticky 貼框頂（user 2026-10-04）：zebra 無旋轉卡＝底色連 xl 留白整段不透明；
+       展開標題列釘在其下（loader 量高寫 --list-header-sticky-top）；z 6 壓過被推上來的 sticky 標題列（5） */
+    .legal-zebra .legal-page-desc {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: var(--theme-bg);
+      margin-bottom: 0;
+      padding-bottom: var(--spacing-xl);
+    }
   }
 
   /* chip 共用：defensive 預設綠底，等 hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent
@@ -590,7 +600,7 @@
      類別被 top 值推離原位。gate 掉動畫窗（overflow:visible 由 list-accordion 展開 onComplete 設 inline）。 */
   .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat {
     position: sticky;
-    top: var(--legal-reg-cat-top, 0px);
+    top: calc(var(--list-header-sticky-top, 0px) + var(--legal-reg-cat-top, 0px));   /* 標題列釘點（含頁面說明高）＋標題列高 */
   }
   .legal-reg-item { display: contents; }   /* hover 單元：本身無盒、hover 沿子元素冒泡上來 → 欄位同時變色 */
   .legal-reg-name { grid-column: 2; }
@@ -736,13 +746,14 @@
 
   /* ── 網站導覽（user 2026-09-09d 改版）：聲明＝粗體純文字；地圖＝curriculum 卡片 2 欄 ── */
   /* 無障礙聲明（非 accordion）：只留說明段、英中兩段、粗體 */
-  .legal-map-desc { margin-bottom: var(--spacing-xl); }
-  .legal-map-desc p {
+  /* legal 三頁頂部說明段同款（Site Map 聲明＋Donate／Regulations 的 .legal-page-desc，user 2026-10-04；3/4 寬在 loader 的 grid） */
+  :is(.legal-map-desc, .legal-page-desc) { margin-bottom: var(--spacing-xl); }
+  :is(.legal-map-desc, .legal-page-desc) p {
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-s);
   }
-  .legal-map-desc p:not(:last-child) { margin-bottom: var(--space-en-zh-body); }
-  .legal-map-desc p[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
+  :is(.legal-map-desc, .legal-page-desc) p:not(:last-child) { margin-bottom: var(--space-en-zh-body); }
+  :is(.legal-map-desc, .legal-page-desc) p[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
   /* 同主頁自成一組 .legal-map-pgroup＝主卡＋.legal-map-subs（分頁卡），組間才有大距。
      手機窄：單欄、組內直排（雙欄 ~160px 會把卡片標題擠爆） */
   .legal-map-grid {

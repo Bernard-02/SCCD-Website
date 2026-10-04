@@ -13,7 +13,7 @@ import { normalizeBodyHtml } from './activities-data-loader.js';  // 富文本�
 import { setupClipReveal, playClipReveal, playRevealExit, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { initListAccordion } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
+import { initListAccordion, refreshStickyPinObservers } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
 import { revealRows, hideRow } from '../ui/list-row-reveal.js';  // rows 進場（CSS transition，同 activities）；hideRow＝per-item 翻上
 import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
@@ -104,6 +104,22 @@ function zebraRow(entry, idx) {
     + `</div>`;
 }
 
+// legal 三頁頂部說明段（user 2026-10-04）：粗體 text-s（.legal-page-desc／.legal-map-desc p），桌面 3/4 寬＝admission
+// 說明段同一套 grid（grid-12 → min-[1024px]:col-span-9）。來源：Donate＝support.overview、Regulations＝regulations.pageDesc、
+// Site Map＝accessibility_statement.overview。空＝不渲染。
+function pageDescInner(en, zh) {
+  if (!en && !zh) return '';
+  return `<div class="grid-12"><div class="col-span-12 min-[1024px]:col-span-9">`
+    + (en ? `<p>${esc(en)}</p>` : '') + (zh ? `<p lang="zh-Hant">${esc(zh)}</p>` : '')
+    + `</div></div>`;
+}
+// zebra 頁版：包成出生藏的 reveal row → mountZebra 的 revealRows／離頁 playAdmissionPanelExit 自動帶到（DOM 最前＝最先進場）。
+// 外層 .legal-page-desc＝桌面 sticky＋底色＋下留白；遮罩 .legal-reveal 另包一層（留白若在遮罩內，藏起的 row 會露在留白裡）
+function zebraPageDesc(en, zh) {
+  const inner = pageDescInner(en, zh);
+  return inner ? `<div class="legal-page-desc"><div class="legal-reveal"><div class="list-reveal-row" style="transform: translateY(110%)">${inner}</div></div></div>` : '';
+}
+
 function renderZebraRows(entries, startIdx = 0) {
   return entries.map((e, i) => zebraRow(e, startIdx + i)).join('');
 }
@@ -127,6 +143,18 @@ function mountZebra(contentEl, html) {
     });
   });
   if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
+  // 頁面說明 sticky 貼框頂（桌面，legal.css）→ 展開標題列釘點＝說明段高：寫 inline var（getListStickyTop 讀它＝開 item
+  // 捲動落點同步；規章類別 sticky 也疊這個值）。非桌面說明段不 sticky → 移除、交回 CSS 值（user 2026-10-04）
+  const pageDesc = /** @type {HTMLElement|null} */ (contentEl.querySelector('.legal-page-desc'));
+  if (pageDesc && typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc.offsetHeight}px`);
+      else contentEl.style.removeProperty('--list-header-sticky-top');
+      refreshStickyPinObservers(contentEl);
+    });
+    ro.observe(pageDesc);
+    registerPageCleanup(() => ro.disconnect());
+  }
   // 欄寬依內容隨視窗變（legal.css .legal-reg-table）→ resize 後重量，否則縮小被切的字沒標 is-overflow、hover 不捲（user 2026-10-03）
   if (contentEl.querySelector('.legal-reg-table')) {
     let rzTimer = 0;
@@ -452,7 +480,7 @@ export async function loadRegAndPolicy() {
       regTableEntry(reg || {}),
       ...(policyGroups || []).filter(Boolean).filter(g => !isAccessibilityGroup(g)).map(richGroupEntry),
     ];
-    mountZebra(contentEl, renderZebraRows(entries));
+    mountZebra(contentEl, zebraPageDesc(reg?.pageDescEn, reg?.pageDescZh) + renderZebraRows(entries));
   } catch (error) {
     console.error('Error loading regulations & policy:', error);
   }
@@ -467,7 +495,7 @@ export async function loadSupport() {
     const entries = ((data && data.points) || []).map(pt => ({
       titleEn: pt.titleEn, titleZh: pt.titleZh, bodyHtml: pointBodyHtml(pt),
     }));
-    mountZebra(contentEl, renderZebraRows(entries));
+    mountZebra(contentEl, zebraPageDesc(data?.overviewEn, data?.overviewZh) + renderZebraRows(entries));
   } catch (error) {
     console.error('Error loading support:', error);
   }
@@ -494,8 +522,7 @@ export async function loadSitemap() {
       // 聲明段同走自遮罩 clip+translate（滿寬文字塊＝只挑上下短邊，同 pickNavDir 短邊邏輯）
       const descDir = Math.random() < 0.5 ? 'top' : 'bottom';
       html += `<div class="legal-map-desc" data-reveal-dir="${descDir}" style="clip-path: ${MAP_HIDE_CLIP[descDir]}">`
-        + (a11y.overviewEn ? `<p class="text-s">${esc(a11y.overviewEn)}</p>` : '')
-        + (a11y.overviewZh ? `<p class="text-s" lang="zh-Hant">${esc(a11y.overviewZh)}</p>` : '')
+        + pageDescInner(a11y.overviewEn, a11y.overviewZh)   // 外框 sticky 底色仍滿寬、文字 3/4（同另兩頁說明段）
         + `</div>`;
     }
     // hidden 過濾在編號前＝序號連續不跳號（這版沒上線的頁面卡先藏，恢復拿掉 json 的 hidden 即可）
