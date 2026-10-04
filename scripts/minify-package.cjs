@@ -26,6 +26,9 @@ function minifyFile(file, loader) {
   let out;
   if (loader === 'json') out = JSON.stringify(JSON.parse(src));
   else out = esbuild.transformSync(src, { loader, minify: true, charset: 'utf8', legalComments: 'none' }).code;
+  // JS 樣板字串裡的 HTML 註解（開發筆記）esbuild 不碰字串內容 → 另外拿掉。
+  // ponytail: 純 regex，前提＝程式不靠 comment node（firstChild 等）、註解內不夾 ${}；哪天有例外再改成逐檔排除
+  if (loader === 'js') out = out.replace(/<!--[\s\S]*?-->/g, '');
   if (out.length >= src.length) return;   // 已經是壓縮檔（*.min.js / output.css）
   fs.writeFileSync(file, out);
   before += Buffer.byteLength(src); after += Buffer.byteLength(out); count++;

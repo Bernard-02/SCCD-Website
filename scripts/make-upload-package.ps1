@@ -16,6 +16,8 @@ foreach ($d in $dirs) {
   robocopy (Join-Path $src $d) (Join-Path $dest $d) /MIR /XF *.mp4 /NFL /NDL /NJH /NJS | Out-Null
 }
 Copy-Item (Join-Path $src 'index.html') $dest -Force
+# /MIR 不會清掉「被 /XF 排除、但來源也有」的檔 → 舊包殘留的 mp4 另外刪（2026-10-04 包內還留著 11.7MB 介紹影片）
+Get-ChildItem $dest -Recurse -Filter *.mp4 | Remove-Item -Force
 
 # 壓縮上傳包內的 JS / CSS / JSON（只動上傳包拷貝、repo 原始碼不變；失敗的檔保留原樣）
 node (Join-Path $src 'scripts/minify-package.cjs') $dest
