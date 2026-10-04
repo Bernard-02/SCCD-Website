@@ -3,91 +3,41 @@
  * 主入口檔案 - 模組化版本
  */
 
-// Import Layout Modules
+// ── 全站常駐模組（每頁都要：layout / 主題 / 換頁清理 / hero）──────────────────
 import { initHeader } from './header.js';
 import { initFooter } from './footer.js';
 import { initSiteAssets } from './modules/ui/site-assets.js';
 import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
 import { initRouter } from './router.js';
-
-// Import Filter Modules
-import { initFacultyFilter } from './modules/filters/faculty-filter.js';
-
-// Import UI Modules
-import { initFloatingItems, initWatchHover } from './modules/animations/floating-items.js';
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
-import { initBFADivisionToggle } from './modules/ui/bfa-division-toggle.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initOrientationReload } from './modules/ui/orientation-reload.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { installReducedMotionGsap, prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
-
-// Import About Page Modules
-import { initResourcesCycling } from './modules/pages/about/resources-cycling.js';
-import { initBrandTrail } from './modules/pages/about/brand-trail.js';
-import { initTimeline } from './modules/pages/about/timeline.js';
-import { initAboutPolygons } from './modules/pages/about/floating-polygons.js';
-import { initClassButtonsSticky } from './modules/pages/about/class-buttons-sticky.js';
-import { initClassImagesSlideshow } from './modules/pages/about/class-images-slideshow.js';
-import { loadAboutContent } from './modules/pages/about/about-data-loader.js';
-import { initProgramStructure } from './modules/pages/about/about-structure.js';
-import { pauseVideosOffscreen } from './modules/ui/pause-offscreen-video.js';
-import { initAnchorNav } from './modules/navigation/anchor-nav.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
-
-// Import Page Specific Modules
-import { initIntroAnimation } from './modules/pages/intro-animation.js';
 import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
-import { initFacultySlideIn } from './modules/pages/faculty-slide-in.js';
-import { initActivitiesSectionSwitch } from './modules/pages/activities-section-switch.js';
-import { initActivitiesSearch } from './modules/ui/activities-search.js';
 import { loadHero } from './modules/pages/hero-source.js';
+import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { initShareModal } from './modules/ui/share-modal.js';
-import { initCoursesSectionSwitch } from './modules/pages/courses-section-switch.js';
-
-// Import Accordion Modules
-import { initHorizontalAccordion } from './modules/accordions/horizontal-accordion.js';
-
-// Import Index Page Modules
-import { initMarquee } from './modules/pages/index-marquee.js';
-import { initYTCard } from './modules/pages/index-yt-card.js';
-import { initAdmissionSectionSwitch } from './modules/pages/admission-section-switch.js';
-
-// Library 三模組（panels 118KB + viewer 45KB + card 34KB）改動態載入：進 library 頁才 import。
-// viewer 例外：activities / alumni 的共用 PDF viewer 也用它 → 各自呼叫點同樣 dynamic import
-// （module cache 共用一份；viewer 的 modal 是單例 guard，多次 initPdfViewer 安全）。
 import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-helpers.js';
-
-// Import Lightbox Shell（共用 enter/exit 行為；SPA cleanup 需 reset openCount）
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { deepLinkUnlocker } from './modules/ui/deeplink-lock.js';
-
-// Import Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
+// Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
 import { runPageCleanups, registerPageCleanup } from './modules/ui/page-cleanup.js';
 import { registerPageExit } from './modules/ui/page-exit.js';
+import { DUR, EASE } from './modules/ui/motion.js';
 
-// 大型頁面模組（atlas 223KB / library 三檔 197KB / create-app 30KB）改動態載入：進該頁才
-// import，其他頁省下載＋解析。xxxModule 存已載入的 namespace 供 cleanup 用；lazySeq 在換頁
-// cleanup 時 ++，各分支 init 前比對 seq → 結構保證「下載中快速連點換頁」不會 stale/double-init。
-// （idle-standby 的待機星雲另走自己的 dynamic import，module cache 共用同一份。）
+// ── 頁面專屬模組一律動態載入：進該頁才 import（user 2026-10-04；原本 52 個靜態 import＝每頁都載全站 ~2MB JS）。
+// 瀏覽器 module cache 共用一份（各頁 / idle-standby 待機星雲重複 import 不重下載）。
+// lazySeq：換頁 cleanup 時 ++；initPageModules 開頭取一次 seq，各頁 import 完 init 前比對 → 「下載中快速連點換頁」
+// 不會 stale/double-init（同頁多支模組共用同一個 seq）。xxxModule 存已載入的 namespace 給 cleanup 用。
 let atlasModule = null;
 let createAppModule = null;
+let errorModule = null;
 let lazySeq = 0;
-
-// Import Alumni Page Module
-import { initAlumni } from './modules/pages/alumni.js';
-
-// Import Data Loaders
-import { loadFacultyData } from './modules/pages/faculty-data-loader.js';
-import { loadAdmissionData } from './modules/pages/admission-data-loader.js';
-import { loadRegAndPolicy, loadSupport, loadSitemap, loadPolicyAndStatements } from './modules/pages/legal-data-loader.js';
-import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
-import { loadDegreeShowDetail } from './modules/pages/degree-show-data-loader.js';
-import { init404, cleanup404 } from './modules/pages/error-404.js';
-import { DUR, EASE } from './modules/ui/motion.js';
 
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 // destPage 可選：router 切到同頁時帶入。same-page reentry to /create 時跳過 restoreHeaderLogo，
@@ -133,7 +83,7 @@ export function cleanupPageModules(destPage) {
   if (atlasModule) atlasModule.cleanupAtlas();
 
   // 404 頁：移除 body.page-404 class（CSS rule 隨 main innerHTML 替換已消失，class 殘留不致影響其他頁但仍清掉保乾淨）
-  cleanup404();
+  if (errorModule) errorModule.cleanup404();
 
   if (typeof ScrollTrigger === 'undefined') return;
   // 只 kill 頁面內容的 ScrollTrigger，不動 header 的（header trigger 綁在 body/header 元素上）
@@ -193,6 +143,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // deep-link 呈現完的解鎖鑰匙：init 當下同步取（admission／faculty 的 init 要等資料、library 等進場，晚取會拿到
   // 使用者離頁後才點的新 deep-link 序號）→ 傳給各頁，見 deeplink-lock.js deepLinkUnlocker
   const unlock = deepLinkUnlocker();
+  // 本頁動態載入的 init 共用同一個序號：import 完才 init，期間已換頁（cleanup ++ 過）就放棄
+  const seq = lazySeq;
+  const alive = () => seq === lazySeq;
 
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
@@ -249,74 +202,76 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Index Page ---
   if (page === 'index') {
-    if (!sessionStorage.getItem('sccd-intro-shown')) {
-      sessionStorage.setItem('sccd-intro-shown', '1');
-      initIntroAnimation();
-    } else {
-      revealHeaderWhenReady();
-    }
-    initMarquee();
-    initFloatingItems();
-    initWatchHover();
-    initYTCard();
+    const firstVisit = !sessionStorage.getItem('sccd-intro-shown');
+    if (firstVisit) sessionStorage.setItem('sccd-intro-shown', '1');
+    else revealHeaderWhenReady();
+    Promise.all([
+      firstVisit ? import('./modules/pages/intro-animation.js') : null,
+      import('./modules/pages/index-marquee.js'),
+      import('./modules/animations/floating-items.js'),
+      import('./modules/pages/index-yt-card.js'),
+    ]).then(([intro, marquee, floating, yt]) => {
+      if (!alive()) return;
+      if (intro) intro.initIntroAnimation();
+      marquee.initMarquee();
+      floating.initFloatingItems();
+      floating.initWatchHover();
+      yt.initYTCard();
+    });
   }
 
   // --- About Page ---
   if (page === 'about') {
-    // Vision/Class/Works 文字先從 /data/about-*.json 注入 DOM（含設 window.SCCD_aboutClass
-    // 供手機 division 輪播），再跑互動 init —— 內容全在 hero 下方，defer 一個本地 fetch 不影響觀感。
-    loadAboutContent().then(() => {
-      initResourcesCycling();
-      initBrandTrail();
-      initTimeline();
-      initAnchorNav({ reveal: true });
-      initHorizontalAccordion();
-      initBFADivisionToggle();
-      initAboutPolygons();
-      initClassButtonsSticky();
-      initClassImagesSlideshow();
-      initProgramStructure();
-
+    // Vision/Class/Works 文字先注入 DOM（about-data-loader），再跑互動 init —— 內容全在 hero 下方，晚一拍不影響觀感。
+    // 資料 fetch 跟其他模組下載並行（不等全部 import 完才開抓）
+    const contentReady = import('./modules/pages/about/about-data-loader.js').then(m => m.loadAboutContent());
+    Promise.all([
+      contentReady,
+      import('./modules/pages/about/resources-cycling.js'),
+      import('./modules/pages/about/brand-trail.js'),
+      import('./modules/pages/about/timeline.js'),
+      import('./modules/navigation/anchor-nav.js'),
+      import('./modules/accordions/horizontal-accordion.js'),
+      import('./modules/ui/bfa-division-toggle.js'),
+      import('./modules/pages/about/floating-polygons.js'),
+      import('./modules/pages/about/class-buttons-sticky.js'),
+      import('./modules/pages/about/class-images-slideshow.js'),
+      import('./modules/pages/about/about-structure.js'),
+      import('./modules/ui/pause-offscreen-video.js'),
+    ]).then(([, resources, brand, timeline, anchor, hAccordion, bfa, polys, sticky, classImgs, structure, pauseVid]) => {
+      if (!alive()) return;
+      resources.initResourcesCycling();
+      brand.initBrandTrail();
+      timeline.initTimeline();
+      anchor.initAnchorNav({ reveal: true });
+      hAccordion.initHorizontalAccordion();
+      bfa.initBFADivisionToggle();
+      polys.initAboutPolygons();
+      sticky.initClassButtonsSticky();
+      classImgs.initClassImagesSlideshow();
+      structure.initProgramStructure();
       // works 影片離開視窗/換學制隱藏時自動暫停（YouTube iframe，src 已由 fillWorks 設定）
-      pauseVideosOffscreen(document.querySelectorAll('.works-video-iframe'));
-
-      const classImages = document.querySelector('[data-class-images]');
-      if (classImages) {
-        const imgs = classImages.querySelectorAll('img');
-        ScrollTrigger.create({
-          trigger: classImages,
-          start: 'top 88%',
-          once: true,
-          onEnter: () => {
-            gsap.from(imgs, {
-              y: 40, opacity: 0, duration: DUR.slow, stagger: 0.1, ease: EASE.enter,
-              clearProps: 'all'
-            });
-          }
-        });
-
-        if (window.innerWidth >= 768) {
-          imgs.forEach(img => {
-            img.addEventListener('mouseenter', () => { img.style.zIndex = '10'; });
-            img.addEventListener('mouseleave', () => { img.style.zIndex = ''; });
-          });
-        }
-      }
+      pauseVid.pauseVideosOffscreen(document.querySelectorAll('.works-video-iframe'));
     });
   }
 
   // --- Degree Show Detail Page ---
   // degree-show list 已整合到 activities panel（loadDegreeShowListInto），舊獨立頁已刪
   if (page === 'degree-show-detail') {
-    loadDegreeShowDetail();
+    import('./modules/pages/degree-show-data-loader.js').then(m => { if (alive()) m.loadDegreeShowDetail(); });
   }
 
   // --- Admission Page ---
   if (page === 'admission') {
     // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
-    loadAdmissionData().then(() => {
-      initAdmissionSectionSwitch(fromUserNav, unlock);
-      initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
+    Promise.all([
+      import('./modules/pages/admission-data-loader.js').then(m => m.loadAdmissionData()),
+      import('./modules/pages/admission-section-switch.js'),
+      import('./modules/ui/activities-search.js'),
+    ]).then(([, sw, search]) => {
+      if (!alive()) return;
+      sw.initAdmissionSectionSwitch(fromUserNav, unlock);
+      search.initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
     });
   }
 
@@ -324,23 +279,34 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'faculty') {
     // deep-link：site map 的 ?section=fulltime/parttime/admin 從 SPA 點擊（fromUserNav）落在該分類 active
     const facultySection = fromUserNav ? searchParams.get('section') : null;
-    loadFacultyData().then(() => {
-      initFacultyFilter(facultySection, unlock);
-      initFacultySlideIn();
+    Promise.all([
+      import('./modules/pages/faculty-data-loader.js').then(m => m.loadFacultyData()),
+      import('./modules/filters/faculty-filter.js'),
+      import('./modules/pages/faculty-slide-in.js'),
+    ]).then(([, filter, slideIn]) => {
+      if (!alive()) return;
+      filter.initFacultyFilter(facultySection, unlock);
+      slideIn.initFacultySlideIn();
     });
   }
 
   // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
   if (page === 'curriculum') {
-    initCoursesSectionSwitch(fromUserNav, unlock);
+    import('./modules/pages/courses-section-switch.js').then(m => { if (alive()) m.initCoursesSectionSwitch(fromUserNav, unlock); });
   }
 
   // --- Activities Page ---
   if (page === 'activities') {
-    initActivitiesSectionSwitch('exhibitions', fromUserNav, unlock);
-    initActivitiesSearch();
+    Promise.all([
+      import('./modules/pages/activities-section-switch.js'),
+      import('./modules/ui/activities-search.js'),
+    ]).then(([sw, search]) => {
+      if (!alive()) return;
+      sw.initActivitiesSectionSwitch('exhibitions', fromUserNav, unlock);
+      search.initActivitiesSearch();
+    });
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
-    // viewer 動態載入：modal 單例 guard、重複 init 安全 → 不需 seq guard
+    // viewer：modal 單例 guard、重複 init 安全 → 不需 seq guard
     import('./modules/pages/library-viewer.js').then((m) => m.initPdfViewer());
   }
 
@@ -351,28 +317,25 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 「header async 到位 → atlas chunk 還在 lazy import」的空窗；解鎖在 atlas.js
     // revealFilters（intro 點燈完成）/ cleanup，離頁保險清除在 cleanupPageModules。
     document.body.classList.add('atlas-mode-gate');
-    const seq = ++lazySeq;
     import('./modules/pages/atlas.js').then((m) => {
       atlasModule = m;
-      // 下載期間使用者已換頁（cleanup 又 ++ 過）→ 放棄這次 init；initAtlas 內部
-      // 還有 #atlas-main 缺席 early-return 雙保險
-      if (seq === lazySeq) m.initAtlas();
+      // 下載期間使用者已換頁 → 放棄這次 init；initAtlas 內部還有 #atlas-main 缺席 early-return 雙保險
+      if (alive()) m.initAtlas();
     });
   }
 
   // --- Alumni Page ---
   if (page === 'alumni') {
-    initAlumni();
+    import('./modules/pages/alumni.js').then(m => { if (alive()) m.initAlumni(); });
   }
 
   // --- Generate Page ---
   if (page === 'generate') {
     // generate-app 在主 window 跑 p5 instance（attach 到 #create-app），mode 由 sessionStorage 讀
-    // initCreatePage 自身另有 stale-init guard（loadAllScripts await 期間切走）→ seq 是外層第一道
-    const seq = ++lazySeq;
+    // initCreatePage 自身另有 stale-init guard（loadAllScripts await 期間切走）→ alive() 是外層第一道
     import('./modules/pages/create-app.js').then((m) => {
       createAppModule = m;
-      if (seq === lazySeq) m.initCreatePage();
+      if (alive()) m.initCreatePage();
     });
 
     // 觸發 header logo typewriter 動畫；冷載入時 header async fetch 還沒到，等 header:ready
@@ -390,13 +353,12 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Library Page ---
   if (page === 'library') {
-    const seq = ++lazySeq;
     Promise.all([
       import('./modules/pages/library-viewer.js'),
       import('./modules/pages/library-panels.js'),
       import('./modules/pages/library-card.js'),
     ]).then(([viewerMod, panelsMod, cardMod]) => {
-    if (seq !== lazySeq) return;   // 下載期間已換頁（cleanup ++ 過）→ 頁面 DOM 已 swap，放棄 init
+    if (!alive()) return;   // 下載期間已換頁 → 頁面 DOM 已 swap，放棄 init
     viewerMod.initLibraryViewer();
     // 桌面：search 列（search／filter／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
     // 搬成 panel 直接子層：留在內容 grid 裡會被 grid 的進場 clip-path 裁掉（工具列定位在 grid 外的底部標題列）。
@@ -646,24 +608,15 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Legal Pages（2026-09-09 全改 admission 那套 zebra 手風琴，見 legal-data-loader）---
   // Regulations & Policy：規章（攤平）＋ 隱私政策合併一頁（policy_and_statements 去掉無障礙段）
-  if (page === 'regulations') {
-    loadRegAndPolicy();
-  }
-  // 政策及聲明舊頁 = 孤兒 route（footer 已移除入口）：保留舊渲染讓直連書籤不壞
-  if (page === 'policy-and-statements') {
-    loadPolicyAndStatements();
-  }
-  if (page === 'support') {
-    loadSupport();
-  }
-  // 網站導覽（無障礙頁）：無障礙聲明（policy_and_statements 的無障礙段）+ 網站地圖（data/accessibility.json）
-  if (page === 'sitemap') {
-    loadSitemap();
+  // 網站導覽（sitemap）：無障礙聲明（accessibility_statement）+ 網站地圖（data/accessibility.json）
+  const legalLoader = { regulations: 'loadRegAndPolicy', support: 'loadSupport', sitemap: 'loadSitemap' }[page];
+  if (legalLoader) {
+    import('./modules/pages/legal-data-loader.js').then(m => { if (alive()) m[legalLoader](); });
   }
 
   // --- 404 Page ---
   if (page === '404') {
-    init404();
+    import('./modules/pages/error-404.js').then(m => { errorModule = m; if (alive()) m.init404(); });
   }
 }
 

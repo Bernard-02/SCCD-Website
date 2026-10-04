@@ -41,8 +41,9 @@ const routes = {
   '/create.html':             { page: 'generate',                htmlFile: 'pages/create.html' },
   '/regulations':             { page: 'regulations',             htmlFile: 'pages/regulations.html' },
   '/regulations.html':        { page: 'regulations',             htmlFile: 'pages/regulations.html' },
-  '/policy-and-statements':      { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
-  '/policy-and-statements.html': { page: 'policy-and-statements', htmlFile: 'pages/policy-and-statements.html' },
+  // 舊「政策及聲明」頁 2026-09-09 已併入 Regulations & Policy → 舊網址/書籤直接落規章頁（舊頁 2026-10-04 刪）
+  '/policy-and-statements':      { page: 'regulations', htmlFile: 'pages/regulations.html' },
+  '/policy-and-statements.html': { page: 'regulations', htmlFile: 'pages/regulations.html' },
   // 舊 slug /accessibility（10-03 改名）不留 alias：冷載入走 tryShortLink → 後台 redirects 設一筆即可
   '/sitemap':                 { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
   '/sitemap.html':            { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
@@ -443,11 +444,9 @@ export function navigateTo(url, { fromFooter = false } = {}) {
   // deep-link：點下去當下就擋使用者操作（本頁退場也蓋住），目標頁呈現完自己解鎖；一般換頁順手解掉殘留鎖
   if (presentsDeepLink(route.page, search, hash)) lockForDeepLink(); else unlockDeepLink();
 
-  // 點下連結的當下就把 nav active 切到目標頁：先收起舊 active 的中文（.nav-link-cn），再立刻標新頁 active
-  // → 新頁中文立刻展開並 stay，不用等退場動畫 + swap 後的 updateNavActive（否則點完移開游標，靠 hover
-  // 撐著的中文會先收合、載入完才又展開＝user 報的「中文出現兩次」）。
-  // clearNavActive 帶 route.page → 點的就是目前已 active 的頁（re-click 同頁）時 skip 不收合，免閃；
-  // 之後 setNavActive idempotent 重標同狀態。完整 state（logo / side bar）仍由 swap 後 updateNavActive 設。
+  // 點下連結的當下就把選單 active 切到目標頁（不等退場動畫 + swap 後的 updateNavActive）。
+  // clearNavActive 帶 route.page → 點的就是目前已 active 的頁（re-click 同頁）時 skip，免閃；
+  // 之後 setNavActive idempotent 重標同狀態。完整 state（logo 尺寸等）仍由 swap 後 updateNavActive 設。
   clearNavActive(route.page);
   setNavActive(route.page);
 
