@@ -103,12 +103,8 @@ const BAR_HIDE_DIRS = ['top', 'right', 'bottom', 'left'];
 // 位移在「剛好貼齊遮罩邊」外再多滑的餘量：實色 bar 在剛好 ±自身尺寸（貼邊）會留 sub-pixel 縫（user 回報
 // 「左右收會剩一個縫隙」；hero 字卡是透明字看不出、實色 bar 才顯）。加 buffer 一定滑過邊、無縫。
 const BAR_HIDE_BUFFER = 12;
-// 靜態 marginLeft 的 bar 才把 margin 搬到遮罩：遮罩貼齊 bar → 相鄰 bar 的間距落在遮罩「外」，收合時
-// bar 滑不進間距、相鄰 bar 不會撞在一起（user 回報 library↔atlas 相撞）。about/alumni-full（scroll-collapse
-// 動 marginLeft）、mode（/create 動 marginLeft）的 margin 動畫佔用中、留在 bar 不能搬。
-const BAR_MARGIN_TRANSFER = new Set(['library', 'atlas', 'generate']);
-// child 藏起位移（px，wrapper 的 local/旋轉座標系內）：貼齊該方向遮罩邊 + buffer。left 用遮罩寬（含未搬走
-// 的 marginLeft，搬走的＝barW）；其餘用 bar 自身尺寸。
+// child 藏起位移（px，wrapper 的 local/旋轉座標系內）：貼齊該方向遮罩邊 + buffer。left 用遮罩寬（含鈕的
+// marginLeft）；其餘用 bar 自身尺寸。
 function barHideOffset(dir, bar, mask) {
   const B = BAR_HIDE_BUFFER;
   switch (dir) {
@@ -119,16 +115,13 @@ function barHideOffset(dir, bar, mask) {
     default:       return { x: 0, y: bar.offsetHeight + B };
   }
 }
-// mode-btn（marginLeft 留在 bar、左鄰是已搬 margin 的 generate）往左滑會吃掉 generate↔mode 間距而相撞
-// → 排除 left（mode 是小圓鈕、少一個方向無感）。其餘 bar 四方向。
+// mode 鈕不往左收（沿用舊版 header 多條 bar 時防撞鄰居的設定；小圓鈕少一個方向無感）。menu 鈕四方向。
 function pickBarDir(bar) {
   const dirs = bar.getAttribute('data-bar') === 'mode' ? ['top', 'right', 'bottom'] : BAR_HIDE_DIRS;
   return dirs[Math.floor(Math.random() * dirs.length)];
 }
-// 每個 bar 包一層遮罩(wrapper)：rotate 從 bar 搬到 wrapper（bar init 的一次性微傾，見 §3；rotate 只在 init
-// 設一次、無其他動畫碰它，搬走安全），wrapper 當遮罩 rotate + overflow → child 在無旋轉座標系內平移剪裁乾淨。
-// 靜態 margin 的 bar 另把 marginLeft 也搬到遮罩（見 BAR_MARGIN_TRANSFER）。overflow 只在動畫期間掛
-// （常駐會裁 nav-link focus outline，a11y）。
+// 每顆鈕包一層遮罩(wrapper)：遮罩 overflow → 鈕在遮罩內平移、剪裁貼齊鈕邊（鈕的傾角見 lendCssRotToMask）。
+// overflow 只在動畫期間掛（常駐會裁 focus outline，a11y）。
 function ensureBarMask(bar) {
   const parent = bar.parentElement;
   if (parent && parent.classList.contains('header-bar-clip')) return parent;
@@ -138,26 +131,6 @@ function ensureBarMask(bar) {
   mask.style.flexShrink = '0';
   // 遮罩＝鈕本身形狀（圓鈕圓遮罩）：滑出時不被方框直邊切（user 2026-10-01）
   mask.style.borderRadius = getComputedStyle(bar).borderRadius;
-  // marginLeft 搬到遮罩（僅靜態 margin 的 bar）：讓遮罩貼齊 bar、間距落遮罩外 → 收合不撞鄰居
-  const originalML = parseFloat(getComputedStyle(bar).marginLeft) || 0;
-  const transfer = BAR_MARGIN_TRANSFER.has(bar.getAttribute('data-bar'));
-  if (transfer) {
-    mask.style.marginLeft = `${originalML}px`;
-    /** @type {HTMLElement} */ (bar).style.marginLeft = '0';
-  }
-  // rotate 轉移：bar init 的 transform 是純 rotate() → 搬到 wrapper，清掉 bar 自身 transform。
-  // ⚠️ transform-origin 要對準「bar 中心」而非 wrapper 中心：遮罩若含未搬走的 marginLeft 會比 bar 寬，用
-  //    遮罩中心旋轉會讓傾斜 bar 相對原位偏 ~(marginLeft/2)·sinθ ≈ 1px（user 對偏移敏感）。搬走 margin 的
-  //    遮罩已貼齊 bar（effectiveML=0）→ origin 50%；沒搬的用 bar 現有 marginLeft 算 % 對準中心。
-  const t = /** @type {HTMLElement} */ (bar).style.transform;
-  if (t) {
-    const effectiveML = transfer ? 0 : originalML;
-    const bw = bar.offsetWidth || 1;
-    const originPct = ((effectiveML + bw / 2) / (effectiveML + bw)) * 100;
-    mask.style.transform = t;
-    mask.style.transformOrigin = `${originPct}% center`;
-    /** @type {HTMLElement} */ (bar).style.transform = '';
-  }
   parent.insertBefore(mask, bar);
   mask.appendChild(bar);
   return mask;
@@ -166,7 +139,7 @@ function ensureBarMask(bar) {
 // 遮罩維持正的、overflow:clip 一開，斜鈕的角就被正遮罩切掉、滑出全程缺角（user 2026-10-01「開 share/lightbox 時
 // menu btn 出場先被 crop」，headless 3.6° 實拍上緣被切成水平線）。收起期間把角度借給遮罩、鈕本身 GSAP rotation 0
 // （inline 蓋過樣式表）→ 鈕在同角度遮罩內平移、剪裁貼齊鈕邊；clearBarMask 展開完還原（遮罩去角、清 inline → 樣式表角度回來）。
-// 遮罩含鈕的 marginLeft（mode/menu 不在 BAR_MARGIN_TRANSFER）→ 旋轉中心算到鈕中心（同 ensureBarMask 公式）。
+// 遮罩含鈕的 marginLeft → 旋轉中心算到鈕中心。
 function lendCssRotToMask(bar, mask) {
   const rot = parseFloat(getComputedStyle(bar).getPropertyValue('--hdr-rot'));
   if (!rot) return;
@@ -703,13 +676,12 @@ export function restoreHeaderLogo() {
 // ── Active Nav State（Router 換頁時呼叫）──────────────────────
 // detail 頁對應到父層高亮（degree-show-detail 隸屬 activities.html 的 panel → 高亮 Activities）
 const NAV_PAGE_MAPPINGS = { 'degree-show-detail': 'activities' };
-// menu 沒有的頁 → 左下「當前頁」卡文字（legal 同 footer-content.js 法務連結標籤；policy-and-statements＝孤兒頁、用頁內標題）。
+// menu 沒有的頁 → 左下「當前頁」卡文字（legal 同 footer-content.js 法務連結標籤）。
 // donate 兩個名：SPA route＝support、冷載入檔名＝donate。首頁不放卡（user 2026-09-27）＝不列
 /** @type {Record<string, [string, string]>} */
 const PAGE_CARD_LABELS = {
   regulations: ['Regulations & Policy', '規章與政策'],
   sitemap: ['Site Map', '網站導覽'],
-  'policy-and-statements': ['Policies & Statements', '政策及聲明'],
   support: ['Donate', '捐贈'],
   donate: ['Donate', '捐贈'],
   // 404 不放卡（user 2026-09-28 改口；原先有「404 找不到頁面」）——查不到 label 又無 active nav link ＝ 留空、:empty 藏
@@ -721,108 +693,43 @@ function navActiveHref(page) {
   return activePage === 'index' ? '' : `${activePage}.html`;
 }
 
-// 清除所有 nav active 標記（.active + aria-current + about-bar has-active）。
-// router 在導航「一開始」就 call 這個 → active 的中文（.nav-link-cn）立刻走 CSS 收合，
-// 不用等退場動畫跑完（updateNavActive 在 swap 後才跑，中文會延遲到動畫結束才收）。
+// 清除選單 nav active 標記（.active + aria-current）。router 在導航「一開始」就 call（不等退場動畫跑完）；
 // updateNavActive 內部也沿用此函式設 clean 起點（不帶 exceptPage）。
-//
-// exceptPage：導航目的頁。若該頁的 nav-link「已經是 active」（re-click 同頁 / detail→已在父層頁），
-// 中文本來就展開著、且 updateNavActive 會再設回同狀態 → 直接 skip，否則會先收合再展開閃一下。
+// exceptPage：導航目的頁。若該頁的 link「已經是 active」（re-click 同頁 / detail→已在父層頁）→ 直接 skip，
+// updateNavActive 會再設回同狀態，先清再標會閃一下。
 export function clearNavActive(exceptPage) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
   if (exceptPage != null) {
     const keepHref = navActiveHref(exceptPage);
-    const alreadyActive = [...header.querySelectorAll('a.nav-link.active, a.mobile-nav-link.active')]
+    const alreadyActive = [...header.querySelectorAll('a.mobile-nav-link.active')]
       .some(l => (l.getAttribute('href') || '').split('/').pop() === keepHref);
     if (alreadyActive) return;
   }
-  header.querySelectorAll('a.nav-link.active, a.mobile-nav-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
-  header.querySelectorAll('[data-bar].has-active').forEach(el => el.classList.remove('has-active'));
+  header.querySelectorAll('a.mobile-nav-link.active').forEach(l => { l.classList.remove('active'); l.removeAttribute('aria-current'); });
 }
 
-// 標記 nav-link active（.active + aria-current + about-bar has-active）。
-// 抽成共用：updateNavActive（swap 後全套）與 setNavActive（點擊當下只標 active，讓中文立刻 stay）都用。
+// 標記選單 link active（.active + aria-current）。updateNavActive（swap 後）與 setNavActive（點擊當下）共用。
 // aria-current 無障礙：標目前頁（粗體已是非色彩線索，補語義 1.4.1 / 4.1.2）。
 function applyNavLinkMarks(header, activeHref) {
-  const setNavLinkActive = (link) => { link.classList.add('active'); link.setAttribute('aria-current', 'page'); };
-
-  // About bar nav links
   header.querySelectorAll('nav > ul > li').forEach(li => {
     // mobile-nav-link＝漢堡面板（2026-09-27 起桌面也用它當主選單，active 上色見 navigation.css ≥1200 段）；
     // 不用 :scope >——menu 開過一次後 link 被 clip-reveal wrapper 包住、不再是 li 直接子
-    const parentLink = li.querySelector('a.nav-link, a.mobile-nav-link');
-
-    if (parentLink && parentLink.getAttribute('href') === activeHref) {
-      setNavLinkActive(parentLink);
+    const link = li.querySelector('a.mobile-nav-link');
+    if (link && link.getAttribute('href') === activeHref) {
+      link.classList.add('active');
+      link.setAttribute('aria-current', 'page');
     }
   });
-
-  // Standalone links（非 nav 內）
-  header.querySelectorAll('a.nav-link').forEach(link => {
-    if (link.closest('nav')) return;
-    if (link.closest('[data-bar="generate"]') || link.closest('[data-bar="library"]') || link.closest('[data-bar="atlas"]') || link.closest('[data-bar="alumni"]')) return;
-    const href = link.getAttribute('href');
-    if (href && href.split('/').pop() === activeHref) {
-      setNavLinkActive(link);
-    }
-  });
-
-  // about bar has-active
-  const aboutBarEl = header.querySelector('[data-bar="about"]');
-  if (aboutBarEl && aboutBarEl.querySelector('a.nav-link.active')) {
-    aboutBarEl.classList.add('has-active');
-  }
 }
 
-// 中文遮罩 max-width 終值（--cn-w）＝內層實測文字寬（空格另在遮罩外側靜態 margin）。寫死 6rem overshoot 會讓
-// 「視覺展開」提早完成（內容只 2~3 字），而內層 translate 跑滿全程 → 上/下方向軌跡先斜後直＝arc 彎折。
-// 單位用 em：768–1520 壓縮層的 clamp 字級縮放時自動跟上，不用 resize 重量。
-// 量不到（display:none，如平板 gate / alumni-full 未開）就跳過留 6rem fallback——那些狀態沒有動畫、overshoot 無害。
-function fitNavCnWidths() {
-  document.querySelectorAll('#site-header .nav-link-cn').forEach((/** @type {HTMLElement} */ cn) => {
-    const inner = cn.querySelector('.nav-link-cn-i');
-    if (!inner) return;
-    const w = inner.getBoundingClientRect().width;
-    const fs = parseFloat(getComputedStyle(inner).fontSize);
-    if (w > 0 && fs > 0) cn.style.setProperty('--cn-w', (w / fs) + 'em');
-  });
-}
-// Noto Sans TC 晚到會微改字寬；平板窗拉寬跨 1200 桌面排才首次可量
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitNavCnWidths);
-const cnDesktopMq = window.matchMedia('(min-width: 1024px)');
-if (cnDesktopMq.addEventListener) cnDesktopMq.addEventListener('change', e => { if (e.matches) fitNavCnWidths(); });
-
-// 側 bar（library/atlas/generate/alumni 小 bar）的完整 active 樣式：黑底 box + bar-active(白字) class +
-// nav-link .active（驅動 .nav-link-cn 中文展開）。抽 module-level 讓 setNavActive（點擊當下）與
-// updateNavActive（post-swap）共用；用 class 不用 inline 是為了避免瀏覽器擴充功能干擾文字色（見 navigation.css）。
-function setSideBar(el, isActive) {
-  if (!el) return;
-  el.style.background = isActive ? '#000' : '#fff';
-  el.classList.toggle('bar-active',   isActive);
-  el.classList.toggle('bar-inactive', !isActive);
-  // SPA 切頁時（cursor 可能還停在 btn 上）清除 hover class，避免黑底黑字殘影
-  el.classList.remove('is-bar-hover');
-  el.querySelectorAll('a.nav-link').forEach(l => l.classList.toggle('active', isActive));
-}
-
-// 點擊連結當下（navigateTo 起點）就標記目標頁的 nav-link active → 中文（.nav-link-cn）＋側 bar 的黑底 box
-// 立刻出現並 stay，不用等 swap 後 updateNavActive。否則點完把游標移開選項，靠 hover 撐著的中文會先收合、
-// 載入完才又展開（user 2026-07-17「中文會出現兩次」；後續「box 也要先存在」）。logo size / footer reset /
-// alumni-full reveal 等「動畫」仍留給 post-swap updateNavActive（在退場動畫進行中提前跑會打架）。
+// 點擊連結當下（navigateTo 起點）就標記目標頁的選單 link active，不等 swap 後 updateNavActive
+//（feedback：nav active 必須點擊當下生效）。logo size / footer reset 等「動畫」仍留給 post-swap updateNavActive
+//（在退場動畫進行中提前跑會打架）。
 export function setNavActive(page) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
   applyNavLinkMarks(header, navActiveHref(page));
-
-  // 側 bar 的 box（黑底 active 樣式）也在點擊當下套上，跟中文一起立即出現。library/atlas/generate 直接 setSideBar
-  //（target 那顆 active、其餘轉 inactive → 離開側 bar 頁時舊 box 也即時收白）。alumni 例外：它的 box 是
-  // alumni-full bar、有自己的 clip-reveal 進場（post-swap updateNavActive 播），且小 A.A. bar 在 alumni 頁會被
-  // display:none → 這裡碰它會打架；alumni-full 的中文已由 applyNavLinkMarks 標到（其 link 不在 exclude 內）。
-  const sbPage = NAV_PAGE_MAPPINGS[page] || page;
-  ['library', 'atlas', 'generate'].forEach(bar => {
-    setSideBar(header.querySelector(`[data-bar="${bar}"]`), sbPage === bar);
-  });
 }
 
 // fromFooter：router 點 footer 連結換頁（見 router loadPage）→ 保留 footer-near 收起態
@@ -895,81 +802,18 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
     }
   });
 
-  // library / atlas / generate / alumni side bar 狀態
-  const aboutBarEl      = header.querySelector('[data-bar="about"]');  // alumni 頁隱藏其他 bars 時要含它（applyNavLinkMarks 內另有本地變數，此處給下方 otherBarEls 用）
-  const libraryBarEl    = header.querySelector('[data-bar="library"]');
-  const atlasBarEl      = header.querySelector('[data-bar="atlas"]');
-  const generateBarEl   = header.querySelector('[data-bar="generate"]');
-  const alumniBarEl     = header.querySelector('[data-bar="alumni"]');
-  const alumniFullBarEl = header.querySelector('[data-bar="alumni-full"]');
-  const modeBtnEl       = header.querySelector('#mode-btn');
+  const modeBtnEl        = header.querySelector('#mode-btn');
   const isLibraryActive  = activePage === 'library';
   const isAtlasActive    = activePage === 'atlas';
   const isGenerateActive = activePage === 'generate';
   const isAlumniActive   = activePage === 'alumni';
   // legal 區（2026-09-15 user：logo 一律小的、邏輯同 library）。含 SPA route 名與冷載入檔名（donate.html → page 'support'）
-  const isLegalActive    = ['regulations', 'sitemap', 'policy-and-statements', 'support', 'donate'].includes(activePage);
+  const isLegalActive    = ['regulations', 'sitemap', 'support', 'donate'].includes(activePage);
 
-  // Alumni 頁面：alumni-full bar 取代 about-bar 位置，其他 bars 全部隱藏
-  // 設 display:none 而非 clip-path：navigation 完成後的最終狀態（直接訪問 URL / SPA 切回都正確）
-  // 收起動畫由 navigateToAlumni / playAlumniReveal 控制（在 click handler 觸發，這裡只負責 end state）
-  const wasAlumni = document.body.classList.contains('page-alumni');
-  const leavingAlumni = wasAlumni && !isAlumniActive;  // 偵測「離開 alumni」→ 觸發其他 bars reveal
-  document.body.classList.toggle('page-alumni', isAlumniActive);
-  if (alumniFullBarEl) /** @type {HTMLElement} */ (alumniFullBarEl).style.display = isAlumniActive ? '' : 'none';
-  const otherBarEls = [aboutBarEl, alumniBarEl, libraryBarEl, atlasBarEl, generateBarEl].filter(Boolean);
-  // mode-btn 在 alumni 頁要保留（user 要求），所以不在隱藏列表
-  // mode-btn 自己也清 clipPath（避免收起動畫殘留）
-  otherBarEls.forEach(el => {
-    /** @type {HTMLElement} */ (el).style.display = isAlumniActive ? 'none' : '';
-    // 離開 alumni 時不立即清 clipPath — 下方 reveal 動畫會 set inset 然後清；其他情況立即清
-    if (!leavingAlumni) /** @type {HTMLElement} */ (el).style.clipPath = '';
-  });
+  document.body.classList.toggle('page-alumni', isAlumniActive);   // alumni.css 用
   // mode-btn 在 /create (generate) 頁需保留 hide 狀態（updateToggleBtnVisualState 隱藏的 clipPath inline）
   // 不加 gate 的話 same-page reentry 時 hide 狀態被清掉、edge-detection 又不會 re-fire hide → 視覺凍結現身
   if (modeBtnEl && !isGenerateActive) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
-
-  // 離開 alumni → 其他 bars clip-reveal 進場（mirror 進 alumni 時的 collapse pattern）
-  // user 反饋 reveal 太快 → 拉長 duration 0.8 + stagger 0.08（總時長 ~1.12s），跟收起感覺一樣紮實
-  // page swap 在 reveal 之前發生（user 要求），所以 reveal 在新頁上跑 — 動畫變長讓視覺停留時間夠
-  if (leavingAlumni && otherBarEls.length && typeof gsap !== 'undefined') {
-    gsap.killTweensOf(otherBarEls);
-    otherBarEls.forEach(el => {
-      const dir = Math.random() < 0.5 ? 'inset(0% 0% 100% 0%)' : 'inset(100% 0% 0% 0%)';
-      gsap.set(el, { clipPath: dir });
-    });
-    gsap.to(otherBarEls, {
-      clipPath: 'inset(0% 0% 0% 0%)',
-      duration: DUR.reveal,
-      ease: EASE.enterSoft,
-      stagger: 0.08,
-      onComplete: () => {
-        otherBarEls.forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = ''; });
-      },
-    });
-  }
-
-  // alumni-full bar 進場：從左 clip-reveal（inset(0 100% 0 0) → inset(0)）
-  // 只在 SPA 切到 alumni 時跑（不是 alumni → alumni 重複觸發）
-  if (alumniFullBarEl && typeof gsap !== 'undefined') {
-    if (isAlumniActive) {
-      gsap.killTweensOf(alumniFullBarEl);
-      gsap.fromTo(alumniFullBarEl,
-        { clipPath: 'inset(0% 100% 0% 0%)' },
-        {
-          clipPath: 'inset(0% 0% 0% 0%)',
-          duration: DUR.slow,
-          ease: EASE.enter,
-          delay: 0.25,  // 等 bars 收起動畫先跑一段
-          onComplete: () => {
-            /** @type {HTMLElement} */ (alumniFullBarEl).style.clipPath = '';
-          },
-        }
-      );
-    } else {
-      /** @type {HTMLElement} */ (alumniFullBarEl).style.clipPath = '';
-    }
-  }
 
   // Logo 尺寸：library / atlas 頁是小的（100）；一般頁是大的（180）會 scroll shrink
   // /create 由 triggerGenerateLogo 自己管 size（shrink 180→100 是 typewriter 進場敘事的一部分），
@@ -998,8 +842,7 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
       // SPA 切頁邏輯上應該起點 = page top（router scrollToTop 會在切頁時呼叫多次），
       // 一般頁直接給 180 不從 window.scrollY 推算 — 否則 router scrollToTop 還沒收斂時
       // （前一頁從 footer 切過來、新頁 innerHTML swap 期間 scroll-anchoring 殘留），
-      // 這裡會讀到舊的高 scrollY → logo 直接 snap 到小尺寸，但 about-bar marginLeft
-      // 不讀 scroll 仍是 64 → 大 about-bar + 小 logo 不匹配。
+      // 這裡會讀到舊的高 scrollY → logo 直接 snap 到小尺寸。
       // 後續 user 真的開始 scroll 由 onComplete 裡建的 ScrollTrigger 負責 shrink。
       const targetSize = (isLibraryActive || isAtlasActive || isLegalActive) ? 100 : 180;
 
@@ -1028,50 +871,8 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
     }
   }
 
-  // setSideBar 已抽 module-level（setNavActive 也用）
-  setSideBar(libraryBarEl,  isLibraryActive);
-  setSideBar(atlasBarEl,    isAtlasActive);
-  setSideBar(generateBarEl, isGenerateActive);
-  setSideBar(alumniBarEl,   isAlumniActive);
-
   // mode-btn 顏色由 .theme-toggle-btn color: var(--theme-fg)（CSS）接管
   // icon 用 .icon mode_1/2/3 mask，background-color: currentColor 跟 btn color 走，不在這裡 inline-set
-
-  // About bar / Alumni-full bar scroll collapse：library/atlas 頁 marginLeft=0（貼齊 logo），一般頁面 marginLeft=64
-  // 兩條 bar 共用同步 tween：about 顯示時 alumni-full display:none，反之亦然，所以可安全共用
-  // SPA 切換時做 smooth 動畫（和 logo shrink 同步）
-  const leftBarEls = /** @type {HTMLElement[]} */ ([
-    header.querySelector('[data-bar="about"]'),
-    header.querySelector('[data-bar="alumni-full"]'),
-  ].filter(Boolean));
-  if (leftBarEls.length && typeof gsap !== 'undefined') {
-    const ML_START = 64, ML_END = 0;
-    // 只 kill marginLeft tween，避免把上方剛建的 alumni-full clip-reveal tween 一起殺掉
-    // （alumni-full bar 同時在 leftBarEls 陣列裡，全 kill 會卡在 inset(0% 100% 0% 0%) 完全不可見）
-    gsap.killTweensOf(leftBarEls, 'marginLeft');
-
-    const targetML = (isLibraryActive || isAtlasActive || isLegalActive) ? ML_END : ML_START;
-    gsap.to(leftBarEls, {
-      marginLeft: targetML,
-      duration: DUR.slow,
-      ease: EASE.move,
-      onComplete: () => {
-        // 動畫完成後，一般頁面重建 scroll shrink
-        if (!isLibraryActive && !isAtlasActive && !isLegalActive && !isGenerateActive && typeof ScrollTrigger !== 'undefined') {
-          ScrollTrigger.create({
-            trigger: 'body',
-            start: 'top top',
-            end: '+=120',
-            scrub: 0.6,
-            onUpdate: (/** @type {any} */ self) => {
-              const ml = ML_START + (ML_END - ML_START) * self.progress;
-              gsap.to(leftBarEls, { marginLeft: ml, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto' });
-            }
-          });
-        }
-      }
-    });
-  }
 }
 
 export function initHeader() {
@@ -1103,22 +904,7 @@ export function initHeader() {
     // 呼叫 updateNavActive 設定初始 active 狀態
     updateNavActive(currentPage);
 
-    // 3. Header Bar Random Rotation（about: -1.5~1.5°；其他 small bar: -4~4° 排除 0）
-    {
-      const aboutBarInit = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
-      if (aboutBarInit) {
-        aboutBarInit.style.transform = `rotate(${Math.round((Math.random() * 3 - 1.5) * 10) / 10}deg)`;
-        aboutBarInit.style.transformOrigin = 'center center';
-      }
-      header.querySelectorAll('[data-bar="library"], [data-bar="atlas"], [data-bar="generate"], [data-bar="alumni"]').forEach(el => {
-        let deg;
-        do { deg = Math.round(Math.random() * 9) - 4; } while (deg === 0);
-        /** @type {HTMLElement} */ (el).style.transform = `rotate(${deg}deg)`;
-        /** @type {HTMLElement} */ (el).style.transformOrigin = 'center center';
-      });
-    }
-
-    // 右上 mode／漢堡鈕 hover 抽角（user 2026-09-29「一樣的邏輯」＝全站 arrow-spin：hover 抽 −4~+6、離開保持、click 定案）。
+    // 3. 右上 mode／漢堡鈕 hover 抽角（user 2026-09-29「一樣的邏輯」＝全站 arrow-spin：hover 抽 −4~+6、離開保持、click 定案）。
     // 角度寫 CSS var --hdr-rot、transform 在 buttons.css（不寫 inline）：footerHideBars 收起時 lendCssRotToMask 把角度暫借給遮罩
     //（鈕歸 0、跟遮罩同角＝滑出不被切角），展開 clearBarMask 清 inline＋遮罩去角 → 樣式表角度自動回來、不 snap 0。
     // 轉動用 GSAP 補間 var、不靠 CSS transition：mode3 的 color.css 對 header [data-bar] 下 transition:none !important（防每幀換色 lag），
@@ -1147,117 +933,7 @@ export function initHeader() {
       /** @type {HTMLElement} */ (e.currentTarget).style.setProperty('--mode-btn-accent', SCCDHelpers.getRandomAccentColor());
     });
 
-    // about bar hover：整條 bar 底色變三原色，hover 單一 item 時字 100% 黑
-    const aboutBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="about"]'));
-    const libraryBar  = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="library"]'));
-    const atlasBar    = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="atlas"]'));
-    const generateBar = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="generate"]'));
-    const alumniBar   = /** @type {HTMLElement | null} */ (header.querySelector('[data-bar="alumni"]'));
-
-    // about bar hover：底色隨機三原色（時長走共用 token --dur-base，同 header.html inline）
-    if (aboutBar) {
-      aboutBar.style.transition = 'background var(--dur-base) ease';
-      aboutBar.addEventListener('mouseenter', () => {
-        aboutBar.style.background = SCCDHelpers.getRandomAccentColor();
-      });
-      aboutBar.addEventListener('mouseleave', () => {
-        aboutBar.style.background = '';
-      });
-    }
-
-    // library / atlas / gen / mode 各自 hover 時隨機三原色，互不影響
-    // 額外加 .is-bar-hover class 讓 CSS 文字色 hover 規則跟著走（class-driven 而非 :hover-driven），
-    // 這樣點擊後 setSideBar 可清除 class，避免「cursor 還在 btn / 已導航到 library 頁」造成黑底黑字
-    [libraryBar, atlasBar, generateBar, alumniBar].filter(Boolean).forEach(el => {
-      el.addEventListener('mouseenter', () => {
-        el.classList.add('is-bar-hover');
-        el.style.background = SCCDHelpers.getRandomAccentColor();
-      });
-      el.addEventListener('mouseleave', () => {
-        el.classList.remove('is-bar-hover');
-        // 恢復由 updateNavActive 設定的底色
-        const isActive = el.classList.contains('bar-active');
-        el.style.background = isActive ? '#000' : '#fff';
-      });
-    });
-
-    // === Alumni 點擊 → 全部 bars clip-path 收起（lightbox-shell 風格隨機 top/bottom），動畫完才導航 ===
-    // stopImmediatePropagation() 擋掉 router 的 document-level click 攔截，動畫結束後手動呼叫 navigateTo
-    // 這樣使用者完整看到收起動畫，navigation 才開始（避免 updateNavActive 中途 display:none 把 bars snap 掉）
-    if (alumniBar && typeof gsap !== 'undefined') {
-      const link = alumniBar.querySelector('a.nav-link');
-      if (link) {
-        link.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          // mode-btn 不收起（要在 alumni 頁保留可見），其他 bars 全收
-          const bars = [
-            header.querySelector('[data-bar="about"]'),
-            header.querySelector('[data-bar="library"]'),
-            header.querySelector('[data-bar="atlas"]'),
-            header.querySelector('[data-bar="generate"]'),
-            header.querySelector('[data-bar="alumni"]'),
-          ].filter(Boolean);
-          gsap.killTweensOf(bars);
-          await new Promise(resolve => {
-            gsap.fromTo(bars,
-              { clipPath: 'inset(0% 0% 0% 0%)' },
-              {
-                clipPath: () => Math.random() < 0.5
-                  ? 'inset(0% 0% 100% 0%)'
-                  : 'inset(100% 0% 0% 0%)',
-                duration: DUR.medium,
-                ease: EASE.enterSoft,
-                stagger: 0.05,
-                overwrite: true,
-                onComplete: resolve,
-              }
-            );
-          });
-          // 動畫完成後手動觸發 SPA navigation
-          const href = link.getAttribute('href');
-          if (href) {
-            const { navigateTo } = await import('./router.js');
-            navigateTo(new URL(href, window.location.origin).href);
-          }
-        });
-      }
-    }
-
-    // 4. About Bar / Alumni-full Bar Scroll Collapse（GSAP + ScrollTrigger）
-    // 兩條 bar 共用 collapse — 同時只有一條可見（about 顯示時 alumni-full display:none，反之亦然）
-    (function initLeftBarScroll() {
-      if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-
-      const leftBars = /** @type {HTMLElement[]} */ ([
-        header.querySelector('[data-bar="about"]'),
-        header.querySelector('[data-bar="alumni-full"]'),
-      ].filter(Boolean));
-      if (!leftBars.length) return;
-
-      const ML_START = 64;  // 2xl
-      const ML_END = 0;
-      const isLibrary = currentPage === 'library';
-      const isAtlas   = currentPage === 'atlas';
-
-      if (isLibrary || isAtlas) {
-        gsap.set(leftBars, { marginLeft: ML_END });
-      } else {
-        gsap.set(leftBars, { marginLeft: ML_START });
-        ScrollTrigger.create({
-          trigger: 'body',
-          start: 'top top',
-          end: '+=120',
-          scrub: 0.6,
-          onUpdate: (self) => {
-            const ml = ML_START + (ML_END - ML_START) * self.progress;
-            gsap.to(leftBars, { marginLeft: ml, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto' });
-          }
-        });
-      }
-    })();
-
-    // 5. Logo Lottie + Scale Animation (Responsive)
+    // 4. Logo Lottie + Scale Animation (Responsive)
     const logo = document.getElementById('header-logo');
     if (logo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
       const isInverse = document.body.classList.contains('mode-inverse');
@@ -1409,7 +1085,7 @@ export function initHeader() {
       const isLibrary = currentPage === 'library';
       const isAtlas   = currentPage === 'atlas';
       // legal 區冷載入也走小 logo（同 updateNavActive 的 isLegalActive 清單）
-      const isLegal   = ['regulations', 'sitemap', 'policy-and-statements', 'support', 'donate'].includes(currentPage);
+      const isLegal   = ['regulations', 'sitemap', 'support', 'donate'].includes(currentPage);
       // /create 直接訪問 URL 是 'create'，SPA 內 routed page 名是 'generate'，兩個都要 catch
       // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
       const isGenerate = currentPage === 'generate' || currentPage === 'create';
@@ -1440,13 +1116,13 @@ export function initHeader() {
       }
     }
 
-    // 4. Mobile Menu Logic
+    // 5. Mobile Menu Logic
     // 檢查 initMobileMenu 是否存在，避免因缺少該模組而報錯
     if (typeof initMobileMenu === 'function') {
       initMobileMenu();
     }
 
-    // 5. Header Hide on Footer Reveal
+    // 6. Header Hide on Footer Reveal
     // bars + logo 都走 hero 平移滑動（footerHideBars/footerHideLogo）：bars 每個隨機四方向、各自 overflow:clip
     // 遮罩；logo <a> 遮罩 + 本體 yPercent。兩者同 duration/ease、無 stagger → 一起收起（user 2026-06-08「他們
     // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起也走同一套 clip-reveal（lightbox-shell.animateHeaderHide
@@ -1529,18 +1205,15 @@ export function initHeader() {
       })
       .then(html => {
         headerContainer.innerHTML = html;
-        fitNavCnWidths();
         // nav 選單文字接後台 ui_labels（header 在 #site-header、SPA 換頁不重載 → 只在此填一次）
-        // label 可能改字數 → 填完重量 --cn-w
-        loadUiLabels().then(map => { applyUiLabels(map, headerContainer); fitNavCnWidths(); });
+        loadUiLabels().then(map => applyUiLabels(map, headerContainer));
         setupHeaderLogic();
         document.dispatchEvent(new CustomEvent('header:ready'));
       })
       .catch(e => console.log('Header load failed', e));
   } else {
     // header 已在 DOM（未走 fetch）→ 一樣填 nav label
-    fitNavCnWidths();
-    loadUiLabels().then(map => { applyUiLabels(map, headerContainer || document); fitNavCnWidths(); });
+    loadUiLabels().then(map => applyUiLabels(map, headerContainer || document));
     setupHeaderLogic();
   }
 }
