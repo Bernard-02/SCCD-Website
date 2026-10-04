@@ -493,6 +493,14 @@ if (typeof document !== 'undefined') document.addEventListener('load', (e) => {
     setTimeout(go, 2400);   // 兜底：cv:auto 跳過渲染時 iteration 可能不來
   }
 }, true);
+// 循環每圈重抽滑出／滑回方向（user 2026-10-04「四周隨機、不需要每次同方向」；gallery／poster／影片縮圖共用）：
+// 圈界＝蓋滿 translate(0,0)，此刻換 keyframe 引用的 var 不跳。document capture 一支接全部（animation 事件會冒泡）。
+if (typeof document !== 'undefined') document.addEventListener('animationiteration', (e) => {
+  if (e.animationName !== 'gallery-ph-loop') return;
+  const block = /** @type {HTMLElement} */ (e.target);
+  block.style.setProperty('--ph-out', phDir());
+  block.style.setProperty('--ph-in', phDir());
+}, true);
 
 export function buildGalleryHtml(item) {
   const posterOffset = item.poster ? 1 : 0;
