@@ -18,8 +18,7 @@
 
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
-import { sitePath } from '../../ui/site-base.js';
-import { ensureCardMask, fitCardToText } from '../../ui/scroll-animate.js';
+import { ensureCardMask, fitCardToText, revealHidden } from '../../ui/scroll-animate.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadAboutClasses } from './about-source.js';
 import { EASE } from '../../ui/motion.js';
@@ -32,7 +31,7 @@ const INTERVAL   = 3000;
 const HOVER_DUR  = 0.3;
 
 // clip-path 常數只剩「textHlReveal=false 的 text 卡」在用（外部場景）；圖片滑動藏定位共用下方
-// revealHiddenT / randRevealDir（±110 過衝防 dpr hairline），離場固定 'left'＝跟整列左移同向。
+// revealHidden（scroll-animate.js，±110 過衝防 dpr hairline），離場固定 'left'＝跟整列左移同向。
 // 四值單位必須一致（全部 %），否則 GSAP 無法 tween clip-path
 const HIDE_CLIPS = [
   'inset(0% 100% 0% 0%)',
@@ -46,25 +45,8 @@ function randomHideClip() { return HIDE_CLIPS[Math.floor(Math.random() * HIDE_CL
 
 // text 卡 clip-reveal＝貼身靜止遮罩（ensureCardMask wrapper）內、整塊色卡 [data-class-hl]（含底色）純位移隨機 4 向
 //（user 定義的 clip-reveal＝遮罩內平移升起，不帶 clip-path 擦除、不整塊飛入；色矩形必須跟文字一起動，不能留在原地）
-const REVEAL_DIRS4 = ['top', 'bottom', 'left', 'right'];
 const REVEAL_SHOWN = { xPercent: 0, yPercent: 0 };
-function revealHiddenT(dir) {
-  switch (dir) {
-    case 'top':    return { xPercent: 0, yPercent: -110 };
-    case 'bottom': return { xPercent: 0, yPercent: 110 };
-    case 'left':   return { xPercent: -110, yPercent: 0 };
-    default:       return { xPercent: 110, yPercent: 0 }; // right
-  }
-}
-function randRevealDir() { return REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)]; }
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
-
-// 洗牌圖池順序（Fisher-Yates；user 2026-09-11「program 圖片每次都 shuffle、三組不要同序」）。
-// 傳入前先 copy（[...pool]）避免就地打亂共用的 fallback 陣列。
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
-  return arr;
-}
 
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
@@ -293,7 +275,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
         ...(slotZ ? { zIndex: slotZ[i] } : {}),
       });
       // 圖片藏定位＝img 在 wrapper 遮罩內滑出畫面外（隨機 4 向）
-      gsap.set(img.firstElementChild, startHidden ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN);
+      gsap.set(img.firstElementChild, startHidden ? revealHidden() : REVEAL_SHOWN);
       slots.push(img);
       if (!manual) attachInteractions(img);
     }
@@ -301,7 +283,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     if (!manual) updateCursors();
     // Text highlight 初始態：textHlReveal 走 clip-reveal（整塊色卡純位移，藏於貼身遮罩外/現），否則跟 imgs 一起 clip-path
     if (textHlReveal && textHlEl) {
-      gsap.set(textHlEl, startHidden ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN);
+      gsap.set(textHlEl, startHidden ? revealHidden() : REVEAL_SHOWN);
     } else if (textHlEl && !textHlReveal) {
       gsap.set(textHlEl, { clipPath: startHidden ? randomHideClip() : SHOW_CLIP });
     }
@@ -319,7 +301,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
 
     // 1. leaving img 滑出遮罩：預設 'left'（與整列左移同向）；leaveRandom（dshow-detail）改隨機 4 向
     gsap.to(leaving.firstElementChild, {
-      ...revealHiddenT(leaveRandom ? randRevealDir() : 'left'),
+      ...(leaveRandom ? revealHidden() : revealHidden('left')),
       duration: ANIM_DUR,
       ease: EASE.wipe,
       onComplete: () => leaving.remove(),
@@ -341,7 +323,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}), ...(shifted ? { left: shifted[slotCount - 1] } : {}) });
     // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
     const inNew = newImg.firstElementChild;
-    gsap.set(inNew, revealHiddenT(randRevealDir()));
+    gsap.set(inNew, revealHidden());
     whenImgReady(inNew).then(() => {
       // adaptive：寬度此時才定 → 揭露前（仍藏在遮罩外）補到正確位置
       if (adaptive) gsap.set(newImg, { left: adaptiveLefts(slots)[slots.indexOf(newImg)] });
@@ -388,14 +370,14 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       // show 先 gate 到 decode 完才滑入（whenImgReady），避免還沒載完就滑進空框、圖再閃出（user 2026-09-11）。
       imgWrappers.forEach(el => {
         const inner = el.firstElementChild;
-        const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN), duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
+        const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHidden() : REVEAL_SHOWN), duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
         if (mode === 'show') whenImgReady(inner).then(run); else run();
       });
       if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: EASE.wipe, onComplete: onOne });
       // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
       if (revealText) {
         if (mode === 'show') fitTextCard(); // 揭露前貼合寬度（隱藏態量寬 OK，translate 不影響寬）
-        const to = mode === 'hide' ? revealHiddenT(randRevealDir()) : REVEAL_SHOWN;
+        const to = mode === 'hide' ? revealHidden() : REVEAL_SHOWN;
         gsap.to(textHlEl, { ...to, duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
       }
     });
@@ -504,15 +486,12 @@ export async function initClassImagesSlideshow() {
   });
 
   try {
-    // 圖片池：每學制自己的 about_class.images（Directus）；某學制沒上圖 → 退本地共用 json（先填的佔位圖）。
-    const [classes, fallbackPool] = await Promise.all([
-      loadAboutClasses().catch(() => []),
-      fetch(sitePath('data/about-class-images.json')).then(r => r.json()).catch(() => []),
-    ]);
+    // 圖片池：每學制自己的 about_class.images（Directus 唯一來源；某學制沒上圖＝該組不輪播，user 2026-10-04 拿掉本地佔位圖）
+    const classes = await loadAboutClasses().catch(() => []);
     const imagesByDivision = {};
     (classes || []).forEach(c => { if (c.divisionKey && c.images?.length) imagesByDivision[c.divisionKey] = c.images; });
-    const poolFor = (division) => (imagesByDivision[division]?.length ? imagesByDivision[division] : fallbackPool);
-    if (!fallbackPool.length && !Object.keys(imagesByDivision).length) return;
+    const poolFor = (division) => imagesByDivision[division] || [];
+    if (!Object.keys(imagesByDivision).length) return;
 
     // 手機＝單圖置中自動輪播（user 2026-07-07；同 timeline 手機單格 pattern）：單 slot 下 tick =
     // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
@@ -525,7 +504,8 @@ export async function initClassImagesSlideshow() {
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
-      const pool = shuffle([...poolFor(division)]);   // 每組獨立洗牌（三組共用 fallback 也不同序），每次進頁重洗
+      // 每組獨立洗牌，每次進頁重洗（user 2026-09-11「program 圖片每次都 shuffle、三組不要同序」）；先 copy 免就地打亂來源
+      const pool = SCCDHelpers.shuffle([...poolFor(division)]);
       if (!pool.length) return;
       const api = createClassImagesSlideshow(container, pool, slotOpts);
       if (api) slideshowsByDivision.set(division, api);

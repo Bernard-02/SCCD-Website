@@ -126,7 +126,7 @@ function renderPlaylist(box, iframe, listId, vids) {
     b.className = 'works-playlist-item';
     b.dataset.vid = v.id;
     // default 隨機旋轉（全站 -4~+6° 排除 0）；桌面 hover 抽新角、離開保持（全站 nav btn 同模型；user 2026-09-15）
-    const setRot = () => b.style.setProperty('--pl-rot', `${window.SCCDHelpers?.getRandomRotation?.() ?? 2}deg`);
+    const setRot = () => b.style.setProperty('--pl-rot', `${SCCDHelpers.getRandomRotation()}deg`);
     setRot();
     if (spinOn) b.addEventListener('mouseenter', setRot);
     const img = document.createElement('img');

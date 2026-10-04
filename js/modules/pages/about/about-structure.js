@@ -12,25 +12,23 @@
 import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { registerPageExit } from '../../ui/page-exit.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
-import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-animate.js';
+import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir, randomRevealDir } from '../../ui/scroll-animate.js';
 import { randomSpinAngle } from '../../ui/arrow-spin.js';
 import { DUR, EASE } from '../../ui/motion.js';
 import { loadProgramNodes } from './program-nodes-source.js';
 import { loadUiLabels } from '../../ui/ui-labels.js';
+import { escapeHtml as esc } from '../../ui/escape-html.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
 const TAU = Math.PI * 2;
-const rndRot = () => (window.SCCDHelpers?.getRandomRotation?.() ?? ((Math.round(Math.random() * 6 - 3)) || 2));
+const rndRot = () => SCCDHelpers.getRandomRotation();
 // 浮動（atlas 式 wobble）開關：user 2026-09-28 取消（歷史上 09-03 拆過又復原，故留旗標不刪碼）。
 // 關閉時 floatTick 不跑：chip transform 由 init 的 rotate(_baseRot) + hover spinChip 直寫、連綫停在 rest 端點。
 const FLOAT_ENABLED = false;
-const DIRS = ['top', 'bottom', 'left', 'right'];
-const rndDir = () => DIRS[Math.floor(Math.random() * 4)];
 const parseTranslate = (el) => {
   const m = (el?.style.translate || '').match(/(-?[\d.]+)px\s+(-?[\d.]+)px/);
   return m ? [+m[1], +m[2]] : [0, 0];
 };
-const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 // labelKey → 每盒 max-width 微調 class（CSS 對特定文字長度調斷行寬，見 about-structure.css）；
 // 純視覺 tuning、與文字綁定；新節點無對應 class＝吃預設 --prog-chip-max。
@@ -798,12 +796,12 @@ export async function initProgramStructure() {
     return new Promise((resolve) => {
       const tl = gsap.timeline({ onComplete: resolve });
       chips.forEach((box) => {   // 方向仍各自隨機、但同時起收；from=SHOWN（float 殘位移 ±數px 首幀歸零，0.4s 全體同拍無感）
-        navClipTween(tl, box, NAV_CHIP_SHOWN, navChipHidden(box, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+        navClipTween(tl, box, NAV_CHIP_SHOWN, navChipHidden(box, randomRevealDir()), { duration: 0.4, ease: 'power2.in' }, 0);
       });
       lines.forEach((le) => tl.to(le, { draw: 0, duration: 0.4, ease: 'power2.in', onUpdate: () => drawLine(le) }, 0));
       if (links.length) tl.to(links, { ...linkHidden, duration: 0.4, ease: 'power2.in' }, 0);
       legendEls.forEach((el) => {   // 兩張說明卡跟 chips 同拍 clip 收（user 2026-09-09 離頁也要出場動畫）
-        navClipTween(tl, el, NAV_CHIP_SHOWN, navChipHidden(el, rndDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+        navClipTween(tl, el, NAV_CHIP_SHOWN, navChipHidden(el, randomRevealDir()), { duration: 0.4, ease: 'power2.in' }, 0);
       });
     });
   });

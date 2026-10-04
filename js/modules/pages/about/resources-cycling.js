@@ -83,7 +83,7 @@ function renderResourcesAccordion(data, container) {
   // JS 只做 clip-reveal 進退場（卡片不開合、不設旋轉 → 舊 initColoredCardAccordion 不再用）。
   const entry = !prefersReducedMotion();
   const shortLandscape = SCCDHelpers.isLandscapeGate();
-  if (window.innerWidth >= 768 && !shortLandscape) {
+  if (SCCDHelpers.isDesktopLayout()) {
     initRotatedAccordion(wrapper, { animateEntry: entry });
   } else {
     const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
@@ -123,7 +123,7 @@ function renderResourcesAccordion(data, container) {
 }
 
 // 多圖自動輪播（user 2026-09-11「用 works 的切換方式、自動輪播」）：下一張從隨機一側（上下左右四向，user 2026-09-28
-// 「改成四周進場」，同 class 輪播 randRevealDir）滑入蓋住當前（＝全站 hero clip-reveal slide，外層 .res-switcher
+// 「改成四周進場」，同 class 輪播 revealHidden）滑入蓋住當前（＝全站 hero clip-reveal slide，外層 .res-switcher
 // overflow:hidden 裁切），滑入 DUR.slow 0.6s、每 CYCLE_MS 換一張（4s→3s，同 class 輪播 INTERVAL；user 09-28 嫌停太久）。
 // 單張 / reduced-motion → 不輪播。桌面 hover 暫停讓人看清；離頁 registerPageCleanup 清 interval + tween。
 const SLIDE_FROM = [{ xPercent: 0, yPercent: -100 }, { xPercent: 0, yPercent: 100 }, { xPercent: -100, yPercent: 0 }, { xPercent: 100, yPercent: 0 }];

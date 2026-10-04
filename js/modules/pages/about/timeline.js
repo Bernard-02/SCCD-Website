@@ -7,11 +7,11 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
-import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { bindArrowSpin } from '../../ui/arrow-spin.js';
 import { bindNavBtnHover, navHoverColor } from '../../ui/section-switch-helpers.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
+import { revealHidden } from '../../ui/scroll-animate.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -69,38 +69,11 @@ export function initTimeline() {
     return picked;
   }
 
-  function shuffle(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
   // --- clip-path ---
   const CLIP_END = 'inset(0% 0% 0% 0%)';
-  const ALL_DIRS = ['top', 'bottom', 'left', 'right'];
-  function getClipStart(dir) {
-    switch (dir) {
-      case 'top':    return 'inset(0% 0% 100% 0%)';
-      case 'bottom': return 'inset(100% 0% 0% 0%)';
-      case 'left':   return 'inset(0% 100% 0% 0%)';
-      case 'right':  return 'inset(0% 0% 0% 100%)';
-      default:       return 'inset(0% 100% 0% 0%)';
-    }
-  }
-  function randomDir4() { return ALL_DIRS[Math.floor(Math.random() * 4)]; }
-  function randomDirLR() { return Math.random() < 0.5 ? 'left' : 'right'; }
 
-  // 桌面照片條 clip-reveal 滑動藏定位（2026-08-17 由 clip-path 改；±110 過衝防 dpr hairline）：
+  // 桌面照片條 clip-reveal 滑動藏定位（2026-08-17 由 clip-path 改；revealHidden 隨機 4 向）：
   // rotateDiv（overflow:hidden＋承載旋轉）＝現成遮罩，滑動對象是其子 aspectDiv
-  const SLIDE_HIDE = {
-    top:    { xPercent: 0, yPercent: -110 },
-    bottom: { xPercent: 0, yPercent: 110 },
-    left:   { xPercent: -110, yPercent: 0 },
-    right:  { xPercent: 110, yPercent: 0 },
-  };
 
   // ── List view「黑卡」(.tl-list-chip) hero clip-reveal — 對齊 library 左上角 .lib-panel-title
   // 的 playPanelTitleReveal/Exit（library-panels.js），user 2026-08-04 指定改成同款。
@@ -132,14 +105,6 @@ export function initTimeline() {
     const v = { top: [h * s, -h * c], bottom: [-h * s, h * c], left: [-w * c, -w * s], right: [w * c, w * s] }[dir];
     return `${v[0].toFixed(2)}px ${v[1].toFixed(2)}px`;
   }
-  function revealChip(el, dur, ease) {
-    if (typeof gsap === 'undefined') { el.style.clipPath = ''; el.style.translate = ''; return; }
-    const dir = pickChipDir(el);
-    gsap.fromTo(el,
-      { clipPath: CHIP_ENTER_CLIP[dir], translate: chipHiddenTranslate(el, dir) },
-      { clipPath: CLIP_END, translate: '0px 0px', duration: dur, ease, overwrite: true,
-        onComplete: () => { el.style.clipPath = ''; el.style.translate = ''; } });
-  }
   function exitChip(el, dur, ease, onDone) {
     if (typeof gsap === 'undefined') { if (onDone) onDone(); return; }
     const dir = pickChipDir(el);
@@ -150,14 +115,8 @@ export function initTimeline() {
         onComplete: onDone });
   }
 
-  // list 矩形 clip-reveal＝外層遮罩內純位移（隨機 4 向），非 clip-path 擦除、非整塊飛入（user 定義的 clip-reveal）
-  const RSLIDE_DIRS = ['top', 'bottom', 'left', 'right'];
+  // list 矩形 clip-reveal＝外層遮罩內純位移（revealHidden 隨機 4 向），非 clip-path 擦除、非整塊飛入（user 定義的 clip-reveal）
   const rslideShown = { xPercent: 0, yPercent: 0 };
-  const rslideHidden = (dir) => dir === 'top' ? { xPercent: 0, yPercent: -110 }
-    : dir === 'bottom' ? { xPercent: 0, yPercent: 110 }
-    : dir === 'left' ? { xPercent: -110, yPercent: 0 }
-    : { xPercent: 110, yPercent: 0 }; // right
-  const randRslideDir = () => RSLIDE_DIRS[Math.floor(Math.random() * RSLIDE_DIRS.length)];
 
   // --- Fetch & Build ---
   // 結構化資料（era → entries）→ 舊 per-year shape（descriptions HTML 陣列）：timeline 內部渲染沿用。
@@ -251,13 +210,13 @@ export function initTimeline() {
       const isLast = index === items.length - 1;
 
       const photoRots = pickUniqueRotations(5, -4, 4);
-      const edgeZs = shuffle([1, 2]);
-      const middleZs = shuffle([3, 4, 5]);
+      const edgeZs = SCCDHelpers.shuffle([1, 2]);
+      const middleZs = SCCDHelpers.shuffle([3, 4, 5]);
       const photoZs = [edgeZs[0], middleZs[0], middleZs[1], middleZs[2], edgeZs[1]];
 
       let barAssign;
       for (let attempt = 0; attempt < 50; attempt++) {
-        barAssign = shuffle([0, 1, 2, 3, 4]);
+        barAssign = SCCDHelpers.shuffle([0, 1, 2, 3, 4]);
         let monotonic = false;
         for (let i = 0; i <= 2; i++) {
           const a = barAssign[i], b = barAssign[i+1], c = barAssign[i+2];
@@ -411,7 +370,7 @@ export function initTimeline() {
     // revealTargets＝各照片的 rotateDiv 遮罩；動畫對象是其子 aspectDiv（clip-reveal 滑動）
     const revealTargets = [...allRotates, ...cloneRotates];
     if (typeof gsap !== 'undefined') {
-      revealTargets.forEach(el => gsap.set(el.firstElementChild, SLIDE_HIDE[randomDir4()]));
+      revealTargets.forEach(el => gsap.set(el.firstElementChild, revealHidden()));
     }
 
     let marqueeStarted = false;
@@ -461,7 +420,7 @@ export function initTimeline() {
       const onOne = () => { if (++done >= visible.length) resolve(); };
       visible.forEach(el => {
         gsap.killTweensOf(el.firstElementChild);
-        gsap.to(el.firstElementChild, { ...SLIDE_HIDE[randomDir4()], duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
+        gsap.to(el.firstElementChild, { ...revealHidden(), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: onOne });
       });
     }));
 
@@ -596,7 +555,7 @@ export function initTimeline() {
       listView.style.display = 'block';
       requestAnimationFrame(measureStickyOffsets);            // 等 layout flush 才量得到標籤高
       if (document.fonts?.ready) document.fonts.ready.then(measureStickyOffsets);  // 中文字體晚載入會改高 → 重量
-      gsap.set(rectEls, rslideHidden(randRslideDir()));
+      gsap.set(rectEls, revealHidden());
       gsap.to(rectEls, {
         ...rslideShown, duration: TIMING.cardRevealDuration, ease: TIMING.revealEase,
         onComplete: () => { listAnimating = false; },
@@ -608,7 +567,7 @@ export function initTimeline() {
       listAnimating = true;
       listBtn.classList.remove('active');   // 關掉即回黑（不等矩形收完）
       gsap.to(rectEls, {
-        ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase,
+        ...revealHidden(), duration: TIMING.exitDuration, ease: TIMING.exitEase,
         onComplete: () => { listView.style.display = 'none'; listMode = false; listAnimating = false; },
       });
     }
@@ -619,7 +578,7 @@ export function initTimeline() {
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !listMode) { resolve(); return; }
       gsap.killTweensOf(rectEls);
-      gsap.to(listRect, { ...rslideHidden(randRslideDir()), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: resolve });
+      gsap.to(listRect, { ...revealHidden(), duration: TIMING.exitDuration, ease: TIMING.exitEase, overwrite: true, onComplete: resolve });
     }));
 
     // 離頁退場：桌面 list 切換鈕（把說明叫出來的 btn）的黑方塊 inner 做出場

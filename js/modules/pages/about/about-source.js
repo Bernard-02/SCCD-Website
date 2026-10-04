@@ -1,108 +1,70 @@
 /**
  * About 資料源：Directus about_vision（singleton）/ about_class / about_works / about_resources
- * → about-data-loader / resources-cycling 期望的 shape。Directus 優先，失敗/空 → 本地 JSON fallback。
+ * → about-data-loader / resources-cycling 期望的 shape。後台是唯一來源：失敗/空 → 回空值（不再退本地 JSON，user 2026-10-04）。
  *
  * class/works 的 division 是 M2O → about_divisions：只 deep-fetch division.divisionKey（＝前台 data-division 對位鍵）。
- * 組別按鈕文字走 ui_labels（見 memory）；舊 nameEn/nameZh 已停取（死欄位、無渲染，2026-09-08 清）。
- * resources 的 image（及 vision hoverImages）走 CloudFront：deep-fetch filename_disk 組 URL，null（尚未上傳）→ 空字串，render 端 onerror 自藏。
+ * 組別按鈕文字走 ui_labels（見 memory）。
+ * 圖片走 CloudFront（cdnUrl）：deep-fetch filename_disk 組 URL，null（尚未上傳）→ 空字串，render 端 onerror 自藏。
  */
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../../config/api.js';
-import { sitePath } from '../../ui/site-base.js';
+import { CMS_API_BASE, cdnUrl, cdnUrls } from '../../../config/api.js';
 
-// 圖片交付走 CloudFront，繞過弱機 /assets 連 S3 逾時掉圖（見 memory reference_directus_s3_timeout_all_assets_down）。
-// 空/null → ''（render 端 onerror 自藏）；已是 URL / 本地路徑（fallback json 的 ../images/…）→ 原樣；
-// 其餘為 Directus filename_disk（<uuid>.<副檔名>，即時取用不寫死副檔名 → 離線 webp 轉檔自動跟上）→ CloudFront URL。
-const cdnImage = (name) => {
-  if (!name) return '';
-  if (/^(https?:)?\/\//.test(name) || name.startsWith('/') || name.startsWith('../')) return name;
-  return `${CMS_CDN_BASE}/${name}`;
-};
-const local = (path) => fetch(sitePath(path)).then(r => r.json());
-
-// vision 游標拖尾圖：about_vision.hoverImages（files M2M）→ assets URL 陣列；空/失敗回 []（caller fallback degree-show）
-export async function loadAboutVisionImages() {
+async function fetchRows(query, label) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/about_vision?fields=hoverImages.directus_files_id.filename_disk`);
+    const res = await fetch(`${CMS_API_BASE}/${query}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const arr = (await res.json()).data?.hoverImages || [];
-    return arr.map(x => cdnImage(x?.directus_files_id?.filename_disk)).filter(Boolean);
+    const data = (await res.json()).data;
+    if (!data || (Array.isArray(data) && !data.length)) throw new Error('empty');
+    return data;
   } catch (err) {
-    console.warn('[about] vision images CMS 失敗 → caller fallback:', err.message);
-    return [];
+    console.warn(`[about] ${label} CMS 失敗:`, err.message);
+    return null;
   }
+}
+
+// vision 游標拖尾圖：about_vision.hoverImages（files M2M）→ URL 陣列；空/失敗回 []（＝不顯示拖尾）
+export async function loadAboutVisionImages() {
+  const d = await fetchRows('about_vision?fields=hoverImages.directus_files_id.filename_disk', 'vision images');
+  return cdnUrls(d?.hoverImages);
 }
 
 // singleton：Directus 回 { data: {…} }（非陣列）
 export async function loadAboutVision() {
-  try {
-    const res = await fetch(`${CMS_API_BASE}/about_vision`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const d = (await res.json()).data;
-    if (!d) throw new Error('empty');
-    return { descriptionEn: d.descriptionEn || '', descriptionZh: d.descriptionZh || '' };
-  } catch (err) {
-    console.warn('[about] vision CMS 失敗 → 本地:', err.message);
-    return local('/data/about-vision.json');
-  }
+  const d = await fetchRows('about_vision', 'vision');
+  return { descriptionEn: d?.descriptionEn || '', descriptionZh: d?.descriptionZh || '' };
 }
 
 export async function loadAboutClasses() {
-  try {
-    // division 名字走 ui_labels（前台 data-label-key 渲染），這裡只需 divisionKey 對位＋圖文段落；
-    // 舊 nameEn/nameZh 已停取（過去只灌進 SCCD_aboutClass 的死欄位、無渲染，2026-09-08 清）。
-    // images＝該學制圖片輪播池（files M2M，每學制各自；空則 slideshow 退本地共用 json）。
-    const res = await fetch(`${CMS_API_BASE}/about_class?limit=-1&sort=sort&fields=*,division.divisionKey,images.directus_files_id.filename_disk`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
-    if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return rows.map(r => ({
-      divisionKey: r.division?.divisionKey || '',
-      descriptionEn: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
-      images: (r.images || []).map(x => cdnImage(x?.directus_files_id?.filename_disk)).filter(Boolean),
-    }));
-  } catch (err) {
-    console.warn('[about] class CMS 失敗 → 本地:', err.message);
-    return local('/data/about-class.json');
-  }
+  // division 名字走 ui_labels（前台 data-label-key 渲染），這裡只需 divisionKey 對位＋圖文段落；
+  // images＝該學制圖片輪播池（files M2M，每學制各自）。
+  const rows = await fetchRows('about_class?limit=-1&sort=sort&fields=*,division.divisionKey,images.directus_files_id.filename_disk', 'class');
+  return (rows || []).map(r => ({
+    divisionKey: r.division?.divisionKey || '',
+    descriptionEn: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
+    images: cdnUrls(r.images),
+  }));
 }
 
 export async function loadAboutWorks() {
-  try {
-    const res = await fetch(`${CMS_API_BASE}/about_works?limit=-1&sort=sort&fields=*,division.divisionKey`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
-    if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return rows.map(r => ({
-      divisionKey: r.division?.divisionKey || '',
-      descriptionEn: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
-      youtubePlaylist: r.youtubePlaylist || '',
-    }));
-  } catch (err) {
-    console.warn('[about] works CMS 失敗 → 本地:', err.message);
-    return local('/data/about-works.json');
-  }
+  const rows = await fetchRows('about_works?limit=-1&sort=sort&fields=*,division.divisionKey', 'works');
+  return (rows || []).map(r => ({
+    divisionKey: r.division?.divisionKey || '',
+    descriptionEn: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
+    youtubePlaylist: r.youtubePlaylist || '',
+  }));
 }
 
 // render 端（resources-cycling）吃 { title(合併), image, images[], textEn, textZh }
-// images＝多圖 M2M（about_resources_files junction，sort 拖曳＝輪播先後）；空則 fallback 單張 image。
+// images＝多圖 M2M（about_resources_files junction，sort 拖曳＝輪播先後）；空則用單張 image。
 export async function loadAboutResources() {
-  try {
-    const res = await fetch(`${CMS_API_BASE}/about_resources?limit=-1&sort=sort&fields=*,image.filename_disk,images.directus_files_id.filename_disk`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
-    if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
-    return rows.map(r => {
-      const single = cdnImage(r.image?.filename_disk);
-      const multi = (r.images || []).map(x => cdnImage(x?.directus_files_id?.filename_disk)).filter(Boolean);
-      return {
-        title: [r.titleEn, r.titleZh].filter(Boolean).join(' '),
-        image: single,
-        images: multi.length ? multi : (single ? [single] : []),
-        textEn: r.descriptionEn || '', textZh: r.descriptionZh || '',
-      };
-    });
-  } catch (err) {
-    console.warn('[about] resources CMS 失敗 → 本地:', err.message);
-    return local('/data/about-resources.json');
-  }
+  const rows = await fetchRows('about_resources?limit=-1&sort=sort&fields=*,image.filename_disk,images.directus_files_id.filename_disk', 'resources');
+  return (rows || []).map(r => {
+    const single = cdnUrl(r.image);
+    const multi = cdnUrls(r.images);
+    return {
+      title: [r.titleEn, r.titleZh].filter(Boolean).join(' '),
+      image: single,
+      images: multi.length ? multi : (single ? [single] : []),
+      textEn: r.descriptionEn || '', textZh: r.descriptionZh || '',
+    };
+  });
 }

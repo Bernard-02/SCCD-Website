@@ -134,9 +134,6 @@ export function initAboutPolygons() {
     };
   });
 
-  // @ts-ignore - console 調參/診斷用（同 SCCD_* 慣例）；離頁隨 module state 丟棄
-  window.SCCD_aboutPolys = shapes;
-
   // 重擲縮放錨點＝形狀邊緣上的隨機一角（每次收合/換形前呼叫，讓縮放的角不固定）
   const pickAnchor = (s) => {
     const a = Math.random() * Math.PI * 2;

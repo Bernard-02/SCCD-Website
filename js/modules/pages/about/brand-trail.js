@@ -1,7 +1,4 @@
-import { DUR, EASE } from '../../ui/motion.js';
 import { registerPageExit } from '../../ui/page-exit.js';
-import { registerPageCleanup } from '../../ui/page-cleanup.js';
-import { sitePath } from '../../ui/site-base.js';
 import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
 import { loadAboutVisionImages } from './about-source.js';
 /**
@@ -24,24 +21,9 @@ const SLIDE_DIRS = [
   'translate(-110%, 0)',  // 從左滑入
 ];
 
+// vision 拖尾圖只吃後台 about_vision.hoverImages（後台是唯一圖片來源，沒上傳＝不顯示拖尾，user 2026-10-04）
 async function loadTrailImages() {
-  // vision 拖尾圖優先吃後台 about_vision.hoverImages；沒上傳（空）才 fallback 畢展封面（維持原視覺）
-  try {
-    const visionImgs = await loadAboutVisionImages();
-    if (visionImgs.length) { TRAIL_IMAGES = visionImgs; return; }
-  } catch (_) { /* 落到下方 fallback */ }
-  try {
-    const res = await fetch(sitePath('data/degree-show.json'));
-    const data = await res.json();
-    const imgs = [];
-    Object.values(data).forEach(entry => {
-      if (entry.coverImage) imgs.push(entry.coverImage);
-      if (Array.isArray(entry.images)) entry.images.forEach(src => { if (src) imgs.push(src); });
-    });
-    TRAIL_IMAGES = [...new Set(imgs)];
-  } catch (e) {
-    TRAIL_IMAGES = ['../images/Degree Show.jpg'];
-  }
+  TRAIL_IMAGES = await loadAboutVisionImages();
 }
 
 export async function initBrandTrail() {
@@ -54,10 +36,9 @@ export async function initBrandTrail() {
     aliveTrail.forEach(item => item.exit());
     return new Promise(r => setTimeout(r, 500));
   });
-  await loadTrailImages();
-  initDesktopTrail();
-  // initOverviewTrail();   // vision hover 拖尾圖暫時遮蔽、前台不渲染（user 2026-09-15；要恢復解開這行）
-  initMobileSlideshow();
+  // vision hover 拖尾圖暫時遮蔽、前台不渲染（user 2026-09-15）；要恢復解開下兩行（後台沒圖＝拖尾自動不出）
+  // await loadTrailImages();
+  // initOverviewTrail();
 }
 
 // Class 文字底色：每個 .class-info-panel 隨機一色，整塊文字區同色
@@ -193,34 +174,6 @@ function spawnTrailItem(imgSrc, x, y, container, registry) {
   setTimeout(record.exit, 2000);
 }
 
-// === 桌面版：游標拖尾（alumni 區）===
-function initDesktopTrail() {
-  const brandTrailArea = document.getElementById('brand-trail-area');
-  if (!brandTrailArea) return;
-
-  let lastX = 0, lastY = 0;
-  const distThreshold = 240;
-  const maxItems = 10;
-  let registry = [];
-  let currentIndex = 0;
-
-  brandTrailArea.addEventListener('mousemove', (e) => {
-    const dist = Math.hypot(e.clientX - lastX, e.clientY - lastY);
-    if (dist < distThreshold) return;
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    if (registry.length >= maxItems) {
-      const oldest = registry.shift();
-      oldest._removeTrail();
-    }
-
-    const imgSrc = TRAIL_IMAGES[currentIndex];
-    currentIndex = (currentIndex + 1) % TRAIL_IMAGES.length;
-
-    spawnTrailItem(imgSrc, e.pageX, e.pageY, document.body, registry);
-  });
-}
 
 // 取得（或建立）橫跨所有 section 的高 z overlay 當 trail host
 // 為何不直接用 #overview-trail-container：它在 #overview section(z-10) 內，圖片往下凸出時
@@ -277,37 +230,10 @@ function initOverviewTrail() {
     const relX = e.clientX - hostRect.left;
     const relY = e.clientY - hostRect.top;
 
+    if (!TRAIL_IMAGES.length) return;   // 後台沒上傳拖尾圖
     const imgSrc = TRAIL_IMAGES[currentIndex];
     currentIndex = (currentIndex + 1) % TRAIL_IMAGES.length;
 
     spawnTrailItem(imgSrc, relX, relY, host, registry);
   });
-}
-
-// === 手機版：圖片輪播 ===
-function initMobileSlideshow() {
-  if (window.innerWidth >= 768) return;
-
-  const slideshow = document.getElementById('brand-slideshow');
-  const slideImg = /** @type {HTMLImageElement | null} */ (document.getElementById('brand-slide-img'));
-  if (!slideshow || !slideImg) return;
-
-  let currentIndex = 0;
-
-  function showNext() {
-    currentIndex = (currentIndex + 1) % TRAIL_IMAGES.length;
-    slideImg.src = TRAIL_IMAGES[currentIndex];
-    slideImg.style.objectFit = 'contain';
-  }
-
-  let timer = setInterval(showNext, 1000);
-
-  slideshow.addEventListener('click', () => {
-    clearInterval(timer);
-    showNext();
-    timer = setInterval(showNext, 1000);
-  });
-
-  // 離開 about 頁要停掉輪播，否則 interval 持續對 detach 的 <img> 設 src，且每次重訪 about 累積一條
-  registerPageCleanup(() => clearInterval(timer));
 }
