@@ -88,6 +88,19 @@
   }
 }
 
+/* lightbox 內 pill 鈕（返回／分享／ref；media lightbox＋PDF viewer）hover＝黑底白 icon（user 2026-10-04，同上 ref chip）。
+ * 底色/字色由 JS inline 寫（三原色、mode3 白）→ !important；icon 走 currentColor。真桌面才 hover（觸控 tap 會黏住） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  .alb-close:hover .alb-close-pill,
+  .alb-share:hover .alb-share-pill,
+  .pdf-back-btn:hover .pdf-back-pill,
+  .pdf-share-btn:hover .pdf-share-pill,
+  .lightbox-ref-btn:hover .lightbox-ref-btn-pill {
+    background: #000 !important;
+    color: #fff !important;
+  }
+}
+
 /* Label 上區：EN+ZH 水平併排一行 */
 .lightbox-ref-chip-label {
   display: flex;
