@@ -45,7 +45,7 @@ const TYPES = [
   { key: 'elective', en: 'Elective', zh: '選修' },
 ];
 
-// 課程資料：Directus curriculum_courses（依 program 分組）為主 + 本地 fallback，見 courses-source.js
+// 課程資料：Directus curriculum_courses（依 program 分組），見 courses-source.js
 async function loadData() {
   return loadCourses();
 }
@@ -55,7 +55,7 @@ function slugify(str) {
   return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-// 把 courses.json 攤成 chips（每個 part 各自一張）
+// 把課程資料攤成 chips（每個 part 各自一張）
 // slug 由「母 course.titleEn」decide 並透傳到所有 parts，配合 floating-items.js 同算法
 // 2026-06-09 起不分學期，chip 不再帶 semester（只用 grade + type 分格）
 function flattenToChips(courses) {

@@ -19,6 +19,7 @@
 import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { EASE } from '../ui/motion.js';
+import { rotatedBBox, rectsOverlap } from '../ui/footer-scatter.js';
 
 
 const ROTATION_RANGE = 12;          // ±度數
@@ -57,17 +58,6 @@ function setAnchorPlacement(anchorEl, { topPct, leftPct, rot }) {
     yPercent: -50,
     rotation: rot,
   });
-}
-
-// 旋轉後 axis-aligned bbox：w' = w·|cos θ| + h·|sin θ|, h' = h·|cos θ| + w·|sin θ|
-function rotatedBBox(w, h, deg) {
-  const r = Math.abs(deg) * Math.PI / 180;
-  const c = Math.cos(r), s = Math.sin(r);
-  return { w: w * c + h * s, h: h * c + w * s };
-}
-
-function rectsOverlap(a, b) {
-  return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
 
 function forbiddenZonesPx(sw, sh) {

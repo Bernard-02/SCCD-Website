@@ -14,8 +14,7 @@ import { applyNewsHover, removeNewsHover, subscribeWatchMask } from '../animatio
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 const SLOT_COUNT = 3;
@@ -78,20 +77,12 @@ function randomRotation() {
   return sign * (0.3 + Math.random() * 0.7);
 }
 
-// poster 圖走 CloudFront（filename_disk → CDN key）：繞過弱機 /assets 對 S3 的 5s 逾時（見 config/api.js）。
-// 不寫死副檔名 → 離線 webp 轉檔自動跟上。fallback news.json 的 poster 是本地相對路徑 → 原樣回傳（別當 filename_disk 組 URL）。
-function resolvePoster(v) {
-  if (!v) return '';
-  if (/^(https?:)?\/\//.test(v) || v.startsWith('/') || v.startsWith('../')) return v;
-  return `${CMS_CDN_BASE}/${v}`;
-}
-
 export function initMarquee() {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
 
   // news 來源改 Directus index_news（一般 collection，依後台 sort 排序）。
-  // 每筆：titleZh — titleEn 串成跑馬燈文字；poster 深取 filename_disk → 走 CloudFront（見 resolvePoster）。
+  // 每筆：titleZh — titleEn 串成跑馬燈文字；poster 深取 filename_disk → 走 CloudFront（cdnUrl）。
   const fetchNews = () =>
     fetch(`${CMS_API_BASE}/index_news?sort=sort&fields=*,poster.filename_disk`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
@@ -103,16 +94,14 @@ export function initMarquee() {
           textEn: row.titleEn ? row.titleEn + '  ' : '',
           textZh: row.titleZh ? row.titleZh + '  ' : '',
           url: row.url || '',
-          poster: resolvePoster(row.poster?.filename_disk),
+          poster: cdnUrl(row.poster),
         }));
         return { items };
       })
-      // CMS 掛掉（CORS / 斷網 / 5xx）→ fallback /data/news.json，items 已是 {text,url,poster} 最終格式。
+      // 後台是唯一來源：CMS 掛掉（CORS / 斷網 / 5xx）→ 不顯示跑馬燈（不再退本地 JSON，user 2026-10-04）
       .catch(err => {
-        console.warn('[marquee] CMS index_news 失敗，fallback /data/news.json:', err.message);
-        return fetch(sitePath('data/news.json'))
-          .then(r => r.json())
-          .then(j => ({ items: Array.isArray(j.items) ? j.items : [] }));
+        console.warn('[marquee] CMS index_news 失敗:', err.message);
+        return { items: [] };
       });
 
   fetchNews()
@@ -236,7 +225,7 @@ function createBanner(item, squareColor) {
 
   // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
   // 對齊 library 色塊 marquee 的 axisPad inset（padding 直接放 link 會被 overflow 的 padding-box 裁切邊漏出文字）
-  // 中英各一行堆疊（英上中下；fallback news.json 舊單行 text 照渲染單行）；
+  // 中英各一行堆疊（英上中下；舊單行 text 照渲染單行）；
   // duration 不在此設（需量寬）——掛載後 gateMarqueeScroll 依全域 marqueeSpeed() 像素制計算
   const lineTexts = [item.textEn, item.textZh].filter(Boolean);
   if (!lineTexts.length && item.text) lineTexts.push(item.text);

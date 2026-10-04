@@ -12,6 +12,7 @@ import { getFacultyData, resetFacultyCache } from './faculty-source.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { EASE } from '../ui/motion.js';
+import { randomRevealDir } from '../ui/scroll-animate.js';
 
 // 卡片職稱 marquee：hover 整張卡才跑（cards.css 的 hover 目標是 .faculty-card，不是個別 title-group）。
 // 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
@@ -190,12 +191,6 @@ function bindPlaceholderThemeListener() {
   });
 }
 
-// 圖片進場用：4 個方向 random 抽，filter 用 setupFacultyCardAnim 讀 data-img-dir
-const IMG_ENTRY_DIRS = ['top', 'right', 'bottom', 'left'];
-
-function randomImgDir() {
-  return IMG_ENTRY_DIRS[Math.floor(Math.random() * IMG_ENTRY_DIRS.length)];
-}
 
 // 卡片圖片依「實際上傳比例」自適應（不鎖死 4:5、不裁切）：
 // 圖載入後把 wrapper 的 aspect-ratio 設成圖片自然比例 → object-cover 等比填滿 = 完整不裁切。
@@ -254,12 +249,16 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     const color = SCCDHelpers.ACCENT_COLORS[index % SCCDHelpers.ACCENT_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
-    const imgDir = randomImgDir();
+    const imgDir = randomRevealDir();   // 圖片進場 4 方向 random 抽，faculty-filter setupFacultyCardAnim 讀 data-img-dir
+    // 沒照片也沒代用 logo＝不放 img、只留灰底卡（後台是唯一圖片來源，不放假照片，user 2026-10-04）
+    const imgHtml = (item.image || isModePlaceholder(item))
+      ? `<img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''}${asyncDecode ? ' decoding="async"' : ''} class="faculty-card-image w-full h-full object-cover">`
+      : '';
     return `
     <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-mask mb-md">
-        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative">
-          <img src="${item.image}" alt="${item.nameEn}" loading="${eager ? 'eager' : 'lazy'}"${eagerHigh ? ' fetchpriority="high"' : ''}${asyncDecode ? ' decoding="async"' : ''} class="faculty-card-image w-full h-full object-cover">
+        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative"${imgHtml ? '' : ' style="background: var(--lib-bg)"'}>
+          ${imgHtml}
         </div>
       </div>
       <div class="text-left">

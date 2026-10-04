@@ -16,15 +16,7 @@ let facultyReturnFocus = /** @type {HTMLElement|null} */ (null);
 // 有真實照片＋後台也傳了 wireframe 版的老師：slide-in 內每 5s 照片↔線框輪替的 timer。
 // 2026-08-16 由 clip-path wipe 換 src 改 clip-reveal 層疊（user：placeholder 不動、照片像蓋上去）：
 // 線框墊底恆顯（#faculty-detail-wireframe，absolute 不動畫）、照片上層在旋轉容器（overflow:clip）內
-// 4 方向隨機滑出露線框／滑回蓋住；±110 過衝防 dpr hairline（同 faculty-filter SLIDE_MAP）
-const CYCLE_SLIDE = {
-  top:    { xPercent: 0,    yPercent: -110 },
-  right:  { xPercent: 110,  yPercent: 0 },
-  bottom: { xPercent: 0,    yPercent: 110 },
-  left:   { xPercent: -110, yPercent: 0 },
-};
-const CYCLE_DIRS = Object.keys(CYCLE_SLIDE);
-const randCycleDir = () => CYCLE_DIRS[(Math.random() * CYCLE_DIRS.length) | 0];
+// 4 方向隨機滑出露線框／滑回蓋住（revealHidden，±110 過衝防 dpr hairline）
 // 圖片遮罩容器旋轉角：每次開卡＋每次照片滑回蓋住時重擲（user 2026-08-16）。
 // 範圍 ±3~6 同 grid 卡圖（HTML 的 rotate(-4deg) 只是 JS 前的初始值）；標題文字另有 ±2~4 cap 別混用
 const randImgDeg = () => (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);
@@ -59,6 +51,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { revealHidden } from '../ui/scroll-animate.js';
 
 // 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
@@ -300,6 +293,8 @@ export function initFacultySlideIn() {
         const phUrl = modePlaceholderUrl(data, 'wireframeBlack');
         imgElement.src = phUrl || data.image;
         imgElement.classList.toggle('theme-invert', !!phUrl);
+        // 沒照片也沒代用 logo＝圖區藏起（保留版面，不放假照片）
+        if (imgElement.parentElement) imgElement.parentElement.style.visibility = (phUrl || data.image) ? '' : 'hidden';
 
         // 每次開卡重擲圖片遮罩容器角度（panel 尚未進場，直接 set 無視覺 snap）。
         // 一律走 gsap.set：容器角度後續由 GSAP rotation tween 接手，直接寫 style.transform 會讓 GSAP 內部快取失準
@@ -320,7 +315,7 @@ export function initFacultySlideIn() {
           let showingWf = false;
           facultyImgCycleTimer = setInterval(() => {
             showingWf = !showingWf;
-            const target = showingWf ? CYCLE_SLIDE[randCycleDir()] : { xPercent: 0, yPercent: 0 };
+            const target = showingWf ? revealHidden() : { xPercent: 0, yPercent: 0 };
             if (typeof gsap === 'undefined' || prefersReducedMotion()) {
               // 減少動態：瞬切不滑動、角度不重擲（減少視覺跳動）
               imgElement.style.transform = showingWf ? `translate(${target.xPercent}%, ${target.yPercent}%)` : '';
@@ -356,28 +351,25 @@ export function initFacultySlideIn() {
       //   ±2~5°（排除近 0 免像沒轉）；每次開 slide-in 重隨機；太接近(<2°)就把 title 反向確保看得出差異。
       //   名字 EN/ZH 共用同一角（名字視為一體）；若要 EN/ZH 也各異，各自呼叫 randDeg() 即可。
       // 三型（fulltime/admin/parttime）都旋轉（user 2026-08-12：兼任 slide-in 也要旋轉標題）
-      const rotateName = true;
       // ±2~4°（user 2026-08-12 由 ±2~5° 收斂：標題/職稱長時旋轉太多不好看）；排除近 0 免像沒轉
       // （titles 的獨立角 2026-09-19 退場：矮橫向左欄職稱改同桌面 lead 不旋轉，只剩名字轉）
       const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
       const nameDeg = randDeg();
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
-      const nameDisplay = rotateName ? 'block' : '';
-      const nameWidth = rotateName ? 'fit-content' : '';
       if (nameEnElement) {
         nameEnElement.textContent = data.nameEn;
-        nameEnElement.style.transform = rotateName ? `rotate(${nameDeg}deg)` : '';
-        nameEnElement.style.transformOrigin = rotateName ? 'left center' : '';
-        nameEnElement.style.display = nameDisplay;
-        nameEnElement.style.width = nameWidth;
+        nameEnElement.style.transform = `rotate(${nameDeg}deg)`;
+        nameEnElement.style.transformOrigin = 'left center';
+        nameEnElement.style.display = 'block';
+        nameEnElement.style.width = 'fit-content';
       }
       if (nameZhElement) {
         nameZhElement.textContent = data.nameZh;
-        nameZhElement.style.transform = rotateName ? `rotate(${nameDeg}deg)` : '';
-        nameZhElement.style.transformOrigin = rotateName ? 'left center' : '';
-        nameZhElement.style.display = nameDisplay;
-        nameZhElement.style.width = nameWidth;
+        nameZhElement.style.transform = `rotate(${nameDeg}deg)`;
+        nameZhElement.style.transformOrigin = 'left center';
+        nameZhElement.style.display = 'block';
+        nameZhElement.style.width = 'fit-content';
       }
 
       // 系所全名（英上中下）：dcd / bpaidc → 完整名稱，顯示在職級/職稱（Founder 等）「上方」。

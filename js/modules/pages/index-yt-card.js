@@ -9,7 +9,6 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { CMS_API_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
 import { makeActivatable } from '../ui/a11y.js';
 
 // ── canvas 字母排版 ────────────────────────────────────────────
@@ -386,7 +385,7 @@ function initYTCardClick(ytCard, playerRef) {
     // 不要設 clickAnimating 也不要動 animation，user 再點一次（fetch 完成後）就能 work
     const player = playerRef.player;
     if (!player) {
-      console.warn('[YT card] click ignored: player not ready (fetch news.json pending or failed)');
+      console.warn('[YT card] click ignored: player not ready (index_video fetch pending or failed)');
       return;
     }
     // click 鎖：動畫期間（~1.16s）擋掉重複觸發，並強制 card frozen 不浮動
@@ -537,14 +536,14 @@ export function initYTCard() {
   initYTCardClick(ytCard, playerRef);
 
   // 影片來源改 Directus index_video（singleton，回 { data: { videoUrl: HLS m3u8 串流網址 } }）
-  // CMS 掛掉（CORS / 斷網 / 5xx）→ fallback /data/news.json 的 videoUrl（本地 mp4），WATCH 仍可播。
+  // 後台是唯一來源：CMS 掛掉（CORS / 斷網 / 5xx）→ 沒 videoUrl＝WATCH no-op（不再退本地 mp4，user 2026-10-04）
   const fetchTheater = () =>
     fetch(`${CMS_API_BASE}/index_video`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(j => j.data || {})
       .catch(err => {
-        console.warn('[initYTCard] CMS index_video 失敗，fallback /data/news.json:', err.message);
-        return fetch(sitePath('data/news.json')).then(r => r.json()).then(j => ({ videoUrl: j.videoUrl }));
+        console.warn('[initYTCard] CMS index_video 失敗:', err.message);
+        return {};
       });
 
   fetchTheater()

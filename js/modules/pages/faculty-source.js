@@ -7,32 +7,28 @@
  * nameEn/nameZh/titleEn/titleZh/country shape 給 atlas-source.js 用（atlas.js 讀法不用改）。
  * cache 確保一次進頁只打一次後台。
  *
- * Directus 失敗（CORS / 斷網 / 5xx / 空資料）→ fallback 本地 /data/faculty.json，
- * 跟 legal-data-loader 同 pattern；CMS 掛掉時頁面仍渲染、不留白。
+ * 後台是唯一來源：失敗（CORS / 斷網 / 5xx / 空資料）→ 回 []（不再退本地 JSON，user 2026-10-04），
+ * 且不快取失敗結果＝下次呼叫重抓。沒上傳照片＝image ''（卡片只留灰底，不放假照片）。
  */
 
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 
 const COLLECTION = 'faculty';
-
-// 後台目前尚未上傳老師相片（image 全 null）→ 暫用既有 placeholder。
-// 之後後台一上傳，image 會是 Directus 檔案物件，resolveImage 自動切到 CloudFront URL（不用改 code）。
-const PLACEHOLDER_IMAGE = '../images/S__6742028.jpg';
 
 // single-flight：cache 存 Promise（非結果）→ prefetch-on-intent 與進頁/slide-in/atlas 的並發呼叫共用同一個
 // in-flight 請求（只打一次後台）。resetFacultyCache（改在「離開 faculty」時跑，見 faculty-data-loader）清掉 → 下次重抓最新。
 let _promise = null;
 let _formerPromise = null;
 
-// image / placeholder 欄位深取成 { filename_disk }（見下方 fetch 的 fields）→ 取 filename_disk 組 CloudFront URL。
+// image / placeholder 欄位深取成 { filename_disk }（見下方 fetch 的 fields）→ CloudFront URL（cdnUrl；原檔、不套
+// on-the-fly transform——弱機現場轉檔會 504，webp 靠離線轉檔）。代用 logo 空＝null（下游用 null 判斷）。
 function mapRow(r) {
-  const item = { ...r, type: r.facultyType, image: resolveImage(r.image?.filename_disk) };
+  const item = { ...r, type: r.facultyType, image: cdnUrl(r.image) };
   item.hasRealPhoto = !!r.image;
   item.placeholders = {
-    standard: resolvePlaceholder(r.placeholderStandard?.filename_disk),         // 白底(標準) ← generator Standard
-    inverse: resolvePlaceholder(r.placeholderInverse?.filename_disk),           // 黑底(反白) ← generator Inverse
-    wireframeBlack: resolvePlaceholder(r.placeholderWireframeBlack?.filename_disk), // 彩色淺底 ← Black Wireframe
+    standard: cdnUrl(r.placeholderStandard) || null,                 // 白底(標準) ← generator Standard
+    inverse: cdnUrl(r.placeholderInverse) || null,                   // 黑底(反白) ← generator Inverse
+    wireframeBlack: cdnUrl(r.placeholderWireframeBlack) || null,     // 彩色淺底 ← Black Wireframe
     wireframeWhite: null, // 欄位暫無 → null，mode3 靠 CSS filter 不需要
   };
   return item;
@@ -42,22 +38,22 @@ function mapRow(r) {
 const FACULTY_FIELDS = '*,image.filename_disk,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk';
 
 export function getFacultyData() {
-  if (!_promise) _promise = _fetchFacultyData().catch(err => { _promise = null; throw err; });
+  if (!_promise) {
+    _promise = _fetchFacultyData().catch(err => {
+      console.warn('[faculty] CMS fetch failed:', err.message);
+      _promise = null;   // 失敗不快取＝下次重抓
+      return [];
+    });
+  }
   return _promise;
 }
 
 async function _fetchFacultyData() {
-  try {
-    const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active&fields=${FACULTY_FIELDS}`);
-    if (!res.ok) throw new Error(`${COLLECTION} HTTP ${res.status}`);
-    const rows = (await res.json()).data || [];
-    const merged = rows.map(mapRow);
-    if (!merged.length) throw new Error('empty');
-    return merged;
-  } catch (err) {
-    console.warn('[faculty] CMS fetch failed, fallback to /data/faculty.json:', err.message);
-    return fetch(sitePath('data/faculty.json')).then(r => r.json());
-  }
+  const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active&fields=${FACULTY_FIELDS}`);
+  if (!res.ok) throw new Error(`${COLLECTION} HTTP ${res.status}`);
+  const rows = (await res.json()).data || [];
+  if (!rows.length) throw new Error('empty');
+  return rows.map(mapRow);
 }
 
 // 離職教師：atlas 專用，攤平成舊 faculty_former shape（單一 titleEn/titleZh/country，取 titles[0]）
@@ -78,29 +74,9 @@ async function _fetchFormerFacultyData() {
   });
 }
 
-// null/空 → null；已是 URL / 本地路徑（fallback json）→ 原樣；其餘為 Directus filename_disk（<uuid>.<副檔名>）→ CloudFront URL
-function resolveAsset(v) {
-  if (!v) return null;
-  if (/^(https?:)?\/\//.test(v) || v.startsWith('/') || v.startsWith('../')) return v;
-  return `${CMS_CDN_BASE}/${v}`;
-}
-
-// 主照片：解不出（null/空）時退回既有 placeholder（維持舊行為）。
-// 走 CloudFront（見 resolveAsset）繞過弱機 /assets 逾時；仍是原檔、不套任何 on-the-fly transform
-//   （弱 Lightsail 現場轉檔會 504、pre-warm 打爆 /assets）。webp 靠「離線轉檔」不是伺服器 transform。
-function resolveImage(img) {
-  return resolveAsset(img) || PLACEHOLDER_IMAGE;
-}
-
-// 代用 logo：直接讀 Directus 檔（離線 webp 轉檔後同 UUID 即為 ≤1600px webp、含 alpha）；不再套 ?key=web
-// on-the-fly transform（弱機 transform 有 504 風險，見 memory reference_directus_image_transform_webp）。
-function resolvePlaceholder(v) {
-  return resolveAsset(v);
-}
-
 // prefetch-on-intent 用：資料一到就 new Image() 預載真實照片 → 進頁時 <img loading="lazy"> 直接命中瀏覽器快取，
 // 卡片一出現照片就在（不再「灰底再跳出照片」）。圖直接讀 Directus（webp 轉檔後即 webp）；placeholder logo 各卡自己 preload；
-// fallback 本地圖路徑快、hasRealPhoto 未設 → 跳過不預載。new Image() 不留 ref（GC 掉但 HTTP response 已進快取，同 placeholder 既有手法）。
+// new Image() 不留 ref（GC 掉但 HTTP response 已進快取，同 placeholder 既有手法）。
 export function preloadFacultyImages(data) {
   if (!Array.isArray(data)) return;
   // 只預暖「上半屏」前幾張：全部 ~50 張一起 new Image() 會在同一條 HTTP/2 連線多工搶頻寬、每張都變慢，

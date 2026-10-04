@@ -3,10 +3,9 @@
  * 師資篩選功能（Fulltime / Parttime / Admin）
  */
 
-import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor } from '../ui/section-switch-helpers.js';
+import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { waitForHeroAnimDone } from '../pages/hero-animation.js';
@@ -17,13 +16,7 @@ import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 //          非 runtime wrap）內依 data-img-dir 4 方向 x/yPercent 滑入；旋轉在 mask 上 → 滑動跟著旋轉角、角不被裁
 //   文字（name / title）→ Clip-Reveal Entrance（hero-style 由下而上，見 CLAUDE.md「共用動畫模式」）
 //   name 先進，title 略晚進；卡與卡之間再 stagger
-// 110 過衝非 100：dpr 非整數時 GPU rasterization 會在貼齊邊露 1-2px hairline（見 about hero SCCD 案）
-const SLIDE_MAP = {
-  top:    { xPercent: 0,    yPercent: -110 },
-  right:  { xPercent: 110,  yPercent: 0 },
-  bottom: { xPercent: 0,    yPercent: 110 },
-  left:   { xPercent: -110, yPercent: 0 },
-};
+//   藏定位＝revealHidden(imgDir)（scroll-animate.js，±110 過衝防 dpr hairline）
 
 // 左側 filter nav 進場/退場：2026-07-16 改 hero 式 clip-reveal＝translate（獨立屬性，與 inner 的 inline
 // rotate 共存）＋同步 clip-path 滑動揭露（navChipHidden，見 scroll-animate.js）。
@@ -43,7 +36,7 @@ function setupFacultyCardAnim(card) {
   // 重置 reveal 標記：此卡尚未開始進場（reveal tween onStart 觸發才標 started）。
   // exit 用它分辨「這張該不該收」——只收已經露出來的，沒輪到的不強拉出來再收（user 2026-06-06）。
   delete card.dataset.revealStarted;
-  if (imgWrapper) gsap.set(imgWrapper, SLIDE_MAP[imgDir] || SLIDE_MAP.bottom);
+  if (imgWrapper) gsap.set(imgWrapper, revealHidden(imgDir));
   // 文字用共用 clip-reveal helper：wrap 一層 overflow:clip + yPercent:100
   if (name) setupClipReveal([name]);
   if (title) setupClipReveal([title]);
@@ -269,11 +262,11 @@ function exitFacultyCards(cards, onComplete) {
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);
-      // 收合方向永遠 = SLIDE_MAP[imgDir]（= 進場起點）→ 沿進場路徑往回滑出。
+      // 收合方向永遠 = revealHidden(imgDir)（= 進場起點）→ 沿進場路徑往回滑出。
       // transform 沒有 clip-path 那個「clearProps 後 computed=none 補不動」問題（x/yPercent 未設即 0），
       // 完整揭露 / 進場中（半開）都直接 gsap.to 即可，免 fromTo 分流。
       gsap.to(imgWrapper, {
-        ...(SLIDE_MAP[imgDir] || SLIDE_MAP.bottom),
+        ...revealHidden(imgDir),
         duration: EXIT_DUR,
         ease: EASE.exit,
         delay: cardDelay + EXIT_INTERNAL_STEP * 2,
@@ -321,62 +314,17 @@ export function initFacultyFilter(initialSection = null, unlock) {
     .filter(Boolean);
   // 每顆固定一個隨機方向（reveal/hide 來回一致）；px 向量依當下寬高/角度、每次要藏重算
   const navDir = new Map(navInners.map(inner => [inner, pickNavDir(inner)]));
-  let exitInners = navInners;   // 離頁退場目標（矮橫向 bandInners 同一組）
+  const exitInners = navInners;   // 離頁退場目標（矮橫向 header 帶同一組）
   if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
     const isLandscapeGate = SCCDHelpers.isLandscapeGate();
     if (isLandscapeGate && 'IntersectionObserver' in window && section) {
-      // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」（user 2026-07-10
-      // 指定 clip-path 非 opacity，同 curriculum）：IO 偵測 cards section 佔視窗中段 → 各 inner 個別方向、
-      // 同時（stagger:0）clip-reveal / clip-hide。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
-      const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
-      if (navCol) navCol.style.pointerEvents = 'none';
-      // 2026-09-29 DCD 系所鈕撤掉、分類鈕回左欄 → header 帶只剩分類鈕（hero gate：hero 上不出現、回 hero 收起）
-      const bandInners = navInners;
-      bandInners.forEach(inner => {
-        if (navDir.has(inner)) return;
-        navDir.set(inner, pickNavDir(inner));
-        inner.style.transition = 'none';
-        gsap.set(inner, navChipHidden(inner, navDir.get(inner)));
-      });
-      exitInners = bandInners;
-      const setNav = (reveal) => {
-        if (navRevealed === reveal) return;
-        navRevealed = reveal;
-        // header 帶遮擋跟 nav 同 gate（landscape.css 消費此 class）：卡片捲過透明 header 會疊在
-        // nav btn 後（user 2026-07-10 統一各頁 nav 遮擋）；hero 時不掛、不蓋 hero 圖
-        section.classList.toggle('faculty-nav-revealed', reveal);
-        gsap.killTweensOf(bandInners);
-        bandInners.forEach(inner => { inner.style.transition = 'none'; });
-        if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
-        const hid = reveal ? null : bandInners.map(inner => navChipHidden(inner, navDir.get(inner)));
-        gsap.to(bandInners, {
-          clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
-          translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-          duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
-          onComplete: () => { if (reveal) bandInners.forEach(inner => { inner.style.transition = ''; }); },
-        });
-      };
-      // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」，同 admission/curriculum）：觀察 hero 本體，
-      // 底緣離開視窗頂（8px buffer）才 reveal；footer 進 75% 線收起。flag 合併防初始 delivery 互蓋。
-      const heroEl = document.querySelector('#page-content > section');
-      const footerEl = document.getElementById('site-footer');
-      let heroVis = !!heroEl;
-      let footerVis = false;
-      const applyNav = () => setNav(!heroVis && !footerVis);
-      if (heroEl) {
-        const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
-          { rootMargin: '-8px 0px 0px 0px' });
-        heroIO.observe(heroEl);
-        registerPageCleanup(() => heroIO.disconnect());
-      }
-      if (footerEl) {
-        const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
-          { rootMargin: '0px 0px -25% 0px' });
-        footerIO.observe(footerEl);
-        registerPageCleanup(() => footerIO.disconnect());
-      }
+      // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate；2026-09-29 DCD 系所鈕撤掉後
+      // header 帶只剩分類鈕）。faculty-nav-revealed：header 帶遮擋跟 nav 同 gate（landscape.css 消費）——卡片捲過
+      // 透明 header 會疊在 nav btn 後（user 2026-07-10 統一各頁 nav 遮擋）；hero 時不掛、不蓋 hero 圖
+      bindLandscapeNavGate(section, /** @type {HTMLElement[]} */ (navInners), navDir,
+        { revealedClass: 'faculty-nav-revealed', onChange: (v) => { navRevealed = v; } });
     } else {
       // 桌面/直向：進場 once、不 re-hide（維持原行為）
       const playNavReveal = () => {

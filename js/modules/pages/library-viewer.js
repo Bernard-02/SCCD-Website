@@ -8,7 +8,7 @@ import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
-import { peekPdfCover } from '../ui/pdf-cover.js';
+import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_FONTS, PDFJS_WASM } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
@@ -29,28 +29,7 @@ function ensureLightboxListener() {
 // ── PDF Viewer ────────────────────────────────────────────────────────────────
 
 let _pdfListenerAdded = false;
-let _pdfjsLoadPromise = null;
-// CID 字型用預定義外部 CMap 的 PDF（中文舊檔常見）→ 沒給 cMapUrl 就整段中文渲染成空白（缺字）；
-// cdnjs 不供 cmaps（403）→ 用 jsdelivr pdfjs-dist cmaps（同 pdf-cover.js）。
-const PDFJS_CMAPS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
-// 非嵌入標準字型（Helvetica/Times/Arial 等）→ pdf.js 沒 standardFontDataUrl 就整段畫成空白（掉字）；
-// Acrobat 有系統/內建字型故看起來正常（user 2026-08-23「掃描檔內頁掉字、Acrobat 正常」；press 實測有此檔）。同 cmaps 走 jsdelivr。
-const PDFJS_STD_FONTS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/standard_fonts/';
-// pdf.js 6.x 把 CCITT/JBIG2/JPX 影像解碼移進 wasm 模組 → 沒給 wasmUrl 會「Jbig2 failed to initialize」
-// 整張 XObject 被丟掉（MRC 壓縮掃描檔＝JPEG 背景＋CCITT 文字遮罩 → 文字層全消失只剩糊背景；
-// user 2026-08-23 MINTS press 第 2 頁實測）。cdnjs 不供 wasm 目錄 → 同 cmaps 走 jsdelivr。
-const PDFJS_WASM = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/wasm/';
-
-// pdfjsLib 不存在時動態 import 補載入（v4+ 只出 ESM build；import() 模組快取
-// 與 pdf-cover.js 天然去重）。掛回 window.pdfjsLib 讓既有 typeof 檢查照用。
-function ensurePdfjsLoaded() {
-  if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
-  if (!_pdfjsLoadPromise) {
-    _pdfjsLoadPromise = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.min.mjs')
-      .then(m => { window.pdfjsLib = m; });
-  }
-  return _pdfjsLoadPromise;
-}
+// pdf.js 載入與 CDN 設定（cMap / 標準字型 / wasm，缺了會掉字或丟影像層）統一在 pdf-cover.js
 
 function ensurePdfModal() {
   if (document.getElementById('pdf-viewer-modal')) return;
@@ -178,8 +157,7 @@ export function initPdfViewer() {
   function setupPdfjsWorker() {
     if (typeof pdfjsLib === 'undefined') return;
     if (pdfjsLib.GlobalWorkerOptions.workerSrc) return;
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.worker.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
   }
   setupPdfjsWorker();
 
@@ -310,7 +288,6 @@ export function initPdfViewer() {
     if (r <= 0) return 6;
     return Math.max(actualScale(), MAX_PCT / r);
   }
-  function isFit() { return Math.abs(zoom.scale - fitScale()) < 0.001; }
 
   // Fit Width（仿 Acrobat「適合寬度」）：頁面寬度填滿 availW 對應的 scale。
   // portrait 頁比 Fit Page 大（高度溢出 → 垂直 pan）；landscape 頁等於 Fit Page（Fit Page 已填滿寬）。

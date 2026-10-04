@@ -1,26 +1,25 @@
 /**
  * Hero 資料源：Directus <page>_hero singleton → 覆蓋各頁 HTML 靜態 hero（標題/副標/banner）。
- * Directus 空（未填 singleton 回 {id:null}）或掛掉 → fallback sessionStorage LKG → 本地 /data/<page>-hero.json。
- * 全都拿不到 → 保留 HTML 靜態內容。
+ * Directus 空（未填 singleton 回 {id:null}）或掛掉 → fallback sessionStorage LKG。
+ * 都拿不到 → 文字保留 HTML 靜態內容、banner 不顯示（後台是唯一圖片來源，不放本地佔位圖，user 2026-10-04）。
  *
  * Banner 圖「以後台為主、單次揭露」（user 2026-09-11，取代「先揭靜態圖再 decode-swap」——那樣後台圖
  * 與靜態/LKG 不同時仍會「舊圖跳新圖」）：loadHero 同步 prefix 先在 img 上標 data-hero-wait，
  * hero-animation 見旗標就不把 img 排進進場 timeline（img 維持藏在 overflow 遮罩外、容器透明＝什麼都看不到）；
- * 等「資料源落定（fetch 3s timeout → LKG → json fallback）＋新圖 decode 完（4s 上限）」才設 src 並
+ * 等「資料源落定（fetch 3s timeout → LKG）＋新圖 decode 完（4s 上限）」才設 src 並
  * revealHeroBannerImg 滑入 ＝ 圖只出現一次、永不中途換圖。文字仍 LKG 先套（不跳圖、回訪即正確）。
  */
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
-import { sitePath } from '../ui/site-base.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { revealHeroBannerImg, retightenHeroParagraphs } from './hero-animation.js';
 
 const HERO_MAP = {
-  faculty:    { collection: 'faculty_hero',    json: '/data/faculty-hero.json' },
-  curriculum: { collection: 'curriculum_hero', json: '/data/curriculum-hero.json' },
-  activities: { collection: 'activities_hero', json: '/data/activities-hero.json' },
-  admission:  { collection: 'admission_hero',  json: '/data/admission-hero.json' },
+  faculty:    { collection: 'faculty_hero' },
+  curriculum: { collection: 'curriculum_hero' },
+  activities: { collection: 'activities_hero' },
+  admission:  { collection: 'admission_hero' },
 };
 
-const FETCH_TIMEOUT = 3000;   // 後台等太久不無限扣住 banner：逾時走 LKG/json fallback（仍只揭一次）
+const FETCH_TIMEOUT = 3000;   // 後台等太久不無限扣住 banner：逾時走 LKG（仍只揭一次）
 const DECODE_TIMEOUT = 4000;  // 弱網大圖 decode 上限：到點就揭（src 已設，圖到了由瀏覽器補畫，非換圖）
 
 function setText(sel, val) {
@@ -47,16 +46,6 @@ function applyHeroText(d) {
   return changed;
 }
 
-// bannerImage：Directus 深取成 { filename_disk }（<uuid>.<副檔名>）→ 組 CloudFront URL 走 CDN 繞過弱機 /assets
-// 逾時掉圖（見 memory reference_directus_s3_timeout_all_assets_down），且不寫死副檔名 → 離線 webp 轉檔自動跟上。
-// fallback json 給的本地路徑/完整 URL 原樣回傳（不能被當成 filename_disk）。
-function resolveBanner(v) {
-  const disk = typeof v === 'string' ? v : v?.filename_disk;
-  if (!disk) return null;
-  if (/^(https?:)?\/\//.test(disk) || disk.startsWith('/') || disk.startsWith('../')) return disk;
-  return `${CMS_CDN_BASE}/${disk}`;
-}
-
 // 桌面 .hero-banner 與手機 .hero-mobile-bg 各一顆 img（同頁只顯示一顆，兩顆都要設 src＋揭露）
 function bannerImgs() {
   return /** @type {HTMLImageElement[]} */ ([
@@ -65,8 +54,8 @@ function bannerImgs() {
   ].filter(Boolean));
 }
 
-// 最終圖落定 → decode 完才設 src → 揭露。src null＝後台/快取都沒圖 → 維持 HTML 靜態圖直接揭。
-// finally 保證旗標必清、reveal 必發（任何錯誤路徑 banner 都不會卡在藏著）。
+// 最終圖落定 → decode 完才設 src → 揭露。src null＝後台/快取都沒圖 → 不揭（img 留在遮罩外＝不顯示）。
+// finally 保證旗標必清（任何錯誤路徑都不會卡住 timeline）。
 async function revealBanner(imgs, src) {
   try {
     if (src) {
@@ -82,7 +71,7 @@ async function revealBanner(imgs, src) {
       }
     }
   } finally {
-    imgs.forEach(img => { delete img.dataset.heroWait; revealHeroBannerImg(img); });
+    imgs.forEach(img => { delete img.dataset.heroWait; if (src) revealHeroBannerImg(img); });
   }
 }
 
@@ -113,16 +102,12 @@ export async function loadHero(pageKey) {
     try { sessionStorage.setItem(`hero-lkg:${pageKey}`, JSON.stringify(data)); } catch { /* 存不進去無妨 */ }
   }
 
-  let fallback = null;
-  if (!data && !lkg) {
-    try { fallback = await fetch(sitePath(m.json)).then(r => (r.ok ? r.json() : null)); } catch { /* 本地也沒 → 保留靜態 */ }
-  }
   // 換到字＝hero layout 多半已 build（tighten 用舊文字量的 inline width 已鎖死）→ 重收 chip 寬到新文字實寬。
   // 後台文案比 HTML 靜態佔位短時（activities 首訪實測差 ~500px）box 才不會比字寬一大截（user 2026-09-16）。
   // LKG 回訪（上面已套同字）→ changed=false 不重收；標題 h1 inline-block 本就 hug、只有段落需要。
-  if ((data || fallback) && applyHeroText(data || fallback)) retightenHeroParagraphs();
+  if (data && applyHeroText(data)) retightenHeroParagraphs();
 
-  // 圖：以後台為主，退而求其次 LKG → json fallback；全沒有＝null（揭 HTML 靜態圖）
-  const src = [data, lkg, fallback].filter(Boolean).map(d => resolveBanner(d.bannerImage)).find(Boolean) || null;
+  // 圖：以後台為主，退而求其次 LKG；都沒有＝null（不顯示）
+  const src = [data, lkg].filter(Boolean).map(d => cdnUrl(d.bannerImage)).find(Boolean) || null;
   await revealBanner(imgs, src);
 }

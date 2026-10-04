@@ -61,15 +61,6 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   // ── 工具 ────────────────────────────────────────────────────
 
-  function shuffle(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
   function rand(min, max) { return min + Math.random() * (max - min); }
 
   // ── 幾何工具 ────────────────────────────────────────────────
@@ -528,7 +519,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   // ── DOM 初始化 ────────────────────────────────────────────────
 
-  const colorEls = shuffle(SCCDHelpers.ACCENT_COLORS).map(color => {
+  const colorEls = SCCDHelpers.shuffle([...SCCDHelpers.ACCENT_COLORS]).map(color => {
     const el = document.createElement('div');
     el.style.cssText = 'position: absolute;';
     attachHover(el);
@@ -550,7 +541,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   tabOf.set(grayEl, validInitial);
   colorOf.set(grayEl, '#f2f2f2');
   cfgCache.set(grayEl, null);
-  const remainingTabs = shuffle(ALL_TABS.filter(t => t !== validInitial));
+  const remainingTabs = SCCDHelpers.shuffle(ALL_TABS.filter(t => t !== validInitial));
   colorEls.forEach((el, i) => { tabOf.set(el, remainingTabs[i]); });
 
   // ── 初始化顏色矩形位置 ────────────────────────────────────────
@@ -560,11 +551,11 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const gray = { cx: gCx, cy: gCy, w: MAIN_W, h: MAIN_H, rot: 0 };
 
     const nonActiveEls = allEls.filter(el => el !== activeEl);
-    const zs = shuffle([1, 2, 3]);
+    const zs = SCCDHelpers.shuffle([1, 2, 3]);
     nonActiveEls.forEach((el, i) => { el.style.zIndex = String(zs[i]); baseZOf.set(el, zs[i]); });
 
     const sorted  = [...nonActiveEls].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
-    const corners = shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
+    const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
     const configs = new Map();
 
     sorted.forEach((el, i) => {
@@ -915,7 +906,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const genOccluders = [gray, ...[cfgHigh, cfgLow].filter(Boolean)];
     let newCfg = clickedCfg, bestScore = -1;
     // 四角輪流多擲幾輪（原本四角各一次就收＝常落到 best-effort、舊卡被新卡蓋成細條，user 2026-10-03）
-    const corners = shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]);
+    const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]);
     for (let i = 0; i < 16; i++) {
       const cfg = genColorConfig(sw, sh, corners[i % 4], genOccluders);
       if (!cfg) continue;

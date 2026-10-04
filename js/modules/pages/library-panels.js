@@ -11,7 +11,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -20,7 +20,6 @@ import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadGeneralActivitiesAlbum } from './activities-source.js';
 import { loadDegreeShowAlbum } from './degree-show-source.js';
 import { loadOthersAlbum } from './library-album-source.js';
-import { getAwardRecords, findAwardById } from './activities-data-loader.js';
 import { renderPdfCover, holdPdfCoverRaster } from '../ui/pdf-cover.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { shortLibId } from './library-deeplink.js';
@@ -116,16 +115,6 @@ function restripeZebra(listEl, itemSelector) {
   });
 }
 
-
-// 圖片欄位的即時 filename_disk（<uuid>.<副檔名>）→ CloudFront 圖片 URL：走 CloudFront 直吃 S3、繞過弱機
-// /assets 逾時（見 config/api.js CMS_CDN_BASE、memory reference_directus_s3_timeout_all_assets_down）。
-// 給圖片用（cover / award logos / images M2M）；PDF 走 pdfOpenUrl（也是 CloudFront，見 pdf-url.js）、影片走 videoUrls。
-// 不寫死副檔名＝離線 webp 轉檔（.jpg/.png→.webp）自動跟上。null/空→''；已是完整 URL 或本地路徑（fallback json）→原樣。
-function cdnImage(fd) {
-  if (!fd) return '';
-  if (/^(https?:)?\/\//.test(fd) || fd.startsWith('/') || fd.startsWith('../')) return fd;
-  return `${CMS_CDN_BASE}/${fd}`;
-}
 
 // ── 共用 helpers ──────────────────────────────────────────────────────────────
 
@@ -440,7 +429,7 @@ function syncCatBtns(catBtns, selectedCats, listEl, selYears, q) {
 /** list item hover 底色 + overlay 顏色 follow */
 function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
   // 矮橫向同手機：tap 會觸發 emulated mouseenter → 底色殘留，不綁
-  if (window.innerWidth < 768 || SCCDHelpers.isLandscapeGate()) return;
+  if (SCCDHelpers.isMobileLayout()) return;
   containerEl.querySelectorAll(itemSelector).forEach(item => {
     item.addEventListener('mouseenter', () => {
       // 封面還沒載好的卡不上色（user 2026-09-11：deep-link 剛落地鄰卡封面未到，accent 疊空封面＝裸色塊）；
@@ -628,10 +617,7 @@ function bindAwardWinnersReturn(itemEl) {
 }
 
 // ── Awards refs（award row 右端 ref 鈕展開的 ref 列）──────────────────────────
-// records.json item 可帶 references[]，三種型態：
-//   { section, itemId }        → activities deep-link（同 activities list ref，label 自動查 SECTION_LABELS、title 查目標 JSON）
-//   { type: 'document', id }   → library files 項目 → 點擊開 PDF viewer（同 files panel 點擊行為）
-//   { type: 'press', id }      → library press 項目 → 點擊開 media lightbox / PDF viewer（同 press panel 點擊行為）
+// Directus library_awards 的 M2A references 由 remapAwardRef 轉成 { kind:'document'|'press'|'album', ... }。
 // press / files 資料獨立快取載入：awards 是預設 panel，點 ref 時 press/files panel 可能尚未 init 過
 
 const AWARD_REF_TYPE_LABELS = {
@@ -640,50 +626,43 @@ const AWARD_REF_TYPE_LABELS = {
   album:    { en: 'Albums',    zh: '相簿' },
 };
 
+async function fetchPressData() {
+  const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('CMS ' + res.status);
+  const rows = (await res.json())?.data;
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+  return rows.map(mapDirectusPressRow);
+}
 let _pressDataPromise = null;
 function loadPressDataCached() {
-  if (!_pressDataPromise) {
-    _pressDataPromise = (async () => {
-      try {
-        const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('CMS ' + res.status);
-        const rows = (await res.json())?.data;
-        if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-        return rows.map(mapDirectusPressRow);
-      } catch (_) {
-        return fetch(sitePath('data/press.json')).then(r => r.json());
-      }
-    })();
-  }
+  if (!_pressDataPromise) _pressDataPromise = fetchPressData().catch(() => { _pressDataPromise = null; return []; });
   return _pressDataPromise;
 }
 
+// library_documents（files panel 與 award→document ref 共用同一組法）
+async function fetchFilesData() {
+  // cover / images / pdf 都深取 filename_disk → 組 CloudFront URL（繞過弱機 /assets）；pdf.type 供 isImageDocumentUrl 判別。
+  // library_documents 目前無 images M2M 欄，深取缺 relational 欄 Directus 回 200 忽略（不炸、為日後補圖預留；
+  // 會 403 整包失敗的是缺「scalar」欄，非 relational — 見 memory reference_directus_m2a_ref_title_deepfetch）。
+  const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type,pdf.filename_disk,cover.filename_disk,images.directus_files_id.filename_disk&sort=-year,sort&limit=-1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('CMS ' + res.status);
+  const rows = (await res.json())?.data;
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+  return rows.map(mapDirectusFilesRow);
+}
 let _filesDataPromise = null;
 function loadFilesDataCached() {
-  if (!_filesDataPromise) _filesDataPromise = fetch(sitePath('data/library.json')).then(r => r.json());
+  if (!_filesDataPromise) _filesDataPromise = fetchFilesData().catch(() => { _filesDataPromise = null; return []; });
   return _filesDataPromise;
 }
 
-// press / files item 手填 references 解析（給 PDF viewer / media lightbox 的 ref popover）：
-//   { section, itemId }     → activities ref 原樣保留（popover chip 跳 activities）
-//   { type: 'award', id }   → 解析成 href chip（label Awards/榮譽 + title 查 records）→ 跳 library.html#a-...
-//     ＝awards ref 的「反向」：document/press 開啟時 ref 回得獎紀錄（2026-06-13 雙向 ref）
+// item 手填 references（給 PDF viewer / media lightbox 的 ref popover）：只留 activities ref { section, itemId }
+// （相簿池裡來自 activities 的 item 帶 activities-source remap 過的 refs；Directus press/documents 無此欄＝[]）
 async function resolveLibManualRefs(item) {
   const manual = Array.isArray(item?.references) ? item.references : [];
-  if (!manual.length) return [];
-  return (await Promise.all(manual.map(async r => {
-    if (!r) return null;
-    if (r.type === 'award' && r.id) {
-      const award = findAwardById(await getAwardRecords(), r.id);
-      return {
-        href: `${SITE_BASE_PATHNAME}pages/library.html#${r.id}`,
-        labelEn: 'Awards', labelZh: '榮譽',
-        titleEn: award?.competition_en || '', titleZh: award?.competition || '',
-      };
-    }
-    return (r.section && r.itemId) ? r : null;
-  }))).filter(Boolean);
+  return manual.filter(r => r && r.section && r.itemId);
 }
 
 // 自動反查（getPdfRefSources）+ 手填 refs union 去重（href ref 以 href 當 key）
@@ -734,32 +713,6 @@ function excludeHostFromRefs(refs, host) {
     if (host.section && host.itemId && r.section === host.section && r.itemId === host.itemId) return false;
     return true;
   });
-}
-
-// resolve 成渲染用統一 shape { kind, labelEn/Zh, titleEn/Zh, ...跳轉 payload }；目標不存在回 null（該 ref 不渲染）
-async function resolveAwardRef(ref) {
-  if (!ref) return null;
-  if (ref.type === 'document') {
-    const files = await loadFilesDataCached().catch(() => []);
-    const t = (Array.isArray(files) ? files : []).find(f => String(f.id) === String(ref.id));
-    if (!t || !t.pdfUrl) return null;
-    return { kind: 'document', labelEn: AWARD_REF_TYPE_LABELS.document.en, labelZh: AWARD_REF_TYPE_LABELS.document.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', pdfUrl: t.pdfUrl };
-  }
-  if (ref.type === 'press') {
-    const press = await loadPressDataCached().catch(() => []);
-    const t = (Array.isArray(press) ? press : []).find(p => String(p.id) === String(ref.id));
-    if (!t) return null;
-    return { kind: 'press', labelEn: AWARD_REF_TYPE_LABELS.press.en, labelZh: AWARD_REF_TYPE_LABELS.press.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', pressId: t.id };
-  }
-  if (ref.type === 'album') {
-    const albums = await loadAlbumItemsCached().catch(() => []);
-    const t = (Array.isArray(albums) ? albums : []).find(a => String(a.id) === String(ref.id));
-    if (!t || !t.media || !t.media.length) return null;
-    return { kind: 'album', labelEn: AWARD_REF_TYPE_LABELS.album.en, labelZh: AWARD_REF_TYPE_LABELS.album.zh, titleEn: t.titleEn || '', titleZh: t.titleZh || '', albumId: t.id };
-  }
-  // award 不 ref 回 activities（user 2026-06-23）：activities 已單向不 ref award（見 reference_award_ref_direction_unidirectional），
-  // award 也不反向 ref activities。section/itemId 類型一律不渲染（資料層若有殘留就前台過濾）；只保留 award → library content（document/press/album）。
-  return null;
 }
 
 // ref row 點擊分派（同 activities ref 行為）：
@@ -882,8 +835,8 @@ function spawnAwardIcon(x, y) {
 
 // Awards ticker 的獎項 logo：Directus singleton library_award_logos 的 logos（Files-multiple M2M）。
 // 後台 junction（library_award_logos_files）有 sort 欄 → deep[logos][_sort]=sort 依後台拖曳順序回傳。
-// 沿用 press panel 的「CMS 優先、失敗/空 fallback 本地」pattern：CMS 掛掉時用 records.json 的 awardsImages。
-async function fetchAwardLogos(localFallback) {
+// 失敗/空 → []（ticker 不出 logo；本地 awardsImages 已退場）。
+async function fetchAwardLogos() {
   try {
     const url = `${CMS_API_BASE}/library_award_logos?fields=logos.directus_files_id.filename_disk&deep[logos][_sort]=sort`;
     const res = await fetch(url);
@@ -891,10 +844,10 @@ async function fetchAwardLogos(localFallback) {
     const logos = (await res.json())?.data?.logos;
     if (!Array.isArray(logos) || logos.length === 0) throw new Error('CMS empty');
     return logos.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)
-      .map(cdnImage);   // CloudFront：離線 webp 轉檔後即 webp、SVG 亦直接 serve；繞過弱機 /assets 逾時
+      .map(cdnUrl);   // CloudFront：離線 webp 轉檔後即 webp、SVG 亦直接 serve
   } catch (cmsErr) {
-    console.warn('[awards] Directus logos 抓取失敗/無資料，fallback 本地 awardsImages：', cmsErr.message);
-    return localFallback || [];
+    console.warn('[awards] Directus logos 抓取失敗/無資料：', cmsErr.message);
+    return [];
   }
 }
 
@@ -972,7 +925,7 @@ function groupAwardsByYear(items) {
 }
 
 // fetch + resolve 一次，之後切 panel / 跨 SPA 換頁回 library 都重用（原本每次 initAwardsPanel 都重 fetch）。
-// 2026-08-03 起 Directus 優先（library_awards）、失敗/空 fallback 本地 records.json（同 press/summer-camp pattern）。
+// 後台（library_awards）是唯一來源：失敗且無 localStorage 快取 → 空清單（本地 records.json 已退場，user 2026-10-04）。
 let _awardsDataPromise = null;
 // localStorage 快取（user 2026-09-13）：真資料 670 筆、變動頻率低 → 有快取就先渲染（零等待），背景 fetch
 // revalidate、資料真的變了才更新快取＋latest-wins 重渲染（_awardsRerender）＝「後台編輯硬重整即生效」不破。
@@ -990,11 +943,7 @@ let _awardsFreshRecords = null;
 function loadAwardsDataCached() {
   if (_awardsDataPromise) return _awardsDataPromise;
   _awardsDataPromise = (async () => {
-    // records.json 仍是 awardsImages（ticker logo 本地 fallback）的來源，不管主表走哪條路都要讀
-    const localRes  = await fetch(sitePath('data/records.json'));
-    const localData = await localRes.json();
-    const localLogos   = Array.isArray(localData) ? [] : (localData.awardsImages || []);
-    const awardsImages = await fetchAwardLogos(localLogos);
+    const awardsImages = await fetchAwardLogos();
 
     const fetchRows = async () => {
       const url = `${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS}&sort=-year,sort&limit=-1`;
@@ -1025,14 +974,8 @@ function loadAwardsDataCached() {
       writeAwardsCache(rows);
       realRecords = rowsToRecords(rows);
     } catch (cmsErr) {
-      console.warn('[awards] Directus 抓取失敗/無資料，fallback 本地 records.json：', cmsErr.message);
-      realRecords = Array.isArray(localData) ? localData : localData.records;
-      // 本地 fallback 仍是舊格式（手動 references[]），走原本的 resolveAwardRef 逐筆查
-      await Promise.all(realRecords.flatMap(yg => (yg.items || []).map(async item => {
-        const refs = Array.isArray(item.references) ? item.references : [];
-        item._resolvedRefs = refs.length ? (await Promise.all(refs.map(resolveAwardRef))).filter(Boolean) : [];
-      })));
-      realRecords = [...realRecords].sort((a, b) => b.year - a.year);
+      console.warn('[awards] Directus 抓取失敗/無資料：', cmsErr.message);
+      realRecords = [];
     }
     return { records: realRecords, awardsImages };
   })();
@@ -1063,7 +1006,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const cellLine = (txt, weight) =>
       `<span class="award-cell-line"${weight ? ` style="font-weight:${weight};"` : ''}><span class="award-cell-inner">${txt}</span></span>`;
     // 缺語言不輸出空行——空 cellLine 仍佔一個 line-height，會把單語 cell 撐滿列高、align-self 置中失效
-    const bilingual     = (en, zh) => (en ? cellLine(en) : '') + (zh ? cellLine(zh) : '');
     const bilingualBold = (en, zh) => (en ? cellLine(en, 700) : '') + (zh ? cellLine(zh, 700) : '');
     // 主辦單位／獎項類別／名次可為 repeater 陣列 [{en,zh}]（Directus）或舊 scalar（records.json）；
     // 統一成陣列，每筆各自 bilingual 疊放在同一 cell（獨立 repeater、不跟隔壁欄配對對齊，user 2026-08-25 定案）。
@@ -1108,7 +1050,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     //                CSS marquee keyframe = translateX(-50%) 配合複製一份 seamless；duration 依名字數線性放大
     function applyWinnersHMarquee(scope) {
       // 矮橫向欄寬同手機一樣窄 → 走手機分支（直排 + 個別 marquee，不整位橫排）
-      const isMobile = window.innerWidth < 768 || SCCDHelpers.isLandscapeGate();
+      const isMobile = SCCDHelpers.isMobileLayout();
       const SECONDS_PER_WINNER = isMobile ? 3 : 2.5;
       // 讀寫分離（2026-09-15 search 卡頓戰役）：舊版逐 view「寫 reset → 讀 offsetWidth → 寫 dual-copy」，
       // 每 view 一次 forced reflow——每列 2~3 個 .award-winners cell × 670 列＝千餘次全表 reflow，
@@ -1402,7 +1344,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
       // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
       // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
-      if (window.innerWidth >= 768 && !SCCDHelpers.isLandscapeGate()) {
+      if (SCCDHelpers.isDesktopLayout()) {
         scope.querySelectorAll('.award-record-item').forEach(item => {
           item.addEventListener('mouseenter', () => {
             if (item.dataset.refOpen) return;
@@ -1460,7 +1402,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             setRefOpenFlag(item, false);
             item.style.removeProperty('--item-color');
             item.style.removeProperty('--item-color-deep');
-            if (window.innerWidth >= 768 && !SCCDHelpers.isLandscapeGate() && item.matches(':hover')) {
+            if (SCCDHelpers.isDesktopLayout() && item.matches(':hover')) {
               const color = SCCDHelpers.getRandomAccentColor();
               item.style.background = color;
               item.dataset.accentHex = color;
@@ -1547,7 +1489,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     function applyAwardMarqueesNow(scope) {
       // 多獲獎者水平 marquee（桌面 hover 才捲；量測需 panel 可見、隱藏時 offsetWidth=0 自動略過）
       applyWinnersHMarquee(scope);
-      if (window.innerWidth < 768 || SCCDHelpers.isLandscapeGate()) {
+      if (SCCDHelpers.isMobileLayout()) {
         // 手機／矮橫向照舊：溢出自動循環（applyMarqueeOverflow 自帶 reset——轉向殘留的兩份 copy 自癒）
         runMarqueeOverflow(scope, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
         runMarqueeOverflow(scope, '.award-cell-line', '.award-cell-inner');
@@ -1901,7 +1843,7 @@ function formatMediaWithCountry(media, countryCode, zh) {
 // 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF（原生上傳）、
 // videoLinks(json)=影片自架 link、year(整數，同 documents)、id(uuid)→加 press- 前綴（deep-link hash 用）。
 // ⚠️ press 只吃 PDF + 影片（user 2026-08-20 拿掉 images M2M 與 pdfLink 兩欄，後台亦已刪）。
-// press 年內排序鍵：monthDay（Directus 新欄 "MM-DD"）優先，退 fallback press.json 的 date（"YYYY.MM"，只有月）。
+// press 年內排序鍵：monthDay（Directus 新欄 "MM-DD"）優先，退 date（"YYYY.MM"，只有月）。
 // 缺值→0（latest-first 時排該年最後）。回 月*100+日 的整數，好比大小。
 function pressMonthDayKey(item) {
   const raw = String(item.monthDay || '').trim();
@@ -1925,24 +1867,18 @@ function mapDirectusPressRow(row) {
     monthDay: row.monthDay || '',                                 // 月日（MM-DD）：同年份內排序用，見 pressMonthDayKey
     videoUrls,     // 自架影片 link 陣列
     pdfUrl: pdfOpenUrl(null, row.pdf),                            // 上傳的單一 PDF（press 無 pdfLink 欄）→ CloudFront 繞過弱機 /assets（見 pdf-url.js）
-    cover: cdnImage(row.cover?.filename_disk),                     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf；圖走 CloudFront 繞過弱機 /assets
+    cover: cdnUrl(row.cover?.filename_disk),                     // 預產封面(generate-library-covers.cjs 裁頂)：有就秒出、免現畫 pdf；圖走 CloudFront 繞過弱機 /assets
   };
 }
 
 async function initPressPanel() {
   try {
-    // Directus 為主、空/失敗 fallback 本地 press.json（同 legal pattern；press 接 Directus 2026-06-08）
     let pressData;
     try {
-      const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('CMS ' + res.status);
-      const rows = (await res.json())?.data;
-      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-      pressData = rows.map(mapDirectusPressRow);
+      pressData = await fetchPressData();   // 每次進頁重抓（後台編輯重整即生效）
     } catch (cmsErr) {
-      console.warn('[press] Directus 抓取失敗/無資料，fallback 本地 press.json：', cmsErr.message);
-      pressData = await fetch(sitePath('data/press.json')).then(r => r.json());
+      console.warn('[press] Directus 抓取失敗/無資料：', cmsErr.message);
+      pressData = [];
     }
     await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
@@ -2175,7 +2111,7 @@ async function initPressPanel() {
 function mapDirectusFilesRow(row) {
   const images = Array.isArray(row.images)
     ? row.images.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)
-        .map(cdnImage)   // CloudFront 圖片 URL（繞過弱機 /assets）；即時 filename_disk＝離線 webp 轉檔自動跟上
+        .map(cdnUrl)   // CloudFront 圖片 URL（繞過弱機 /assets）；即時 filename_disk＝離線 webp 轉檔自動跟上
     : [];
   const videoUrls = Array.isArray(row.videoUrls) ? row.videoUrls.filter(Boolean) : [];
   const documentFile = row.pdf;
@@ -2186,9 +2122,9 @@ function mapDirectusFilesRow(row) {
     subtitleEn: row.subtitleEn || '',
     subtitleZh: row.subtitleZh || '',
     year: row.year || '',
-    // 走 CloudFront（cdnImage）繞過弱機 /assets 逾時；封面沿用即時 filename_disk 組 CloudFront URL，跟其餘卡片圖
+    // 走 CloudFront（cdnUrl）繞過弱機 /assets 逾時；封面沿用即時 filename_disk 組 CloudFront URL，跟其餘卡片圖
     // + 首頁浮動書卡（floating-items files 分類）用**同一個 URL** → 點浮卡跳進來時瀏覽器快取已 warm、封面秒出（user 2026-08-19）。
-    cover: cdnImage(row.cover?.filename_disk),
+    cover: cdnUrl(row.cover?.filename_disk),
     // pdfLink（貼的 CloudFront／S3 網址）優先；沒填才用上傳檔走 CloudFront（filename_disk，繞過弱機 /assets 逾時）。
     // 與 award ref / degree-show / activities / cross-ref key 共用 pdfOpenUrl → 開檔 URL 與反查 key 逐字元一致。
     pdfUrl: pdfOpenUrl(row.pdfLink, row.pdf),
@@ -2265,18 +2201,10 @@ async function initFilesPanel() {
   try {
     let filesData;
     try {
-      // cover / images / pdf 都深取 filename_disk → 組 CloudFront URL（繞過弱機 /assets）；pdf.type 供 isImageDocumentUrl 判別。
-      // library_documents 目前無 images M2M 欄，深取缺 relational 欄 Directus 回 200 忽略（不炸、為日後補圖預留；
-      // 會 403 整包失敗的是缺「scalar」欄，非 relational — 見 memory reference_directus_m2a_ref_title_deepfetch）。
-      const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type,pdf.filename_disk,cover.filename_disk,images.directus_files_id.filename_disk&sort=-year,sort&limit=-1`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('CMS ' + res.status);
-      const rows = (await res.json())?.data;
-      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-      filesData = rows.map(mapDirectusFilesRow);
+      filesData = await fetchFilesData();   // 每次進頁重抓（後台編輯重整即生效）
     } catch (cmsErr) {
-      console.warn('[files] Directus 抓取失敗/無資料，fallback 本地 library.json：', cmsErr.message);
-      filesData = await fetch(sitePath('data/library.json')).then(r => r.json());
+      console.warn('[files] Directus 抓取失敗/無資料：', cmsErr.message);
+      filesData = [];
     }
     await firstLibRenderReady(); // deep-link 進場時延到 entrance-done 才 render（未 arm＝即刻過）
 
@@ -2644,24 +2572,19 @@ const ALBUM_SOURCES = [
   // 全退場，loader 失敗改讀 sessionStorage last-known-good、都沒有則 throw → 下方 .catch(()=>null) 該類相簿缺席）。
   // ⚠️album 過濾無圖項目 → 後台某類「有 row 但 0 圖」時該類相簿為空；等後台補圖才會顯示。
   //    degree-show/moment 走專用攤平/合併 loader（見各 source 檔）。
-  { load: () => loadActivityCollection('activities_workshops', '/data/workshops.json'), cat: 'workshop', isDegreeShow: false },
-  { load: loadDegreeShowAlbum,            cat: 'degree-show',      isDegreeShow: false },
-  { load: loadSummerCamp,                 cat: 'summer-camp',      isDegreeShow: false },
-  { load: () => loadActivityCollection('activities_students_present', '/data/students-present.json'), cat: 'students-present', isDegreeShow: false },
-  { load: loadGeneralActivitiesAlbum,     cat: 'moment',           isDegreeShow: false },
-  { load: () => loadActivityCollection('activities_lectures', '/data/lectures.json'), cat: 'lectures', isDegreeShow: false },
-  { load: () => loadActivityCollection('activities_industry', '/data/industry.json'), cat: 'industry', isDegreeShow: false },
+  { load: () => loadActivityCollection('activities_workshops'), cat: 'workshop' },
+  { load: loadDegreeShowAlbum,            cat: 'degree-show' },
+  { load: loadSummerCamp,                 cat: 'summer-camp' },
+  { load: () => loadActivityCollection('activities_students_present'), cat: 'students-present' },
+  { load: loadGeneralActivitiesAlbum,     cat: 'moment' },
+  { load: () => loadActivityCollection('activities_lectures'), cat: 'lectures' },
+  { load: () => loadActivityCollection('activities_industry'), cat: 'industry' },
   // others（library 自己上傳、不對應任何活動的相簿）＝Directus library_album，同步讓 award→album 的 M2A ref 有東西可渲染。
-  { load: loadOthersAlbum,                cat: 'others',           isDegreeShow: false },
+  { load: loadOthersAlbum,                cat: 'others' },
 ];
 
 function getCover(item) {
   return item.cover || item.poster || item.coverImage || (item.images && item.images[0]) || '';
-}
-
-function normalizeDegreeShow(data) {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return [];
-  return Object.entries(data).map(([y, entry]) => ({ year: parseInt(y, 10), items: [entry] }));
 }
 
 // library deep-link 分享網址（library.html#<domId>）：domId = 列表項目的 DOM id（press-* / f-* / album-*），
@@ -2679,14 +2602,12 @@ function loadAlbumItemsCached() {
   if (_albumItemsPromise) return _albumItemsPromise;
   _albumItemsPromise = (async () => {
     const results = await Promise.all(
-      ALBUM_SOURCES.map(s => s.load
-        ? s.load().catch(() => null)
-        : fetch(sitePath(s.url)).then(r => r.json()).catch(() => null))
+      ALBUM_SOURCES.map(s => s.load().catch(() => null))
     );
     const allItems = [];
     results.forEach((data, i) => {
-      const { cat, isDegreeShow } = ALBUM_SOURCES[i];
-      const groups = isDegreeShow ? normalizeDegreeShow(data) : (Array.isArray(data) ? data : []);
+      const { cat } = ALBUM_SOURCES[i];
+      const groups = Array.isArray(data) ? data : [];
       groups.forEach(({ year, items }) => {
         if (!Array.isArray(items)) return;
         // camp 取消梯次無 startDate → 年份組 key '—'（非數字）：album 依年份排序/分組，略過
@@ -3057,7 +2978,7 @@ const PANEL_MAP = {
 // 首個 unit 保留原 data-label-key spans（CMS 可編＋SR 讀）、其餘複製份 aria-hidden。手機/矮橫向不跑（display:none）。
 // unitW 為字寬（與卡當下寬無關）→ morph 前 onTabSwitchPre 量也準；idempotent（box 已建則只重量重設複製份）。
 function buildTitleMarquee(titleEl) {
-  if (!titleEl || window.innerWidth < 768 || SCCDHelpers.isLandscapeGate()) return;
+  if (!titleEl || SCCDHelpers.isMobileLayout()) return;
   // §22（v4.3）：adopt/flight 退役 → 無 marqueeFlying guard（box 不再被搬走）。
   let box = titleEl.querySelector('.lib-title-box');
   if (!box) {
@@ -4205,6 +4126,17 @@ function maybeRevealDeferredPanel(panelId) {
   playPanelReveal(el);
 }
 
+// 襯線字（Bitter＋Noto Serif，library.css 標題用）只有 library 需要＝不進全站字型 link（每頁省 ~96KB 字型 CSS）。
+// 硬重整由 library.html head 載；SPA 換頁 head 不換 → 進頁時補（同 ensure-flag-icons，已有就跳過）
+const SERIF_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400..700;1,400..700&family=Noto+Serif+TC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+SC:wght@400..700&display=swap';
+function ensureSerifFonts() {
+  if (document.querySelector(`link[href="${SERIF_FONTS_HREF}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = SERIF_FONTS_HREF;
+  document.head.appendChild(link);
+}
+
 /**
  * 初始化所有 library panels
  * @returns {{
@@ -4214,6 +4146,7 @@ function maybeRevealDeferredPanel(panelId) {
  * }}
  */
 export function initLibraryPanels() {
+  ensureSerifFonts();
   let _entranceDoneCb = null;
   let _entranceDoneFired = false;
   // 每次進頁重置渲染閘（上次殘留的 armed gate 不跨頁；main-modular 桌面 deep-link 分支會在同一個
@@ -4513,7 +4446,7 @@ function handleLibraryHash(unlock) {
         // 手機：listener 都沒綁（<768 不綁），dispatch 沒人接 → 維持 inline 單色那套。
         // ⚠️ 判準必須跟 hover 綁定 gate（bindListItemHover 等處的 >=768 && !isShortLandscape）一致：
         // 橫向手機寬 ≥768 但 listener 沒綁，只看寬度會 dispatch 給沒人接＝無 highlight（user 2026-07-10）。
-        const desktopHover = window.innerWidth >= 768 && !SCCDHelpers.isLandscapeGate();
+        const desktopHover = SCCDHelpers.isDesktopLayout();
         const prevTransition = el.style.transition;
         if (!desktopHover && !el.dataset.coverPending) {
           // 四 panel 統一整列 accent 底色「單層」（2026-09-11 user：hover/highlight 都一層——撤 press/files/album

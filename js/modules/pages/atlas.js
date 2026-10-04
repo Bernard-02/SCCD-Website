@@ -3,7 +3,7 @@ import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { ensureIconClipWrap, navChipHidden, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { ensureIconClipWrap, navChipHidden, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
@@ -161,19 +161,6 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 // 想暫時鎖固定佈局除錯時改回 const LAYOUT_SEED = 0xA71A5
 const LAYOUT_SEED = Math.floor(Math.random() * 0xFFFFFFFF);
 
-// 是否把名稱換成 type-numbered placeholder（在職教師 1…）。
-// 2026-06-08：教師（fulltime/parttime/admin/former）、系友任職/就職企業、工作營/產學資料皆已是真名
-// （Directus + 本地真資料）→ 關閉 placeholder 顯示真名。需要匿名化星座時再設回 true。
-const USE_TYPE_PLACEHOLDER = false;
-const TYPED_LABELS = {
-  fc:  { en: 'Current Faculty',  zh: '在職教師' },
-  ff:  { en: 'Former Faculty',   zh: '離職教師' },
-  wsg: { en: 'Workshop Partner', zh: '工作營合作單位' },
-  ind: { en: 'Industry Partner', zh: '產學合作公司' },
-  ec:  { en: 'Experience Camp Partner', zh: '體驗營合作單位' },
-  co:  { en: 'Alumni Co.',       zh: '系友任職企業' },
-};
-
 // D 國家節點不再寫死清單：改由 buildAtlas 從真實資料（系友就職 + 工作營/產學夥伴的 country ISO）動態生成。
 // 顯示名稱走 country-names.js 的 countryName(iso)。
 
@@ -235,14 +222,6 @@ export function exitAtlasPageStandby() {
   if (pageStandby) pageStandby.exit();
 }
 
-// idle-standby overlay 的退場出口：overlay 不是 routed page、不走 registerPageExit，
-// 由 initAtlas（root=overlay 時）把同一套 playMapExit/playListExit 掛在這，idle-standby 離場時呼叫
-// （user 2026-07-15：待機離場沿用 atlas 退場動畫、不另外製作）。cleanup 時歸零。
-let _overlayExit = null;
-export function playOverlayAtlasExit() {
-  return _overlayExit ? _overlayExit() : Promise.resolve();
-}
-
 export async function initAtlas(options = {}) {
   // root 預設為 document（atlas 頁正常 init）；idle-standby 可傳入 overlay 內的 container
   // 讓同份 atlas 模組在多個 root 上同時運作
@@ -260,7 +239,7 @@ export async function initAtlas(options = {}) {
   // gate 一律併入「手機家族」JS 路徑（isMobileAtlas）：單選 tab / mobile 分頁 / mobile map⇄list 切換。
   // init 時決定一次即可 — 跨 gate 轉向由 orientation-reload 統一重載。
   const isLandscapeGateAtlas = SCCDHelpers.isLandscapeGate();
-  const isMobileAtlas = window.innerWidth < 768 || isLandscapeGateAtlas;
+  const isMobileAtlas = SCCDHelpers.isMobileLayout();
   // 直向手機圓點星雲（2026-07-09 user「atlas 做成跟橫向手機一樣」）：直向也走圓點/方塊/zoom/tap 星雲，
   //   佈局從橫式寬橢圓改直式（stage W<H）。圓點模式＝isMobileAtlas（直向+橫向手機都圓點，桌面不變）；
   //   isPortraitDotAtlas 只給「直向專屬直式佈局係數」用（橫向 gate 維持原橫式係數）。
@@ -525,22 +504,6 @@ export async function initAtlas(options = {}) {
 
   // cityKey 只在能解析出真實國家時才有值（em 真 ISO / workshop 真城市）；對不到的留 null = 不連節點。
   // 不再隨機補假國家（原 USE_FAKE_CITY_FILL，2026-06-23 移除）。
-
-  // 套用 type-numbered placeholder（D 國家 + B 系友任職企業保留真名 — co 是 atlas-companies.json 真實 30 個企業）
-  if (USE_TYPE_PLACEHOLDER) {
-    const counters = {};
-    items.forEach(it => {
-      if (it.category === 'D') return;
-      const prefix = String(it.id).split('-')[0];
-      if (prefix === 'co') return; // 系友任職企業 — 保留真實名稱（30 個企業環）
-      const tpl = TYPED_LABELS[prefix];
-      if (!tpl) return;
-      counters[prefix] = (counters[prefix] || 0) + 1;
-      const n = counters[prefix];
-      it.textEn = `${tpl.en} ${n}`;
-      it.textZh = `${tpl.zh} ${n}`;
-    });
-  }
 
   // ── List view 副標資料 ─────────
   // faculty: 真實職稱 / alumni em + partners: 該單位真實國家(ISO→名)
@@ -1955,22 +1918,7 @@ export async function initAtlas(options = {}) {
   // mask（2026-08-16 卡片進場改 clip-reveal）：定位/旋轉/遮罩載體，卡片在內滑動（見 atlas.css #atlas-detail-mask）
   const detailMask = /** @type {HTMLElement|null} */ ($('#atlas-detail-mask'));
 
-  // 4 個方向的隱藏 inset（visible 區壓向各邊到 0）——卡片改滑動後只剩 chip span 收展（switchToList 等）在用
-  const DETAIL_HIDDEN_INSETS = [
-    'inset(100% 0% 0% 0%)', // 從上方刷掉
-    'inset(0% 0% 100% 0%)', // 從下方刷掉
-    'inset(0% 100% 0% 0%)', // 從右方刷掉
-    'inset(0% 0% 0% 100%)', // 從左方刷掉
-  ];
-  const randomHiddenInset = () => DETAIL_HIDDEN_INSETS[Math.floor(Math.random() * DETAIL_HIDDEN_INSETS.length)];
-  // 卡片 4 方向藏定位（±110 過衝防 dpr hairline；同 faculty SLIDE_MAP）
-  const DETAIL_HIDDEN_OFFSETS = [
-    { xPercent: 0,    yPercent: -110 }, // 從上方滑出
-    { xPercent: 0,    yPercent: 110 },  // 從下方滑出
-    { xPercent: 110,  yPercent: 0 },    // 從右方滑出
-    { xPercent: -110, yPercent: 0 },    // 從左方滑出
-  ];
-  const randomHiddenOffset = () => DETAIL_HIDDEN_OFFSETS[Math.floor(Math.random() * DETAIL_HIDDEN_OFFSETS.length)];
+  // 卡片 4 方向藏定位＝revealHidden()（scroll-animate.js，±110 過衝防 dpr hairline）
 
   let detailTween = null;
   /** @type {'hidden' | 'visible'} */
@@ -2134,8 +2082,8 @@ export async function initAtlas(options = {}) {
       //   ⚠️ 只動 transform 走 compositor；禁用 clip-path（每幀 full repaint＝卡頓源，memory 明令勿回退）。
       //   ⚠️ marquee 動更內層 .atlas-marquee-inner，與 cell 不同元素、不撞（memory gsap_nullifies_css_individual_transform）。
       //   ⚠️ 方向每列只抽一次、同列 3 cell 共用（列讀作一個 item 不撕裂）；分開對 x/y 抽會湊出對角線。
-      // user 2026-09-12：城市卡內容切批只上下進場（前兩個 offset＝yPercent ±110），不要左右
-      const pickDir = () => DETAIL_HIDDEN_OFFSETS[Math.floor(Math.random() * 2)];
+      // user 2026-09-12：城市卡內容切批只上下進場（yPercent ±110），不要左右
+      const pickDir = () => revealHidden(Math.random() < 0.5 ? 'top' : 'bottom');
       const rowCells = () => [...descEl.querySelectorAll('.atlas-detail-row')]
         .map(rowEl => [...rowEl.querySelectorAll('.atlas-detail-cell')])
         .filter(cells => cells.length);
@@ -2340,7 +2288,7 @@ export async function initAtlas(options = {}) {
     // ⚠️ x/y（像素通道）每次都要一併歸零：CSS 預設 translateY(110%) 會被 GSAP 解析成像素 y（percent 與
     //    px 是分開合成的兩通道），只動 x/yPercent 的話殘留的像素 y 讓卡片「已 reveal 仍在畫面外」（實測踩到）
     if (!detailTween) {
-      gsap.set(detail, { ...randomHiddenOffset(), x: 0, y: 0 });
+      gsap.set(detail, { ...revealHidden(), x: 0, y: 0 });
     } else {
       detailTween.kill();
     }
@@ -2365,7 +2313,7 @@ export async function initAtlas(options = {}) {
     }
     if (detailTween) detailTween.kill();
     detailTween = gsap.to(detail, {
-      ...randomHiddenOffset(),
+      ...revealHidden(),
       x: 0,
       y: 0,
       duration: DUR.fast,
@@ -3965,7 +3913,6 @@ export async function initAtlas(options = {}) {
   // 非待機元素各走自己的離頁/進場同款 clip-reveal：篩選鈕＋career/subchip（同 playMapExit / revealFilters）、說明卡（clearDetail）、
   // 切換鈕（見下）；header logo/鈕、左下頁卡、mode3 色盤鈕由 idle-standby.js 收。list view 沒星雲可留 → 回 false 照蓋紙
   if (root === document) {
-    const LAYOUT_STANDBY_DIRS = [{ xPercent: 0, yPercent: 110 }, { xPercent: 0, yPercent: -110 }, { xPercent: 110, yPercent: 0 }, { xPercent: -110, yPercent: 0 }];
     const layoutInner = /** @type {HTMLElement|null} */ (layoutBtn && layoutBtn.querySelector('.atlas-layout-inner'));
     let layoutInnerTf = '';
     let layoutHidden = false;
@@ -3991,7 +3938,7 @@ export async function initAtlas(options = {}) {
           layoutInner.style.transition = 'none';
           layoutHidden = true;
           gsap.fromTo(layoutInner, { rotation: 0, xPercent: 0, yPercent: 0 }, {
-            ...LAYOUT_STANDBY_DIRS[Math.floor(Math.random() * LAYOUT_STANDBY_DIRS.length)],
+            ...revealHidden(),
             duration: DUR.base, ease: EASE.exit, overwrite: true,
           });
         }
@@ -5237,15 +5184,6 @@ export async function initAtlas(options = {}) {
 
   // ── 遮罩三段核心（單一節點架構）────────────────────────────
   const COVER_SHOWN_M = 'inset(0% 0% 0% 0%)';
-  /** 落地掀開沿「飛行方向」掃出（user 08-26：落地後原地隨機掀＝色塊停下來等＝卡頓感；
-   *  沿動勢方向掃出＝開口邊持續往前跑、視覺不中斷）。inset 四值＝top right bottom left。
-   * @param {number} dx @param {number} dy */
-  function travelCoverDir(dx, dy) {
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      return dx >= 0 ? 'inset(0% 0% 0% 100%)' : 'inset(0% 100% 0% 0%)';   // 向右掃出／向左掃出
-    }
-    return dy >= 0 ? 'inset(100% 0% 0% 0%)' : 'inset(0% 0% 100% 0%)';     // 向下掃出／向上掃出
-  }
   const CHROME_TEXT_OUT = 0.22;   // chrome 起飛前：文字 clip 收掉、box 上只剩純色塊
   const CHROME_TEXT_IN  = 0.32;   // chrome 落地後：文字以新形態 clip reveal 回 box（左→右閱讀方向）
   const FLY_DUR = DUR.slow;   // 色塊飛行
@@ -5568,8 +5506,7 @@ export async function initAtlas(options = {}) {
   const convergeDur = (d) =>
     Math.max(UNPAIRED_FADE_LEAD + UNPAIRED_FADE_DUR,
       Math.min(UNPAIRED_DRIFT_CAP, UNPAIRED_DRIFT_BASE + (d ? Math.hypot(d.tx, d.ty) * CONVERGE_FRACTION : 0) / 3000));
-  // user 09-02：未配對 item 靠攏途中淡出（趨勢過去→fade）。曾暫關 false 測純位移、位移確認 OK 後開回 true
-  const SHOW_UNPAIRED_FADE = true;
+  // user 09-02：未配對 item 靠攏途中淡出（趨勢過去→fade；曾暫關測純位移、確認 OK 後開回並拿掉開關）
 
   /** 未配對 item 靠攏目標＝所屬 list 欄的「title chip」位置（user 09-02：跟隨 title chip＝faculty 左上／host,employ 底部／partners 右上，欄標位置已自帶方位）
    * @param {any} item @returns {{tx:number,ty:number}|null} 螢幕 px 位移量 */
@@ -5653,7 +5590,7 @@ export async function initAtlas(options = {}) {
         { x: ex, y: ey },
         { x: ex + d.tx * CONVERGE_FRACTION / scale, y: ey + d.ty * CONVERGE_FRACTION / scale,
           duration: convergeDur(d), ease: EASE.move,
-          onComplete: SHOW_UNPAIRED_FADE ? () => gsap.set(n, { clearProps: 'transform' }) : undefined });
+          onComplete: () => gsap.set(n, { clearProps: 'transform' }) });
     }, null, at);
     moves.forEach(({ i, d }) => {
       const at = M_FADE_START + Math.random() * M_FADE_RANGE;
@@ -5669,19 +5606,17 @@ export async function initAtlas(options = {}) {
             duration: M_CITY_DUR, ease: EASE.enterSoft, onComplete: () => g.remove(),
           });
         }, null, M_CITY_LEAD + Math.random() * 0.1);
-        if (SHOW_UNPAIRED_FADE) {
-          tl.to(i._anchor, {
-            opacity: 0, duration: UNPAIRED_FADE_DUR, ease: 'none',
-            onComplete: () => {
-              if (i.bgColor) i._span.style.backgroundColor = i.bgColor;   // 回程還原底色
-              i._span.style.color = i.color;                              // 回程還原字色（空窗期暫著 theme-fg）
-            },
-          }, at + UNPAIRED_FADE_LEAD);
-        }
+        tl.to(i._anchor, {
+          opacity: 0, duration: UNPAIRED_FADE_DUR, ease: 'none',
+          onComplete: () => {
+            if (i.bgColor) i._span.style.backgroundColor = i.bgColor;   // 回程還原底色
+            i._span.style.color = i.color;                              // 回程還原字色（空窗期暫著 theme-fg）
+          },
+        }, at + UNPAIRED_FADE_LEAD);
         if (d) scheduleDrift(i, at, -50, () => i._float ? i._float.baseRot : 0);   // B CSS 置中＝translate(-50%,-50%)
         return;
       }
-      if (SHOW_UNPAIRED_FADE) tl.to(i._anchor, { opacity: 0, duration: UNPAIRED_FADE_DUR, ease: 'none' }, at + UNPAIRED_FADE_LEAD);
+      tl.to(i._anchor, { opacity: 0, duration: UNPAIRED_FADE_DUR, ease: 'none' }, at + UNPAIRED_FADE_LEAD);
       if (!d) return;   // 無對應欄（如 ec 佔位）→ 只 fade（無位移）
       scheduleDrift(i, at, 0, () => inlineRotDeg(i._span));   // A/C CSS 只 translateY(-50%)＝xPercent 0；保留凍結 wobble 角
     });
@@ -6269,28 +6204,7 @@ export async function initAtlas(options = {}) {
   }
 
   // ── 手機星雲模式（user 2026-06-12）──────────────────────────────
-  // 預設 list view；點 layout btn 進星雲，但直式只給「轉向提示」（仿 /create #landscape-overlay），
-  // 旋轉成橫式才顯示星雲內容。map 佈局是 init 時以直式尺寸算的（不隨 resize 重排，桌面同樣行為），
-  // 橫式下整片置中可平移視角，先以可瀏覽為準。
-  /** @type {HTMLElement|null} */
-  let rotateHintEl = null;
-  function ensureRotateHint() {
-    if (rotateHintEl) return rotateHintEl;
-    rotateHintEl = document.createElement('div');
-    rotateHintEl.id = 'atlas-rotate-hint';
-    const icon = document.createElement('span');
-    icon.className = 'icon icon-rotate-phone';
-    const text = document.createElement('div');
-    text.className = 'atlas-rotate-hint-text';
-    text.textContent = '旋轉設備以獲取最佳體驗\nROTATE FOR BEST EXPERIENCE';
-    rotateHintEl.appendChild(icon);
-    rotateHintEl.appendChild(text);
-    main.appendChild(rotateHintEl);
-    return rotateHintEl;
-  }
-
-  const isLandscape = () => window.innerWidth > window.innerHeight;
-
+  // map 佈局是 init 時以當下尺寸算的（不隨 resize 重排，桌面同樣行為），整片置中可平移視角，先以可瀏覽為準。
   function syncMobileMapOrientation() {
     if (!isMobileAtlas || currentView !== 'map') return;
     // 直向手機也走圓點星雲（user 2026-07-09「atlas 做成跟橫向手機一樣」）→ 不再顯示轉向提示，
@@ -6405,7 +6319,6 @@ export async function initAtlas(options = {}) {
   function finishSwitchToMobileList() {
     stage.style.display = 'none';
     refreshFloatRunning();   // 手機回 list：暫停 rAF
-    if (rotateHintEl) rotateHintEl.style.display = 'none';
     if (filterEl) filterEl.style.display = '';
     listView.classList.add('visible');
     updateGateSubVisibility(); // 橫向 gate：alumni tab active 時左欄子分頁鈕跟著出現
@@ -6460,8 +6373,7 @@ export async function initAtlas(options = {}) {
   // map view＝filter/subchip 收＋進場點燈倒放（見 playMapExit），
   // list view 用 switchToMap 退場階段（yPercent col-title + line-clip + clip-path nav-item）；
   // 兩者都不跑下游 startList / finalize，純做退場讓 router cleanup 接手
-  // idle-standby root 不是 document，不走 registerPageExit（overlay 非 routed page）——
-  // 改掛到 module-level _overlayExit，由 idle-standby exitStandby 呼叫 playOverlayAtlasExit()
+  // idle-standby root 不是 document，不走 registerPageExit（overlay 非 routed page；待機離場 09-10 起改單純 fade，由 idle-standby 自己做）
   if (options.root === undefined || options.root === document) {
     // 手機不註冊（user 2026-09-15）：換頁都走全屏 menu、退場動畫整段被蓋住看不見，
     // 只是延遲 swap + 弱機多燒一輪 CPU → 直接讓 router cleanup 接手即切
@@ -6470,20 +6382,12 @@ export async function initAtlas(options = {}) {
       if (currentView === 'list') return playListExit();
       return playMapExit();
     });
-  } else {
-    _overlayExit = () => {
-      if (typeof gsap === 'undefined') return Promise.resolve();
-      return currentView === 'list' ? playListExit() : playMapExit();
-    };
-    cleanupFns.push(() => { _overlayExit = null; });
   }
 
   function playMapExit() {
     return new Promise(resolve => {
       pageExiting = true;
       drainRevealTimers();
-      // 手機星雲直式的轉向提示層：離頁即時收掉（覆蓋層無退場動畫需求）
-      if (rotateHintEl) rotateHintEl.style.display = 'none';
       if (listCareerCtrl) listCareerCtrl.hide();
       hideCareer({ stagger: SUBCHIP_STAGGER });
       if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');

@@ -12,8 +12,9 @@ import { loadSummerCamp } from '../pages/summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activities-source.js';
 import { loadOthersAlbum } from '../pages/library-album-source.js';
 import { sitePath } from '../ui/site-base.js';
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { shortLibId } from '../pages/library-deeplink.js';
+import { revealHidden } from '../ui/scroll-animate.js';
 
 // 進/退場（2026-08-17 圖片卡改 clip-reveal；2026-08-19 文字卡也改 clip-reveal）：
 // 圖片卡＝wrapper（overflow:hidden、自身無 transform——RAF 位移在 mover、搖擺在 rotator）當現成遮罩，
@@ -21,13 +22,6 @@ import { shortLibId } from '../pages/library-deeplink.js';
 // clip-path 只留給「hover 覆蓋上顏色」的 newsOverlay wipe（user 2026-08-19：只有覆蓋色那個用 clip-path）。
 const FLOAT_HIDE_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(100% 0% 0% 0%)', 'inset(0% 0% 0% 100%)', 'inset(0% 100% 0% 0%)'];
 function randFloatHideClip() { return FLOAT_HIDE_CLIPS[Math.floor(Math.random() * FLOAT_HIDE_CLIPS.length)]; }
-const FLOAT_SLIDE_HIDES = [
-  { xPercent: 0, yPercent: -110 },
-  { xPercent: 0, yPercent: 110 },
-  { xPercent: -110, yPercent: 0 },
-  { xPercent: 110, yPercent: 0 },
-];
-function randFloatSlideHide() { return FLOAT_SLIDE_HIDES[Math.floor(Math.random() * FLOAT_SLIDE_HIDES.length)]; }
 
 // 桌面 16~32（依視窗面積，見 totalItems）、手機 10（< 768px）。手機減量是視覺優化，不影響桌面。
 // 每次 init 時評估（原 module-load 時定案的 const：SPA 換頁不重載模組，直向載入後轉橫向會殘留桌面值）
@@ -72,179 +66,66 @@ function normalizeImagePath(src) {
 
 // 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
 // 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
-// 2026-09-19 coming soon 拆除、恢復顯示（原 09-15 暫時隱藏 activities / admission(summer-camp) / album 三類浮卡）；
-// 要再隱藏把 SHOW_ACT_CAMP_ALBUM 改 false（false 時連 fetch 都不發，files / curriculum / awards 不受影響）。
-const SHOW_ACT_CAMP_ALBUM = true;
+// 全部跟各頁「同源、同 id 規則」走共用 loader → deep-link item id 才對得上；後台是唯一來源，失敗＝該類缺席。
+const ACTIVITY_POSTER_SOURCES = [
+  { load: () => loadPermanentExhibitions(),                          section: 'exhibitions' },
+  { load: () => loadActivityCollection('activities_lectures'),         section: 'lectures' },
+  { load: () => loadActivityCollection('activities_students_present'), section: 'students-present' },
+  ...[
+    ['activities_exhibitions_special', 'exhibitions'],
+    ['activities_competitions',        'competitions'],
+    ['activities_conferences',         'conferences'],
+    ['activities_visits_outbound',     'visits'],
+    ['activities_visits_inbound',      'visits'],
+  ].map(([collection, category]) => ({ load: () => loadActivityCollection(collection, { category }), section: category })),
+  { load: () => loadActivityCollection('activities_workshops'),        section: 'workshop' },
+];
+
+// year-grouped [{ year, items }] → 有 poster 的 item 轉成飄浮圖（url 帶 &item=<id> 給 deep-link）
+function postersOf(groups, pageUrl) {
+  const out = [];
+  (Array.isArray(groups) ? groups : []).forEach(g => (g.items || []).forEach(item => {
+    if (item.poster) out.push({ type: 'image', src: normalizeImagePath(item.poster), url: `${pageUrl}${item.id ? `&item=${item.id}` : ''}` });
+  }));
+  return out;
+}
+
 async function fetchActivityPosters() {
-  const activities = [];
-  const summerCamp = [];
-  const files = [];
-  const album = [];
+  const actLists = await Promise.all(ACTIVITY_POSTER_SOURCES.map(s =>
+    s.load().then(g => postersOf(g, `pages/activities.html?section=${s.section}`)).catch(() => [])));
+  const activities = actLists.flat();
 
-  // permanent-exhibitions：改用共用 loadPermanentExhibitions（Directus activities_exhibitions_permanent 優先、失敗 fallback 本地）
-  // → id/poster 跟 activities 頁渲染同源，deep-link item id 才對得上（同 workshop/lecture 慣例）。
-  if (SHOW_ACT_CAMP_ALBUM) try {
-    const data = await loadPermanentExhibitions('/data/permanent-exhibitions.json');
-    const groups = Array.isArray(data) ? data : (data.items || data.records || []);
-    groups.forEach(group => {
-      const items = Array.isArray(group) ? group : (group.items || []);
-      items.forEach(item => {
-        if (!item.poster) return;
-        const itemParam = item.id ? `&item=${item.id}` : '';
-        activities.push({
-          type: 'image',
-          src: normalizeImagePath(item.poster),
-          url: `pages/activities.html?section=exhibitions${itemParam}`,
-        });
-      });
-    });
-  } catch (_) {}
-
-  // 已接 Directus 的扁平單一分類 collection：跟 workshop 同源用 loadActivityCollection 取 id/poster，
-  // 避免像舊版直接讀 local JSON 的舊編號，跟頁面實際渲染的 id 對不上（deep-link 撈不到、退成只捲到 section）。
-  const flatSources = [
-    { collection: 'activities_lectures',         fallback: '/data/lectures.json',         section: 'lectures' },
-    { collection: 'activities_students_present', fallback: '/data/students-present.json', section: 'students-present' },
-  ];
-  if (SHOW_ACT_CAMP_ALBUM) await Promise.all(flatSources.map(async (src) => {
-    try {
-      const data = await loadActivityCollection(src.collection, src.fallback);
-      const groups = Array.isArray(data) ? data : (data.items || data.records || []);
-      groups.forEach(group => {
-        const items = Array.isArray(group) ? group : (group.items || []);
-        items.forEach(item => {
-          if (!item.poster) return;
-          const itemParam = item.id ? `&item=${item.id}` : '';
-          activities.push({
-            type: 'image',
-            src: normalizeImagePath(item.poster),
-            url: `pages/activities.html?section=${src.section}${itemParam}`,
-          });
-        });
-      });
-    } catch (_) {}
-  }));
-
-  // general-activities.json 混合檔（visits / exhibitions / competitions / conferences 四類混在同檔）背後各自對應獨立 Directus collection。
-  // 各自呼叫 loadActivityCollection 拿同源 id；Directus 該 collection 若還空的會 fallback 整包混合檔，
-  // 用 item.category 過濾回自己這類，避免每個空 collection 各自把整包混合資料都塞進 pool（重複）。
-  // ponytail: outbound/inbound 兩個 collection 都空時，兩邊 fallback 會各自撈到同一批 visits item 造成輕微重複，
-  //   只是首頁裝飾用的漂浮圖池、無功能性影響，等後台任一邊填了資料就會自然收斂，不特地加 dedupe。
-  const generalCats = [
-    { collection: 'activities_exhibitions_special', category: 'exhibitions' },
-    { collection: 'activities_competitions',        category: 'competitions' },
-    { collection: 'activities_conferences',         category: 'conferences' },
-    { collection: 'activities_visits_outbound',     category: 'visits' },
-    { collection: 'activities_visits_inbound',      category: 'visits' },
-  ];
-  if (SHOW_ACT_CAMP_ALBUM) await Promise.all(generalCats.map(async ({ collection, category }) => {
-    try {
-      const data = await loadActivityCollection(collection, '/data/general-activities.json', { category });
-      const groups = Array.isArray(data) ? data : (data.items || data.records || []);
-      groups.forEach(group => {
-        const items = Array.isArray(group) ? group : (group.items || []);
-        items.forEach(item => {
-          if (!item.poster || item.category !== category) return;
-          const itemParam = item.id ? `&item=${item.id}` : '';
-          activities.push({
-            type: 'image',
-            src: normalizeImagePath(item.poster),
-            url: `pages/activities.html?section=${category}${itemParam}`,
-          });
-        });
-      });
-    } catch (_) {}
-  }));
-
-  // Workshop → activities.html?section=workshop&item={id}（同源 loadActivityCollection，id 跟 activities 頁渲染一致）
-  if (SHOW_ACT_CAMP_ALBUM) try {
-    const wsData = await loadActivityCollection('activities_workshops', '/data/workshops.json');
-    const wsGroups = Array.isArray(wsData) ? wsData : (wsData.items || wsData.records || []);
-    wsGroups.forEach(group => {
-      const items = Array.isArray(group) ? group : (group.items || []);
-      items.forEach(item => {
-        if (!item.poster) return;
-        const itemParam = item.id ? `&item=${item.id}` : '';
-        activities.push({
-          type: 'image',
-          src: normalizeImagePath(item.poster),
-          url: `pages/activities.html?section=workshop${itemParam}`,
-        });
-      });
-    });
-  } catch (_) {}
-
-  // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）。
-  // 用 loadSummerCamp()（Directus-only + sessionStorage last-known-good）：id/poster 跟 admission 渲染一致，
-  // deep-link id 才對得上（本地 json 的 SC-YYYY-NN 對不上 Directus UUID）。全失敗 throw → 下方 catch 吞、該類浮卡缺席。
-  if (SHOW_ACT_CAMP_ALBUM) try {
-    const campGroups = await loadSummerCamp();   // [{ year, items:[{ id, poster, ... }] }]
-    campGroups.forEach(group => {
-      (group.items || []).forEach(item => {
-        if (!item.poster) return;
-        const itemParam = item.id ? `&item=${item.id}` : '';
-        summerCamp.push({
-          type: 'image',
-          src: normalizeImagePath(item.poster),
-          url: `pages/admission.html?section=summer-camp${itemParam}`,
-        });
-      });
-    });
-  } catch (_) {}
+  // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）
+  const summerCamp = postersOf(await loadSummerCamp().catch(() => []), 'pages/admission.html?section=summer-camp');
 
   // Library documents（PDF）→ library.html#f-{id}；docType=contributions（收錄）不收（user 2026-10-03，其餘分類照收）
-  // ⚠️ 必須跟 library files 面板「同源、同 id 規則」（同 press 浮卡）：Directus library_documents →
-  //    element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）。
-  //    直讀本地 library.json 的舊 id（"1"/"L-PUB-1"）跟面板 Directus row id 對不上 → 點進去不捲動、不 highlight；
-  //    封面也只是舊快照 placeholder（非真封面）。Directus 失敗才 fallback 本地（此時面板也 fallback 本地，id 一致）。
+  // ⚠️ 必須跟 library files 面板「同源、同 id 規則」：element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）
+  const files = [];
   try {
-    // cover 深取 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 config/api.js CMS_CDN_BASE）
     const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,docType,cover.filename_disk&sort=-year,sort&limit=-1`);
     if (!res.ok) throw new Error('CMS ' + res.status);
-    const rows = (await res.json())?.data;
-    if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-    rows.forEach(r => {
-      const cover = r.cover?.filename_disk;
+    ((await res.json())?.data || []).forEach(r => {
+      const cover = cdnUrl(r.cover);
       if (cover && r.id != null && r.docType !== 'contributions') {
-        files.push({ type: 'image', src: `${CMS_CDN_BASE}/${cover}`, url: `pages/library.html#f-${shortLibId(r.id)}` });
+        files.push({ type: 'image', src: cover, url: `pages/library.html#f-${shortLibId(r.id)}` });
       }
     });
-  } catch (_) {
-    // ponytail: 本地快照沒有 docType 欄，fallback 時收錄類濾不掉；只在 CMS 掛掉時發生
-    try {
-      const lib = await fetch(sitePath('data/library.json')).then(r => r.json());
-      lib.forEach(item => {
-        if (item.cover && item.id) {
-          files.push({ type: 'image', src: normalizeImagePath(item.cover), url: `pages/library.html#f-${item.id}` });
-        }
-      });
-    } catch (_) {}
-  }
-
-  // Album → library.html#album-{id}（無 id 則只到 album panel）
-  // 改用共用 loadOthersAlbum（Directus library_album 優先、失敗 fallback 本地 album-others.json）→ id 跟 album 面板同源。
-  // Directus row 無 cover 欄（用 images[]），fallback 本地才有 cover → 兩者相容取 cover || images[0]。
-  if (SHOW_ACT_CAMP_ALBUM) try {
-    const albumGroups = await loadOthersAlbum();
-    albumGroups.forEach(group => {
-      (group.items || []).forEach(item => {
-        const cover = item.cover || item.images?.[0];
-        if (cover) {
-          album.push({
-            type: 'image',
-            src: normalizeImagePath(cover),
-            url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html',
-          });
-        }
-      });
-    });
   } catch (_) {}
+
+  // Album → library.html#album-{id}（無 id 則只到 album panel）；共用 loadOthersAlbum → id 跟 album 面板同源
+  const album = [];
+  (await loadOthersAlbum().catch(() => [])).forEach(group => {
+    (group.items || []).forEach(item => {
+      const cover = item.cover || item.images?.[0];
+      if (cover) album.push({ type: 'image', src: normalizeImagePath(cover), url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html' });
+    });
+  });
 
   return { activities, summerCamp, files, album };
 }
 
 // 從課程資料撈 title（導航到對應 course item，並 highlight 該項目）
-// 用共用 loadCourses（Directus 為主 + 本地 fallback，見 courses-source.js）→ 跟課表同源、deep-link slug 一致。
+// 用共用 loadCourses（見 courses-source.js）→ 跟課表同源、deep-link slug 一致。
 // 資料有 3 個 program key（bfa-animation / bfa-cmd / mdes）；
 // 早期版本誤用 data.bfa / data.mdes，結果 BFA 兩組課完全不會出現在首頁 pool 裡
 async function fetchCourseTexts() {
@@ -271,8 +152,6 @@ async function fetchCourseTexts() {
 
 // awards title 浮動文字卡（有導航）
 // ⚠️ 同 award 面板「同源、同 id 規則」：Directus library_awards → element id = a-<row.id>（見 library-panels mapDirectusAwardRow）。
-//    直讀本地 records.json 的 a-YYYY-NN 舊 id 跟面板 Directus row id 對不上 → deep-link #{id} 撈不到。
-//    Directus 失敗才 fallback records.json（此時面板也 fallback、id 一致）。
 function buildAwardText(competition, rank, competitionEn, rankEn) {
   const zh = `${competition} ${rank}`.trim();
   const en = competitionEn ? `${rankEn || ''}, ${competitionEn}`.trim().replace(/^,\s*/, '') : '';
@@ -296,30 +175,8 @@ async function fetchAwardTexts() {
       const { zh, en } = buildAwardText(r.competitionZh, rank, r.competitionEn, rankEn);
       pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html${r.id != null ? `#a-${r.id}` : ''}` });
     });
-    return pool;
-  } catch (_) {}
-  // fallback 本地 records.json（id 本就是 a-YYYY-NN，跟面板 fallback 一致）
-  try {
-    const data = await fetch(sitePath('data/records.json')).then(r => r.json());
-    (data.records || []).forEach(yearGroup => {
-      (yearGroup.items || []).forEach(item => {
-        if (!item.competition) return;
-        if (item.flag === 'tw') return;
-        const { zh, en } = buildAwardText(item.competition, item.rank, item.competition_en, item.rank_en);
-        pool.push({ type: 'text', textEn: en, textZh: zh, url: `pages/library.html${item.id ? `#${item.id}` : ''}` });
-      });
-    });
   } catch (_) {}
   return pool;
-}
-
-// Fisher-Yates shuffle
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
 
 // 開場均勻鋪點：純隨機會結塊（一角一坨），改 jittered grid——切成 ~sqrt(n) 欄列、每格放一點再在格內
@@ -335,13 +192,13 @@ function scatterPositions(n, cw, ch) {
       pts.push({ x: (c + 0.2 + Math.random() * 0.6) * cellW, y: (r + 0.2 + Math.random() * 0.6) * cellH });
     }
   }
-  return shuffle(pts).slice(0, n);
+  return SCCDHelpers.shuffle(pts).slice(0, n);
 }
 
 // 把一組 entry 包成 category 池：標記 _cat（給去重/均分用）+ 洗牌後配一個 cursor 輪替
 function mkCat(entries, name) {
   (entries || []).forEach(e => { e._cat = name; });
-  return { queue: shuffle(entries || []), cursor: 0 };
+  return { queue: SCCDHelpers.shuffle(entries || []), cursor: 0 };
 }
 
 // ── Element 建立 ────────────────────────────────────────────
@@ -748,34 +605,21 @@ export function initWatchHover() {
   });
 }
 
-const FALLBACK_IMAGES = [
-  'images/SCCD-1-4-0.jpg',
-  'images/S__6742028.jpg',
-  'images/Degree Show.jpg',
-];
-
-function createCircleEl() {
-  // 無連結：隨機從測試圖片取一張
-  const src = FALLBACK_IMAGES[Math.floor(Math.random() * FALLBACK_IMAGES.length)];
-  return createImageEl(src, null);
-}
-
 // ── Spawn & Animate ─────────────────────────────────────────
 
+// 池子空（後台沒資料／整池都已在畫面上）→ 回 null 不生成：後台是唯一圖片來源，不再拿本地測試圖補位（user 2026-10-04）
 function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initialPos = null) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
   let elData;
-  if (!poolEntry || poolEntry.type === 'circle') {
-    elData = createCircleEl();
-  } else if (poolEntry.type === 'image') {
+  if (poolEntry?.type === 'image') {
     // interactive 預設 true；poolEntry.interactive === false 跳過 news hover wipe（臨時 Coming Soon index）
     elData = createImageEl(poolEntry.src, poolEntry.url, poolEntry.interactive !== false, preImg);
-  } else if (poolEntry.type === 'text') {
+  } else if (poolEntry?.type === 'text') {
     elData = createTextEl(poolEntry.textEn, poolEntry.textZh, poolEntry.url);
   } else {
-    elData = createCircleEl();
+    return null;
   }
 
   const { el, w, h, slideTargets = null } = elData;
@@ -958,7 +802,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
 function revealFloatItem(item, delay) {
   if (typeof gsap === 'undefined' || !item) return;
   if (item.slideTargets) {
-    gsap.set(item.slideTargets, randFloatSlideHide());   // 立即藏（同步，first paint 前生效＝不閃）
+    gsap.set(item.slideTargets, revealHidden());   // 立即藏（同步，first paint 前生效＝不閃）
     const img = item.slideTargets.find(t => t instanceof HTMLImageElement);
     // 離頁 / 離場後 img 才 load 完 → 元素已 detach，別再對殘骸 tween
     const play = () => { if (item.el && !item.el.isConnected) return; gsap.to(item.slideTargets, { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, delay }); };
@@ -1002,14 +846,14 @@ export async function initFloatingItems() {
     const pool = categoryPools[cat];
     if (!pool || !pool.queue.length) return null;
     for (let tries = 0; tries < pool.queue.length; tries++) {
-      if (pool.cursor >= pool.queue.length) { shuffle(pool.queue); pool.cursor = 0; }
+      if (pool.cursor >= pool.queue.length) { SCCDHelpers.shuffle(pool.queue); pool.cursor = 0; }
       const entry = pool.queue[pool.cursor++];
       if (!onScreen.has(entry)) return entry;
     }
     return null;
   }
 
-  // 挑「畫面上數量最少」且仍有可用項的 category（等權 → 均分）；都不可用回 null（退化成裝飾 circle）
+  // 挑「畫面上數量最少」且仍有可用項的 category（等權 → 均分）；都不可用回 null（spawnItem 不生成）
   function nextEntry() {
     let bestCount = Infinity, ties = [];
     for (const cat of CATS) {
@@ -1028,6 +872,7 @@ export async function initFloatingItems() {
   }
 
   const items = [];
+  const pushItem = (it) => { if (it) items.push(it); };   // spawnItem 池空回 null＝不生成
   liveItems = items;   // spawnItem 邊緣進場挑空檔用（同一陣列、push/splice 即時反映）
 
   // 離頁後 cancelled 為 true，in-flight 的 edge-respawn 圖片預載完成時不再 spawn（避免動已棄置的 pool）
@@ -1038,7 +883,7 @@ export async function initFloatingItems() {
   {
     const n = totalItems();
     const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
-    for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
+    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), false, positions[i]));
   }
 
   // 進場：initial batch stagger 揭露——圖片卡＝img/overlay 同向滑入 wrapper 遮罩（clip-reveal）、
@@ -1061,7 +906,7 @@ export async function initFloatingItems() {
     CATS.forEach(c => { liveCount[c] = 0; });
     const n = totalItems();
     const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
-    for (let i = 0; i < n; i++) items.push(trackSpawn(nextEntry(), false, positions[i]));
+    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), false, positions[i]));
     playFloatEntrance(0);
   }
   const rotateGateMq = window.matchMedia(SCCDHelpers.LANDSCAPE_GATE);
@@ -1074,16 +919,16 @@ export async function initFloatingItems() {
   // 量得到正確高度、內容也現成 → 整張成形才從邊緣漂入。文字卡/無 src 直接 spawn（無載入延遲）。
   function spawnFromEdge() {
     const entry = nextEntry();
-    if (!entry || entry.type !== 'image' || !entry.src) { items.push(trackSpawn(entry, true)); return; }
+    if (!entry || entry.type !== 'image' || !entry.src) { pushItem(trackSpawn(entry, true)); return; }
     onScreen.add(entry); liveCount[entry._cat]++;   // 先佔位：載入空窗期避免下一 tick 重選同一筆
     const pre = new Image();
     pre.onload = () => {
       if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }  // 已離頁
-      items.push(spawnItem(container, entry, true, pre));  // reuse 預載元素＝量測 offsetHeight 正確；不走 trackSpawn（佔位已手動做）
+      pushItem(spawnItem(container, entry, true, pre));  // reuse 預載元素＝量測 offsetHeight 正確；不走 trackSpawn（佔位已手動做）
     };
     pre.onerror = () => {
       if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }
-      items.push(spawnItem(container, entry, true));  // 失敗不 reuse：讓 createImageEl 新建→onerror remove、drift 後自然 cull 釋放佔位
+      pushItem(spawnItem(container, entry, true));  // 失敗不 reuse：讓 createImageEl 新建→onerror remove、drift 後自然 cull 釋放佔位
     };
     pre.src = entry.src;
   }
@@ -1189,7 +1034,7 @@ export async function initFloatingItems() {
     items.forEach((item, i) => {
       const delay = i * 0.02;
       if (item.slideTargets) {
-        gsap.to(item.slideTargets, { ...randFloatSlideHide(), duration: DUR.medium, ease: EASE.exit, delay, overwrite: true, onComplete: onOne });
+        gsap.to(item.slideTargets, { ...revealHidden(), duration: DUR.medium, ease: EASE.exit, delay, overwrite: true, onComplete: onOne });
         return;
       }
       if (!item.card) { onOne(); return; }

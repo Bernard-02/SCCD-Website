@@ -13,11 +13,9 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { revealHidden, randomRevealDir } from '../ui/scroll-animate.js';
 
-// 4 方向隨機 slide-in：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
-const HERO_DIRS = ['top', 'bottom', 'left', 'right'];
-function pickHeroDir() { return HERO_DIRS[Math.floor(Math.random() * HERO_DIRS.length)]; }
-
+// 4 方向隨機 slide-in（方向＝randomRevealDir）：用 wrapper overflow:hidden 當遮罩，child 從 wrapper 外的某方向滑入
 // 該方向的「藏起」位移：child 移到 wrapper 外指定方向（width/height = wrapper bbox）
 function offsetFor(dir) {
   switch (dir) {
@@ -30,11 +28,7 @@ function offsetFor(dir) {
 
 // Banner 圖 4 方向滑入/滑出（2026-08-16 由 clip-path inset 改 clip-reveal，user 全站圖片統一 reveal 語彙）：
 // .hero-banner / .hero-mobile-bg 本身 overflow:hidden 就是現成遮罩、旋轉在容器上 → 內層 img 滑動跟著
-// 旋轉角、角不被裁；±110 過衝防 dpr hairline（同 faculty SLIDE_MAP）。容器透明無底色，img 滑出＝什麼都看不到
-function bannerOffsetFor(dir) {
-  const o = offsetFor(dir);
-  return { xPercent: o.xPercent * 1.1, yPercent: o.yPercent * 1.1 };
-}
+// 旋轉角、角不被裁；藏定位＝revealHidden()（±110 過衝防 dpr hairline）。容器透明無底色，img 滑出＝什麼都看不到
 
 function wrapElement(el, wrapperClass) {
   const wrapper = document.createElement('div');
@@ -267,14 +261,6 @@ function randomizeHeroLayout() {
   });
   void /** @type {HTMLElement} */ (grid).offsetHeight;
 
-  function shuffleArr(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
   function rectsOverlap(a, b, pad) {
     return !(a.right + pad < b.left || b.right + pad < a.left ||
              a.bottom + pad < b.top || b.bottom + pad < a.top);
@@ -387,7 +373,7 @@ function randomizeHeroLayout() {
     const remaining = ['tl', 'tr', 'bl', 'br'].filter(c => c !== preferredCorner);
     const unusedRemaining = remaining.filter(c => !usedCorners.includes(c));
     const usedRemaining = remaining.filter(c => usedCorners.includes(c));
-    const tryOrder = [preferredCorner, ...shuffleArr(unusedRemaining), ...shuffleArr(usedRemaining)];
+    const tryOrder = [preferredCorner, ...SCCDHelpers.shuffle(unusedRemaining), ...SCCDHelpers.shuffle(usedRemaining)];
     let best = null;
     for (const c of tryOrder) {
       const result = tryPlaceAtCorner(rect, c);
@@ -421,7 +407,7 @@ function randomizeHeroLayout() {
     });
     randomizeParagraphWidths();
     void /** @type {HTMLElement} */ (grid).offsetHeight;  // 強制 reflow，下面 getBoundingClientRect 拿到新寬度
-    const corners = shuffleArr(['tl', 'tr', 'bl', 'br']);
+    const corners = SCCDHelpers.shuffle(['tl', 'tr', 'bl', 'br']);
     let totalPenalty = 0;
     textItems.forEach((el, i) => { totalPenalty += placeTextWithFallback(el, corners[i]); });
     const positions = textItems.map(el => ({
@@ -633,7 +619,7 @@ function exitHeroChips(tl, chips, banner) {
   let i = 0;
   chips.forEach(el => {
     if (!(/** @type {HTMLElement} */ (el).dataset.heroRevealStarted)) { gsap.killTweensOf(el); return; }
-    const to = offsetFor(pickHeroDir());
+    const to = offsetFor(randomRevealDir());
     tl.to(el, { xPercent: to.xPercent, yPercent: to.yPercent, duration: 0.5, ease: EASE.exit, overwrite: true }, (i++) * 0.06);
   });
   if (banner) {
@@ -644,7 +630,7 @@ function exitHeroChips(tl, chips, banner) {
       if (Math.abs(bx) >= 105 || Math.abs(by) >= 105) {
         gsap.killTweensOf(bImg);
       } else {
-        tl.to(bImg, { ...bannerOffsetFor(pickHeroDir()), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+        tl.to(bImg, { ...revealHidden(), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
       }
     }
   }
@@ -699,7 +685,7 @@ function setupComingSoonReveal() {
     document.querySelectorAll('.coming-soon-title, .coming-soon-title-cn')));
   if (comingChips.length === 0 || typeof ScrollTrigger === 'undefined') return;
   const comingTriggers = comingChips.map((el, i) => {
-    gsap.set(el, { ...offsetFor(pickHeroDir()), visibility: 'visible' });
+    gsap.set(el, { ...offsetFor(randomRevealDir()), visibility: 'visible' });
     return ScrollTrigger.create({
       trigger: el.parentElement,
       start: 'top 85%',
@@ -820,7 +806,7 @@ function playMobileHeroEntrance() {
   const tl = gsap.timeline({ paused: true, defaults: { ease: EASE.enter }, onComplete: signalHeroDone });
   const bgImg = /** @type {HTMLElement|null} */ (bg ? bg.querySelector('img') : null);
   if (bgImg) {
-    gsap.set(bgImg, bannerOffsetFor(pickHeroDir()));
+    gsap.set(bgImg, revealHidden());
     // data-hero-wait＝以後台為主：不排滑入，等 hero-source revealHeroBannerImg（同桌面 banner gate）
     if (!(/** @type {any} */ (bgImg).dataset?.heroWait)) {
       tl.to(bgImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, clearProps: 'transform' }, 0);
@@ -829,7 +815,7 @@ function playMobileHeroEntrance() {
   const ENTER_STAGGER = 0.15;
   const ENTER_DURATION = 0.9;
   chips.forEach((chip, i) => {
-    gsap.set(chip, offsetFor(pickHeroDir()));
+    gsap.set(chip, offsetFor(randomRevealDir()));
     tl.to(chip, { xPercent: 0, yPercent: 0, duration: ENTER_DURATION, clearProps: 'transform',
       onStart: () => { /** @type {HTMLElement} */ (chip).dataset.heroRevealStarted = '1'; } }, i * ENTER_STAGGER);
   });
@@ -1111,7 +1097,7 @@ export function initHeroAnimation() {
   const heroBanner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
   if (heroBanner) {
     const heroBannerImg = /** @type {HTMLElement | null} */ (heroBanner.querySelector('img'));
-    if (heroBannerImg) gsap.set(heroBannerImg, bannerOffsetFor(pickHeroDir()));
+    if (heroBannerImg) gsap.set(heroBannerImg, revealHidden());
     tl.set(heroBanner, { visibility: 'visible' }, 0);
     if (heroBannerImg && !heroBannerImg.dataset.heroWait) {
       tl.to(heroBannerImg, {
@@ -1142,7 +1128,7 @@ export function initHeroAnimation() {
 
   function addGroupTo(timeline, group, baseTime, stagger = ENTER_STAGGER) {
     group.forEach((el, i) => {
-      const from = offsetFor(pickHeroDir());
+      const from = offsetFor(randomRevealDir());
       gsap.set(el, from);
       const at = baseTime + i * stagger;
       timeline.set(el, { visibility: 'visible' }, at);
@@ -1156,13 +1142,6 @@ export function initHeroAnimation() {
       }, at);
     });
   }
-
-  // 手機 rand-grid：先前 faculty 段落流到第二屏需 ScrollTrigger reveal；2026-05-26 改 layout 後段落改成
-  // 接在 title 下方首屏可見，不再需要 ScrollTrigger 分流 → 全走主 timeline。
-  // 變數保留方便將來若有「段落仍在第二屏」的 rand-grid 頁面（courses/activities/admission 等）改回 true 時 toggle 條件
-  const isMobileRandGrid = false;
-  const subtitleScrollGroup = isMobileRandGrid ? subtitles : [];
-  const inlineSubtitles = isMobileRandGrid ? [] : subtitles;
 
   // 進場 group 序列：group 之間 ENTER_OVERLAP 接續、group 內 ENTER_STAGGER。
   // ① 顯式 [data-hero-enter="N"]（chip 自宣告組序，N 小先進、同 N 一組、組內 DOM 序）優先 —
@@ -1182,7 +1161,7 @@ export function initHeroAnimation() {
     });
     enterGroups = [...byGroup.keys()].sort((a, b) => a - b).map(k => byGroup.get(k));
   } else {
-    enterGroups = titleLast ? [inlineSubtitles, titles] : [titles, inlineSubtitles];
+    enterGroups = titleLast ? [subtitles, titles] : [titles, subtitles];
   }
 
   // 顯式分組：同 N 一組 = 一起進場（stagger 0、同 t）；class-based fallback 維持組內 0.15 stagger（faculty 等不變）
@@ -1198,32 +1177,6 @@ export function initHeroAnimation() {
     prevLen = group.length;
     scheduled = true;
   });
-
-  // 手機段落 chip：scroll 到視窗時做 4 方向 slide-in（與 hero 標題同 pattern；wrapper overflow:hidden 已套）
-  if (subtitleScrollGroup.length > 0 && typeof ScrollTrigger !== 'undefined') {
-    // 預設 hidden：先設方向 offset + visibility（與 addGroupTo 對齊，避免 ScrollTrigger fire 前看到位置已就位）
-    const presets = subtitleScrollGroup.map(el => {
-      const from = offsetFor(pickHeroDir());
-      gsap.set(el, { ...from, visibility: 'visible' });
-      return { el, from };
-    });
-    const triggers = presets.map(({ el }, i) => ScrollTrigger.create({
-      trigger: el,
-      start: 'top 85%',
-      once: true,
-      onEnter: () => {
-        gsap.to(el, {
-          xPercent: 0,
-          yPercent: 0,
-          duration: ENTER_DURATION,
-          ease: EASE.enter,
-          delay: i * 0.1,
-          clearProps: 'transform',
-        });
-      },
-    }));
-    registerPageCleanup(() => triggers.forEach(t => t && t.kill()));
-  }
 
   // Coming Soon 佔位屏（activities/admission）：抽出共用（手機分支也要，見 setupComingSoonReveal）
   setupComingSoonReveal();

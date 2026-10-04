@@ -13,7 +13,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -345,48 +345,11 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
     const isLandscapeGate = SCCDHelpers.isLandscapeGate();
     if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
-      // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 run、hero 時出場隱藏」（user 2026-07-09）：
-      // IO 偵測 content section 佔到視窗中段（捲過 hero）→ 每顆 btn 個別方向、同時（stagger:0）clip-reveal；
-      // 離開（回 hero / 進 footer）→ clip-hide。不用 opacity、不加白底（純 clip）。
-      // fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切，免隱形 btn 蓋 hero 誤觸。
-      const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
-      if (navCol) navCol.style.pointerEvents = 'none';
-      const setNav = (reveal) => {
-        if (navRevealed === reveal) return;
-        navRevealed = reveal;
-        // grade cover 的 ::before 上方白補丁跟 nav 同一顆 gate（landscape.css 消費此 class）：
-        // 未 pinned 時補丁會浮在 hero 圖上＝奇怪白 bar（user 2026-07-10）
-        sectionEl.classList.toggle('courses-nav-revealed', reveal);
-        gsap.killTweensOf(navTargets);
-        navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
-        if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
-        const hid = reveal ? null : navTargets.map(el => navChipHidden(el, navDir.get(el)));
-        gsap.to(navTargets, {
-          clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
-          translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-          duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
-          onComplete: () => { if (reveal) navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }); },
-        });
-      };
-      // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」，同 admission/faculty）：觀察 hero 本體，
-      // 底緣離開視窗頂（8px buffer）才 reveal；footer 進 75% 線收起。flag 合併防初始 delivery 互蓋。
-      const heroEl = document.querySelector('#page-content > section');
-      const footerEl = document.getElementById('site-footer');
-      let heroVis = !!heroEl;
-      let footerVis = false;
-      const applyNav = () => setNav(!heroVis && !footerVis);
-      if (heroEl) {
-        const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
-          { rootMargin: '-8px 0px 0px 0px' });
-        heroIO.observe(heroEl);
-        registerPageCleanup(() => heroIO.disconnect());
-      }
-      if (footerEl) {
-        const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
-          { rootMargin: '0px 0px -25% 0px' });
-        footerIO.observe(footerEl);
-        registerPageCleanup(() => footerIO.disconnect());
-      }
+      // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）。
+      // courses-nav-revealed：grade cover 的 ::before 上方白補丁跟 nav 同一顆 gate（landscape.css 消費）——
+      // 未 pinned 時補丁會浮在 hero 圖上＝奇怪白 bar（user 2026-07-10）
+      bindLandscapeNavGate(sectionEl, /** @type {HTMLElement[]} */ (navTargets), navDir,
+        { revealedClass: 'courses-nav-revealed', onChange: (v) => { navRevealed = v; } });
     } else {
       // 桌面＋直向手機：nav 在 flow（桌面左側 sticky／手機頂部 strip），進場 once（stagger 0.04）、不 re-hide
       const playNavReveal = () => {
