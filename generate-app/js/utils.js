@@ -283,9 +283,6 @@ function updateIconsForMode() {
   const borderColor = isWireframeMode ? getWireframeBorderColor() : null;
   const mobileElements = [
     ..._p5.selectAll('.mobile-bottom-btn'),
-    ..._p5.selectAll('.mobile-panel'),
-    _p5.select('.mobile-bento-container'),
-    ..._p5.selectAll('.mobile-bento-button')
   ];
   updateElementsBorderColor(mobileElements, borderColor);
 }
@@ -338,7 +335,7 @@ function updateElementsBorderColor(elements, borderColor) {
       if (el) {
         el.style('border-color', borderColor);
         // 某些元素還需要更新文字顏色
-        if (el.hasClass('mobile-bottom-btn') || el.hasClass('mobile-panel')) {
+        if (el.hasClass('mobile-bottom-btn')) {
           el.style('color', borderColor);
         }
       }

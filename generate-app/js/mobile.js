@@ -101,8 +101,6 @@ let mobileElements = {
   modeIcon: null,
 
   // Rotate 面板內的元素
-  bentoCustomBtn: null,
-  bentoPlayBtn: null,
   bentoCustomIcon: null,
   bentoPlayIcon: null,
 
@@ -196,8 +194,6 @@ function initMobileUI() {
     mobileHiddenMeasurer.style('box-sizing', 'border-box');
   }
 
-  mobileElements.bentoCustomBtn = _p5.select('.mobile-custom-button');
-  mobileElements.bentoPlayBtn = _p5.select('.mobile-play-button');
   mobileElements.bentoCustomIcon = _p5.select('#mobile-custom-icon');
   mobileElements.bentoPlayIcon = _p5.select('#mobile-rotate-icon');
 
@@ -305,14 +301,6 @@ function bindMobileEvents() {
     });
   }
 
-  // Bento 面板按鈕事件
-  if (mobileElements.bentoCustomBtn) {
-    mobileElements.bentoCustomBtn.mousePressed(switchToCustomMode);
-  }
-
-  if (mobileElements.bentoPlayBtn) {
-    mobileElements.bentoPlayBtn.mousePressed(toggleAutoRotate);
-  }
 
   // Slider 事件
   if (mobileElements.rSlider) {
@@ -468,16 +456,6 @@ function toggleInputPanel() {
         mobileElements.inputBox.elt.focus();
       }, 300);
     }
-  }
-}
-
-// 切換 Rotate 面板
-function toggleRotatePanel() {
-  if (mobileElements.rotatePanel.hasClass('active')) {
-    mobileElements.rotatePanel.removeClass('active');
-  } else {
-    closeAllMobilePanels();
-    mobileElements.rotatePanel.addClass('active');
   }
 }
 
@@ -946,22 +924,6 @@ function updateMobileButtons() {
     mobileElements.saveBtn.elt.disabled = !canSave;
   }
 
-  // Custom/Play 按鈕的 active 狀態（Bento 面板內的按鈕）
-  if (mobileElements.bentoCustomBtn) {
-    if (!autoRotate && hasText) {
-      mobileElements.bentoCustomBtn.addClass('active');
-    } else {
-      mobileElements.bentoCustomBtn.removeClass('active');
-    }
-  }
-
-  if (mobileElements.bentoPlayBtn) {
-    if (autoRotate && hasText) {
-      mobileElements.bentoPlayBtn.addClass('active');
-    } else {
-      mobileElements.bentoPlayBtn.removeClass('active');
-    }
-  }
 }
 
 // 更新手機版圖標
@@ -997,9 +959,6 @@ function updateMobileIcons() {
   const borderColor = isWireframe ? getWireframeBorderColor() : null;
   const elements = [
     ..._p5.selectAll('.mobile-bottom-btn'),
-    _p5.select('.mobile-bento-container'),
-    _p5.select('.mobile-bento-left'),
-    ..._p5.selectAll('.mobile-bento-button')
   ];
   updateElementsBorderColor(elements, borderColor);
 }

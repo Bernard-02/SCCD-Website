@@ -86,10 +86,10 @@ function preload() {
 function loadEasterEggDownloadImages() {
   if (!sccdBlackImg) {
     const asset = window.SCCDHelpers.sitePath;
-    sccdBlackImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black.png'));
-    sccdWhiteImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white.png'));
-    sccdBlackWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe.png'));
-    sccdWhiteWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe.png'));
+    sccdBlackImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black.webp'));
+    sccdWhiteImg = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white.webp'));
+    sccdBlackWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe.webp'));
+    sccdWhiteWireframeImg = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe.webp'));
   }
 }
 
@@ -125,10 +125,10 @@ function setup() {
 
   // 彩蛋顯示圖非阻塞載入（見 preload 註解）
   const asset = window.SCCDHelpers.sitePath;
-  sccdBlackImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black_2.png'));
-  sccdWhiteImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white_2.png'));
-  sccdBlackWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe_2.png'));
-  sccdWhiteWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe_2.png'));
+  sccdBlackImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_black_2.webp'));
+  sccdWhiteImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/sccd_white_2.webp'));
+  sccdBlackWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_Black Wireframe_2.webp'));
+  sccdWhiteWireframeImg_2 = _p5.loadImage(asset('generate-app/Easter Egg/SCCD_White Wireframe_2.webp'));
 
   // --- 承襲 site theme mode ---
   // 從 sessionStorage 'sccd-theme-mode' 讀（site theme-toggle 寫入），必須在 updateUI() / body class init
@@ -1595,23 +1595,6 @@ function resetRotationOffsets() {
       if (sliders[i]) sliders[i].value(0);
     }
     updateSliders(); // 確保全域變數也被更新
-}
-
-// --- 新增：模式按鈕 icon 隨機旋轉動畫 ---
-function animateModeIconRotation(iconElement) {
-  if (!iconElement) return;
-
-  const imgEl = iconElement.elt;
-
-  // 生成隨機角度（-100 到 100 度之間）
-  const randomAngle = Math.floor(Math.random() * 201) - 100;
-
-  // 動畫持續時間
-  const duration = 600; // 600ms
-
-  // 使用平滑過渡旋轉到新的隨機角度
-  imgEl.style.transition = `transform ${duration}ms ease-in-out`;
-  imgEl.style.transform = `rotate(${randomAngle}deg)`;
 }
 
 // clip-reveal 用：把 save icon 包進 overflow:clip 容器，讓 icon 能由下緣升起 / 沉入而被乾淨剪裁。

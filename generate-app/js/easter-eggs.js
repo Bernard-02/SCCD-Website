@@ -224,7 +224,7 @@ function updateSpecialEasterEggDisplay() {
     // 設定圖片來源
     if (specialEasterEggImgElement.src === '' || specialEasterEggImgElement.dataset.type !== specialEasterEggType) {
       const imgSrc = window.SCCDHelpers.sitePath(
-        (specialEasterEggType === "COOLGUY") ? 'generate-app/Easter Egg/Rex.png' : 'generate-app/Easter Egg/KC.png'
+        (specialEasterEggType === "COOLGUY") ? 'generate-app/Easter Egg/Rex.webp' : 'generate-app/Easter Egg/KC.webp'
       );
       specialEasterEggImgElement.src = imgSrc;
       specialEasterEggImgElement.dataset.type = specialEasterEggType;
