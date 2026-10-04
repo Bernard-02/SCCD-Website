@@ -64,8 +64,6 @@ function normalizeImagePath(src) {
   return sitePath(src.replace(/^\.\.\//, ''));
 }
 
-// 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
-// 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
 // 全部跟各頁「同源、同 id 規則」走共用 loader → deep-link item id 才對得上；後台是唯一來源，失敗＝該類缺席。
 const ACTIVITY_POSTER_SOURCES = [
   { load: () => loadPermanentExhibitions(),                          section: 'exhibitions' },
@@ -90,13 +88,20 @@ function postersOf(groups, pageUrl) {
   return out;
 }
 
+// 活動海報 + summer-camp + library 文件/相簿封面：分四個 category 各自回傳（floating 依 category 均分、不再混為一池）。
+// 不洗牌/不截斷/不重複填充——均分與去重交給 initFloatingItems 的 category 輪替邏輯。
+// 2026-09-19 coming soon 拆除、恢復顯示（原 09-15 暫時隱藏 activities / admission(summer-camp) / album 三類浮卡）；
+// 要再隱藏把 SHOW_ACT_CAMP_ALBUM 改 false（false 時連 fetch 都不發，files / curriculum / awards 不受影響）。
+const SHOW_ACT_CAMP_ALBUM = true;
 async function fetchActivityPosters() {
-  const actLists = await Promise.all(ACTIVITY_POSTER_SOURCES.map(s =>
-    s.load().then(g => postersOf(g, `pages/activities.html?section=${s.section}`)).catch(() => [])));
+  // ⚠️ 上面開關＝S3 coming soon 版（ver1）出包靠的開關、不是死碼；它和上下各一行要維持 09-19（a8c11f9）原樣，
+  // ver1 流程 revert a8c11f9 才能自動合併
+  const actLists = SHOW_ACT_CAMP_ALBUM ? await Promise.all(ACTIVITY_POSTER_SOURCES.map(s =>
+    s.load().then(g => postersOf(g, `pages/activities.html?section=${s.section}`)).catch(() => []))) : [];
   const activities = actLists.flat();
 
   // Summer camp → admission.html?section=summer-camp&item={id}（camp 已搬到 admission）
-  const summerCamp = postersOf(await loadSummerCamp().catch(() => []), 'pages/admission.html?section=summer-camp');
+  const summerCamp = SHOW_ACT_CAMP_ALBUM ? postersOf(await loadSummerCamp().catch(() => []), 'pages/admission.html?section=summer-camp') : [];
 
   // Library documents（PDF）→ library.html#f-{id}；docType=contributions（收錄）不收（user 2026-10-03，其餘分類照收）
   // ⚠️ 必須跟 library files 面板「同源、同 id 規則」：element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）
@@ -114,7 +119,7 @@ async function fetchActivityPosters() {
 
   // Album → library.html#album-{id}（無 id 則只到 album panel）；共用 loadOthersAlbum → id 跟 album 面板同源
   const album = [];
-  (await loadOthersAlbum().catch(() => [])).forEach(group => {
+  if (SHOW_ACT_CAMP_ALBUM) (await loadOthersAlbum().catch(() => [])).forEach(group => {
     (group.items || []).forEach(item => {
       const cover = item.cover || item.images?.[0];
       if (cover) album.push({ type: 'image', src: normalizeImagePath(cover), url: item.id ? `pages/library.html#album-${item.id}` : 'pages/library.html' });

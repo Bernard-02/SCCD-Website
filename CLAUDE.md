@@ -348,6 +348,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 - **開發預覽**＝GitHub Pages：push main 自動上線（bernard-02.github.io/SCCD-Website）。⚠️「線上是舊版」通常＝改動沒 commit；CSS 改了要先 `npm run build:css` 再 commit
 - **正式前台**＝S3 + CloudFront（sccd.usc.edu.tw，尚未切換，流程見《docs/前台上線流程-S3-CloudFront.md》）；**後台** Directus 在 Lightsail `/cms`（reverse proxy → Node :8055）
 - **上傳包**＝`scripts/make-upload-package.ps1`：build:css → 鏡像前台檔（排除本機 mp4）→ `minify-package.cjs` 壓縮包內 JS/CSS/JSON（esbuild 逐檔 transform、不 bundle、不改頂層名稱；只動上傳包拷貝，repo 原始碼與 GitHub Pages 預覽保持未壓縮）。壓縮後約 4.0MB → 1.5MB
+- **S3 coming soon 版（ver1）**＝所有修正與 layout 同 main、只有內容隱藏（activities／admission 內容區、library Album、首頁三類浮卡、網站地圖條目）：在臨時 worktree `git revert --no-commit a8c11f9 056b280` 後再出包（衝突解法見 memory）。⚠️ `floating-items.js` 的 `SHOW_ACT_CAMP_ALBUM` 是它的開關、不是死碼
 - user 不熟 devops，部署話題先建心智模型再給步驟
 
 ### Git
