@@ -14,13 +14,14 @@
 import { initAnchorNav } from '../navigation/anchor-nav.js';
 import { loadListInto } from './activities-data-loader.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
-import { setupClipReveal, playClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit } from '../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit, revealHidden, randomRevealDir } from '../ui/scroll-animate.js';
 // library-viewer（45KB）改動態載入（見 initAlumni 內）：靜態 import 會讓全站每頁都揹它
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { sitePath } from '../ui/site-base.js';
+import { escapeHtml } from '../ui/escape-html.js';
 
 // 共用：courses-card 風 4 方向 clip-path 隨機選一個
 const CARD_CLIP_DIRS = [
@@ -58,9 +59,6 @@ function randDeg(min = 3, max = 6) {
   const sign = Math.random() < 0.5 ? -1 : 1;
   return +(sign * (min + Math.random() * (max - min))).toFixed(2);
 }
-function escapeHtml(s = '') {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 // ── Vision ────────────────────────────────────────────────────
 function renderVision(data) {
@@ -78,15 +76,8 @@ function renderVision(data) {
 }
 
 // ── Members（.faculty-card 共用樣式 + clip-reveal 進場） ─────
-// 2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，同 faculty-filter.js（SLIDE_MAP 同款；
+// 2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，同 faculty-filter.js（revealHidden；
 // wrapper 整塊在 .faculty-card-image-mask 內 4 方向滑入，110 過衝防 dpr hairline）
-const SLIDE_DIRS = {
-  top:    { xPercent: 0,    yPercent: -110 },
-  right:  { xPercent: 110,  yPercent: 0 },
-  bottom: { xPercent: 0,    yPercent: 110 },
-  left:   { xPercent: -110, yPercent: 0 },
-};
-const IMG_DIRS = ['top', 'right', 'bottom', 'left'];
 
 function renderMembers(data) {
   const container = document.getElementById('alumni-members-list');
@@ -94,7 +85,7 @@ function renderMembers(data) {
   container.innerHTML = (data.members || []).map((m, i) => {
     const color = SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length];
     const initDeg = randDeg(3, 6);
-    const imgDir = IMG_DIRS[Math.floor(Math.random() * IMG_DIRS.length)];
+    const imgDir = randomRevealDir();
     return `
       <div class="faculty-card p-[6px] cursor-default" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
         <div class="faculty-card-image-mask mb-md">
@@ -123,7 +114,7 @@ function renderMembers(data) {
     const name  = card.querySelector('.faculty-card-name');
     const title = card.querySelector('.faculty-card-title');
     const dir = card.getAttribute('data-img-dir') || 'bottom';
-    if (imgWrapper) gsap.set(imgWrapper, SLIDE_DIRS[dir] || SLIDE_DIRS.bottom);
+    if (imgWrapper) gsap.set(imgWrapper, revealHidden(dir));
     if (name)  setupClipReveal([name]);
     if (title) setupClipReveal([title]);
   });
@@ -417,23 +408,6 @@ function renderContact(data) {
 }
 
 // ── Exit Animation ════════════════════════════════════════════
-// alumni-full bar 退場：mirror entry（header.js 進場 inset(0 100% 0 0)→inset(0)）
-// 反向 collapse inset(0)→inset(0 100% 0 0)：右邊往左收
-// 跑完才 page swap，下一頁 updateNavActive 再跑 other bars reveal
-function playAlumniExit() {
-  return new Promise(resolve => {
-    const el = /** @type {HTMLElement | null} */ (document.querySelector('[data-bar="alumni-full"]'));
-    if (!el || typeof gsap === 'undefined') { resolve(); return; }
-    gsap.killTweensOf(el);
-    gsap.to(el, {
-      clipPath: 'inset(0% 100% 0% 0%)',
-      duration: DUR.medium,
-      ease: EASE.exit,
-      onComplete: resolve,
-    });
-  });
-}
-
 // 內容離頁退場：list rows / vision / contact 走 reveal 反向（yPercent 沉出 clip-wrapper）；
 // members / sponsors 卡片走 clip-path wipe。helper 內建 viewportOnly → 只動視窗內、換頁不拖慢。
 function playAlumniContentExit() {
@@ -446,7 +420,6 @@ function playAlumniContentExit() {
 
 // ── Entry ─────────────────────────────────────────────────────
 export async function initAlumni() {
-  registerPageExit(playAlumniExit);
   registerPageExit(playAlumniContentExit);
   let data;
   try {

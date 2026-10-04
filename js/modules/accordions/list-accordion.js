@@ -251,6 +251,18 @@ let _accordionBusyUntil = 0;
 function markAccordionBusy(ms) { const t = performance.now() + ms; if (t > _accordionBusyUntil) _accordionBusyUntil = t; }
 export function isAccordionBusy() { return performance.now() < _accordionBusyUntil; }
 
+// 收合列的媒體延到點開才載（user 2026-10-04）：activities 縮圖／海報出生只帶 data-src、自架影片 tile 帶 data-hls-thumb
+// （見 activities-data-loader srcAttr）。點下去當下就換上、不等收舊列＋對齊捲動；載入中是佔位色塊循環。
+// deep-link 目標在捲過去前先呼叫（activities-section-switch navigateToItem）。
+export function loadDeferredMedia(item) {
+  item.querySelectorAll('img[data-src]').forEach((/** @type {HTMLImageElement} */ img) => {
+    img.loading = 'eager';   // 點開了＝要看：海報的 lazy、deep-link 首批閘門都不再等
+    img.src = /** @type {string} */ (img.dataset.src);
+    img.removeAttribute('data-src');
+  });
+  if (item.querySelector('img[data-hls-thumb]')) import('../ui/video-player.js').then((m) => m.hydrateHlsThumbs(item));
+}
+
 // 九輪 Part 3：gallery:check（觸發 checkOverflow 逐 wrap 讀寫交錯＝大 panel forced reflow 連環、4x 實測 clientWidth self 2.8s）
 //   延到「開合序列完（非 busy）＋DOM 乾淨」才派發，不砸動畫窗。marquee 是裝飾性、晚 ~0.5s 重量無感。
 //   不重構 checkOverflow（pair/回彈/RO 生態，動它過度工程化）——只挪派發時機。
@@ -723,6 +735,7 @@ function initListHeaderAccordion() {
 
       const workshopItem = /** @type {HTMLElement | null} */ (this.closest('.list-item'));
       if (isActive) {
+        if (workshopItem) loadDeferredMedia(workshopItem);
         markAccordionBusy(1800);   // 六輪 2-A：開序列（收舊→對齊→展開）全程 idle builder 讓路，寬鬆蓋過
         // 磁吸提早在「收舊項之前」就鎖掉（原本在 proceedOpen＝舊項收完才鎖）：收合期間文件高度
         // 逐幀變化，mandatory snap 會邊收邊微調 scrollY＝畫面顫動才展開（user 2026-07-09，

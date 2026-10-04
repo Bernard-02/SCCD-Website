@@ -3,7 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
@@ -20,29 +20,6 @@ import { snapRowsShown } from '../ui/list-row-reveal.js';
 
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
-
-// box 是否「真的是捲動容器」：矮橫向 landscape gate 把 admission 的 100vh frame 拆掉（overflow 改 visible、
-// window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox）。
-// el 可以是 box 自身或其後代（closest 對自身也命中）。
-function getScrollableScrollCol(el) {
-  const box = /** @type {HTMLElement | null} */ (el && el.closest('.inner-scroll-scroll-col'));
-  if (!box) return null;
-  const oy = getComputedStyle(box).overflowY;
-  return (oy === 'auto' || oy === 'scroll') ? box : null;
-}
-
-// 等指定 list-item 進場 reveal 完成（reveal onEnter 移除 data-pre-reveal）才 highlight，不在 rows 還 clip-reveal
-// 中途就先亮（對齊 activities navigateToItem 的 waitForItemRevealed，user 2026-06-09）。已無 data-pre-reveal → 立即 resolve。
-function waitForItemRevealed(item, timeout = 8000) {
-  return new Promise(resolve => {
-    if (!item || !item.hasAttribute('data-pre-reveal')) { resolve(); return; }
-    let done = false, t = null;
-    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
-    const obs = new MutationObserver(() => { if (!item.hasAttribute('data-pre-reveal')) finish(); });
-    obs.observe(item, { attributes: true, attributeFilter: ['data-pre-reveal'] });
-    t = setTimeout(finish, timeout);
-  });
-}
 
 // 首頁 floating camp 海報 deep-link 用：捲到指定 item → 等 reveal → flash highlight → 展開 accordion
 // （比照 activities navigateToItem smooth 版，但 admission summer-camp 結構簡單：無 sub-tab / sticky filter bar）。
@@ -165,47 +142,8 @@ function setupSectionNavReveal() {
   const section = document.getElementById('admission-content-section');
   const isLandscapeGate = SCCDHelpers.isLandscapeGate();
   if (isLandscapeGate && 'IntersectionObserver' in window && section) {
-    // 矮橫向：nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero 出場隱藏」，clip-path 非
-    // opacity（user 2026-07-10 三反饋定為全站 nav btn 原則，同 curriculum/faculty setNav）：IO 偵測
-    // content section 佔視窗中段 → 各 inner 個別方向、同時（stagger:0）clip-reveal / clip-hide。
-    // fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切，免隱形 btn 蓋 hero 誤觸。
-    const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
-    if (navCol) navCol.style.pointerEvents = 'none';
-    const setNav = (reveal) => {
-      if (navRevealed === reveal) return;
-      navRevealed = reveal;
-      gsap.killTweensOf(inners);
-      inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; });
-      if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
-      const hid = reveal ? null : inners.map(inner => navChipHidden(inner, navDir.get(inner)));
-      gsap.to(inners, {
-        clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
-        translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-        duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
-        onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
-      });
-    };
-    // 嚴格 hero gate（user 2026-07-10「卡一半 nav 就出現」）：改觀察 hero 本體——底緣離開視窗頂
-    // （8px buffer 防 knife-edge）才算「捲到 hero 之下」reveal；原「content 佔中段(-45%)」在頁面停在
-    // 半路（hero 還佔上半屏）時就會誤 reveal。footer 進視窗 75% 線另收起（原 content IO 的隱含行為補回）。
-    // 兩顆 IO 各記 flag 統一 apply——各自 toggle 會被初始 delivery 順序互蓋（同 about anchor-nav 的坑）。
-    const heroEl = document.querySelector('#page-content > section');
-    const footerEl = document.getElementById('site-footer');
-    let heroVis = !!heroEl;
-    let footerVis = false;
-    const applyNav = () => setNav(!heroVis && !footerVis);
-    if (heroEl) {
-      const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
-        { rootMargin: '-8px 0px 0px 0px' });
-      heroIO.observe(heroEl);
-      registerPageCleanup(() => heroIO.disconnect());
-    }
-    if (footerEl) {
-      const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
-        { rootMargin: '0px 0px -25% 0px' });
-      footerIO.observe(footerEl);
-      registerPageCleanup(() => footerIO.disconnect());
-    }
+    // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）
+    bindLandscapeNavGate(section, /** @type {HTMLElement[]} */ (inners), navDir, { onChange: (v) => { navRevealed = v; } });
   } else {
     // 桌面/直向：進場 once、不 re-hide（維持原行為）
     const play = () => {

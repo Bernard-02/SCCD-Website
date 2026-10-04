@@ -4,13 +4,13 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil } from './activities-data-loader.js';
+import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil, gateListImagesUntil, releaseGatedImages } from './activities-data-loader.js';
 import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
 import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
-import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer } from '../accordions/list-accordion.js';
+import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer, loadDeferredMedia } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown, exitRows, hideRows, revealRows } from '../ui/list-row-reveal.js';
@@ -41,17 +41,6 @@ let userSwitchedSection = false;
 let currentSwitchPromise = null;
 // 離頁退場已開跑（playActivitiesExit）：子分頁淨空 wipe 的 search 列揭回段讓路（見 animatedSubListSwitch）
 let leavingPage = false;
-
-// box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities 的 100vh frame 拆掉（overflow 改 visible、
-// window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox / admission）。
-// el 可以是 box 自身或其後代（closest 對自身也命中）；null-safe。
-/** @param {Element | null} el */
-function getScrollableScrollCol(el) {
-  const box = /** @type {HTMLElement | null} */ (el && el.closest('.inner-scroll-scroll-col'));
-  if (!box) return null;
-  const oy = getComputedStyle(box).overflowY;
-  return (oy === 'auto' || oy === 'scroll') ? box : null;
-}
 
 // 捲到 section：落點讓 sticky filter bar 剛好停在它自己的 sticky-top（桌面 200），list 緊接其下不被蓋住。
 // ⚠️ 不能只把 section 頂對齊 viewport 0（user 2026-06-06「pt 頂到時第一個 list 被切掉 ~8px」）：
@@ -142,21 +131,6 @@ function revealWhenListRowsSettled(panel, run) {
   requestAnimationFrame(tick);
 }
 
-// 等指定 list-item 的進場 reveal 完成（reveal 的 onComplete/onEnter 會移除 data-pre-reveal，見 admission-data-loader
-// unlockGroup / activities-data-loader 的 ScrollTrigger）。給 ref/deep-link 導航用：確保「list 文字 reveal 出現後」
-// 才 highlight，不在 rows 還 clip-reveal 中途就先亮（user 2026-06-09）。
-// 已無 data-pre-reveal（已 reveal / alwaysExpanded）→ 立即 resolve；timeout 為保險，reveal 萬一沒正常完成也不卡住。
-function waitForItemRevealed(item, timeout = 8000) {
-  return new Promise(resolve => {
-    if (!item || !item.hasAttribute('data-pre-reveal')) { resolve(); return; }
-    let done = false, t = null;
-    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
-    const obs = new MutationObserver(() => { if (!item.hasAttribute('data-pre-reveal')) finish(); });
-    obs.observe(item, { attributes: true, attributeFilter: ['data-pre-reveal'] });
-    t = setTimeout(finish, timeout);
-  });
-}
-
 // 手機 section nav 水平 strip：把指定 section 的 btn 捲到 strip 中間（click / ref / deep-link 三條路徑共用；
 // user 2026-07-03）。桌面 vertical sticky 不需要。btn 位置是靜態 layout，隨時可量；smooth 水平捲與垂直捲動互不干擾。
 function centerSectionNavBtn(section) {
@@ -228,6 +202,8 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
     scrollSectionIntoView(sectionEl, smooth ? 'smooth' : 'instant', unlock);
     return;
   }
+  releaseGatedImages(target);
+  loadDeferredMedia(target);   // 目標一定會被打開：縮圖在捲過去途中就開始載
 
   // 若 target 在 sub-tab 隱藏的 list container（exhibitions 的 permanent / visits 的 inbound 等），先切到對應 sub-tab
   const subListContainer = target.closest('#exhibitions-list-special, #exhibitions-list-permanent, #visits-list-outbound, #visits-list-inbound');
@@ -554,46 +530,11 @@ function setupSectionNavReveal() {
   const navDir = new Map(inners.map(inner => [inner, pickNavDir(inner)]));
   inners.forEach(inner => gsap.set(inner, navChipHidden(inner, navDir.get(inner))));
 
-  // 矮橫向：nav 進 header fixed（landscape.css 5f，2026-07-10 比照 admission 5e）、hero 也浮著 →
-  // 「hero 之後才 reveal、回 hero 出場隱藏」＝嚴格 hero gate（觀察 hero 本體底緣離開視窗頂 −8px；
-  // 同 admission setNav，clip-path 非 opacity）。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切。
+  // 矮橫向：nav 進 header fixed（landscape.css 5f，2026-07-10 比照 admission 5e）→ 嚴格 hero gate（bindLandscapeNavGate）
   const sectionEl = document.getElementById('activities-content-section');
   const isLandscapeGate = SCCDHelpers.isLandscapeGate();
   if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
-    const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
-    if (navCol) navCol.style.pointerEvents = 'none';
-    const setNav = (reveal) => {
-      if (navRevealed === reveal) return;
-      navRevealed = reveal;
-      gsap.killTweensOf(inners);
-      killTransition();
-      if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
-      const hid = reveal ? null : inners.map(inner => navChipHidden(inner, navDir.get(inner)));
-      gsap.to(inners, {
-        clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
-        translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
-        duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
-        onComplete: () => { if (reveal) inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = ''; }); },
-      });
-    };
-    // 兩顆 IO 各記 flag 統一 apply（各自 toggle 會被初始 delivery 順序互蓋，同 admission/about 的坑）
-    const heroEl = document.querySelector('#page-content > section');
-    const footerEl = document.getElementById('site-footer');
-    let heroVis = !!heroEl;
-    let footerVis = false;
-    const applyNav = () => setNav(!heroVis && !footerVis);
-    if (heroEl) {
-      const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
-        { rootMargin: '-8px 0px 0px 0px' });
-      heroIO.observe(heroEl);
-      registerPageCleanup(() => heroIO.disconnect());
-    }
-    if (footerEl) {
-      const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
-        { rootMargin: '0px 0px -25% 0px' });
-      footerIO.observe(footerEl);
-      registerPageCleanup(() => footerIO.disconnect());
-    }
+    bindLandscapeNavGate(sectionEl, /** @type {HTMLElement[]} */ (inners), navDir, { onChange: (v) => { navRevealed = v; } });
     // SPA 離頁退場（同下方非 gate 版）
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
@@ -801,6 +742,10 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     const toDegreeShowTab = initialSection === 'degree-show';
     if (toDegreeShowTab) initialSection = 'exhibitions';
     const initialItem = params.get('item');
+    // 清單縮圖延到導航呈現完才預載（hero 期間就建清單＝跟 banner 搶頻寬，見 gateListImagesUntil）；
+    // 必須在 switchToSection 之前掛（首批 render 就要吃到）
+    let releaseListImgs;
+    gateListImagesUntil(new Promise(r => { releaseListImgs = r; }));
     const initSwitchPromise = switchToSection(initialSection, btns, false, true);
     const degreeShowTabDone = toDegreeShowTab ? initSwitchPromise.then(() => selectExhibitionsType('degree-show')) : null;
     // deep-link 進場後同樣預暖其餘分頁資料，讓後續手動切換免等網路
@@ -874,7 +819,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         unhideLazyLists();
         return navigateToItem(initialSection, initialItem, { smooth: true, unlock });
       })
-        .finally(() => setTimeout(settleListWork, 2500));
+        .finally(() => setTimeout(() => { settleListWork(); releaseListImgs(); }, 2500));
     } else {
       // 沒指定 item → 只平滑捲到 list section，不做 highlight
       const scrolled = waitForHeroAnimDone().then(() => new Promise(resolve => {
@@ -882,7 +827,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         scrollSectionIntoView(sectionEl, 'smooth', () => resolve(undefined));  // deep-link：hero 跑完平滑捲到 section（無併發 reveal）
       }));
       // 捲到位（舊 ?section=degree-show 連結再加切完畢業展子分頁）＝呈現完成 → 解除操作鎖
-      Promise.all([scrolled, degreeShowTabDone]).then(unlock);
+      Promise.all([scrolled, degreeShowTabDone]).then(unlock).finally(releaseListImgs);
     }
   } else {
     // refresh / 直接開連結 / 上一頁下一頁（fromUserNav=false）：清掉 deep-link query（URL 變乾淨）+ 停在 default section

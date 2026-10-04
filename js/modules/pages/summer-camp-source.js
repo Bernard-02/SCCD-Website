@@ -3,37 +3,26 @@
  * Directus admission_summer_camp（扁平）→ 本地 summer-camp.json 的 year-grouped shape
  * （loadListInto 吃這個；它已直接讀 titleEn/Zh、subtitleEn/Zh、locations[]、videoLinks）。
  * 主要補：dates 結構化（startDate/endDate → [{startYear,...}]）、EN 描述（descriptionEn→description）、
- * 圖片媒體（poster/images）走 CloudFront、依年份分組。Directus 失敗 → fallback 本地 /data/summer-camp.json。
+ * 圖片媒體（poster/images）走 CloudFront、依年份分組。Directus-only：失敗 → sessionStorage last-known-good → 都沒有 throw。
  * admission 頁「營隊」tab 與 activities 頁共用 loadSummerCampInto → 都吃這個來源。
  */
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '../../config/api.js';
 
 const CMS_COLLECTION = 'admission_summer_camp';
-
-// 逾時 + last-known-good：同 activities-source（本地 /data/*.json 是假資料 → 退場，改存 sessionStorage 上次成功真資料）。
-function fetchWithTimeout(url, ms = 10000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
-}
-const LKG_KEY = 'sccd:act:summer-camp';
-function saveLKG(data) { try { sessionStorage.setItem(LKG_KEY, JSON.stringify(data)); } catch {} }
-function readLKG() { try { const s = sessionStorage.getItem(LKG_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
+const LKG_KEY = 'summer-camp';
 
 export async function loadSummerCamp() {
   try {
     // *.* 展開 poster 檔案物件（含 filename_disk）＋ references 附件；images 是 M2M junction，多深一層
     // 取 directus_files_id.filename_disk 才拿得到檔名（*.* 只到 junction 層）→ 組 CloudFront URL。
-    const res = await fetchWithTimeout(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const grouped = groupByYear(rows.map(mapRow));
-    saveLKG(grouped);
+    saveLKG(LKG_KEY, grouped);
     return grouped;
   } catch (err) {
     // Directus-only → last-known-good；連它都沒 → throw（activities switchToSection / admission try-finally 各自處理）
-    const lkg = readLKG();
+    const lkg = readLKG(LKG_KEY);
     if (lkg) { console.warn('[summer-camp] fetch failed → last-known-good:', err.message); return lkg; }
     throw err;
   }
@@ -52,8 +41,8 @@ function mapRow(r) {
     // 直接套 loadListInto 既有的 guest layout（buildGuestHtml：名稱 EN/ZH 粗體；營隊無 country/affiliation 故右側留空）。
     guests: (r.organizers || []).map(o => ({ nameEn: o.organizerEn || '', nameZh: o.organizerZh || '' }))
                                 .filter(g => g.nameEn || g.nameZh),
-    poster: fileUrl(r.poster),
-    images: normalizeFiles(r.images),
+    poster: cdnUrl(r.poster),
+    images: cdnUrls(r.images),
   };
 }
 
@@ -84,29 +73,4 @@ function groupByYear(rows) {
   return [...byYear.entries()]
     .sort((a, b) => (Number(b[0]) || -Infinity) - (Number(a[0]) || -Infinity))
     .map(([year, items]) => ({ year, items: [...items].sort((a, b) => monthDayKey(b) - monthDayKey(a)) }));
-}
-
-// 圖片（poster / images）走 CloudFront（d2df28pyzslt2v，直吃 S3）繞過弱機 /assets 5s 逾時回 403、全站掉圖
-// （見 memory reference_directus_s3_timeout_all_assets_down）。用檔案的即時 filename_disk（<uuid>.<副檔名>）組 key、
-// 不寫死副檔名 → 離線 webp 轉檔（.jpg/.png→.webp）自動跟上。影片走 videoLinks（loadListInto 直接讀 url），不經此。
-// null/空→''；已是 URL / 本地路徑（防禦性；fallback JSON 不經 mapRow 故正常走不到）→ 原樣。
-const asset = (name) => {
-  if (!name) return '';
-  if (/^(https?:)?\/\//.test(name) || name.startsWith('/') || name.startsWith('../')) return name;
-  return `${CMS_CDN_BASE}/${name}`;
-};
-// poster：*.* 展開的檔案物件 { filename_disk }（相容純字串）
-function fileUrl(f) {
-  if (!f) return '';
-  return asset(typeof f === 'string' ? f : f?.filename_disk);
-}
-// images：M2M junction，每列 directus_files_id 深取成 { filename_disk }
-function normalizeFiles(arr) {
-  if (!Array.isArray(arr)) return [];
-  return arr.map(x => {
-    if (typeof x === 'string') return asset(x);
-    const f = x?.directus_files_id;
-    if (f) return asset(typeof f === 'string' ? f : f?.filename_disk);
-    return asset(x?.filename_disk);
-  }).filter(Boolean);
 }

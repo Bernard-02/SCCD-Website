@@ -25,7 +25,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 // ── Main ─────────────────────────────────────────────────────────────────
 
 const ADMISSION_LIST_OPTIONS = {
-  flatList:        true,            // admission.json 是 flat array 不是 [{year, items}]
+  flatList:        true,            // 公告是 flat array 不是 [{year, items}]
   bodyField:       'content',       // rich HTML body 渲染到 .admission-body（不走結構化 metadata）
   attachmentsField: 'attachments',  // 附件 paperclip + Attachment N
   dateInHeader:    true,            // date 在 title 副標（含年份）
@@ -44,7 +44,7 @@ function parseNewsDate(s) {
 export async function loadAdmissionData() {
   const container = document.getElementById('admission-list');
   if (!container) return;
-  // Directus admission_announcements 優先，本地 admission.json fallback（admission-source.js）
+  // Directus admission_announcement（admission-source.js；失敗＝空清單）
   let data;
   try {
     data = await loadAdmissionAnnouncements();

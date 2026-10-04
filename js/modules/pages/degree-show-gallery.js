@@ -11,6 +11,7 @@
  * 每 INTERVAL 自動 tick；hover：旋轉歸 0°（slot 0 不啟用）；click slot 1~4：手動觸發 tick。
  */
 import { EASE } from '../ui/motion.js';
+import { revealHidden } from '../ui/scroll-animate.js';
 
 // 4 個 slot（桌面，user 2026-08-18「調整到 4 張、更大一些」）：slot-left 用 vw、寬度改「等面積 vw」（見 buildImg）。
 // ⭐等面積(equal-area)取代舊 uniform-px-width：每張圖面積≈GALLERY_TARGET_AREA vw²、保留原始長寬比 → 直式變窄、
@@ -30,14 +31,7 @@ const ANIM_DUR = 0.5;
 const HOVER_DUR = 0.3;
 const INTERVAL = 3500;
 
-// clip-reveal 滑動藏定位（±110 過衝防 dpr hairline）：首次進場、tick 逐張離場/進場、hideAll 頁面退場全隨機 4 向
-const SLIDE_DIRS = [
-  { xPercent: -110, yPercent: 0 },
-  { xPercent: 110, yPercent: 0 },
-  { xPercent: 0, yPercent: -110 },
-  { xPercent: 0, yPercent: 110 },
-];
-function randomSlide() { return SLIDE_DIRS[Math.floor(Math.random() * SLIDE_DIRS.length)]; }
+// clip-reveal 滑動藏定位（revealHidden，±110 過衝防 dpr hairline）：首次進場、tick 逐張離場/進場、hideAll 頁面退場全隨機 4 向
 function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFixed(2)); }
 
 // targetAreaVw 有值（桌面）→ 等面積：wrapper 寬 = √(area·aspect) vw、clamp[24,46]、height:auto 維持原始比例。
@@ -196,7 +190,7 @@ export function initDegreeShowGallery(container, pool) {
 
     const leaving = slots[0];
     gsap.to(leaving.firstElementChild, {
-      ...randomSlide(),
+      ...revealHidden(),
       duration: ANIM_DUR,
       ease: EASE.wipe,
       onComplete: () => leaving.remove(),
@@ -212,7 +206,7 @@ export function initDegreeShowGallery(container, pool) {
     container.appendChild(newImg);
     placeInSlot(newImg, SLOT_COUNT - 1, SLOT_LEFTS_VW, { rotation: randomRotation() });
     gsap.fromTo(newImg.firstElementChild,
-      { ...randomSlide() },
+      { ...revealHidden() },
       { xPercent: 0, yPercent: 0, duration: ANIM_DUR, ease: EASE.wipe,
         onComplete: () => {
           isShifting = false;
@@ -231,7 +225,7 @@ export function initDegreeShowGallery(container, pool) {
   // 首次進場（user 2026-08-19）：初始 SLOT_COUNT 張各自隨機 4 向滑出遮罩藏好，gallery 首次捲進視窗才 stagger 滑入；
   // 進場後才起跑自動輪播（避免 off-screen 空轉、也讓「第一次看到」有進場動畫）。ScrollTrigger 缺席／已在視窗內 → 直接播。
   const inners = slots.map(s => s.firstElementChild);
-  const revealDirs = inners.map(() => randomSlide());
+  const revealDirs = inners.map(() => revealHidden());
   inners.forEach((el, i) => gsap.set(el, revealDirs[i]));
   let revealed = false;
   function revealInitial() {
@@ -259,7 +253,7 @@ export function initDegreeShowGallery(container, pool) {
       return new Promise(resolve => {
         let n = slots.length;
         slots.forEach(s => gsap.to(s.firstElementChild, {
-          ...randomSlide(),
+          ...revealHidden(),
           duration: ANIM_DUR,
           ease: EASE.wipe,
           overwrite: 'auto',

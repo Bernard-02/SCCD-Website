@@ -2,30 +2,19 @@
  * Activities 資料源：Directus activities_<x>（扁平）→ loadListInto 吃的 shape，含 M2A references remap。
  * 對接範本＝summer-camp-source.js（loadListInto 已直接讀 titleEn/Zh、subtitleEn/Zh、locations[]、guests[nameEn/Zh]、
  * descriptionZh；這裡只補它沒自動讀的：descriptionEn→description、startDate→dates[]、媒體 UUID→URL、
- * M2A references→前台 ref shape）。Directus 失敗/空 → fallback 本地 JSON（維持原行為）。
+ * M2A references→前台 ref shape）。Directus-only：失敗/空 → sessionStorage last-known-good → 都沒有 throw（panel 錯誤態）。
  * 2026-06-17 起接 competitions / industry / workshops（M2A ref trial）。
  * 2026-08-03 起 deep-link/ref 解析鍵一律用 Directus 自帶 `id`（不再靠人工填的 refCode 友善碼——
  * M2A 關聯本身存的就是 target 的 uuid，後台選單也是靠 display_template 顯示標題挑選，refCode 從來
  * 不影響「選誰」，只影響對外網址好不好看；改用 id 後零填寫負擔、target 一定有 id 不會漏。）
  */
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 import { videoMediaFromUrl } from '../ui/video-player.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
-// Directus 弱機的已知故障模式是「hang 而非拒絕」→ 無逾時 fetch 會吊住 switchToSection 的 switching 鎖、吞掉所有分頁切換。
-// 統一逾時 abort → throw 進三層失敗鏈（記憶體快取 → sessionStorage last-known-good → 錯誤態）。
-// ⚠️ 逾時必須涵蓋到 body 讀完（res.json()）：headers 到了 body stream 照樣可能 hang，
-// 只保護 headers 的話 json() 永不 settle → switching 卡 true 整頁切換死鎖 → 直接回傳解析後 data。
-async function fetchJsonWithTimeout(url, ms = 10000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()).data;
-  } finally { clearTimeout(t); }
-}
+// 抓取一律 fetchCmsJson（config/api.js）：弱機會 hang，無逾時 fetch 會吊住 switchToSection 的 switching 鎖；
+// 逾時 abort → throw 進三層失敗鏈（記憶體快取 → sessionStorage last-known-good → 錯誤態）。
 
 // M2A references deep-fetch：每個目標 collection 都要列一條 item:<col>.id（沒列到的該 ref item 會是 raw uuid）。
 // library_documents/press 另取 titleEn/Zh（前台 ref 列要顯示標題；activity 的 title 也在此深取＝唯一來源，見 remapRef）。
@@ -74,7 +63,7 @@ function remapRef(r) {
     // 有 media → pressMedia（前台原地開 lightbox）；都沒有 → href 退回 library deep-link（不壞舊行為）。
     case 'library_press': {
       const media = [
-        ...normalizeFiles(it.images).map(src => ({ type: 'image', src, thumb: src })),
+        ...cdnUrls(it.images).map(src => ({ type: 'image', src, thumb: src })),
         // yt/m3u8 分流交給共用 helper（m3u8 → videoKind:'hls' 自製播放器）
         ...ytUrls(it.videoLinks).map(u => videoMediaFromUrl(u)).filter(Boolean),
       ];
@@ -86,32 +75,13 @@ function remapRef(r) {
 }
 const remapRefs = (arr) => Array.isArray(arr) ? arr.map(remapRef).filter(Boolean) : [];
 
-const isUrlish = (s) => typeof s === 'string' && /^(https?:|\.\.?\/|\/)/.test(s);
-
-// 圖片走 CloudFront，繞過弱機 /assets 去 S3 抓檔的 5s 逾時掉圖（見 config CMS_CDN_BASE /
-// memory reference_directus_s3_timeout_all_assets_down）。用檔案的即時 filename_disk（<uuid>.<副檔名>）組 key，
-// 不寫死副檔名 → 離線 webp 轉檔（.jpg/.png→.webp）自動跟上；fallback JSON 的完整 URL/本地路徑（isUrlish）原樣回。
-const cdnUrl = (name) => !name ? '' : isUrlish(name) ? name : `${CMS_CDN_BASE}/${name}`;
-// poster / mainImage（單一圖片檔）：深取後是 { filename_disk }；fallback json 可能直接給 URL 字串。
-const imageUrl = (f) => cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
-// images 是 files M2M：深取後每列 = { directus_files_id: { filename_disk } }。
-function normalizeFiles(arr) {
-  if (!Array.isArray(arr)) return [];
-  return arr.map(x => {
-    if (isUrlish(x)) return x;
-    const f = x?.directus_files_id ?? x;
-    return cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
-  }).filter(Boolean);
-}
-
-// 同 normalizeFiles 但保留原圖尺寸（deep-fetch width/height）→ [{src,w,h}]，與 normalizeFiles 同過濾＝索引對齊。
+// 同 cdnUrls 但保留原圖尺寸（deep-fetch width/height）→ [{src,w,h}]，與 cdnUrls 同過濾＝索引對齊。
 // gallery 縮圖 w-auto 載入前 0 寬：有尺寸就能 aspect-ratio 預留寬度（逐張 clip-reveal 進場不推擠鄰居，2026-09-10）。
 function normalizeFilePairs(arr) {
   if (!Array.isArray(arr)) return [];
   return arr.map(x => {
-    if (isUrlish(x)) return { src: x, w: 0, h: 0 };
     const f = x?.directus_files_id ?? x;
-    const src = cdnUrl(typeof f === 'string' ? f : f?.filename_disk);
+    const src = cdnUrl(f);
     return src ? { src, w: (f && typeof f === 'object' && f.width) || 0, h: (f && typeof f === 'object' && f.height) || 0 } : null;
   }).filter(Boolean);
 }
@@ -161,11 +131,11 @@ function mapRow(r, category, stamp) {
     ...(stamp || {}),                            // visitType / exhibitionType 等子類型判別欄（同上）
     description: r.descriptionEn || '',          // introField 預設 'description' 讀 item.description（EN）；descriptionZh 前台自動讀
     dates: buildDateGroups(r.dates, r.startDate, r.endDate, r.year, r.monthDay),
-    poster: imageUrl(r.poster),
+    poster: cdnUrl(r.poster),
     // 原圖尺寸（deep-fetch poster.width/height）→ buildPosterHtml 設 aspect-ratio 預留高度 + 解鎖 loading="lazy"（P2-2）
     posterW: (r.poster && typeof r.poster === 'object') ? (r.poster.width || 0) : 0,
     posterH: (r.poster && typeof r.poster === 'object') ? (r.poster.height || 0) : 0,
-    images: normalizeFiles(r.images),
+    images: cdnUrls(r.images),
     imageDims: normalizeFilePairs(r.images).map(p => ({ w: p.w, h: p.h })),   // 與 images 同過濾＝索引對齊
     videos: ytUrls(r.videoLinks),
     videoLinks: undefined,                       // videoLinks 已折進 videos；清掉原欄，否則 getAllVideos 同一支影片會從兩個來源各算一次＝雙 tile（不是去重內容，是移除重複來源欄；後台真填兩支不同影片仍照數）
@@ -194,7 +164,6 @@ function groupByYear(items) {
 
 /**
  * @param {string} collection  Directus collection（如 'activities_competitions'）
- * @param {string} fallbackUrl 本地 JSON 路徑（Directus 失敗/空時用）
  * @param {{category?: string, stamp?: object, sortByDate?: boolean}} [opts]  stamp = 補到每筆的子類型判別欄（visitType/exhibitionType）；
  *   sortByDate = 前台依單一日期(year+monthDay)排序而非後台 sort 欄（industry 用，見上）
  */
@@ -215,11 +184,8 @@ function flight(key, produce) {
   return _flightCache.get(key).promise;
 }
 
-// last-known-good：Directus 掛掉時的災難備援（本地 /data/*.json 是假資料、渲染無意義 → 全退場，改存「上次成功的真資料」）。
+// last-known-good（config/api.js saveLKG/readLKG）：Directus 掛掉時的災難備援＝上次成功的真資料。
 // 存最終 shape（groupByYear 後、render 直接吃）；key 對齊 flight key。只在網路失敗時墊背、不設 TTL（正常路徑永遠走網路）。
-const LKG_PREFIX = 'sccd:act:';
-function saveLKG(key, data) { try { sessionStorage.setItem(LKG_PREFIX + key, JSON.stringify(data)); } catch {} }
-function readLKG(key) { try { const s = sessionStorage.getItem(LKG_PREFIX + key); return s ? JSON.parse(s) : null; } catch { return null; } }
 
 // 進頁背景重抓已快取的 key（P1-4，post-hero 呼叫避開進場動畫窗口）：弱機怕並發 → 序列逐支；離頁即停。
 // 只重抓「上次 visit」的 key（epoch 較舊）→ 冷訪剛抓的不重複；成功替換 entry（LKG 由 producer saveLKG 一併更新）、失敗保留舊值。
@@ -237,18 +203,18 @@ export async function revalidateActivitiesData() {
 // key 必含 stamp：同一 collection 有人帶子類型 stamp（activities 頁 exhibitionType／visitType）、有人不帶（首頁浮卡）→
 //   共用 key 時先到的「無 stamp」結果被頁面拿去用、子類型 filter 篩成 0 筆（2026-10-01 實測：從首頁換到 activities 展演特設清單全空）
 const colKey = (collection, opts) => `col:${collection}:${opts.category || ''}:${opts.sortByDate ? 1 : 0}:${opts.stamp ? JSON.stringify(opts.stamp) : ''}`;
-export function loadActivityCollection(collection, fallbackUrl, opts = {}) {
-  return flight(colKey(collection, opts), () => _loadActivityCollection(collection, fallbackUrl, opts));
+export function loadActivityCollection(collection, opts = {}) {
+  return flight(colKey(collection, opts), () => _loadActivityCollection(collection, opts));
 }
-async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
+async function _loadActivityCollection(collection, opts = {}) {
   const lkgKey = colKey(collection, opts);  // 對齊 flight key
   try {
-    // 圖片走 CloudFront（見 imageUrl / normalizeFiles）→ 要檔案的 filename_disk：poster.filename_disk（單檔）、
+    // 圖片走 CloudFront（cdnUrl / cdnUrls）→ 要檔案的 filename_disk：poster.filename_disk（單檔）、
     // images 是 files M2M（fields=* 只回 junction id）→ 深取 images.directus_files_id.filename_disk。
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height${sessionsField},${REF_FIELDS}`);
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height${sessionsField},${REF_FIELDS}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const mapped = rows.map(r => mapRow(r, opts.category, opts.stamp));
     // industry：前台依單一日期排序（新→舊），不吃後台 sort 欄。groupByYear 保留組內順序＝月日新→舊。
@@ -260,7 +226,7 @@ async function _loadActivityCollection(collection, fallbackUrl, opts = {}) {
     saveLKG(lkgKey, grouped);
     return grouped;
   } catch (err) {
-    // Directus-only（本地 JSON 是假資料）→ 讀 sessionStorage last-known-good；連它都沒有 → throw 讓 panel 顯示錯誤態
+    // Directus-only → 讀 sessionStorage last-known-good；連它都沒有 → throw 讓 panel 顯示錯誤態
     const lkg = readLKG(lkgKey);
     if (lkg) { console.warn(`[activities-source] ${collection} fetch failed → last-known-good:`, err.message); return lkg; }
     throw err;
@@ -278,19 +244,19 @@ function mapPermanentEvent(e) {
   const pairs = normalizeFilePairs(e.albumImages);
   return { year: s[0] || '', date, location: e.nameEn || '', location_zh: e.nameZh || '', images: pairs.map(p => p.src), imageDims: pairs.map(p => ({ w: p.w, h: p.h })) };
 }
-export function loadPermanentExhibitions(fallbackUrl) {
-  return flight('perm-exhibitions', () => _loadPermanentExhibitions(fallbackUrl));
+export function loadPermanentExhibitions() {
+  return flight('perm-exhibitions', () => _loadPermanentExhibitions());
 }
-async function _loadPermanentExhibitions(fallbackUrl) {
+async function _loadPermanentExhibitions() {
   try {
-    const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk,events.albumImages.directus_files_id.width,events.albumImages.directus_files_id.height`);
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/activities_exhibitions_permanent?limit=-1&sort=sort&fields=*,mainImage.filename_disk,events.*,events.albumImages.directus_files_id.filename_disk,events.albumImages.directus_files_id.width,events.albumImages.directus_files_id.height`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const items = rows.map(r => ({
       id: r.id,
       titleEn: r.titleEn || '', titleZh: r.titleZh || '',
       date_en: r.noteEn || '', date: r.noteZh || '',
       description: r.descriptionEn || '', descriptionZh: r.descriptionZh || '',
-      poster: imageUrl(r.mainImage),
+      poster: cdnUrl(r.mainImage),
       albums: (Array.isArray(r.events) ? [...r.events] : [])
         .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))  // 新→舊
         .map(mapPermanentEvent),
@@ -305,10 +271,8 @@ async function _loadPermanentExhibitions(fallbackUrl) {
   }
 }
 
-// 相簿「moment」桶：本地是 general-activities.json 一檔混 visits/exhibitions/competitions/conferences，
-// 後台則是各自獨立 collection。這裡 raw fetch 每個 collection 再 groupByYear 併起來——不逐個走
-// loadActivityCollection 的 fallback，否則 CMS 掛掉時每支都 fallback 整檔＝同一筆被算多次；改成任一支非 200
-// 或全空時，一次性 fallback 本地整檔（維持 CMS 掛掉照常渲染）。
+// 相簿「moment」桶：visits/exhibitions/competitions/conferences 各自獨立 collection，raw fetch 每支再 groupByYear 併起來；
+// 任一支非 200 或空 → 整桶走 last-known-good（不讓單支殘缺的合併結果蓋掉完好快取）。
 const MOMENT_COLLECTIONS = [
   ['activities_competitions', 'competitions'],
   ['activities_conferences', 'conferences'],
@@ -319,7 +283,7 @@ const MOMENT_COLLECTIONS = [
 export async function loadGeneralActivitiesAlbum() {
   try {
     const perCol = await Promise.all(MOMENT_COLLECTIONS.map(async ([col, cat]) => {
-      const rows = await fetchJsonWithTimeout(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height`)
+      const rows = await fetchCmsJson(`${CMS_API_BASE}/${col}?limit=-1&sort=sort&fields=*,poster.filename_disk,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height`)
         .catch(e => { throw new Error(`${col} ${e.message}`); });
       // 5 支 collection 後台都有既有內容，200＋空＝權限壞/CMS 異常而非真空 → 逐支 throw，
       // 否則單支殘缺的合併結果會 saveLKG 蓋掉完好的 last-known-good（A 策略「200 但空也要 throw」逐源適用）

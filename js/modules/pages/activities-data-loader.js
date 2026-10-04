@@ -19,8 +19,8 @@ import { markProgrammaticScroll } from '../ui/activities-search.js';
 import { buildSyncedMarqueeTimeline, marqueeSpeed } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
-// '/data/x.json' 字串同時是 fetch URL 與 map key / 比對識別字（deriveHostSection / _panelSelectorMap 等），
-// 識別字保持原樣，只在真正 fetch 的點包 sitePath()（子路徑部署時換算成站台根絕對 URL）
+// '/data/x.json' 字串在 activities 只當 section 識別字（deriveHostSection / _panelSelectorMap 等；檔案本身已刪，
+// 資料一律 Directus＋last-known-good，見 activities-source.js）；loadListInto 沒收到 data 時才 fetch url（alumni 本地資料用）
 import { sitePath } from '../ui/site-base.js';
 
 // ── Marquee/chevron 量測合批佇列（2026-09-05 開/關卡頓修）─────────────────────
@@ -104,6 +104,26 @@ export function deferListWorkUntil(promise) {
 }
 function afterListWorkGate(fn) { _listWorkGate ? _listWorkGate.then(fn) : fn(); }
 
+// deep-link 在 hero 期間就建清單（首批＋建到目標）：收合內容的 <img> 出生 eager＝上百張縮圖跟 hero banner 搶頻寬，
+// banner preload 等滿 4s decode 上限才揭、滑進還沒到的空圖（user 2026-10-04「hero 進場卡、尤其圖片」，headless 實測
+// banner 1.1s→5.3s）。窗口內建的 img 一律出生 lazy（展開＝可見即載），gate 解開才轉 eager 補預載。
+// 已帶 loading 的（poster 有 AR 本就 lazy）不動。
+let _imgGate = null;
+export function gateListImagesUntil(promise) {
+  const gate = _imgGate = promise.catch(() => {}).then(() => {
+    if (_imgGate !== gate) return;
+    _imgGate = null;
+    releaseGatedImages(document);
+  });
+  registerPageCleanup(() => { if (_imgGate === gate) _imgGate = null; });
+}
+// deep-link 目標 item 不等 gate（navigateToItem 於 hero 播完後先放＝捲過去途中就在載，不跟其餘縮圖一起排）
+/** @param {ParentNode} root */
+export function releaseGatedImages(root) {
+  root.querySelectorAll('img[data-img-gated]').forEach(img => { img.removeAttribute('data-img-gated'); /** @type {HTMLImageElement} */ (img).loading = 'eager'; });
+}
+const gateImgs = (html) => _imgGate ? html.replace(/<img(?![^>]*\sloading=)/g, '<img loading="lazy" data-img-gated') : html;
+
 // ── Reference label lookup ────────────────────────────────────────────────────
 // P1-5：ref title 由 activities-source remapRef 的 M2A deep-fetch 直接帶（Directus 單一來源）；本地 JSON id 是人工碼、
 // Directus 是 UUID → 舊「回查本地補 title」永遠 miss、純浪費，已移除。SECTION_LABELS 只補 section 名（label）。
@@ -119,27 +139,6 @@ export const SECTION_LABELS = {
   conferences:        { en: 'Forums',                        zh: '論壇' },
   visits:             { en: 'Visits',                        zh: '參訪' },
 };
-
-// getAwardRecords / findAwardById：library press/files 的 references 反查得獎紀錄用（library-panels.js）。
-// 2026-06-22 起 activities/admission 不再 ref award（改為 award → library 單向），故 resolveRef 已移除 award 分支。
-let _awardRecordsPromise = null;
-export function getAwardRecords() {
-  if (!_awardRecordsPromise) {
-    _awardRecordsPromise = fetch(sitePath('data/records.json'))
-      .then(r => r.json())
-      .then(d => Array.isArray(d) ? d : d.records)
-      .catch(() => null);
-  }
-  return _awardRecordsPromise;
-}
-export function findAwardById(records, id) {
-  for (const yg of records || []) {
-    for (const it of yg.items || []) {
-      if (it.id === id) return it;
-    }
-  }
-  return null;
-}
 
 // P1-5：title 由 activities-source remapRef 的 M2A deep-fetch 直接帶（單語就顯示單語，資料導向）；此處只補 label（section 名）。
 function resolveRef(ref) {
@@ -214,7 +213,8 @@ export function bindMediaHover(container) {
       wrapper.dataset.hoverInit = '1';
       const img = wrapper.querySelector('img');
       if (!img) return;
-      // overflow:visible 避免 wrapper 上 .overflow-hidden（poster）裁掉旋轉後的角
+      // overflow:visible 避免裁掉旋轉後的角。poster／album 外框出生就不帶 overflow-hidden（角度出生已烙，
+      // 等這裡才放開＝deep-link binds 延後 1.6s+settle 期間展開的海報四角先被裁、過一下才恢復，user 2026-10-04）
       wrapper.style.overflow = 'visible';
       // 角度出生已烙在 HTML（mediaRot：圖＋佔位框同角）；沒烙的（HLS 截幀 tile 等）才在此補抽。
       // 旋轉幅度刻意小（0.5°~1.5°），避免外溢過多影響 layout；六輪 2-B：純寫、零 computed 讀，hover 的 gsap.to 從此 CSS rotate 接手。
@@ -339,7 +339,7 @@ export function buildItemMedia(item) {
 // 過濾掉沒有 images 的 album：user 反映「list 裡有些 album 沒圖片卻仍能切換過去」
 // 沒圖片就不該佔 list 位置（即使有 date/location 也不渲染）
 // unbounded=true 時拿掉內層 max-height + scroll（permanent exhibitions 預設展開，user 希望整個 album list 直接攤開不需內層 scroll）
-export function buildAlbumsHtml(item, { unbounded = false } = {}) {
+export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {}) {
   if (!item.albums?.length) return '';
   // images 內任何 null/空字串/whitespace 先剔除。無圖 album 仍渲染其 metadata（year/date/location）——
   //   場次是事實紀錄（如常設展每學期一場），「有什麼渲染什麼」；只是無圖時不出縮圖列、整列不可點（不開空 lightbox）。
@@ -363,8 +363,8 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
       const ar = (d && d.w && d.h) ? ` aspect-ratio: ${d.w}/${d.h};` : '';
       const r = mediaRot();
       return `
-      <button type="button" class="album-thumb-btn relative flex-shrink-0 overflow-hidden cursor-pointer" data-album-index="${i}" style="height: 72px;${ar}">
-        <img src="${src}" alt="" decoding="async" class="h-full w-auto block"${r.img} onerror="this.parentElement.style.display='none'">
+      <button type="button" class="album-thumb-btn relative flex-shrink-0 cursor-pointer" data-album-index="${i}" style="height: 72px;${ar}">
+        <img ${srcAttr(defer)}="${src}" alt="" decoding="async" class="h-full w-auto block"${r.img} onerror="this.parentElement.style.display='none'">
         ${r.ph}
       </button>
     `;
@@ -430,7 +430,7 @@ export function buildAlbumsHtml(item, { unbounded = false } = {}) {
 // 載入佔位同 gallery（mediaRot，2026-10-03 取代七輪「載好才滑入」）：圖出生藏著、色塊出場才露。
 
 // onerror 自摧毀 wrapper：URL 對但圖檔 404 / 跨域擋下時不會留 broken icon
-export function buildPosterHtml(item) {
+export function buildPosterHtml(item, defer = false) {
   const src = item.poster || '';
   if (!src) return '';
   // 有原圖尺寸 → wrapper 設 aspect-ratio 預留高度（載入前就佔位、免 layout shift），並解鎖 poster loading="lazy"
@@ -439,8 +439,8 @@ export function buildPosterHtml(item) {
   const lazy = ar ? ' loading="lazy"' : '';
   const r = mediaRot();
   return `
-    <div class="relative overflow-hidden cursor-pointer" data-lightbox-open data-lightbox-index="0"${ar}>
-      <img src="${src}"${lazy} alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover"${r.img} onerror="this.closest('[data-lightbox-open]').style.display='none'">
+    <div class="relative cursor-pointer" data-lightbox-open data-lightbox-index="0"${ar}>
+      <img ${srcAttr(defer)}="${src}"${lazy} alt="${item.title} poster" decoding="async" class="poster-img w-full block object-cover"${r.img} onerror="this.closest('[data-lightbox-open]').style.display='none'">
       ${r.ph}
     </div>
   `;
@@ -468,6 +468,10 @@ const mediaRot = () => {
     ph: `<span class="gallery-ph" aria-hidden="true" style="transform: rotate(${d}deg)"><span style="--ph-in: ${phDir()}; --ph-out: ${phDir()}"></span></span>`,
   };
 };
+// 收合列（accordion 未展開）的縮圖／海報出生只帶 data-src，點開那列才換 src 開始下載（list-accordion loadDeferredMedia）：
+// 大清單會在背景建滿（idleBuild），出生就 src＝沒打開的列也把整條相簿抓完（展演 1124 張≈95MB，user 2026-10-04 定案）。
+// 載入中照常是佔位色塊循環。出生即展開的列（data-no-accordion）不延。
+const srcAttr = (defer) => (defer ? 'data-src' : 'src');
 if (typeof document !== 'undefined') document.addEventListener('load', (e) => {
   const img = /** @type {HTMLElement} */ (e.target);
   const ph = /** @type {HTMLElement | null} */ (img.tagName === 'IMG' ? img.parentElement?.querySelector(':scope > .gallery-ph') : null);
@@ -502,7 +506,7 @@ if (typeof document !== 'undefined') document.addEventListener('animationiterati
   block.style.setProperty('--ph-in', phDir());
 }, true);
 
-export function buildGalleryHtml(item) {
+export function buildGalleryHtml(item, defer = false) {
   const posterOffset = item.poster ? 1 : 0;
   const videos = getAllVideos(item);
   const images = normalizeMediaArr(item.images, 'image');
@@ -526,7 +530,7 @@ export function buildGalleryHtml(item) {
       if (!videoId) return '';
       const r = mediaRot();
       return `<div class="h-full flex-shrink-0 aspect-video relative cursor-pointer" data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" decoding="async" class="w-full h-full object-cover block"${r.img}>
+        <img ${srcAttr(defer)}="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" alt="" decoding="async" class="w-full h-full object-cover block"${r.img}>
         ${playOverlay}
         ${r.ph}
       </div>`;
@@ -539,7 +543,7 @@ export function buildGalleryHtml(item) {
       const ar = (d && d.w && d.h) ? ` style="aspect-ratio: ${d.w}/${d.h}"` : '';
       const r = mediaRot();
       return `<div class="h-full flex-shrink-0 relative cursor-pointer"${ar} data-lightbox-open data-lightbox-index="${lbIndex}">
-        <img src="${src}" alt="" decoding="async" class="h-full w-auto block"${r.img} onerror="this.closest('[data-lightbox-open]').style.display='none'">
+        <img ${srcAttr(defer)}="${src}" alt="" decoding="async" class="h-full w-auto block"${r.img} onerror="this.closest('[data-lightbox-open]').style.display='none'">
         ${r.ph}
       </div>`;
     }),
@@ -705,7 +709,7 @@ function getLightboxMeta(elem) {
 // 「開啟時圖未載完量到 noScroll → chevron 永久漏顯」。queuedChevrons 走合批佇列＋chevArmed gate（呼叫端提供）。
 function bindChevronRecheckOnLoad(inner, queuedChevrons) {
   inner.querySelectorAll('img').forEach(im => {
-    if (im.getAttribute('src') && !(im.complete && im.naturalWidth)) {
+    if ((im.getAttribute('src') || im.hasAttribute('data-src')) && !(im.complete && im.naturalWidth)) {   // data-src＝展開才載，load 晚到照樣補查
       im.addEventListener('load', queuedChevrons, { once: true });
     }
   });
@@ -886,8 +890,9 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
   // 海報 & gallery hover 效果（bindMediaHover 認得單一 item scope）
   bindMediaHover(scope);
 
-  // 自架影片（m3u8）gallery tile 補截幀縮圖（cached，同 URL 只截一次）
-  hydrateHlsThumbs(scope);
+  // 自架影片（m3u8）gallery tile 補截幀縮圖（cached，同 URL 只截一次）。可收合的列延到點開才截（截幀＝抓影片片段），
+  // 由 list-accordion loadDeferredMedia 接手（同 data-src 縮圖）
+  if (scope.hasAttribute('data-no-accordion')) hydrateHlsThumbs(scope);
   };
   // 小清單(<24 item)：同步逐 item 綁，順序與行為跟改前一致。
   // 大清單：延到 first-paint 後「每 8ms/幀」逐 item 綁——實測 exhibitions 93 item 的這堆綁定同步跑要 ~1.2s
@@ -1206,7 +1211,8 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     requestAnimationFrame(runMarquees);
   }
 
-  // 海報比例偵測（:not([data-pbound]) → lazy 重跑只綁新海報）
+  // 海報比例偵測（:not([data-pbound]) → lazy 重跑只綁新海報）。有 posterW/H 時橫式欄寬已出生烙在 HTML（buildItemHtml）
+  // ——載完才改欄寬＝展開後內容整塊變高、下方 gallery／清單在捲動中被推一下（user 2026-10-04）；這裡只剩無尺寸的兜底。
   container.querySelectorAll('.poster-img:not([data-pbound])').forEach(img => {
     img.dataset.pbound = '1';
     const apply = () => {
@@ -1222,7 +1228,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     const isExpanded = () => !!listItem?.querySelector('.list-header')?.classList.contains('active');
     if (img.complete && img.naturalWidth) { apply(); return; }
     // poster 未載入：poster-img w-full 沒預留高度，手機慢載時「item 已展開後才載入」會瞬間把下方內容頂下去（user 2026-06-15「內容跳動」）。
-    // 修：load 時若 item 已展開且開啟動畫已收尾，用外框（本就 overflow-hidden）把海報高度 0→自然高 平滑揭露，下方內容隨之緩降，取代瞬跳。
+    // 修：load 時若 item 已展開且開啟動畫已收尾，用外框把海報高度 0→自然高 平滑揭露，下方內容隨之緩降，取代瞬跳。
     img.addEventListener('load', () => {
       apply();
       const wrap    = /** @type {HTMLElement|null} */ (img.closest('[data-lightbox-open]'));
@@ -1746,7 +1752,7 @@ export async function loadListInto(containerId, url, options = {}) {
             <div class="pt-sm pb-lg px-sm flex flex-col gap-md">
               <div class="admission-body flex flex-col gap-md">${normalizeBodyHtml(item[bodyField])}</div>
             </div>` : `
-            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: 10fr 2fr;">
+            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: ${showPoster && item.poster && item.posterW > item.posterH ? '8.5fr 3.5fr' : '10fr 2fr'};">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
                   <p class="text-s font-bold${dateDisplayZh ? ' mb-en-zh-s' : ''}">${dateDisplay}</p>
@@ -1795,17 +1801,17 @@ export async function loadListInto(containerId, url, options = {}) {
                   ${introZh ? `<p class="text-s leading-base" lang="zh-Hant">${introZh}</p>` : ''}
                 </div>` : ''}
               </div>
-              ${showPoster ? buildPosterHtml(item) : ''}
+              ${showPoster ? buildPosterHtml(item, !alwaysExpanded) : ''}
             </div>
             <!-- albums（年份/日期/地點 + 相簿）移出 9.5fr 文字欄、以 px-sm 對齊左緣的全寬 block：
                  常設展文字保持窄欄、下方相簿列滿版到容器右緣（user 2026-07-14）。只有 permanent-exhibitions 有 albums。
                  pb-sm：底部留白讓 album 區塊（含內部 scroll list）不貼到 divider。
                  有 albums 才渲染 wrapper：否則空 div 的 pb-sm 會在其他 list 的 grid↔gallery 間多塞空間。 -->
             ${(() => {
-              const albumsHtml = buildAlbumsHtml(item, { unbounded: alwaysExpanded });
+              const albumsHtml = buildAlbumsHtml(item, { unbounded: alwaysExpanded, defer: !alwaysExpanded });
               return albumsHtml ? `<div class="px-sm pb-sm">${albumsHtml}</div>` : '';
             })()}`}
-            ${buildGalleryHtml(item)}
+            ${buildGalleryHtml(item, !alwaysExpanded)}
             ${attachmentsField && Array.isArray(item[attachmentsField]) && item[attachmentsField].length ? `
             <div class="list-ref-wrap flex flex-col">
               ${item[attachmentsField].map((a, i) => {
@@ -1967,7 +1973,7 @@ export async function loadListInto(containerId, url, options = {}) {
     filteredData.forEach((yearGroup, index) => {
       const itemsEl = openYearGroup(yearGroup, index, index === filteredData.length - 1);
       itemsEl.insertAdjacentHTML('beforeend',
-        yearGroup.items.map((item, itemIdx) => buildItemHtml(item, itemIdx, yearGroup.items.length)).join(''));
+        gateImgs(yearGroup.items.map((item, itemIdx) => buildItemHtml(item, itemIdx, yearGroup.items.length)).join('')));
     });
     installStickyObserver();
     container.querySelectorAll('.list-item').forEach((el, i) => el.classList.toggle('list-item-zebra', i % 2 === 0));
@@ -1999,7 +2005,7 @@ export async function loadListInto(containerId, url, options = {}) {
       const e = flat[cursor];
       let itemsEl = openYears.get(e.index);
       if (!itemsEl) { itemsEl = openYearGroup(e.yg, e.index, e.isLast, sentinel); openYears.set(e.index, itemsEl); }
-      itemsEl.insertAdjacentHTML('beforeend', buildItemHtml(e.item, e.itemIdx, e.total));
+      itemsEl.insertAdjacentHTML('beforeend', gateImgs(buildItemHtml(e.item, e.itemIdx, e.total)));
       const newItem = /** @type {HTMLElement | null} */ (itemsEl.lastElementChild);
       if (newItem) { setZebra(newItem); newItems.push(newItem); }
     }
@@ -2299,7 +2305,7 @@ export async function loadWorkshopsInto(jsonFile, containerId = null, options = 
     '/data/students-present.json': 'activities-students-present',
   };
   const endpoint = options.endpoint || epMap[jsonFile];
-  const data = endpoint ? await fetchActEndpointOrFallback(endpoint, jsonFile) : undefined;
+  const data = endpoint ? await fetchActEndpoint(endpoint) : undefined;
   return loadListInto(id, jsonFile, {
     showSubtitle: true,
     introField: 'intro',
@@ -2364,8 +2370,7 @@ function deriveHostSection(url, categoryFilter, visitTypeFilter) {
   return null;
 }
 
-// 共用 fetch wrapper：endpoint → Directus（activities-source，含 M2A ref remap）+ 本地 fallback。
-// 2026-07-17 起全部 activities list 類別接 Directus（後台空/掛掉自動 fallback 本地）。
+// 共用 fetch wrapper：endpoint → Directus（activities-source，含 M2A ref remap；失敗走 last-known-good）。
 // endpoint 名是各 loader 傳的舊式名（連字號單數），對應到實際 Directus collection（底線複數）見下表。
 // stamp：dedicated collection 沒有 category/visitType/exhibitionType 欄，補上讓 loadListInto 的子類型 filter 過得了。
 // permanent 展演（activities_exhibitions_permanent + _permanent_events）是 parent/child 巢狀 shape，
@@ -2381,9 +2386,9 @@ const ACT_DIRECTUS_MAP = {
   'activities-visit-outbound':   { collection: 'activities_visits_outbound', category: 'visits', stamp: { visitType: 'outbound' } },
   'activities-visit-inbound':    { collection: 'activities_visits_inbound', category: 'visits', stamp: { visitType: 'inbound' } },
 };
-async function fetchActEndpointOrFallback(endpoint, fallbackUrl) {
+async function fetchActEndpoint(endpoint) {
   const m = ACT_DIRECTUS_MAP[endpoint];
-  if (m) return loadActivityCollection(m.collection, fallbackUrl, { category: m.category, stamp: m.stamp, sortByDate: m.sortByDate });
+  if (m) return loadActivityCollection(m.collection, { category: m.category, stamp: m.stamp, sortByDate: m.sortByDate });
   // Directus-only：全部 endpoint 都應在 ACT_DIRECTUS_MAP，走到這裡＝打錯 endpoint 名（programming error），別靜默吃本地假資料
   throw new Error(`[activities] unknown endpoint: ${endpoint}`);
 }
@@ -2398,7 +2403,7 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
     'conferences': 'activities-conference',
   };
   const endpoint = options.endpoint || (categoryFilter ? catEpMap[categoryFilter] : null);
-  const data = (endpoint && !options.data) ? await fetchActEndpointOrFallback(endpoint, url) : null;
+  const data = (endpoint && !options.data) ? await fetchActEndpoint(endpoint) : null;
   return loadListInto(containerId, url, {
     categoryFilter,
     // user 定案：activities 清單只要有標題就渲染，不因缺 media 被濾掉（後台可先填標題、媒體之後補）
@@ -2422,20 +2427,20 @@ export async function loadGeneralActivitiesInto(containerId, categoryFilter = nu
 }
 
 export async function loadLecturesInto(containerId, options = {}) {
-  const data = await fetchActEndpointOrFallback('activities-lecture', '/data/lectures.json');
+  const data = await fetchActEndpoint('activities-lecture');
   return loadGeneralActivitiesInto(containerId, null, '/data/lectures.json', { ...options, data });
 }
 
 export async function loadIndustryInto(containerId, options = {}) {
-  const data = await fetchActEndpointOrFallback('activities-industry', '/data/industry.json');
+  const data = await fetchActEndpoint('activities-industry');
   return loadGeneralActivitiesInto(containerId, null, '/data/industry.json', { ...options, data });
 }
 
 // 分別載入特設 / 常設到各自的 container
 export async function loadExhibitionsInto(options = {}) {
   const [specialData, permanentData] = await Promise.all([
-    fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json'),
-    loadPermanentExhibitions('/data/permanent-exhibitions.json'),
+    fetchActEndpoint('activities-exhibition-special'),
+    loadPermanentExhibitions(),
   ]);
   const fns = await Promise.all([
     loadListInto('exhibitions-list-special', '/data/general-activities.json', {
@@ -2470,37 +2475,37 @@ export async function loadExhibitionsInto(options = {}) {
 // 還要再等 ~1.1s fetch 才 render）。fetch 是網路 I/O、不搶 hero 主執行緒，並行安全 → hero 播完 render 直接命中快取。
 // fire-and-forget：.catch 吞掉暫態 rejection（真正的錯誤由 loadExhibitionsInto await 快取時交 switchToSection try/catch 處理）。
 export function prefetchExhibitionsData() {
-  fetchActEndpointOrFallback('activities-exhibition-special', '/data/general-activities.json').catch(() => {});
-  loadPermanentExhibitions('/data/permanent-exhibitions.json').catch(() => {});
+  fetchActEndpoint('activities-exhibition-special').catch(() => {});
+  loadPermanentExhibitions().catch(() => {});
 }
 
 // 其餘分頁的資料也在閒置時預暖 single-flight cache（exhibitions 已由上面預抓）：目前每個未點過的分頁
 // 都「點下去才 fetch」，弱機 Directus 冷啟 ~200ms-1.1s 疊在切換動畫上＝「切換 load 一陣子」的主因。
-// 預暖後 loadPanel 內的 fetchActEndpointOrFallback 直接命中快取、免等網路。item JSON 輕量（非圖片），
+// 預暖後 loadPanel 內的 fetchActEndpoint 直接命中快取、免等網路。item JSON 輕量（非圖片），
 // 但弱機怕並發 → 序列逐支抓最溫和；離頁（#activities-content-section 消失）即停，不為看不到的頁浪費請求。
 // ponytail: 序列 warm 省弱機；若 warm-up 太慢再提高並發。
 const _WARM_ENDPOINTS = [
-  ['activities-competition', '/data/general-activities.json'],
-  ['activities-conference', '/data/general-activities.json'],
-  ['activities-lecture', '/data/lectures.json'],
-  ['activities-industry', '/data/industry.json'],
-  ['activities-visit-outbound', '/data/general-activities.json'],
-  ['activities-visit-inbound', '/data/general-activities.json'],
-  ['activities-workshop', '/data/workshops.json'],
-  ['activities-students-present', '/data/students-present.json'],
+  'activities-competition',
+  'activities-conference',
+  'activities-lecture',
+  'activities-industry',
+  'activities-visit-outbound',
+  'activities-visit-inbound',
+  'activities-workshop',
+  'activities-students-present',
 ];
 export async function prefetchOtherActivitiesData() {
-  for (const [ep, fb] of _WARM_ENDPOINTS) {
+  for (const ep of _WARM_ENDPOINTS) {
     if (!document.getElementById('activities-content-section')) return;  // 已離頁 → 停
-    await fetchActEndpointOrFallback(ep, fb).catch(() => {});
+    await fetchActEndpoint(ep).catch(() => {});
   }
 }
 
 // 分別載入 outbound / inbound 到各自的 container
 export async function loadVisitsInto(options = {}) {
   const [outboundData, inboundData] = await Promise.all([
-    fetchActEndpointOrFallback('activities-visit-outbound', '/data/general-activities.json'),
-    fetchActEndpointOrFallback('activities-visit-inbound', '/data/general-activities.json'),
+    fetchActEndpoint('activities-visit-outbound'),
+    fetchActEndpoint('activities-visit-inbound'),
   ]);
   const fns = await Promise.all([
     loadListInto('visits-list-outbound', '/data/general-activities.json', {

@@ -7,7 +7,7 @@
 import { initDegreeShowGallery } from './degree-show-gallery.js';
 import { initHeroAnimation } from './hero-animation.js';
 import { initHeroMobileSync } from './hero-mobile-sync.js';
-import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { SECTION_LABELS } from './activities-data-loader.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
@@ -20,6 +20,7 @@ import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
 import { createLightboxVideo } from '../lightbox/lightbox-video.js';
 import { loadDegreeShow } from './degree-show-source.js';
 import { sitePath } from '../ui/site-base.js';
+import { escapeHtml } from '../ui/escape-html.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
 import { countryName } from '../../data/country-names.js';
 import { bindNavBtnHover, navHoverColor } from '../ui/section-switch-helpers.js';
@@ -375,10 +376,9 @@ export async function loadDegreeShowDetail() {
       if (kvBox && kvImg) {
         if (data.poster) {
           kvBox.classList.add('has-kv');
-          // 海報進場：四方向隨機滑入（同 gallery SLIDE_DIRS；#events-kv col14-20 ≈ 直式海報自然寬 → 直接當遮罩，
+          // 海報進場：四方向隨機滑入（revealHidden 同 gallery；#events-kv col14-20 ≈ 直式海報自然寬 → 直接當遮罩，
           //   ±110 過衝覆蓋「≈」餘量）。⚠️等圖「實際載完」才播，否則揭開的是空盒、圖之後才 pop 出來無動畫（user 2026-08-19）。
-          const DIRS = [{ xPercent: -110, yPercent: 0 }, { xPercent: 110, yPercent: 0 }, { xPercent: 0, yPercent: -110 }, { xPercent: 0, yPercent: 110 }];
-          const dir = DIRS[Math.floor(Math.random() * DIRS.length)];
+          const dir = revealHidden();
           kvBox.style.overflow = 'clip';
           const animate = typeof gsap !== 'undefined' && !prefersReducedMotion();
           // ⚠️ 用 autoAlpha 藏（非 gsap.set(dir)）：圖未載完時 element 0×0 → xPercent:±110 解析成 0px＝沒真的藏，
@@ -405,14 +405,14 @@ export async function loadDegreeShowDetail() {
         }
       }
 
-      // Hero Image：預設用 HTML 寫死的 CCC08866.jpg；data 有 heroImage 才覆蓋
+      // Hero Image：只吃後台 heroImage；沒有＝不顯示（HTML 不放佔位圖，user 2026-10-04）
       const heroImg = /** @type {HTMLImageElement | null} */ (document.getElementById('hero-img'));
-      if (heroImg && data.heroImage) {
-        heroImg.src = data.heroImage;
+      if (heroImg) {
+        if (data.heroImage) heroImg.src = data.heroImage;
+        else heroImg.style.visibility = 'hidden';
       }
 
       // Per-event galleries：每個 event 一個 section + 獨立 gallery instance
-      // event.images 缺則 fallback 用 entry 層 data.images（過渡期相容；2024 已有 per-event images）
       // sticky chip scroll observer 依 .event-gallery-section 判定當前 event index
       await renderEventGalleries(data);
 
@@ -1036,17 +1036,8 @@ async function renderEventGalleries(data) {
   root.innerHTML = '';
 
   const events = Array.isArray(data.events) ? data.events : [];
-  const fallbackPool = Array.isArray(data.images) ? data.images : [];
 
-  if (events.length === 0 && fallbackPool.length === 0) return;
-
-  // 無 events 時保留舊行為：單一 fallback gallery section
-  if (events.length === 0) {
-    appendExhibitionSection(root, 0, fallbackPool, '', '');
-    return;
-  }
-
-  // 有 events：依 type 分流，async 處理 ref-based event
+  // 依 type 分流，async 處理 ref-based event
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
     if (ev.isRef) continue;   // linked 型走 ref popover，不生 gallery section
@@ -1057,9 +1048,8 @@ async function renderEventGalleries(data) {
       await appendRefBasedSection(root, i, ev, branchEn, branchZh);
     } else {
       // exhibition：沿用既有 full-width slideshow
-      const pool = (Array.isArray(ev.images) && ev.images.length > 0) ? ev.images : fallbackPool;
-      if (pool.length === 0) continue;
-      appendExhibitionSection(root, i, pool, branchEn, branchZh);
+      if (!Array.isArray(ev.images) || !ev.images.length) continue;
+      appendExhibitionSection(root, i, ev.images, branchEn, branchZh);
     }
   }
 
@@ -1361,12 +1351,6 @@ async function resolveRefImages(ref) {
     } catch (e) { /* 該 collection fetch 失敗 → 試下一個；全失敗回 [] */ }
   }
   return [];
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
 }
 
 // event 名稱下方的 guests 清單（self 手填 / linked 從活動拉、含論壇 session 講者）：每人 EN/ZH 雙行、只顯示姓名（不含單位，user 2026-08-17）、s regular；名字過長也 marquee（在標題欄 .dsd-mq-col 內，隨標題欄 hover）
