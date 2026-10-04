@@ -306,7 +306,7 @@
   /* 不設 padding-top：年份文字要落在 grid row 頂、與左側 picker 第一個年份對齊（對齊來自 grid 父容器）。
      原本 padding-top:0.35rem + margin-top:-0.35rem 想自我抵銷只給 sticky 上緣留白，但第一個 block 的負 margin
      會被 scroll 容器頂緣 clamp 掉 → padding-top 沒被抵銷、第一個年份文字比 picker 低 ~4.6px（user 2026-06-21 抓到）*/
-  padding: 0 0 0.25rem;
+  padding: 0 0 var(--spacing-sm);   /* 年份↔第一個 item＝sm，四 panel 統一以 documents 為準（user 2026-10-04；原 0.25rem、只 files 是 sm） */
   position: sticky;
   top: -1px;
   background: var(--lib-bg);
@@ -878,7 +878,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   /* column-gap（user 2026-10-02）：≥1440 固定 50（＝faculty 1440 時的間距）；以下跟 faculty 卡片牆同一條 3.5vw
      等比縮、下限 2rem（1024→36、矮橫向帶 32）。faculty 寬螢幕會再被 space-between 撐大，書本不跟。手機另有 !important 規則 */
   column-gap: clamp(2rem, 3.5vw, 50px);
-  /* 標題與第一排卡片的留白搬到 sticky 年份標題的 padding-bottom（見下），不放這裡 →
+  /* 標題與第一排卡片的留白搬到 sticky 年份標題的 padding-bottom（.press-year-label，四 panel 同 sm），不放這裡 →
      ① deep-link 對齊第一排卡片時自然貼齊標題底緣、不需多捲位移
      ② 該留白變成 sticky 標題不透明背景的一部分，捲動時遮住下方卡片（user 2026-06-09） */
   min-width: 0;
@@ -886,10 +886,6 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 /* 年份組之間＝同年份上下排間距（1.5×，上面 row-gap 同式），年份標題列另外加在下面、不算進這段（user 2026-10-02；原 inline 固定 2xl） */
 #library-files-list {
   gap: calc(1.5 * clamp(2rem, 3.5vw, 50px));
-}
-/* files 年份標題吃下原本 .files-grid 的 padding-top 當 padding-bottom（只 files，press/album 不動） */
-.files-year-block .press-year-label {
-  padding-bottom: var(--spacing-sm);
 }
 
 /* 年份 picker min-width（≈4 位年份寬）：分類篩選後若某分類無年份（極端、通常不會），max-content 欄不塌成 0
@@ -1240,10 +1236,12 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   min-height: 4.5rem;
 }
 
-/* stack 容器 */
+/* stack 容器：寬＝hover 攤開寬＝標題欄先讓出來，攤開不蓋標題；長標題改由 hover marquee 接手（user 2026-10-04）。
+   這裡是縮圖尺寸未知時的預設（最多 3 張 × 8rem＋2 × gap 12）；載好後 library-panels.js fitAlbumStrip 改成本列實寬。
+   縮圖仍 right:0 疊在右端。手機見下方 max-767 覆寫 */
 .album-thumb-strip {
   position: relative;
-  width: 8rem;
+  width: calc(3 * 8rem + 2 * 12px);
   height: 4.5rem;
   flex-shrink: 0;
   overflow: visible;

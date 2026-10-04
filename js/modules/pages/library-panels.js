@@ -1337,7 +1337,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const itemsHtml = (yearGroup.items || []).map(buildAwardItemHtml).join('');
       const html = `
           <div class="year-block" data-year="${yearGroup.year}">
-            <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: 700; padding: 0 0 0.25rem; position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;"><span class="year-label-text">${yearGroup.year}</span></div>
+            <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: 700; padding: 0 0 var(--spacing-sm); position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;"><span class="year-label-text">${yearGroup.year}</span></div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`;
       if (lazySentinel) lazySentinel.insertAdjacentHTML('beforebegin', html);
@@ -2724,6 +2724,21 @@ function loadAlbumItemsCached() {
   return _albumItemsPromise;
 }
 
+// 縮圖欄寬＝本列 hover 攤開後的實寬（user 2026-10-04「每列標題到攤開縮圖的 gap 一樣、標題寬不必一致」）：
+// 攤開不蓋標題，長標題交給 hover marquee。全部縮圖量好才設（讀 applyRatio 寫的 inline 寬、不讀 layout——
+// cached 圖在列進 DOM 前就量）；未量好＝CSS 預設三張最大寬。欄寬一變 is-overflow 就舊了 → 重量 marquee。
+const ALBUM_FAN_GAP = 12;   // hover 攤開縮圖間距（mouseenter 同用；library.css strip 預設寬同步）
+let _albumMqTimer = 0;
+function fitAlbumStrip(item) {
+  if (window.innerWidth < 768) return;   // 手機 strip 是 CSS 100% 橫捲，不設
+  const strip = /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip'));
+  const ws = [...item.querySelectorAll('.album-thumb')].map(t => parseFloat(/** @type {HTMLElement} */ (t).style.width));
+  if (!strip || !ws.length || ws.some(w => !w)) return;
+  strip.style.width = `${ws.reduce((a, b) => a + b, 0) + ALBUM_FAN_GAP * (ws.length - 1)}px`;
+  clearTimeout(_albumMqTimer);
+  _albumMqTimer = setTimeout(() => { if (typeof window._albumMarqueeInit === 'function') window._albumMarqueeInit(); }, 100);
+}
+
 async function initAlbumPanel() {
   try {
     // ⭐四輪 Part 4：album pool＝12 條全量 query（9 activities collection＋degree-show＋summer-camp＋album），進頁時與
@@ -2859,6 +2874,7 @@ async function initAlbumPanel() {
                 img.style.width  = '100%';
                 img.style.height = '100%';
               }
+              fitAlbumStrip(div);
             };
             // 圖 ready 才滑 strip 進場（畫外滑入＝不 pop，user 2026-09-02）。已 cached（complete）的交給
             // entrance/reveal 路徑滑，避免搶在 box clip（色塊）之前＝被遮住看不到方向。
@@ -2904,7 +2920,7 @@ async function initAlbumPanel() {
 
           item.addEventListener('mouseenter', () => {
             // 計算展開位置：從右到左排列（用 x 偏移而非 right，避免 CSS layout + transform 混用導致垂直偏移）
-            const gap = 12;
+            const gap = ALBUM_FAN_GAP;
             let cursor = 0;
             const offsets = [];
             for (let i = thumbs.length - 1; i >= 0; i--) {
@@ -4235,6 +4251,16 @@ export function initLibraryPanels() {
   });
   gateMq.addEventListener('change', onGateChange);
   registerPageCleanup(() => gateMq.removeEventListener('change', onGateChange));
+  // 拉視窗寬度：欄寬變了、is-overflow 還是舊寬的快照＝縮窗後被切的標題 hover 不捲（user 2026-10-04 album）→ 重量。
+  // awards 有自己的 onMqResize（多輪重量），這裡只管其餘三個
+  let mqResizeT = 0;
+  const onMqResize = () => {
+    clearTimeout(mqResizeT);
+    mqResizeT = setTimeout(() => ['_pressMarqueeInit', '_filesMarqueeInit', '_albumMarqueeInit']
+      .forEach(k => { if (typeof window[k] === 'function') window[k](); }), 150);
+  };
+  window.addEventListener('resize', onMqResize);
+  registerPageCleanup(() => { clearTimeout(mqResizeT); window.removeEventListener('resize', onMqResize); });
 
   return {
     showPanel: showLibPanel,
