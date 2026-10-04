@@ -24,10 +24,9 @@
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&family=Bitter:ital,wght@0,400..700;1,400..700&family=Noto+Serif+TC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+SC:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&display=swap">
   <link rel="stylesheet" href="css/output.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
   <!-- p5 不放 head（移除 render-blocking）；WATCH 卡已改純原生 canvas 不依賴 p5（index-yt-card.js initWatchChars），只剩 /create 進頁時載本地 generate-app/p5.min.js -->
 </head>
 <body style="overflow:hidden">
@@ -53,8 +52,10 @@
       <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; z-index:15; pointer-events:none;"></div>
 
       <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
-           width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流） -->
-      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:var(--cursor-pointer); overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20;">
+           width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流）
+           出生光圈收起（clip-path circle 0）：index 模組是動態載入、init 晚於換頁後第一次繪製，不先藏＝黑圓在預設位置（左下）閃一下；
+           initYTCard 定位後再開光圈進場 -->
+      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:var(--cursor-pointer); overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20; clip-path:circle(0% at 50% 50%);">
         <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
       </div>
 
@@ -143,8 +144,7 @@
              桌面 scatter / 矮橫向 grid 都是顯式定位，不吃 DOM 順序 -->
         <div class="footer-random" data-fgroup="dept">
 
-          <!-- Tab 與散佈項目 2026-08-11 起由 Directus 管理（footer_tabs / footer_items；CMS 掛掉 fallback
-               /data/footer.json），js/modules/ui/footer-content.js 渲染進來：tab 按鈕進 .footer-tabs、
+          <!-- Tab 與散佈項目 2026-08-11 起由 Directus 管理（footer_tabs / footer_items；後台是唯一來源），js/modules/ui/footer-content.js 渲染進來：tab 按鈕進 .footer-tabs、
                項目（資訊卡/連結卡/社群 icon）接在後面。後台拖曳＝順序；第一個 tab＝預設顯示群組。 -->
           <div class="footer-tabs"></div>
 
@@ -170,8 +170,6 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
   <!-- Helper Functions - 必須在 main.js 之前載入 -->
   <script src="js/utils/helpers.js"></script>
   <script type="module" src="js/main-modular.js"></script>

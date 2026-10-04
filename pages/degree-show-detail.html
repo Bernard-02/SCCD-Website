@@ -15,9 +15,11 @@
   <meta property="og:image" content="https://sccd.usc.edu.tw/images/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <title>Degree Show - SCCD</title>
-  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&display=swap">
   <link rel="stylesheet" href="../css/output.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
 </head>
 <body style="overflow-x: clip;">
 
@@ -54,7 +56,7 @@
            2) 字卡是 grid 同層 sibling 用 absolute 左下定位（不在 grid 內 → 不吃 random placement，固定左下） -->
       <div class="hero-rand-grid">
         <div class="hero-banner">
-          <img id="hero-img" src="../images/CCC08866.jpg" alt="Degree Show">
+          <img id="hero-img" src="" alt="">
         </div>
       </div>
 
@@ -206,14 +208,14 @@
         <!-- prev：older year，左上（66vw + 左移 -8vw，與 next 在中段重疊） -->
         <a id="prev-link" href="#" class="block absolute" aria-label="上一屆畢業展 Previous degree show" style="top: 0; left: -8vw; width: 66vw; z-index: 1;">
           <div id="prev-card" class="relative">
-            <img id="prev-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
+            <img id="prev-img" src="" alt="" class="block w-full h-auto pointer-events-none">
             <div id="prev-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></div>
           </div>
         </a>
         <!-- next：newer year，右下（66vw + 右移 -8vw） -->
         <a id="next-link" href="#" class="block absolute" aria-label="下一屆畢業展 Next degree show" style="right: -8vw; width: 66vw; z-index: 1;">
           <div id="next-card" class="relative">
-            <img id="next-img" src="../images/Degree Show.jpg" alt="" class="block w-full h-auto pointer-events-none">
+            <img id="next-img" src="" alt="" class="block w-full h-auto pointer-events-none">
             <div id="next-clip" class="absolute inset-0 pointer-events-none" style="clip-path: inset(100% 0 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></div>
           </div>
         </a>
@@ -262,8 +264,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/CustomEase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollTrigger.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/Draggable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/InertiaPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.1/dist/ScrollToPlugin.min.js"></script>
   <!-- Helper Functions - 必須在 main.js 之前載入 -->
   <script src="../js/utils/helpers.js"></script>
   <script type="module" src="../js/main-modular.js"></script>

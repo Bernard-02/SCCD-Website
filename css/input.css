@@ -1,8 +1,8 @@
-/* Tailwind CSS Input File */
+/* Tailwind 入口：@import 順序＝cascade 順序（後者勝） */
 
 /* 1. Global Imports (Must be first) */
 @import 'variables.css';
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&family=Bitter:ital,wght@0,400..700;1,400..700&family=Noto+Serif+TC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+SC:wght@400..700&display=swap');
+/* 字型不在這 @import（會卡到 output.css 下載完才開抓）：各頁 head 直接 link；襯線字只 library 載（library-panels.js ensureSerifFonts） */
 
 /* 2. Layer Imports */
 /* Base */
@@ -29,15 +29,13 @@
 @import './components/icon.css';
 @import './components/cursor.css';
 @import './components/legal.css';
-@import './components/support.css';
 @import './components/mode-color-panel.css';
 
 /* Themes */
 @import './themes/inverse.css';
 @import './themes/color.css';
 
-/* Landscape mobile 短高度防護層（橫向手機，只在 orientation:landscape + max-height:500px 生效，不影響桌面/直向）
-   放最後 import：unlayered + 後出，cascade 上贏前面所有 component / theme 規則 */
+/* 矮橫向 gate 層：放最後＝unlayered + 後出，cascade 贏前面所有 component / theme 規則 */
 @import './layout/landscape.css';
 
 /* 3. Tailwind Directives */
@@ -47,21 +45,17 @@
 
 /* 4. Custom Base Styles */
 @layer base {
-  /* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（見 section-banner-reveal.js）
-   * will-change: transform 永久 GPU layer promote：JS 端 inline `transform: rotate translateZ(0)` 是弱 hint，
-   * 瀏覽器會在 bg-color transition 期間「臨時 promote」rotated 元素，promote/demote 瞬間 sub-pixel re-round
-   * 造成 mode 切換時封鎖綫往切的方向偏移幾 px 再回正。強 hint 鎖住永久 layer 消除 promote/demote 循環。 */
+  /* 封鎖綫預設隱藏；anchor-nav active 切換時才 reveal（section-banner-reveal.js）
+     will-change: transform 強制永久 layer：JS inline translateZ(0) 是弱 hint，bg-color transition 期間會臨時 promote/demote
+     → sub-pixel re-round 讓封鎖綫偏移幾 px 再回正 */
   [data-section-title] {
     clip-path: inset(0 100% 0 0);
     will-change: transform;
   }
 
-  /* About 浮動 RGB 多邊形層（floating-polygons.js；取代 about 頁封鎖綫）：
-   * mode1 multiply / mode2 screen——三個 svg 各為一個 blend 層，形狀交疊處自然混色（pathfinder 觀感）。
-   * mode3 XOR 填色（三原色 fill 隱藏）：每形實心填 --theme-fg-inverse（與內文反色，
-   * 突出 btn 等主色元件），交疊處被 mask 互減 → 透明、透出背景色。
-   * z-0 背景層：內容 section（z-10/20）畫在其上；⚠️ 前提是 about 各 section 不能有 bg-white
-   * （section 白底會整片蓋掉背景層——about.html 四個 section 的 bg-white 已因此移除，body 底色即頁底）。 */
+  /* About 浮動 RGB 多邊形層（floating-polygons.js）：mode1 multiply / mode2 screen，交疊處自然混色；
+     mode3 XOR 填色：每形實心填 --theme-fg-inverse，交疊處 mask 互減 → 透出背景色
+     ⚠️ z-0 背景層：about 各 section 不能有 bg-white（會整片蓋掉此層） */
   .about-polys { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
   .about-polys svg { position: absolute; inset: 0; width: 100%; height: 100%; mix-blend-mode: multiply; }
   body.mode-inverse .about-polys svg { mix-blend-mode: screen; }
@@ -74,16 +68,14 @@
 
 /* 5. Custom Utilities */
 @layer utilities {
-  /* 字級 utility（text-xs ~ text-3xl）全部在 tailwind.config.js 的 extend.fontSize 定義,此處不再自訂 */
+  /* 字級 utility 全在 tailwind.config.js extend.fontSize 定義，勿在此自訂 */
   .pt-7xl {
     padding-top: var(--spacing-7xl);
   }
 
-  /* 縫衛（seam-guard）房規：「會變色的子塊」疊在「同形不同色底」（backstop／黑卡）上、又在旋轉盒內時掛上——
-   * 旋轉抗鋸齒的邊緣像素＝上層色混底層色，兩層邊緣重合就漏出 1px 底色 rim（rest 同色無感、變色即現）。
-   * 解＝自己往外多畫 1px，AA 邊緣混到自己的顏色。background:inherit 跟著 inline hover 色（含 transition）走。
-   * 前提：自身或祖先有 transform（stacking context），z-index:-1 才沉到內容下、仍蓋過底層。
-   * 已掛：about Programs 頂 chip 色塊（.prog-titled 黑 backstop）、Degree 說明卡 row（黑卡底）。 */
+  /* seam-guard：會變色的子塊疊在同形不同色底上、又在旋轉盒內時掛——旋轉 AA 邊緣會漏出 1px 底色 rim
+     解＝往外多畫 1px（background:inherit 跟著 inline hover 色走）；前提：自身或祖先有 transform，z-index:-1 才沉到內容下仍蓋過底層
+     已掛：about Programs 頂 chip 色塊、Degree 說明卡 row */
   .seam-guard { position: relative; }
   .seam-guard::before {
     content: '';
