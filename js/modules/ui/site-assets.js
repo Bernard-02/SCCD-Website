@@ -72,6 +72,6 @@ export async function initSiteAssets() {
       s.textContent = rules;
       document.head.appendChild(s);
     }
-    window.SCCDHelpers?.refreshCursorVars?.();
+    SCCDHelpers.refreshCursorVars();
   } catch { /* CMS 掛＝本地檔照常，靜默 */ }
 }

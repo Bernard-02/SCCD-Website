@@ -2,23 +2,25 @@
  * PDF Cover Renderer
  * 用 pdf.js 把 PDF 第一頁 render 成 dataURL，給首頁 floating press 卡與 library files panel
  * （document 沒設 cover 時）用「PDF 本身的封面」。
- * 與 library-viewer 共用同一個 CDN module（import() 模組快取天然去重）。
+ * pdf.js 載入／CDN 設定的唯一來源：library-viewer 也從這裡 import（版本只改 PDFJS_VER 一處）。
  */
 
 // v4+ 只出 ESM build；6.2 開大書比 3.11 快 ~30%（同 flag 實測 2026-08-18）
-const PDFJS_SRC    = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.min.mjs';
-const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.2.108/pdf.worker.min.mjs';
+const PDFJS_VER = '6.2.108';
+const PDFJS_SRC    = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.min.mjs`;
+export const PDFJS_WORKER = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VER}/pdf.worker.min.mjs`;
 // CID 字型用預定義（外部）CMap 的 PDF（常見於中文舊檔）→ pdf.js 要外部 cMap 資料才能把 CID 解成字形，
 // 沒給就整段中文渲染成空白（缺字）。cdnjs 不供 cmaps 目錄（403）→ 用 jsdelivr 的 pdfjs-dist cmaps。
-const PDFJS_CMAPS  = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/cmaps/';
-// 非嵌入標準字型（Helvetica/Times 等）→ 沒 standardFontDataUrl 會缺字（同 library-viewer；封面若第一頁用這類字型也會掉字）。
-const PDFJS_STD_FONTS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/standard_fonts/';
-// pdf.js 6.x CCITT/JBIG2/JPX 解碼在 wasm 模組 → 沒給 wasmUrl 整張影像 XObject 被丟掉
-// （MRC 掃描檔文字遮罩層全消失；同 library-viewer）。cdnjs 不供 wasm → jsdelivr。
-const PDFJS_WASM = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/wasm/';
+export const PDFJS_CMAPS  = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/cmaps/`;
+// 非嵌入標準字型（Helvetica/Times/Arial 等）→ pdf.js 沒 standardFontDataUrl 就整段畫成空白（掉字）；
+// Acrobat 有系統/內建字型故看起來正常（user 2026-08-23「掃描檔內頁掉字、Acrobat 正常」）。同 cmaps 走 jsdelivr。
+export const PDFJS_STD_FONTS = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/standard_fonts/`;
+// pdf.js 6.x 把 CCITT/JBIG2/JPX 影像解碼移進 wasm 模組 → 沒給 wasmUrl 會「Jbig2 failed to initialize」
+// 整張 XObject 被丟掉（MRC 壓縮掃描檔文字遮罩層全消失；user 2026-08-23 MINTS press 第 2 頁實測）。cdnjs 不供 wasm → jsdelivr。
+export const PDFJS_WASM = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VER}/wasm/`;
 
 let _loadPromise = null;
-function ensurePdfjsLoaded() {
+export function ensurePdfjsLoaded() {
   if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
   // 掛回 window.pdfjsLib 讓既有 typeof 檢查照用
   if (!_loadPromise) _loadPromise = import(PDFJS_SRC).then(m => { window.pdfjsLib = m; });

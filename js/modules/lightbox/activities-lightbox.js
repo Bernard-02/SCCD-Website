@@ -427,11 +427,6 @@ function resetZoom(animated = false) {
   zoomToScale(fitScale(), animated);
 }
 
-// 回 actual-size (100% 原圖) — 給打開圖片預設用
-function setActualSize(animated = false) {
-  zoomToScale(actualScale(), animated);
-}
-
 // 把第 index 個縮圖捲到「縮圖列水平中央」（仿 iPhone Photos scrubber）。
 // 用 getBoundingClientRect delta 調 scrollLeft（不靠 offsetLeft：thumb 的 offsetParent 是 .alb-thumbs-wrap 非 thumbsEl）；
 // 不用 el.scrollIntoView()：它會連帶捲動所有可捲祖先（可能動到整頁），這裡只想動 thumbsEl 自己。
@@ -790,9 +785,7 @@ function resolvePillColor(color) {
 function renderBackButton(color) {
   if (!closePillEl) return;
   const bg = resolvePillColor(color);
-  const rot = (window.SCCDHelpers && SCCDHelpers.getRandomRotation)
-    ? SCCDHelpers.getRandomRotation()
-    : ((Math.round(Math.random() * 10) - 4) || 3);
+  const rot = SCCDHelpers.getRandomRotation();
   closePillEl.style.background = bg;
   closePillEl.style.transform = `rotate(${rot}deg)`;
 }

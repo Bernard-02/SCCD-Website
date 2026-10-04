@@ -14,9 +14,9 @@
  *   色環/鉛筆方鈕只剩 <1200。兩套 DOM 都建、CSS 依 gate 顯示其一；open/close 呼叫當下判 isDesk()
  */
 import { DUR, EASE } from './motion.js';
-import { clipRevealIconSwap, ensureIconClipWrap } from './scroll-animate.js';
+import { clipRevealIconSwap, ensureIconClipWrap, revealHidden } from './scroll-animate.js';
 import { randomSpinAngle } from './arrow-spin.js';
-import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning } from './theme-toggle.js';
+import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning, hsbToRgb, relativeLuminance } from './theme-toggle.js';
 
 const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
 const CAP_H = 48;    // 圓鈕直徑＝capsule 高（同 header mode/menu 鈕 48）
@@ -24,8 +24,7 @@ const CAP_W = 268;   // 展開寬＝左圓角留白 20 + 色條 160 + 間距 8 +
 const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/play 進退場也用同長度
 // 色條／play icon 各自四向隨機進退場（user 2026-10-01，同 clipRevealIconSwap 四向）；±110＝整條真的出遮罩
 // （色條遮罩外擴 1px 給 indicator，±100 會在邊上留一條 1px）
-const REVEAL_DIRS = [{ xPercent: 0, yPercent: -110 }, { xPercent: 0, yPercent: 110 }, { xPercent: -110, yPercent: 0 }, { xPercent: 110, yPercent: 0 }];
-const pickRevealDirs = () => capReveal.map(() => REVEAL_DIRS[(Math.random() * 4) | 0]);
+const pickRevealDirs = () => capReveal.map(() => revealHidden());
 
 // 手機直向：整個面板白框以 faculty 卡片牆縮圖寬為基準再乘 PANEL_SCALE（每欄 = 50vw − 36，
 // container-padding 24 + gap 24；上限 200＝卡片上限）。白框 = 色環 + 2×16 padding，故色環 = 白框 − 32。
@@ -46,23 +45,10 @@ let scrollScheduled = false;
 let wheelRot = 0;   // box 隨機微傾角（deg），每次開啟重擲；掛 panel mask 的 CSS rotation，drag 角度要扣回
 let toggleDeg = 0;    // 鉛筆格目前的目標角（讀 GSAP 現值會拿到補間中間值）
 
-/* ── HSB→RGB（對齊 create / theme-toggle 的 color(hue,80,100) HSB）── */
-function hsbToRgb(h, s, v) {
-  s /= 100; v /= 100;
-  const c = v * s, hp = (h % 360) / 60;
-  const x = c * (1 - Math.abs((hp % 2) - 1));
-  let r = 0, g = 0, b = 0;
-  if (hp < 1) { r = c; g = x; } else if (hp < 2) { r = x; g = c; }
-  else if (hp < 3) { g = c; b = x; } else if (hp < 4) { g = x; b = c; }
-  else if (hp < 5) { r = x; b = c; } else { r = c; b = x; }
-  const m = v - c;
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
-}
 // hue 的相對亮度 > 0.5 ＝亮底（panel 中性灰底同向翻）→ border/indicator 用黑；反之白
 function hueIsLight(hue) {
-  const [r, g, b] = hsbToRgb(hue, 80, 100);
-  const lin = (c) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.5;
+  const { r, g, b } = hsbToRgb(hue, 80, 100);
+  return relativeLuminance(r, g, b) > 0.5;
 }
 
 // SVG 版：色環是 CSS conic-gradient（畫一次、免逐幀）；此處逐幀只更新 indicator 旋轉角 + 內外圈/指標的對比色。

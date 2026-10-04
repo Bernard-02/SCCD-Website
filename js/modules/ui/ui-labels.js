@@ -2,8 +2,8 @@
  * UI Labels（全站 nav / 分頁按鈕文字的單一來源）
  *
  * curriculum 組別、about section pill、about 組別切換、faculty 篩選＋系所 tab 的按鈕文字
- * 全部由 Directus `ui_labels` collection 供應（斷線退本地 data/ui-labels.json）。
- * 老師在後台改一個 row，前台 refresh 即生效；HTML 內原文字保留為最終 fallback。
+ * 全部由 Directus `ui_labels` collection 供應；老師在後台改一個 row，前台 refresh 即生效。
+ * 斷線／失敗 → 不套（HTML 內原文字即 fallback；本地 JSON 快照已退場，user 2026-10-04）。
  *
  * 用法：按鈕文字元素標 data-label-key（對應 row.key）+ data-label-part（en|zh|group，預設 en），
  *       頁面 init 時呼叫 applyUiLabels() 一次填入。
@@ -12,7 +12,6 @@
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
-import { sitePath } from './site-base.js';
 
 let cache;
 
@@ -22,7 +21,6 @@ function indexRows(rows) {
   return map;
 }
 
-// Directus 優先、失敗（斷網 / 5xx / 空資料）退本地 JSON（比照全站 *-source.js fallback 慣例）
 // single-flight：cache 存 Promise，同頁多個消費者共用一次請求
 export function loadUiLabels() {
   if (cache) return cache;
@@ -33,10 +31,9 @@ export function loadUiLabels() {
       const { data } = await res.json();
       if (!data || !data.length) throw new Error('empty');
       return indexRows(data);
-    } catch {
-      const res = await fetch(sitePath('/data/ui-labels.json'));
-      const { data } = await res.json();
-      return indexRows(data);
+    } catch (err) {
+      console.warn('[ui-labels] CMS 失敗，保留 HTML 原文字:', err.message);
+      return {};
     }
   })();
   return cache;
@@ -53,4 +50,3 @@ export function applyUiLabels(map, root = document) {
   });
 }
 
-export function resetUiLabels() { cache = undefined; }

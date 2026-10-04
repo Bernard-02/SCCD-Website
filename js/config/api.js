@@ -18,6 +18,35 @@ export const CMS_ASSETS_BASE = 'https://sccdtest.usc.edu.tw/assets';
 // 影片不經 /assets（貼 HLS CloudFront 網址）。
 export const CMS_CDN_BASE = 'https://d2df28pyzslt2v.cloudfront.net/Directus';
 
+// Directus 檔案 → CloudFront URL（全站圖片／PDF 顯示的唯一組法）。吃 filename_disk 字串或深取的 { filename_disk }；
+// 已是完整 URL／站內路徑原樣回（影片 HLS 等直貼網址）；空回 ''（要 null 語意的呼叫端自己 `|| null`）。
+export function cdnUrl(v) {
+  const name = typeof v === 'string' ? v : v?.filename_disk;
+  if (!name) return '';
+  return /^(https?:)?\/\//.test(name) || name.startsWith('/') || name.startsWith('.') ? name : `${CMS_CDN_BASE}/${name}`;
+}
+// files M2M（每列 { directus_files_id: { filename_disk } }，相容字串／直接檔物件）→ URL 陣列（濾掉空的）
+export function cdnUrls(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(x => cdnUrl(x?.directus_files_id ?? x)).filter(Boolean);
+}
+
+// 抓 Directus JSON 回 .data。弱機的故障模式是「hang 而非拒絕」→ 統一逾時 abort 讓呼叫端走失敗鏈。
+// ⚠️ 逾時必須涵蓋到 body 讀完：headers 到了 body stream 照樣可能 hang（只保護 headers＝json() 永不 settle、切換鎖死）
+export async function fetchCmsJson(url, ms = 10000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return (await res.json()).data;
+  } finally { clearTimeout(t); }
+}
+
+// sessionStorage last-known-good：上次成功的真資料，後台失敗時退這份（存不進去／壞快取都當沒有）
+export function saveLKG(key, data) { try { sessionStorage.setItem(`sccd:act:${key}`, JSON.stringify(data)); } catch {} }
+export function readLKG(key) { try { const s = sessionStorage.getItem(`sccd:act:${key}`); return s ? JSON.parse(s) : null; } catch { return null; } }
+
 // YouTube Data API v3（about/works 用 playlistItems.list 抓清單影片 title+id，1 unit/次）。
 // key 走 GCP HTTP-referrer 限制（已放行 github.io / sccd.usc.edu.tw / localhost）→ 曝在前端無妨，
 // 限制網域才是防線；server 端無 referer 反被擋，故只能瀏覽器用。編輯照舊只在後台貼 playlist URL，不碰 key。

@@ -23,6 +23,7 @@ import { setupClipReveal } from '../ui/scroll-animate.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { escapeHtml } from '../ui/escape-html.js';
 
 // ⚠️ pathname 形式 + SITE_BASE_PATHNAME 前綴（同 library-panels ref row）：完整 http URL 會被 router
 // 當外部連結整頁重載；無前綴的根路徑在子路徑部署（GitHub Pages）會 404
@@ -118,8 +119,8 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       // 兩個 title row 各自獨立 marquee 因為 EN/ZH 長度差異很大、合在一起 marquee 短的會空跑
       row.innerHTML = `
         <div class="lightbox-ref-chip-label">
-          ${ref.labelEn ? `<p class="text-xs">${escape(ref.labelEn)}</p>` : ''}
-          ${ref.labelZh ? `<p class="text-xs">${escape(ref.labelZh)}</p>` : ''}
+          ${ref.labelEn ? `<p class="text-xs">${escapeHtml(ref.labelEn)}</p>` : ''}
+          ${ref.labelZh ? `<p class="text-xs">${escapeHtml(ref.labelZh)}</p>` : ''}
         </div>
         <div class="lightbox-ref-chip-title">
           ${ref.titleEn ? `
@@ -127,7 +128,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-s font-bold">${escape(ref.titleEn)}</p>
+                    <p class="text-s font-bold">${escapeHtml(ref.titleEn)}</p>
                   </div>
                 </div>
               </div>
@@ -137,7 +138,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
               <div class="lightbox-ref-chip-title-window">
                 <div class="lightbox-ref-chip-title-track">
                   <div class="lightbox-ref-chip-title-unit">
-                    <p class="text-s font-bold">${escape(ref.titleZh)}</p>
+                    <p class="text-s font-bold">${escapeHtml(ref.titleZh)}</p>
                   </div>
                 </div>
               </div>
@@ -383,8 +384,4 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   }
 
   return { btnEl, popoverEl, setReferences, setColor, reset };
-}
-
-function escape(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

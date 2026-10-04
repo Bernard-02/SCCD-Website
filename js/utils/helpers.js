@@ -114,6 +114,15 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return deg;
   };
 
+  // Fisher–Yates 原地洗牌、回傳同一陣列（要保留來源順序／來源是 frozen 時先 [...arr] 複製）
+  Helpers.shuffle = function(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
 })(window.SCCDHelpers);
 
 // Register GSAP plugins（需在 GSAP 載入後執行）

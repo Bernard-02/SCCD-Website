@@ -10,12 +10,12 @@
  *   （對應內容仍在 Directus regulations/support/policy_and_statements；那些是頁面內文，標題與 footer 標籤不同）。
  * 圖示（tab 標誌 + 社群 icon）＝Directus Files「Site Icons」資料夾的 SVG，前台以 CSS mask 依 mode 上色。
  *
- * 前台：single-flight cache；CMS 掛/空 → fallback /data/footer.json（快照自 Directus 重產，icon 存 CDN 絕對 URL——CDN 與後台主機分離，後台掛時仍可載）。
+ * 前台：single-flight cache；後台是唯一來源，CMS 掛/空 → 空 tabs（不再退本地 JSON，user 2026-10-04）。
  * 渲染輸出「與 legacy 靜態 HTML 同構」DOM：資訊卡帶 .footer-info + itemKey(.footer-tel/fax/email/office) 吃既有版面；
  * 社群 icon 走全站 .icon（--icon mask + currentColor=--footer-fg）；tab 標誌 mask src+aspect-ratio 由 SVG viewBox 量。
  */
 
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
 
 // 圖示檔案欄位深取 filename_disk（<uuid>.svg）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 CMS_CDN_BASE）。
@@ -25,7 +25,7 @@ const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
 // 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
 // 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
-//   無障礙聲明移進 Site Map（sitemap.html），故 policy-and-statements 不再列於 footer（頁面本身保留為孤兒 route）。
+//   無障礙聲明移進 Site Map（sitemap.html）；舊 policy-and-statements 網址由 router 導到規章頁。
 const LEGAL = [
   { labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
   { labelEn: 'Regulations & Policy', labelZh: '規章與政策', url: 'regulations.html' },
@@ -53,15 +53,15 @@ async function fetchFooterData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const tabs = (await res.json()).data;
     if (!Array.isArray(tabs) || tabs.length === 0) throw new Error('empty data');
-    // 圖示 filename_disk → CloudFront URL（fallback JSON 已預存 CDN 絕對 URL，不進這裡）
+    // 圖示 filename_disk → CloudFront URL
     tabs.forEach((t) => {
-      t.markIconUrl = t.markIcon?.filename_disk ? `${CMS_CDN_BASE}/${t.markIcon.filename_disk}` : null;
-      (t.items || []).forEach((it) => { it.iconUrl = it.iconFile?.filename_disk ? `${CMS_CDN_BASE}/${it.iconFile.filename_disk}` : null; });
+      t.markIconUrl = cdnUrl(t.markIcon) || null;
+      (t.items || []).forEach((it) => { it.iconUrl = cdnUrl(it.iconFile) || null; });
     });
     return { tabs, copyright };
   } catch (err) {
-    console.warn('[footer] CMS fetch failed, fallback /data/footer.json:', err && err.message);
-    return (await fetch(sitePath('data/footer.json'))).json();
+    console.warn('[footer] CMS fetch failed:', err && err.message);
+    return { tabs: [], copyright: null };
   }
 }
 
@@ -70,7 +70,7 @@ export function getFooterData() {
   return _dataPromise;
 }
 
-// icon URL 解析：CMS 是 http 絕對；fallback 本地路徑要 sitePath（inline style url() 依文件 base 解析、SPA 在 /pages/ 會錯）
+// icon URL 解析：CMS 是 http 絕對；本地路徑要 sitePath（inline style url() 依文件 base 解析、SPA 在 /pages/ 會錯）
 const resolveAsset = (url) => (url && /^https?:\/\//.test(url) ? url : sitePath(url));
 
 // SVG viewBox 比例（tab wordmark 用；社群 icon 走 .icon 方框免量）。fetch 一次快取；失敗回 wordmark-ish 3.5。

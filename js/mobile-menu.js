@@ -10,7 +10,7 @@ import { DUR, EASE } from './modules/ui/motion.js';
 // 套 random rotation（user pattern：每次點開角度不一樣，跟 footer items / hero title 同款）
 // 走 CSS transition 平滑切換而非 GSAP，避免跟 hidden toggle 時序競爭
 function applyRandomRotation(el) {
-  if (!el || !window.SCCDHelpers) return;
+  if (!el) return;
   const deg = SCCDHelpers.getRandomRotation(); // -4~6 排除 0
   el.style.transform = `rotate(${deg}deg)`;
 }

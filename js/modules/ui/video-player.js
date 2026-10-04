@@ -297,7 +297,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       if (mobileCloseBtn) {
         mobileCloseBtn.style.background = accentColor;
         // 同 footer / WATCH 卡片：getRandomRotation 範圍 -4~6 排除 0
-        const rot = window.SCCDHelpers?.getRandomRotation?.() ?? 0;
+        const rot = SCCDHelpers.getRandomRotation();
         mobileCloseBtn.style.transform = `rotate(${rot}deg)`;
         mobileCloseBtn.style.display = 'flex';
       }
@@ -317,7 +317,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
         if (closeBlock) closeBlock.style.display = 'none';
         if (mobileCloseBtn) {
           mobileCloseBtn.style.background = accentColor;
-          const rot = window.SCCDHelpers?.getRandomRotation?.() ?? 0;
+          const rot = SCCDHelpers.getRandomRotation();
           mobileCloseBtn.style.transform = `rotate(${rot}deg)`;
           mobileCloseBtn.style.display = 'flex';
         }

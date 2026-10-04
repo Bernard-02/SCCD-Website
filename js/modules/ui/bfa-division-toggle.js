@@ -14,7 +14,7 @@
 
 import { registerPageExit } from './page-exit.js';
 import { registerPageCleanup } from './page-cleanup.js';
-import { ensureCardMask, fitCardToText } from './scroll-animate.js';
+import { ensureCardMask, fitCardToText, revealHidden } from './scroll-animate.js';
 import { pauseVideoEl } from './pause-offscreen-video.js';
 import { EASE } from './motion.js';
 
@@ -85,29 +85,13 @@ export function initBFADivisionToggle() {
   // 概念：所有 panels 用 display:grid 堆疊在同一格（垂直排列概念），
   //        active 的 iframe yPercent:0 顯示，其他 yPercent:100 在下方等待。
   // 切換：active 影片 yPercent:0→-100（往上滑出），new 影片 yPercent:100→0（從下滑入）。
-  // 文字 clip-path：仿 class-images-slideshow（hide 固定右→左、show 從隨機 4 方向 reveal）。
   // .aspect-video 容器要 overflow-hidden（已加）+ 移除 bg-black，讓上下層影片在交錯時都能透出。
   const WORKS_ANIM_DUR = 0.5;
   const WORKS_VIDEO_EASE = 'power3.inOut'; // 影片 slide：慢→快→慢，避免匀速感
-  const WORKS_HIDE_CLIP_LEAVE = 'inset(0% 100% 0% 0%)'; // 退場固定：右→左
-  const WORKS_HIDE_CLIPS = [
-    'inset(0% 100% 0% 0%)',
-    'inset(0% 0% 0% 100%)',
-    'inset(100% 0% 0% 0%)',
-    'inset(0% 0% 100% 0%)',
-  ];
-  const WORKS_SHOW_CLIP = 'inset(0% 0% 0% 0%)';
-  function worksRandomHideClip() { return WORKS_HIDE_CLIPS[Math.floor(Math.random() * WORKS_HIDE_CLIPS.length)]; }
   // works 文字 clip-reveal＝貼身靜止遮罩（ensureCardMask wrapper）內、整塊色卡 [data-works-hl]（含底色+playlist）純位移隨機 4 向
   //（user 定義 clip-reveal＝遮罩內平移、非 clip-path 擦除；色矩形跟文字一起動——只推內層文字會讓
   //   grid-stack 下所有 panel 的色卡疊著顯示）
-  const REVEAL_DIRS4 = ['top', 'bottom', 'left', 'right'];
   const REVEAL_SHOWN = { xPercent: 0, yPercent: 0 };
-  const revealHiddenT = (dir) => dir === 'top' ? { xPercent: 0, yPercent: -110 }
-    : dir === 'bottom' ? { xPercent: 0, yPercent: 110 }
-    : dir === 'left' ? { xPercent: -110, yPercent: 0 }
-    : { xPercent: 110, yPercent: 0 }; // right
-  const randRevealDir = () => REVEAL_DIRS4[Math.floor(Math.random() * REVEAL_DIRS4.length)];
 
   // 路由：2026-09-15 起 MDES 有自己的 playlist（後台 about_works 已填）→ 撤掉舊「MDES 轉向 animation」硬編
   //（該轉向是 MDES 後台還沒清單時的佔位；留著會讓 MDES tab 永遠顯示動畫組內容）
@@ -170,7 +154,7 @@ export function initBFADivisionToggle() {
     } else {
       panel.style.pointerEvents = 'none';
       panel.style.zIndex = '0';
-      if (text && typeof gsap !== 'undefined') gsap.set(text, revealHiddenT(randRevealDir()));
+      if (text && typeof gsap !== 'undefined') gsap.set(text, revealHidden());
       if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100, xPercent: 0 });
       // 換 tab 藏起的 panel 影片要停：panel 只是 transform 移走、沒 display:none → pauseVideosOffscreen 的 IO 不會觸發
       pauseVideoEl(panel.querySelector('iframe'));
@@ -242,7 +226,7 @@ export function initBFADivisionToggle() {
     // ── Phase 1（同時觸發）：舊字卡滑出遮罩 + 影片 cross slide 起跑 ──
     if (oldText) ensureCardMask(oldText);
     const phase1 = oldText
-      ? gsap.to(oldText, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: EASE.wipe })
+      ? gsap.to(oldText, { ...revealHidden(), duration: WORKS_ANIM_DUR, ease: EASE.wipe })
       : null;
 
     if (oldVideo) gsap.to(oldVideo, {
@@ -270,7 +254,7 @@ export function initBFADivisionToggle() {
       if (newText) {
         ensureCardMask(newText);
         fitCardToText(newText);   // 揭露前貼合寬度（隱藏態量寬 OK）
-        gsap.set(newText, revealHiddenT(randRevealDir()));
+        gsap.set(newText, revealHidden());
         gsap.to(newText, { ...REVEAL_SHOWN, duration: WORKS_ANIM_DUR, ease: EASE.wipe });
       }
     }
@@ -630,7 +614,7 @@ export function initBFADivisionToggle() {
     if (!panel) return;
     const text  = panel.querySelector('[data-works-hl]');
     const video = worksVideoParts(panel);
-    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.set(text, revealHiddenT(randRevealDir())); }
+    if (text)  { ensureCardMask(text); fitCardToText(text); gsap.set(text, revealHidden()); }
     if (video) gsap.set(video, { yPercent: 100, xPercent: 0 });
   };
   window.SCCD_revealWorksActive = function () {
@@ -673,7 +657,7 @@ export function initBFADivisionToggle() {
     const text  = activePanel.querySelector('[data-works-hl]');
     const video = worksVideoParts(activePanel);
     const tweens = [];
-    if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHiddenT(randRevealDir()), duration: WORKS_ANIM_DUR, ease: EASE.wipe, overwrite: true })); }
+    if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHidden(), duration: WORKS_ANIM_DUR, ease: EASE.wipe, overwrite: true })); }
     if (video && video.length) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
     if (!tweens.length) { resolve(); return; }
     let done = 0;

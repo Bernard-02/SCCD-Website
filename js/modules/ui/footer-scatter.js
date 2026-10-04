@@ -125,14 +125,14 @@ function rand(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-// 旋轉後 axis-aligned bbox
-function rotatedBBox(w, h, deg) {
+// 旋轉後 axis-aligned bbox：w' = w·|cos θ| + h·|sin θ|, h' = h·|cos θ| + w·|sin θ|（404 散佈共用）
+export function rotatedBBox(w, h, deg) {
   const r = Math.abs(deg) * Math.PI / 180;
   const c = Math.cos(r), s = Math.sin(r);
   return { w: w * c + h * s, h: h * c + w * s };
 }
 
-function rectsOverlap(a, b) {
+export function rectsOverlap(a, b) {
   return !(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y);
 }
 

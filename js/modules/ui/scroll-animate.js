@@ -80,6 +80,21 @@ export function ensureCardMask(el) {
   el.dataset.cardMasked = '1';
 }
 
+// ── 4 向 clip-reveal 藏定位（遮罩內本體 xPercent/yPercent 滑出）全站唯一來源 ─────────────
+// ±110 過衝非 100：剛好 100% 邊緣貼遮罩，dpr 非整數會漏一排像素（實色進場前露細線）。
+// 每次回傳新物件：gsap.set/to 會把預設值（duration 0、delay…）寫回傳入的 vars，共用同一份物件會跨 caller 互相污染。
+export const REVEAL_DIRS = Object.freeze(['top', 'bottom', 'left', 'right']);
+export const randomRevealDir = () => REVEAL_DIRS[Math.floor(Math.random() * REVEAL_DIRS.length)];
+/** @param {string} [dir] 'top' | 'bottom' | 'left' | 'right'（其他值＝right）；省略＝隨機四向 */
+export function revealHidden(dir = randomRevealDir()) {
+  switch (dir) {
+    case 'top':    return { xPercent: 0, yPercent: -110 };
+    case 'bottom': return { xPercent: 0, yPercent: 110 };
+    case 'left':   return { xPercent: -110, yPercent: 0 };
+    default:       return { xPercent: 110, yPercent: 0 };   // right
+  }
+}
+
 // ── icon glyph 切換 clip-reveal（取代黑方塊鈕內 .icon 的 clip-path inset wipe）─────
 // 貼身 overflow:clip 遮罩包住 glyph；glyph 比外框(48px)小，借外框當遮罩 yPercent:100 會留殘影，
 // 故 wrap 用 inline-flex fit-content 貼合 1em glyph。idempotent（dataset.iconClipWrap 守衛）。

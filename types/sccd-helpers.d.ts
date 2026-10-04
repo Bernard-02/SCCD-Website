@@ -25,6 +25,7 @@ interface SCCDHelpersAPI {
   ACCENT_COLORS: readonly string[];
   getRandomAccentColor(): string;
   getRandomRotation(): number;
+  shuffle<T>(arr: T[]): T[];
 
   // 站台路徑
   siteBase: string;

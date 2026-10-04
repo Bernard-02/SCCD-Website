@@ -9,7 +9,7 @@
 
 import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
 import { DUR, EASE } from './motion.js';
-import { ensureCardMask } from './scroll-animate.js';
+import { ensureCardMask, revealHidden, randomRevealDir } from './scroll-animate.js';
 import { bindArrowSpin } from './arrow-spin.js';
 
 let initialized = false;
@@ -19,23 +19,15 @@ let closing = false;
 const prefetchedUrls = new Set();
 
 // mode1/2 卡片底色隨機三原色，跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor：
-// 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。fallback 防 helper 未載入。
+// 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。
 function randomAccent() {
-  return window.SCCDHelpers?.getRandomAccentColor?.()
-    ?? SCCDHelpers.getRandomAccentColor();
+  return SCCDHelpers.getRandomAccentColor();
 }
 
-// 4 向遮罩滑入：dir → 隱藏起點（xPercent/yPercent ±110，藏在該側遮罩外）
+// 4 向遮罩滑入：dir → 隱藏起點 revealHidden(dir)（xPercent/yPercent ±110，藏在該側遮罩外）
 // 進場 fromTo 從隱藏起點→0；退場 to 同 dir 反推（來去同一側）。卡片與 QR 共用當次方向。
 // ⚠️兩軸都要寫：只寫單軸時，上次左右退場留在 xPercent 的 ±110 不會被歸零 → 下次換上下進場從 (∓110, ±110)
 // 斜著滑入＝「卡片從角落進來」（user 2026-10-01 報，headless 重現 open#2 首幀 x=-85% y=85%）
-const REVEAL_DIRS = {
-  bottom: { xPercent: 0,    yPercent: 110 },
-  top:    { xPercent: 0,    yPercent: -110 },
-  right:  { xPercent: 110,  yPercent: 0 },
-  left:   { xPercent: -110, yPercent: 0 },
-};
-const REVEAL_DIR_KEYS = Object.keys(REVEAL_DIRS);
 let revealDir = 'bottom';
 let backDir = 'bottom';   // 角上返回鍵自己的 clip-reveal 方向（同 slide-in 返回鍵：跟卡片各抽各的）
 
@@ -124,7 +116,7 @@ function openShareLightbox(url, bg) {
   if (!lightbox || !card) return;
 
   // 本次開啟隨機挑一個滑入方向；卡片 + QR 共用，close 反推同方向出場
-  revealDir = REVEAL_DIR_KEYS[Math.floor(Math.random() * REVEAL_DIR_KEYS.length)];
+  revealDir = randomRevealDir();
 
   // 卡片底色（文字始終黑）：
   //   bg 明確帶入（library share btn 帶 title 渲染色）→ 直接用，讓卡片跟 title 同色
@@ -147,9 +139,9 @@ function openShareLightbox(url, bg) {
   qrImg.src = getQrEndpoint(url);
   if (typeof gsap !== 'undefined' && !(qrImg.complete && qrImg.naturalWidth)) {
     // 有 delay：先藏在遮罩外，onload 後滑入（同卡片方向）
-    gsap.set(qrImg, REVEAL_DIRS[revealDir]);
+    gsap.set(qrImg, revealHidden(revealDir));
     qrImg.onload = () => gsap.fromTo(qrImg,
-      REVEAL_DIRS[revealDir],
+      revealHidden(revealDir),
       { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
   } else if (typeof gsap !== 'undefined') {
     gsap.set(qrImg, { clearProps: 'transform' }); // 命中快取：清掉上次殘留 transform，維持原位直接顯示
@@ -173,18 +165,18 @@ function openShareLightbox(url, bg) {
   if (typeof gsap !== 'undefined') {
     ensureCardMask(card);
     const stage = document.getElementById('share-lightbox-stage');
-    if (stage) gsap.set(stage, { rotation: window.SCCDHelpers?.getRandomRotation?.() ?? 3 });
+    if (stage) gsap.set(stage, { rotation: SCCDHelpers.getRandomRotation() });
     gsap.fromTo(card,
-      REVEAL_DIRS[revealDir],
+      revealHidden(revealDir),
       { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
     );
     // 角上返回鍵：每次開重抽微傾角＋隨機四向，卡片滑到一半（0.3s，同 slide-in 返回鍵跟 panel 的 offset）自己 clip-reveal 進場；
     // fromTo 兩軸都寫＝洗掉上次退場殘留的另一軸
     const closeBtn = document.getElementById('share-lightbox-close');
     /** @type {any} */ (closeBtn)?._arrowSpin?.reroll();
-    backDir = REVEAL_DIR_KEYS[Math.floor(Math.random() * REVEAL_DIR_KEYS.length)];
+    backDir = randomRevealDir();
     gsap.fromTo('#share-back-inner',
-      REVEAL_DIRS[backDir],
+      revealHidden(backDir),
       { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, delay: 0.3, overwrite: true }
     );
   }
@@ -216,9 +208,9 @@ function closeShareLightbox() {
     closing = true;
     // 背景遮罩同步 fade out（對稱進場）；角上返回鍵沿自己的進場方向滑回
     gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
-    gsap.to('#share-back-inner', { ...REVEAL_DIRS[backDir], duration: DUR.medium, ease: EASE.exit, overwrite: true });
+    gsap.to('#share-back-inner', { ...revealHidden(backDir), duration: DUR.medium, ease: EASE.exit, overwrite: true });
     gsap.to(card, {
-      ...REVEAL_DIRS[revealDir],
+      ...revealHidden(revealDir),
       duration: DUR.medium,
       ease: EASE.exit,
       overwrite: true,

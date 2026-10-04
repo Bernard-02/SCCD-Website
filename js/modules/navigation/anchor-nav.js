@@ -175,7 +175,7 @@ export function initAnchorNav({ reveal = false } = {}) {
   // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
   const isLandscapeGate = SCCDHelpers.isLandscapeGate();
-  if (reveal && typeof gsap !== 'undefined' && window.innerWidth >= 768 && !isLandscapeGate) {
+  if (reveal && typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout()) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {
       let navRevealed = false;

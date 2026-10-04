@@ -8,7 +8,7 @@
  *   showPanel('.activities-panel', `panel-${key}`);
  */
 import { registerPageCleanup } from './page-cleanup.js';
-import { fitCardToText } from './scroll-animate.js';
+import { fitCardToText, navChipHidden, NAV_CHIP_SHOWN } from './scroll-animate.js';
 import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR, EASE } from './motion.js';
@@ -405,3 +405,76 @@ export function initHoverDimMoveGuard(host) {
   });
 }
 
+// 矮橫向 nav 嚴格 hero gate（activities/admission/curriculum/faculty 共用，user 2026-07-10 定為全站 nav btn 原則）：
+// nav 進 header fixed、hero 也浮著 →「hero 之後才 reveal、回 hero／footer 進 75% 線收起」，clip-path 非 opacity；
+// 各 target 依 navDir 方向、同時（stagger:0）。fixed nav 被 clip 掉時 btn 外框仍在 → pointer-events 一併切，免隱形 btn 蓋 hero 誤觸。
+// 嚴格＝觀察 hero 本體底緣離開視窗頂（8px buffer 防 knife-edge）才算捲到 hero 之下（原「content 佔中段」停在半路會誤 reveal，
+// user「卡一半 nav 就出現」）；兩顆 IO 各記 flag 統一 apply——各自 toggle 會被初始 delivery 順序互蓋（同 about anchor-nav 的坑）。
+// ⚠️ 動畫期間關 target 的 CSS transition（.anchor-nav-inner 的 transition:all 會追 GSAP 每幀寫入而卡頓），reveal 完才還原。
+// revealedClass：同 gate 掛 section 上給 landscape.css 消費（header 帶遮擋／白補丁）；onChange：caller 同步自己的 navRevealed（離頁退場判斷用）。
+/** @param {HTMLElement} section @param {HTMLElement[]} targets @param {Map<Element, string>} navDir
+ *  @param {{ revealedClass?: string, onChange?: (revealed: boolean) => void }} [opts] */
+export function bindLandscapeNavGate(section, targets, navDir, { revealedClass, onChange } = {}) {
+  const navCol = /** @type {HTMLElement|null} */ (section.querySelector('.inner-scroll-nav-col'));
+  if (navCol) navCol.style.pointerEvents = 'none';
+  let revealed = false;
+  const setNav = (reveal) => {
+    if (revealed === reveal) return;
+    revealed = reveal;
+    if (onChange) onChange(reveal);
+    if (revealedClass) section.classList.toggle(revealedClass, reveal);
+    gsap.killTweensOf(targets);
+    targets.forEach(el => { el.style.transition = 'none'; });
+    if (navCol) navCol.style.pointerEvents = reveal ? '' : 'none';
+    const hid = reveal ? null : targets.map(el => navChipHidden(el, navDir.get(el)));
+    gsap.to(targets, {
+      clipPath: reveal ? NAV_CHIP_SHOWN.clipPath : (i) => hid[i].clipPath,
+      translate: reveal ? NAV_CHIP_SHOWN.translate : (i) => hid[i].translate,
+      duration: DUR.base, ease: EASE.wipe, stagger: 0, overwrite: true,
+      onComplete: () => { if (reveal) targets.forEach(el => { el.style.transition = ''; }); },
+    });
+  };
+  const heroEl = document.querySelector('#page-content > section');
+  const footerEl = document.getElementById('site-footer');
+  let heroVis = !!heroEl;
+  let footerVis = false;
+  const applyNav = () => setNav(!heroVis && !footerVis);
+  if (heroEl) {
+    const heroIO = new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; applyNav(); },
+      { rootMargin: '-8px 0px 0px 0px' });
+    heroIO.observe(heroEl);
+    registerPageCleanup(() => heroIO.disconnect());
+  }
+  if (footerEl) {
+    const footerIO = new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; applyNav(); },
+      { rootMargin: '0px 0px -25% 0px' });
+    footerIO.observe(footerEl);
+    registerPageCleanup(() => footerIO.disconnect());
+  }
+}
+
+// box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities/admission 的 100vh frame 拆掉（overflow 改 visible、
+// window 捲），但 class 還在 → 看 computed overflow-y 不看寬度（同 list-accordion getScrollableBox）。
+// el 可以是 box 自身或其後代（closest 對自身也命中）；null-safe。
+/** @param {Element | null} el */
+export function getScrollableScrollCol(el) {
+  const box = /** @type {HTMLElement | null} */ (el && el.closest('.inner-scroll-scroll-col'));
+  if (!box) return null;
+  const oy = getComputedStyle(box).overflowY;
+  return (oy === 'auto' || oy === 'scroll') ? box : null;
+}
+
+// 等指定 list-item 的進場 reveal 完成（reveal 的 onComplete/onEnter 會移除 data-pre-reveal，見 admission-data-loader
+// unlockGroup / activities-data-loader）。給 ref/deep-link 導航用：確保「list 文字 reveal 出現後」才 highlight，
+// 不在 rows 還 clip-reveal 中途就先亮（user 2026-06-09）。
+// 已無 data-pre-reveal（已 reveal / alwaysExpanded）→ 立即 resolve；timeout 為保險，reveal 萬一沒正常完成也不卡住。
+export function waitForItemRevealed(item, timeout = 8000) {
+  return new Promise(resolve => {
+    if (!item || !item.hasAttribute('data-pre-reveal')) { resolve(); return; }
+    let done = false, t = null;
+    const finish = () => { if (done) return; done = true; obs.disconnect(); if (t) clearTimeout(t); resolve(); };
+    const obs = new MutationObserver(() => { if (!item.hasAttribute('data-pre-reveal')) finish(); });
+    obs.observe(item, { attributes: true, attributeFilter: ['data-pre-reveal'] });
+    t = setTimeout(finish, timeout);
+  });
+}
