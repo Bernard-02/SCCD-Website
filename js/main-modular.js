@@ -607,7 +607,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   }
 
   // --- Legal Pages（2026-09-09 全改 admission 那套 zebra 手風琴，見 legal-data-loader）---
-  // Regulations & Policy：規章（攤平）＋ 隱私政策合併一頁（policy_and_statements 去掉無障礙段）
+  // Regulations & Policy：後台 regulations 一筆＝學系規章表格＋政策列（隱私權等）
   // 網站導覽（sitemap）：無障礙聲明（accessibility_statement）+ 網站地圖（data/accessibility.json）
   const legalLoader = { regulations: 'loadRegAndPolicy', support: 'loadSupport', sitemap: 'loadSitemap' }[page];
   if (legalLoader) {

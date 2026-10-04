@@ -237,7 +237,7 @@
     padding: 0 var(--spacing-sm) var(--spacing-lg);
   }
 
-  /* ── 富文本卡片（policy 隱私 / support / 無障礙聲明）── */
+  /* ── 富文本卡片（文字列：Donate 捐贈項目／Regulations 政策列；小節＝.legal-zebra-section）── */
   .legal-zebra-overview { margin-bottom: var(--spacing-lg); }
   .legal-zebra-overview p { font-size: var(--font-size-s); }
   .legal-zebra-section { margin-bottom: var(--spacing-lg); }
@@ -251,17 +251,6 @@
   }
   .legal-zebra-sec-title-en { margin-bottom: var(--space-en-zh-s); }
   .legal-zebra-sec-title-zh { margin-bottom: var(--spacing-sm); }
-  .legal-zebra-subsection { margin-top: var(--spacing-md); }
-  .legal-zebra-subsection:first-child { margin-top: 0; }
-  .legal-zebra-sub-title-en,
-  .legal-zebra-sub-title-zh {
-    font-size: var(--font-size-s);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-s);
-    margin: 0;
-  }
-  .legal-zebra-sub-title-en { margin-bottom: var(--space-en-zh-s); }
-  .legal-zebra-sub-title-zh { margin-bottom: var(--spacing-sm); }
   /* 富文本 list / 段落 */
   .legal-zebra-card ul,
   .legal-zebra-card ol { padding-left: 1.25rem; margin-bottom: var(--spacing-md); }

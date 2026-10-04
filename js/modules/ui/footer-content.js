@@ -7,7 +7,7 @@
  *                     （2026-10-01 由 info/phone/address/link/social 收斂；舊值仍相容＝當 text 渲染）。連結一律後台自填，前台不再自動生成
  *   footer_settings — 單例：copyright＝自訂文字 或 自動年份（二選一；「Copyright ©」前綴固定）
  * 右下法務連結＝3 個固定站內頁（Donate/規章/政策），標籤固定 → 前台寫死 LEGAL const，不進 CMS
- *   （對應內容仍在 Directus regulations/support/policy_and_statements；那些是頁面內文，標題與 footer 標籤不同）。
+ *   （對應內容在 Directus regulations（規章與政策）／donate；那些是頁面內文，標題與 footer 標籤不同）。
  * 圖示（tab 標誌 + 社群 icon）＝Directus Files「Site Icons」資料夾的 SVG，前台以 CSS mask 依 mode 上色。
  *
  * 前台：single-flight cache；後台是唯一來源，CMS 掛/空 → 空 tabs（不再退本地 JSON，user 2026-10-04）。
@@ -23,7 +23,7 @@ const TAB_FIELDS = 'key,nameZh,nameEn,note,markIcon.filename_disk,items.type,ite
   'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile.filename_disk,items.url';
 const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
-// 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations/support/policy_and_statements。
+// 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations（規章與政策）／donate。
 // 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
 //   無障礙聲明移進 Site Map（sitemap.html）；舊 policy-and-statements 網址由 router 導到規章頁。
 const LEGAL = [

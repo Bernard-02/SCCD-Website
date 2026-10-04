@@ -2,10 +2,11 @@
  * Legal Data Loader
  * 讀取 legal 頁（regulations / support / sitemap）的後台資料並渲染。
  *
- * 資料只存「內容」不存樣式：overview（綜述）+ points[{ title, des }]，des 是富文本 HTML
- * （後台 WYSIWYG 產的乾淨 <p>/<ul>/<a>，無樣式 class）→ 老師可自由增減 bullet / 加連結粗體。
- * 編號與排版全由本檔 + legal.css 負責。
- * regulations / support 各讀自己的 singleton；規章頁另併 policy_and_statements（隱私政策）。
+ * 資料只存「內容」不存樣式：內文是富文本 HTML（後台 WYSIWYG 產的乾淨 <p>/<ul>/<a>，無樣式 class）
+ * → 老師可自由增減 bullet / 加連結粗體。編號與排版全由本檔 + legal.css 負責。
+ * 後台結構（2026-10-04 整理，scripts/migrate-legal-cms.cjs）：每頁一筆 singleton＝頁面說明＋可展開的列；
+ *   列共用 標題／最後更新／內文（富文本），文字列另有小節（sections）、規章列另有分類表格。
+ *   regulations（規章與政策）＝學系規章表格（reg*）＋政策列（policyRows）；donate＝捐贈項目（rows）。
  */
 
 import { CMS_API_BASE } from '../../config/api.js';
@@ -23,13 +24,10 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { sitePath } from '../ui/site-base.js';
 import { escapeHtml as esc } from '../ui/escape-html.js';
 
-// 已遷移到 Directus 的頁面 → collection 名；未列入的讀本地 /data/*.json。
-// 一頁一頁遷：遷一個就在這加一筆，其餘頁完全不受影響。
-// （2026-06-09：privacy_policy + accessibility 已合併成單一 collection policy_and_statements 並刪除，
-//   政策及聲明改由 loadPolicyAndStatements 直接讀新 collection，不再經這張表。）
+// 頁面 route 名 → collection（donate 頁的 SPA route 名歷史上叫 support；後台 collection 已改名 donate 防呆）
 const CMS_COLLECTIONS = {
   'regulations': 'regulations',
-  'support': 'support',
+  'support': 'donate',
 };
 
 // 後台是唯一來源：fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ null（頁面只剩標題，不再退本地 JSON，user 2026-10-04）
@@ -231,36 +229,21 @@ function setRegCatStickyTop(root) {
   });
 }
 
-// ── 富文本卡片 body（policy / support / 無障礙聲明共用）──────────────────────
-// 一個「點」的內文：可能有 sections（support Funds 的 Single/Regular）或 desEn/desZh 富文本。
-function pointBodyHtml(pt) {
-  let html = '';
-  (pt.sections || []).forEach(s => {
-    html += `<div class="legal-zebra-subsection">`
-      + `<h5 class="legal-zebra-sub-title-en">${esc(s.titleEn)}</h5>`
-      + `<h5 class="legal-zebra-sub-title-zh" lang="zh-Hant">${esc(s.titleZh)}</h5>`
-      + normalizeBodyHtml(s.desEn) + normalizeBodyHtml(s.desZh)
-      + `</div>`;
-  });
-  html += normalizeBodyHtml(pt.desEn) + normalizeBodyHtml(pt.desZh);
-  return html;
+// ── 文字列（Donate 捐贈項目／Regulations 政策列共用同一組欄位）──────────────────
+// 內文（富文本）在前、小節在後；有小節時內文＝開頭說明（.legal-zebra-overview 留白隔開）。
+function rowBody(en, zh) {
+  return normalizeBodyHtml(en) + normalizeBodyHtml(zh);
 }
-
-// 整個 group（policy 隱私 / 無障礙聲明）→ 一列：overview + 每個點（小標＋內文）都在同一張卡。
-function richGroupEntry(g) {
-  let body = '';
-  if (g.overviewEn || g.overviewZh) {
-    body += `<div class="legal-zebra-overview">`
-      + [para(g.overviewEn), para(g.overviewZh, 'zh-Hant')].filter(Boolean).join('')
-      + `</div>`;
-  }
-  (g.points || []).forEach(pt => {
-    body += `<div class="legal-zebra-section">`;
-    if (pt.titleEn) body += `<h4 class="legal-zebra-sec-title-en">${esc(pt.titleEn)}</h4>`;
-    if (pt.titleZh) body += `<h4 class="legal-zebra-sec-title-zh" lang="zh-Hant">${esc(pt.titleZh)}</h4>`;
-    body += pointBodyHtml(pt) + `</div>`;
-  });
-  return { titleEn: g.titleEn, titleZh: g.titleZh, subtitleEn: g.lastUpdatedEn, subtitleZh: g.lastUpdatedZh, bodyHtml: body };
+function textRowEntry(row) {
+  const body = rowBody(row.bodyEn, row.bodyZh);
+  const sections = (row.sections || []).map(s => `<div class="legal-zebra-section">`
+    + (s.titleEn ? `<h4 class="legal-zebra-sec-title-en">${esc(s.titleEn)}</h4>` : '')
+    + (s.titleZh ? `<h4 class="legal-zebra-sec-title-zh" lang="zh-Hant">${esc(s.titleZh)}</h4>` : '')
+    + rowBody(s.bodyEn, s.bodyZh) + `</div>`).join('');
+  return {
+    titleEn: row.titleEn, titleZh: row.titleZh, subtitleEn: row.updatedEn, subtitleZh: row.updatedZh,
+    bodyHtml: (body && sections ? `<div class="legal-zebra-overview">${body}</div>` : body) + sections,
+  };
 }
 
 // ── 規章表格（一個 accordion 內含全部規章）──────────────────────────────────
@@ -281,7 +264,7 @@ function regMqSpans(en, zh) {
   return line(en, false) + line(zh, true);
 }
 function regTableEntry(reg) {
-  const groups = (reg.points || []).map(cat => {
+  const groups = (reg.regCategories || []).map(cat => {
     const items = cat.items || [];
     const rows = items.map(item => {
       let uEn = item.unitEn, uZh = item.unitZh;
@@ -298,16 +281,12 @@ function regTableEntry(reg) {
       + `<div class="legal-reg-cat">${regSpans(cat.titleEn, cat.titleZh)}</div>`
       + rows + `</div>`;
   }).join('');
-  // 表格上方說明段（user 2026-09-10）：黑字直接坐在展開 accent 底上（同 ref 上方段落的定位）。
-  // 後台 overview 欄有填就用後台的；空（現況）→ 前台預設文案。
-  const ovEn = reg.overviewEn || 'Regulations and guidelines governing academic affairs and departmental administration. Click an item to view the full document.';
-  const ovZh = reg.overviewZh || '以下彙整學系與校方相關規章辦法，點擊項目可查看完整文件。';
+  // 表格上方說明段（user 2026-09-10）＝這列的內文（富文本，同文字列）：黑字直接坐在展開 accent 底上
+  const body = rowBody(reg.regBodyEn, reg.regBodyZh);
   return {
-    titleEn: reg.titleEn || 'Department Regulations',
-    titleZh: reg.titleZh || '學系規章',
-    subtitleEn: reg.lastUpdatedEn, subtitleZh: reg.lastUpdatedZh,  // req7：最後更新寫在副標
-    bodyHtml: `<div class="legal-zebra-overview"><p>${esc(ovEn)}</p><p lang="zh-Hant">${esc(ovZh)}</p></div>`
-      + `<div class="legal-reg-table">${groups}</div>`,
+    titleEn: reg.regTitleEn, titleZh: reg.regTitleZh,
+    subtitleEn: reg.regUpdatedEn, subtitleZh: reg.regUpdatedZh,  // req7：最後更新寫在副標
+    bodyHtml: (body ? `<div class="legal-zebra-overview">${body}</div>` : '') + `<div class="legal-reg-table">${groups}</div>`,
   };
 }
 
@@ -454,43 +433,33 @@ function equalizeMapNumWidth(root) {
   }
 }
 
-// policy_and_statements 內的「無障礙聲明」段判定（合併頁去掉它、導覽頁只留它）。
-// ⚠️ 用標題比對（非 sort/index）＝後台重排也不會錯認；改標題文字才需同步。
-function isAccessibilityGroup(g) {
-  return /accessibility/i.test(g.titleEn || '') || (g.titleZh || '').includes('無障礙');
-}
-
 // ── Public loaders ─────────────────────────────────────────────────────────
 
-// Regulations & Policy（regulations.html）：兩個 accordion —— 全部規章（3 欄表格）＋ 隱私政策（policy_and_statements 去掉無障礙段）。
+// Regulations & Policy（regulations.html）：頁面說明＋學系規章（3 欄表格）一列＋政策列（隱私權等）。
 export async function loadRegAndPolicy() {
   const contentEl = document.getElementById('legal-content');
   if (!contentEl) return;
   try {
-    const [reg, policyGroups] = await Promise.all([
-      fetchLegalData('regulations'),
-      fetchPolicyGroups().catch(() => []),
-    ]);
+    const reg = await fetchLegalData('regulations');
+    if (!reg) return;
     const entries = [
-      regTableEntry(reg || {}),
-      ...(policyGroups || []).filter(Boolean).filter(g => !isAccessibilityGroup(g)).map(richGroupEntry),
+      ...((reg.regCategories || []).length ? [regTableEntry(reg)] : []),
+      ...(reg.policyRows || []).map(textRowEntry),
     ];
-    mountZebra(contentEl, zebraPageDesc(reg?.pageDescEn, reg?.pageDescZh) + renderZebraRows(entries));
+    mountZebra(contentEl, zebraPageDesc(reg.pageDescEn, reg.pageDescZh) + renderZebraRows(entries));
   } catch (error) {
     console.error('Error loading regulations & policy:', error);
   }
 }
 
-// Support / Donate（donate.html）：每個「點」一列 zebra（Funds / Others），卡片＝該點 sections/內文。
+// Donate（donate.html；route 名 support）：頁面說明＋每個捐贈項目一列（Funds / Others）。
 export async function loadSupport() {
   const contentEl = document.getElementById('legal-content');
   if (!contentEl) return;
   try {
     const data = await fetchLegalData('support');
-    const entries = ((data && data.points) || []).map(pt => ({
-      titleEn: pt.titleEn, titleZh: pt.titleZh, bodyHtml: pointBodyHtml(pt),
-    }));
-    mountZebra(contentEl, zebraPageDesc(data?.overviewEn, data?.overviewZh) + renderZebraRows(entries));
+    const entries = ((data && data.rows) || []).map(textRowEntry);
+    mountZebra(contentEl, zebraPageDesc(data?.pageDescEn, data?.pageDescZh) + renderZebraRows(entries));
   } catch (error) {
     console.error('Error loading support:', error);
   }
@@ -568,7 +537,7 @@ export async function loadSitemap() {
   }
 }
 
-// 無障礙聲明 singleton（2026-09-15 拆自 policy_and_statements）：回傳 {titleEn/Zh, overviewEn/Zh, points, ...}；
+// 無障礙聲明 singleton accessibility_statement：回傳 {titleEn/Zh, overviewEn/Zh, points, ...}；
 // 空（尚未填）→ throw（caller 不顯示聲明段）。singleton → .data 是物件非陣列。
 async function fetchAccessibilityStatement() {
   const res = await fetch(`${CMS_API_BASE}/accessibility_statement`);
@@ -577,26 +546,3 @@ async function fetchAccessibilityStatement() {
   if (!data || (!data.overviewEn && !data.overviewZh)) throw new Error('empty');
   return data;
 }
-
-// 隱私政策（policy_and_statements singleton；2026-09-15 無障礙拆出後只剩隱私一段）→ 包成陣列沿用群組渲染；失敗＝[]
-async function fetchPolicyGroups() {
-  try {
-    const res = await fetch(`${CMS_API_BASE}/policy_and_statements`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()).data;
-    const groups = Array.isArray(data) ? data : (data ? [data] : []);
-    if (!groups.length || !(groups[0].titleEn || groups[0].titleZh)) throw new Error('empty data');
-    return groups;
-  } catch (err) {
-    console.warn('[legal] CMS fetch failed for policy_and_statements:', err.message);
-    return [];
-  }
-}
-
-// 純文字 → 包成段落（標題用同樣 esc 邏輯避免 < > & 破版）
-// lang：中文段傳 'zh-Hant' → legal.css 的 p:not([lang]):has(+ p[lang="zh-Hant"]) 英中距規則才會 match
-//（2026-09-15 user：privacy overview 英中之間沒空行＝這裡沒帶 lang）
-function para(text, lang) {
-  return text ? `<p${lang ? ` lang="${lang}"` : ''}>${esc(text)}</p>` : '';
-}
-
