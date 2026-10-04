@@ -413,14 +413,42 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
         if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
       });
-      // filter 鈕：開關右側分類滑板（.lib-filter-open）＋ icon 換 default/active；點滑板以外（年份區除外）即關
+      // filter 鈕：開關右側分類滑板（.lib-filter-open）＋ icon 換 default/active；點滑板以外（年份區除外）即關。
+      // 選項 stagger 進退場（user 2026-10-04）：開＝滑板滑入、選項逐一由上往下 clip-reveal（同 library chrome 的 hide/play）；
+      // 關＝選項逐一收回、收完滑板才滑出。動畫中（含進場未走完）不接受開關（鈕／點外面都擋）＝免半途反轉留殘態。
+      const OPT_DELAY = 0.15, OPT_STAGGER = 0.05, OPT_STAGGER_OUT = 0.03;   // album 13 顆：收合 stagger 減半免拖
       const setFilterOpen = (/** @type {HTMLElement} */ panel, /** @type {boolean} */ open) => {
-        if (panel.classList.contains('lib-filter-open') === open) return;
-        panel.classList.toggle('lib-filter-open', open);
+        if (panel.classList.contains('lib-filter-open') === open || panel.dataset.filterBusy) return;
         const btn = panel.querySelector('.lib-filter-btn');
-        if (!btn) return;
-        btn.setAttribute('aria-expanded', String(open));
-        btn.querySelector('.icon').className = `icon ${open ? 'icon-filter-active' : 'icon-filter'}`;   // 直接換、不做 clip reveal（user 2026-10-01）
+        if (btn) {
+          btn.setAttribute('aria-expanded', String(open));
+          btn.querySelector('.icon').className = `icon ${open ? 'icon-filter-active' : 'icon-filter'}`;   // 直接換、不做 clip reveal（user 2026-10-01）
+        }
+        const opts = /** @type {HTMLElement[]} */ ([...panel.querySelectorAll('[id$="cat-filter"] button')]);
+        if (prefersReducedMotion() || !opts.length) { panel.classList.toggle('lib-filter-open', open); return; }
+        const setOpts = (/** @type {boolean} */ shown, /** @type {number} */ dur, /** @type {number} */ delay0, /** @type {string} */ ease, stagger = 0) => opts.forEach((el, i) => {
+          const d = (delay0 + i * stagger).toFixed(2);
+          el.style.transition = `clip-path ${dur}s ${ease} ${d}s, translate ${dur}s ${ease} ${d}s`;
+          el.style.clipPath = shown ? 'inset(0 0 0 0)' : 'inset(0 0 100% 0)';
+          el.style.translate = shown ? '0 0' : '0 -0.4rem';
+        });
+        const clearOpts = () => opts.forEach(el => { el.style.transition = ''; el.style.clipPath = ''; el.style.translate = ''; });
+        const span = (/** @type {number} */ s) => (opts.length - 1) * s;
+        panel.dataset.filterBusy = '1';
+        // 起點先定成「完全顯示／完全隱藏」的 inset 值並 commit：clip-path 從 none（清過 inline）到 inset() 不能補間＝會直接跳
+        setOpts(!open, 0, 0, 'linear');
+        void panel.offsetHeight;
+        if (open) {
+          panel.classList.add('lib-filter-open');
+          setOpts(true, DUR.medium, OPT_DELAY, 'ease-out', OPT_STAGGER);
+          setTimeout(() => { clearOpts(); delete panel.dataset.filterBusy; }, (OPT_DELAY + span(OPT_STAGGER) + DUR.medium) * 1000 + 50);
+        } else {
+          setOpts(false, DUR.fast, 0, 'ease-in', OPT_STAGGER_OUT);
+          setTimeout(() => {
+            panel.classList.remove('lib-filter-open');   // 選項都收完才滑出；滑完才清 inline（早清＝滑出途中選項又現）
+            setTimeout(() => { clearOpts(); delete panel.dataset.filterBusy; }, DUR.medium * 1000 + 50);
+          }, (span(OPT_STAGGER_OUT) + DUR.fast) * 1000);
+        }
       };
       document.querySelectorAll('.lib-filter-btn').forEach(btn => btn.addEventListener('click', () => {
         const panel = /** @type {HTMLElement} */ (btn.closest('[id^="lib-panel-"]'));
