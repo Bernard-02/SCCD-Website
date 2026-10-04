@@ -659,12 +659,14 @@ function bindFooterTabs(footer) {
     el.style.transform = `rotate(${initial.toFixed(2)}deg)`;   // 靜止傾斜（arrow-spin 只在 hover/leave 才重繪，需先畫出起始角）
     let lastDeg = initial, hoverDeg = initial;
     const spin = bindArrowSpin(el, (d) => { lastDeg = d; el.style.transform = `rotate(${d}deg)`; },
-      { initial, ignoreEnter: () => _footerReparenting });
+      { initial, ignoreEnter: () => _footerReparenting, clickReroll: () => !el.classList.contains('is-active') });
     // 這兩個 listener 綁在 arrow-spin 之後：enter 時 lastDeg 已被 arrow-spin 寫成預覽角；
     // leave 時 arrow-spin 先回寫舊定案角，同幀再 commit(hoverDeg) 蓋回 → 視覺停在 hover 角、離開不再轉
     el.addEventListener('mouseenter', () => { hoverDeg = lastDeg; });
     el.addEventListener('mouseleave', () => spin.commit(hoverDeg));
     el.addEventListener('click', () => {
+      // 點已 active 的 tab＝無效（不轉、不捲；全站 nav btn 一致，user 2026-10-04）——上面 clickReroll 同判
+      if (el.classList.contains('is-active')) return;
       // 手機＋矮橫向 tab 列是水平 scroll strip：點到的 tab 捲回靠左對齊列左緣（同 faculty/curriculum nav btn
       // 慣例，user 2026-09-16；矮橫向補 gate user 2026-09-24）。只動 bar 自己 scrollLeft；平板/桌面 absolute tabs 不套。
       if (SCCDHelpers.isMobileLayout()) {
