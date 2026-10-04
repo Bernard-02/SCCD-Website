@@ -1,22 +1,20 @@
 /* Mode-3 背景色編輯浮動面板（js/modules/ui/mode-color-panel.js）
-   顯隱由 JS updateVisibility 主控（display:block/none）；overlay 覆蓋時這裡再用 CSS 硬藏一層保險。 */
+   顯隱由 JS updateVisibility 主控；overlay 覆蓋時 CSS 再硬藏一層保險 */
 
 #mode-color-panel {
   position: fixed;
   inset: 0;
-  z-index: 9998;            /* 低於 lightbox 9999（overlay 蓋住/gate 也藏）；= index hero snap-zone(9998)，
-                               本 layer append 在 body 最後、同 z 靠 source order 贏過 hero 浮卡 */
+  z-index: 9998;            /* 低於 lightbox 9999；＝index hero snap-zone 9998，本 layer append 在 body 最後、同 z 靠 source order 贏 */
   pointer-events: none;     /* layer 不擋頁面，只有子元件可點 */
   display: none;            /* 預設藏；JS gate 打開 */
-  overflow: hidden;         /* inset:0＝視窗，當 wheel 從畫面右緣外滑入的唯一裁切線（順帶防 off-screen 面板撐出橫向捲軸） */
+  overflow: hidden;         /* inset:0＝視窗：wheel 從右緣外滑入的唯一裁切線（也防 off-screen 面板撐出橫向捲軸） */
 }
 
-/* overlay 覆蓋時強制藏（house style：能 CSS 判的 overlay 就 CSS 判） */
+/* overlay 覆蓋時強制藏 */
 body.lightbox-open #mode-color-panel,
 html.has-slide-in #mode-color-panel { display: none !important; }
 
-/* ── 滑動結構（user 2026-07-17）：鉛筆走遮罩內滑出；wheel 改成整顆從視窗右緣外滑入，故 panel mask 不再裁切
-   （overflow:visible，見下），裁切交給 #mode-color-panel 的視窗右緣。微傾照 hero 慣例掛 wrapper（旋轉跟遮罩走）。 ── */
+/* ── 滑動結構：鉛筆在遮罩內滑出；wheel 整顆從視窗右緣外滑入（裁切交給 #mode-color-panel）；微傾掛 wrapper（旋轉跟遮罩走）── */
 .mcp-pencil-mask,
 .mcp-panel-mask {
   position: absolute;
@@ -25,7 +23,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   pointer-events: none;   /* 滑出遮罩外的本體不吃 pointer；本體自己 auto */
 }
 .mcp-pencil-mask { right: 0; }   /* 鉛筆收起時貼右緣 docked，佔右緣 0-48px */
-/* wheel 整顆從視窗外右方滑入、不裁切：overflow:visible 讓行進中的 wheel 可見，裁切交給 #mode-color-panel 視窗右緣 */
+/* overflow:visible：行進中的 wheel 要可見，裁切交給視窗右緣 */
 .mcp-panel-mask { right: var(--spacing-lg, 32px); overflow: visible; }
 
 /* 鉛筆方鈕：48px 同 history 左下 btn；icon 不旋轉 */
@@ -41,7 +39,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   color: var(--theme-fg-inverse, #fff);
   border: none;
   cursor: var(--cursor-pointer);
-  font-size: 32px;   /* 20→32：glyph 對齊 atlas 左下 .atlas-layout-inner（48 盒 32 glyph；user 2026-09-15） */
+  font-size: 32px;   /* glyph 對齊 atlas 左下 .atlas-layout-inner（48 盒 32 glyph） */
 }
 
 /* 展開面板：compact 方形（16 padding + 72 wheel = 104） */
@@ -54,8 +52,8 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   padding: var(--spacing-sm, 16px);
   background: var(--theme-fg, #000);        /* 純黑/白對比底（依 hue 亮暗翻，非中性灰） */
   color: var(--theme-fg-inverse, #fff);
-  /* 預設收起態由 JS build() 用 gsap xPercent 設（CSS 若放 translateX(100%)，gsap 會解析成 px 的 x 分量、
-     與 tween 的 xPercent 各自獨立 → 開場後殘留 x=104 面板永遠偏移） */
+  /* 收起態由 JS build() 用 gsap xPercent 設；勿在 CSS 放 translateX(100%)：gsap 會解析成 px 的 x 分量、
+     與 xPercent 各自獨立 → 面板永遠偏移 */
 }
 
 .mcp-wheel-wrap {
@@ -71,9 +69,8 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   cursor: var(--cursor-pointer);
   touch-action: none;   /* 讓 pointer drag 不被捲動搶走 */
 }
-/* 靜態 hue 色環：conic-gradient（六分色 sextant 邊界色＝hsbToRgb(h,80,100) 精確）＋ radial mask 裁成環帶
-   （inner 52.9%～outer 98% of 半徑，對齊 SVG 內外圈 r=19.05/35.28）。向量繪製＝任何 DPR/縮放皆銳利、
-   色環畫一次零逐幀成本（取代原 Canvas2D 逐幀 blit）。放 ::before 讓 mask 只裁色環、不裁上層 SVG 圈線/指標。user 2026-09-07 */
+/* 靜態 hue 色環：conic-gradient（六分色邊界＝hsbToRgb(h,80,100)）＋ radial mask 裁成環帶（52.9%～98% 半徑＝SVG 內外圈 r=19.05/35.28）
+   向量＝任何 DPR 銳利、零逐幀成本；放 ::before 讓 mask 只裁色環、不裁上層 SVG 圈線/指標 */
 .mcp-wheel::before {
   content: "";
   position: absolute;
@@ -104,14 +101,13 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   background: none;
   border: none;
   cursor: var(--cursor-pointer);
-  color: var(--theme-fg-inverse, #fff);   /* 對比 panel 底 */
+  color: var(--theme-fg-inverse, #fff);
 }
 .mcp-play .icon { font-size: 16px; }
 
-/* ── 桌面 ≥1200（同 desktop menu gate）：圓鈕 → capsule（user 2026-09-28）──
-   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→268
-   （mode-color-panel.js CAP_W），mask right 錨定＝往左長；row 固定寬靠右＝長出來的部分由右往左露出色條/play。
-   <1200 只有鉛筆方鈕＋色環（上面那套），桌面藏起。 */
+/* ── 桌面：圓鈕 → capsule ──
+   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→268（mode-color-panel.js CAP_W），
+   mask right 錨定＝往左長；row 固定寬靠右＝長出部分由右往左露出色條/play。非桌面只有鉛筆方鈕＋色環（上面那套） */
 .mcp-cap-mask { display: none; }
 @media (min-width: 1024px) and (min-height: 501px) {
   .mcp-pencil-mask,
@@ -122,7 +118,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
     right: var(--container-padding);
     bottom: 48px;
     overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩（同鉛筆） */
-    border-radius: 24px;    /* 遮罩＝鈕本身形狀（收起圓、展開跟著變 capsule；user 2026-10-01）：滑出不撞直邊 */
+    border-radius: 24px;    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
     pointer-events: none;
   }
 }
@@ -133,11 +129,11 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   height: 48px;
   border-radius: 24px;
   overflow: hidden;
-  background: var(--theme-fg, #000);          /* 同鉛筆/色環面板：純黑白對比底 */
+  background: var(--theme-fg, #000);
   color: var(--theme-fg-inverse, #fff);
 }
-/* active（展開中）＝反色（user 2026-09-28）：底 fg-inverse、內容（icon/色條框/indicator 皆 currentColor）fg。
-   hover 就先反色＝點開時已是 active 色、不用再變；hover/開關一律 instant 不 fade（同 menu 選項／漢堡鈕） */
+/* active（展開中）＝反色：底 fg-inverse、內容（皆 currentColor）fg
+   hover 先反色＝點開時已是 active 色；一律 instant 不 fade */
 .mcp-cap.is-active {
   background: var(--theme-fg-inverse, #fff);
   color: var(--theme-fg, #000);
@@ -159,12 +155,10 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   align-items: center;
   padding-left: 20px;       /* 左端圓角內留白 */
 }
-/* 色條＝create 手機版長條：膠囊圓角（user 2026-09-28）；框線＋直線 indicator 走 currentColor＝色環圈線同色。
-   track 滿版（2026-09-29）：漸層兩端本來就是紅（hue 0＝360）、圓角只裁形狀，不再左右各留 8px 補紅——
-   indicator 才能真的滑到右緣、再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），且 barHue 點擊
-   與 indicator 同一座標系。線 2px 進出圓角時被弧形逐漸裁掉＝自然的出場／進場。 */
-/* 色條 clip-reveal 的貼身遮罩（capsule 長完才四向滑入，mode-color-panel.js open）；flex 寬掛這層，色條本體 block 撐滿。
-   遮罩＝色條本身的膠囊形（user 2026-10-01，同 .mcp-bar 圓角）；clip margin 1px 同色條本體：indicator 上下伸出的 1px 不被切 */
+/* 色條：膠囊圓角；框線＋indicator 走 currentColor＝色環圈線同色
+   track 滿版（漸層兩端皆紅 hue 0＝360，圓角只裁形狀）：indicator 才能滑到右緣再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），barHue 點擊與 indicator 同一座標系 */
+/* 色條 clip-reveal 貼身遮罩（capsule 長完才四向滑入，mode-color-panel.js open）；flex 寬掛這層
+   遮罩＝色條膠囊形；clip margin 1px 同色條本體：indicator 上下伸出的 1px 不被切 */
 .mcp-bar-mask {
   flex: 0 0 160px;
   overflow: clip;
@@ -177,7 +171,7 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   box-sizing: border-box;
   border: 2px solid currentColor;
   border-radius: 10px;
-  /* clip＋margin 1：indicator 上下各伸 1px 疊進同色框線，補掉兩道 AA 邊緣相接的縫（user 2026-09-29「curve 那邊少 1px」） */
+  /* clip＋margin 1：indicator 上下各伸 1px 疊進同色框線，補掉兩道 AA 邊緣相接的縫 */
   overflow: clip;
   overflow-clip-margin: 1px;
   background: #f33;
@@ -224,10 +218,9 @@ html.has-slide-in #mode-color-panel { display: none !important; }
   outline-offset: -4px;
 }
 .mcp-cap-toggle { width: 48px; font-size: 32px; }   /* 32 glyph 置中 48 格＝收起時就是圓鈕本身 */
-/* 朝右 chevron（展開時「往右收回」）：同一顆自訂 chevron（site_icons chevron_left_lightbox，本檔 --icon 規則
-   site-assets.js 會自動換成後台檔）、比鉛筆小一階 24（user 2026-09-28）。
-   ⚠️翻向畫在 ::before、本體不帶 rotate/scale：clipRevealIconSwap 用 GSAP tween 本體，GSAP 會把本體的獨立
-   rotate/scale 併進自己的 transform（inline 寫 rotate:none）→ chevron 先朝左滑入才跳右、換回鉛筆時殘留 180° 倒著滑入。 */
+/* 朝右 chevron（展開時往右收回）：沿用 chevron_left_lightbox（site-assets.js 會換成後台檔），24 比鉛筆小一階
+   ⚠️ 翻向畫在 ::before、本體不帶 rotate/scale：clipRevealIconSwap 用 GSAP tween 本體，GSAP 會把獨立 rotate/scale
+   併進 transform → chevron 先朝錯向滑入才跳正 */
 .mcp-cap-toggle .icon-chevron-right {
   --icon: url('../website-icons/chevron_left_lightbox.svg');
   position: relative;

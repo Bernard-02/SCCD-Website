@@ -1,136 +1,20 @@
-/**
- * Navigation Components
- * Header、導航連結、Mega Menu 等樣式
- */
+/* Navigation Components：header、header 放行/lightbox 事件規則、nav btn、漢堡 menu、左下當前頁卡 */
 
 @layer components {
-  /* ===== Navigation Links ===== */
-  /* 用 var(--theme-fg) 跟著 mode 切換（standard=黑 / inverse=白）；library/generate bar 走 bar-active/inactive 不受影響 */
-  .nav-link {
-    @apply text-md font-bold transition-all duration-fast;
-    color: var(--theme-fg);
-  }
-
-  /* EN→ZH 揭露＝clip-reveal（文字從遮罩後「推出來」，非 clip-path 原地擦除）：
-     .nav-link-cn 是遮罩（overflow:hidden＋max-width 撐開讓位＝「色塊寬度」），
-     .nav-link-cn-i 是內層文字、用 transform 從遮罩邊外推入。兩者同拍同時變化（同 --dur-fast、無 delay、無淡入）
-     → 色塊變寬與文字推出「同時」發生，不是先撐寬再冒字。
-     推入方向預設由下往上（site clip-reveal 慣例）；主 nav 各項用 nth-child 錯開成上/下/左/右。
-     離英文的兩個空格＝遮罩「靜態」margin-left（不動畫）——揭露窗起點恆在英文右緣+0.5rem，
-     文字才不會貼著英文邊緣冒出（margin 若跟著動畫，開窗起點會從英文邊緣長出來）；
-     收合態用等值負 margin-right 抵銷、不多佔 8px（黑 bar 盒寬/1520 壓縮 tier 按原 layout 調的），
-     開啟時 margin-right 歸零與 max-width 同拍。
-     max-width 終值＝header.js 實測寬（--cn-w，em 單位），不寫死 overshoot——
-     水平開窗與垂直滑入才會同時完成，否則上/下方向軌跡先斜後直＝arc 彎折。 */
-  .nav-link .nav-link-cn {
-    display: inline-block;
-    max-width: 0;
-    overflow: hidden;
-    margin-left: 0.25rem;    /* 離英文一個空格（靜態＝揭露起點） */
-    margin-right: -0.25rem;  /* 收合態抵銷上行、不佔位 */
-    vertical-align: middle;
-    white-space: nowrap;
-    transition: max-width var(--dur-fast) var(--ease-wipe),
-                margin-right var(--dur-fast) var(--ease-wipe);
-  }
-  .nav-link .nav-link-cn-i {
-    display: inline-block;
-    transform: translateY(100%);
-    transition: transform var(--dur-fast) var(--ease-wipe);
-  }
-
-  /* 主 nav 各項推入方向錯開（開啟一律 translate 0，由 .active/:hover 較高特異度蓋過）：整列涵蓋上下左右 */
-  nav ul li:nth-child(2) .nav-link-cn-i { transform: translateY(-100%); }  /* 由上 */
-  nav ul li:nth-child(3) .nav-link-cn-i { transform: translateX(-100%); }  /* 由左 */
-  nav ul li:nth-child(4) .nav-link-cn-i { transform: translateX(100%); }   /* 由右 */
-
-  .nav-link.active {
-    font-weight: 700;
-    display: inline-block;
-    color: var(--theme-fg);
-  }
-
-  /* side bar active/inactive 文字顏色（避免 inline style 被擴充功能干擾） */
-  [data-bar].bar-active .nav-link {
-    color: #fff !important;
-  }
-
-  [data-bar].bar-inactive .nav-link {
-    color: #000 !important;
-  }
-
-  .nav-link.active .nav-link-cn {
-    max-width: var(--cn-w, 6rem);
-    margin-right: 0;
-  }
-  .nav-link.active .nav-link-cn-i {
-    transform: translate(0, 0);
-  }
-
-  /* Hover 效果：僅桌面版 */
-  /* about bar hover 整條時 bg 變亮三原色 → 字色一律用黑基調（standard / inverse 共用，不跟 mode）
-   * 沒 hover 時內頁非 active 半透明仍用 var(--theme-fg-rgb) 跟 mode */
-  @media (min-width: 768px) {
-    /* === 內頁（有 has-active）：預設非 active 為半透明（沒 hover 時，跟 mode）=== */
-    [data-bar="about"].has-active .nav-link:not(.active) {
-      /* 刻意留 rgba 半透明不實色化：bar 底不透明、字不會透內容；此條三 mode 共用（flatten 需逐 mode 拆，
-         且 mode3 含 var(--theme-bg) 會跟 hue loop 每 tick 變 → transition 持續追目標、hover 回彈拖糊） */
-      color: rgba(var(--theme-fg-rgb), 0.5);
-    }
-
-    /* === 整條 about bar :hover 時（cursor 在 bar 上，bg 變亮三原色）===
-     * 用 [data-bar="about"]:hover 為觸發條件，cover「cursor 在文字間隙」(此時 .nav-link:hover 不 match 但 bar 已 :hover)
-     * !important 是為了蓋過內頁 .has-active .nav-link:not(.active) 半透明白等規則的 specificity */
-
-    /* 非 active 且未被 hover 的 link → 半透明黑 */
-    [data-bar="about"]:hover .nav-link:not(.active) {
-      color: rgba(0, 0, 0, 0.5) !important;
-    }
-    /* hover 的 link 或 active link → 不透明黑（active 一律 100% 黑保持高亮）*/
-    [data-bar="about"]:hover .nav-link:hover,
-    [data-bar="about"]:hover .nav-link.active {
-      font-weight: 700;
-      display: inline-block;
-      color: #000 !important;
-    }
-
-    /* === Library / Atlas / CREATE! bar hover：底色變三原色時，文字改黑色（覆蓋 bar-active 白字） === */
-    /* 用 .is-bar-hover class 而非 :hover，以便點擊後切換 active 時 JS 可同步清除 */
-    [data-bar="library"].is-bar-hover .nav-link,
-    [data-bar="atlas"].is-bar-hover .nav-link,
-    [data-bar="generate"].is-bar-hover .nav-link {
-      color: #000 !important;
-    }
-
-    .nav-link:hover {
-      font-weight: 700;
-      display: inline-block;
-      color: var(--theme-fg);
-    }
-
-    .nav-link:hover .nav-link-cn {
-      max-width: var(--cn-w, 6rem);
-      margin-right: 0;
-    }
-    .nav-link:hover .nav-link-cn-i {
-      transform: translate(0, 0);
-    }
-  }
-
   /* ===== Header ===== */
   header {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    z-index: 9999 !important; /* 強制最高層級，確保蓋過所有內容 */
+    z-index: 9999 !important;
     transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
   }
 
-  /* header 不再是一整條擋事件的帶：本體與透明容器放行（中間空白 hover/click 直達底下內容，如 atlas 星雲頂端 item，
-     user 2026-09-28），只有 logo、右側 mode/漢堡鈕、選單面板吃事件。
+  /* header 不擋事件：本體與透明容器放行（中間空白 hover/click 直達底下內容，如 atlas 星雲頂端 item），
+     只有 logo、右側 mode/漢堡鈕、選單面板吃事件。
      「淡入完成才可互動」的開關＝--header-pe（showHeader 寫 inline auto；index.html 隱形期 none；lightbox 期 none）——
-     不可再給 <header> 寫 inline pointer-events:auto，否則整條全寬又攔回來。
+     不可給 <header> 寫 inline pointer-events:auto，否則整條全寬又攔回來。
      只開最外層互動容器、內部靠繼承：#mode-btn[style*="clip-path"] 等外層 none 禁用才照樣往下傳。
      :where 零特異度＝下方 slide-in 例外與 #mobile-nav-panel 桌面 none 等規則照樣蓋得過。 */
   #site-header header {
@@ -140,24 +24,17 @@
     pointer-events: var(--header-pe, auto);
   }
 
-  /* Lightbox 打開時 header 動畫由 activities-lightbox.js 接手做 clip-path inset 退場
-   * （per-element 隨機 top/bottom 方向，bar 原地被擦掉，logo 不動）
-   *
-   * z-index：lightbox z-[9999] 與 header 同層但後 append，疊在 header 之上
-   * → header 消失動畫在 lightbox 底下進行，X 按鈕不會跟 header bars 視覺打架
-   * pointer-events:none 仍保留，避免 hover/focus 觸發到底下 header 元素的副作用 */
+  /* Lightbox 打開時 header 退場由 lightbox JS 以 clip-path inset 接手（bar 原地擦掉，logo 不動）。
+     lightbox 與 header 同 z 但後 append → 疊在 header 之上；pointer-events:none 免 hover/focus 觸發底下 header 元素 */
   body.lightbox-open #site-header {
     pointer-events: none;
   }
 
-  /* slide-in 場景例外（faculty / courses）：可互動的 header 元素（logo / nav 連結 / mode / menu）
-   * pointer-events:auto 可點；has-slide-in class 由 slide-in-bg-sync.openSlideInBg / courses-map
-   * openSlideIn 加在 html，close 時移除。
-   * ⚠️ 只開「互動元素」不開 #site-header 父層：父層開 auto 會讓整個 header 條的透明容器
-   * （z 已被 raiseHeaderZ 拉到 10000）攔截 hit-test——faculty 手機返回鍵正好釘在 header 右側
-   * menu 鈕位（panel z-150 在 header 下層），父層 auto 時點擊被透明 div 吃掉、關不了 slide-in
-   * （user 2026-07-09）。父層維持 body.lightbox-open 的 none，點擊穿透到底下 panel/overlay；
-   * 被 clip-path 收掉的鈕（手機 mode/menu）clip 也移除 hit area，不會誤攔。 */
+  /* slide-in 場景例外（faculty / courses）：可互動的 header 元素（logo / mode / menu）開回 auto；
+     html.has-slide-in 由 slide-in-bg-sync.openSlideInBg / courses-map openSlideIn 加、close 時移除。
+     ⚠️ 只開互動元素、不開 #site-header 父層：父層 auto 會讓透明容器（z 被 raiseHeaderZ 拉到 10000）攔截 hit-test——
+     faculty 手機返回鍵正好在 header 右側 menu 鈕位（panel 在 header 下層），點擊會被透明 div 吃掉、關不了 slide-in。
+     被 clip-path 收掉的鈕 clip 也移除 hit area，不會誤攔。 */
   html.has-slide-in body.lightbox-open #site-header a,
   html.has-slide-in body.lightbox-open #site-header button,
   html.has-slide-in body.lightbox-open #site-header #mode-btn-mobile,
@@ -165,25 +42,22 @@
     pointer-events: auto;
   }
 
-  /* lightbox/slide-in 期間 header 純裝飾（logo href 已被 disableLogoLinks 拔掉）：互動容器吃的 --header-pe
-     （見上方 header 放行規則；showHeader 寫的是 inline --header-pe:auto）用 !important 蓋成 none，讓點擊穿透到 modal
-     ——header 拉高 z(10000) 蓋 slide-in(9999) 時，手機返回鍵與 mode/menu 同位（user 回報過點不到）。
-     上面 has-slide-in 例外特異度較高，只把「真互動鈕」開回 auto（它們已收起離場、不在返回鍵位）。 */
+  /* lightbox/slide-in 期間 header 純裝飾（logo href 已被 disableLogoLinks 拔掉）：--header-pe 用 !important 蓋成 none，
+     點擊穿透到 modal（header 拉高 z 蓋 slide-in 時，手機返回鍵與 mode/menu 同位）。
+     上面 has-slide-in 例外特異度較高，只把真互動鈕開回 auto。 */
   body.lightbox-open #site-header header {
     pointer-events: none !important;
-    --header-pe: none !important; /* 互動容器吃這個開關（見上方 header 放行規則）；slide-in 例外規則特異度較高照樣開回 auto */
+    --header-pe: none !important; /* 互動容器吃這個開關；slide-in 例外規則特異度較高照樣開回 auto */
   }
 
-  /* ===== 全站手機 header 底色帶（.mobile-header-bg）2026-07-17 =====
-   * header 三 mode 皆透明（inverse.css/color.css 明訂），手機時 logo/漢堡/mode 鈕後方會透出頁面內容。
-   * 這條 fixed 帶用 mode-aware var(--theme-bg) 填滿頂部 92px（＝手機 header 列高：pt-lg 32 + 鈕 44 + pb-md 24）。
-   * 放 header.html 內（sibling of <header>，#site-header 是 static → root stacking context）＝全站持久、SPA 換頁不重建。
-   * z-40 < header 內容(navigation.css header z-9999) → logo/鈕浮在上；> hero/內容(z-auto)；< slide-in(150)/lightbox/overlay(10000+) → 不蓋 modal。
-   * 捲到 footer 由 header.js bindFooterScroll 收起（footerTop<=92 才收，遮罩不能像 logo/nav 提早離開），避免帶的 theme-bg 撞 footer 補色。
-   * ⚠️transition 只 transform：mode3 每幀改 --theme-bg，含 background transition 會 lag；mode-switch 0.4s fade 靠 typography.css whitelist。
-   * 全螢幕 app 頁（generate/atlas/library＝body.overflow-hidden，router.js:285）不要頂部遮罩 → display:none。
-   * 矮橫向不套（orientation:portrait gate；landscape 走 nav 進 header 那套）。 */
-  /* 平板 gate（768–1199）也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾平板 gate） */
+  /* ===== 手機 header 底色帶（.mobile-header-bg）=====
+     header 三 mode 皆透明 → 手機 logo/鈕後方會透出內容；此 fixed 帶用 var(--theme-bg) 填滿頂部 92px（＝手機 header 列高：pt-lg 32 + 鈕 44 + pb-md 24）。
+     放 header.html（<header> 的 sibling，#site-header static → root stacking context）＝全站持久、SPA 換頁不重建。
+     z-40：< header(9999) → logo/鈕浮在上；> 內容；< slide-in(150)/lightbox/overlay → 不蓋 modal。
+     捲到 footer 由 header.js bindFooterScroll 收起（footerTop<=92 才收），避免撞 footer 補色。
+     ⚠️ transition 只 transform：mode3 每幀改 --theme-bg，含 background transition 會 lag；mode 切換 fade 靠 typography.css whitelist。
+     app 頁（generate/atlas/library＝body.overflow-hidden）不要頂部遮罩 → display:none。矮橫向不套（orientation:portrait gate）。 */
+  /* 768–1023 也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾 768–1023 段） */
   @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) {
     .mobile-header-bg {
       position: fixed;
@@ -193,8 +67,7 @@
       height: 92px;
       background: var(--theme-bg);
       z-index: 40;
-      /* 不透明帶自己吃事件：header 已放行（header 放行規則），帶下被蓋住看不見的內容（捲進帶的連結/卡片）
-         不可再被點穿（2026-09-28 驗出點空白帶跳頁）。要露在帶上的元素本就 z>40 或同 z 後出（paint＝hit 在上）照常可點；
+      /* 不透明帶自己吃事件：header 已放行，帶下被蓋住的內容不可被點穿。要露在帶上的元素本就 z>40 或同 z 後出（照常可點）；
          .is-hidden 滑出畫面、app 頁 display:none ＝不擋 */
       pointer-events: auto;
       transition: transform var(--dur-base) ease;
@@ -205,21 +78,6 @@
     body.overflow-hidden .mobile-header-bg {
       display: none;
     }
-  }
-
-  /* ===== Mega Menu ===== */
-  .mega-menu {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: calc(var(--header-height, 80px) - 0.5px);
-    width: 100vw;
-    height: auto;
-    background-color: white;
-    opacity: 0;
-    visibility: hidden;
-    transition: all var(--dur-fast) var(--ease-standard);
-    z-index: 40;
   }
 
   /* ===== Anchor Navigation (About Page) ===== */
@@ -239,13 +97,12 @@
     display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
-    /* chip 英中距：chip 是 flex，用 gap 一次搞定——雙語 chip（EN/ZH 兩子）吃 gap、單節點 chip
-       （Temporary 特設 / 年份）no-op；chip 被排除在 mb-en-zh utility 外（緊湊元件），改用 gap 補回間距免逐檔改 HTML/JS。
-       用「text-s 字級」的英中距 token --space-en-zh-s（2px，獨立於 mb-en-zh 的 --space-en-zh 8px；調整點在 variables.css） */
+    /* chip 英中距：chip 是 flex，用 gap——雙語 chip 吃 gap、單節點 chip（特設 / 年份）no-op；
+       chip 排除在 mb-en-zh utility 外（緊湊元件），用 text-s 英中距 token --space-en-zh-s（variables.css） */
     gap: var(--space-en-zh-s);
-    background: #fff; /* 原 rgba(255,255,255,.5)，實色化防透出後方內容（mode1 頁底=白；inverse/color 由 themes 蓋） */
+    background: #fff; /* 實色（非半透明）防透出後方內容；inverse/color 由 themes 蓋 */
     padding: 6px 8px 5px;
-    color: #000; /* 全站 nav btn inactive 字 100% 不透明——user 2026-09-28；hover 色見下方「nav btn hover」段；inverse/color 由 themes 蓋 */
+    color: #000; /* 全站 nav btn inactive 字 100% 不透明；hover 色見下方「nav btn hover」段；inverse/color 由 themes 蓋 */
     transition: all var(--dur-fast) var(--ease-standard);
   }
 
@@ -259,58 +116,19 @@
     color: black;
     /* background & rotation set via JS */
   }
-
-  /* ===== Faculty Back Button ===== */
-  @media (min-width: 768px) {
-    #faculty-back-btn:hover i {
-      transform: rotate(-10deg);
-    }
-  }
-
-  /* Footer 規則已遷移到 css/layout/footer.css（CSS Grid 3×2 + transform-origin: top left）。
-   * 原本這裡有一整塊「Footer Layout (Desktop Absolute Positioning)」用 position: absolute + 寫死 top: NNvh / left: NN%，
-   * 因為 navigation.css 在 input.css 裡 import 順序晚於 layout/footer.css → 同 specificity 勝過 footer.css 新版規則，
-   * 導致 grid layout 完全失效（items 全 absolute、IG/FB 都 left:85% 黏一起變成單一 icon）。已刪除。 */
-
-  /* ===== Alumni Bar (AA — 左 library 旁) =====
-   * 兩個 bar：
-   *   [data-bar="alumni"]      = 小 AA bar（右側預設位置），hover 展開「系友會」（沿用既有 .nav-link-cn 機制）
-   *   [data-bar="alumni-full"] = 完整名稱 bar（about-bar slot 左側）預設 display:none，body.page-alumni 時 JS display:'' 並 clip-reveal 進場
-   *
-   * 收起動畫：點 AA 時 JS 跑 lightbox-shell 風格（gsap clipPath inset 隨機 top/bottom 收掉所有 bars），
-   *   進場動畫由 header.js 設 inline clip-path 動畫，CSS 只負責顯示/隱藏切換
-   *
-   * Active（body.page-alumni）：
-   *   - alumni-full bar display:''（JS 設）
-   *   - 其他 bars（about/library/atlas/generate/mode-btn/alumni）display:none（JS 設）
-   *   - 這樣切頁進入 / 從 URL 直接訪問都有正確 end state；動畫只在 user 點擊時跑 */
-
-  /* alumni-full bar 內 .nav-link-cn 一律展開（與小 AA bar 行為刻意相反）
-   * 小 AA bar = 縮寫「A.A.」hover 才補「系友會」；
-   * alumni-full = 點開後的擴展版，必須直接看到全名「A.A. 系友會」不靠 active/hover */
-  [data-bar="alumni-full"] .nav-link .nav-link-cn {
-    max-width: var(--cn-w, 6rem);
-    margin-right: 0;
-  }
-  [data-bar="alumni-full"] .nav-link .nav-link-cn-i {
-    transform: translate(0, 0);
-  }
 }
 
-/* ===== nav btn hover＝隨機三原色（user 2026-09-28 全站規則）=====
- * JS（section-switch-helpers.js bindNavBtnHover）桌面 mouseenter 抽色：btn 掛 data-nav-hover（gate）＋ --nav-hover（色），離開即拆
- * → 只在桌面 JS 標過的 btn 生效（手機/矮橫向 tap 不黏色）。active 不上色也不轉角（:not(.active)；user 2026-09-29 全站，
- * atlas filter 舊「連 active 也上」例外已撤）；atlas 點擊時 JS 拆 gate＝立刻回黑/白、不繼承 hover 色。
- * 放 @layer 外、特異度 (0,5,1)＋!important：壓 inverse.css / color.css / atlas.css 的 !important（0,3,1~0,4,1）與 atlas active
- * 的 inline #000；mode 切換窗口的 transition 規則（color.css (0,5,1)、輸出在後）照樣勝＝0.4s mode fade 不受影響。
- * mode3：黑或白跟 hue 亮度翻（theme-fg 底＝active 同款，user 拍板）。
- * instant（user 2026-09-28「instant 到那個顏色、不用 fade」）：綁過 hover 的 btn 把底/字色拿出 transition（角度/位移/透明度照舊，
- * hover 進出與 click 變色都瞬切）。非 !important＝mode 切換白名單（typography.css !important）照樣接管 0.4s fade；
- * mode3 inactive 的 transition 是 color.css !important（字 0.3s）→ 另寫同權重一條，切換窗口 color.css 的 (0,5,1) 輸出在後照樣勝。 */
+/* ===== nav btn hover＝隨機三原色（全站）=====
+   JS（section-switch-helpers.js bindNavBtnHover）桌面 mouseenter 抽色：btn 掛 data-nav-hover（gate）＋ --nav-hover（色），離開即拆
+   → 只在桌面 JS 標過的 btn 生效（tap 不黏色）。active 不上色也不轉角（:not(.active)）；atlas 點擊時 JS 拆 gate＝立刻回黑/白。
+   放 @layer 外、特異度 (0,5,1)＋!important：壓 inverse.css / color.css / atlas.css 的 !important（0,3,1~0,4,1）與 atlas active
+   的 inline #000；mode 切換窗口的 transition 規則（color.css (0,5,1)、輸出在後）照樣勝。mode3：theme-fg 底（同 active）。
+   instant：綁過 hover 的 btn 把底/字色拿出 transition（角度/位移/透明度照舊）。非 !important＝mode 切換白名單
+   （typography.css !important）照樣接管 fade；mode3 inactive 的 transition 是 color.css !important → 另寫同權重一條。 */
 @media (hover: hover) and (min-width: 768px) {
   :is([data-nav-hover-bound], .atlas-filter-btn.atlas-filter-revealed[data-nav-hover-bound]) .anchor-nav-inner,
   [data-nav-hover-bound] .anchor-nav-inner div {
-    transition-property: transform, translate, opacity;   /* 保留各自的 duration/ease 清單（atlas translate 0.5/0.9s 照舊對位） */
+    transition-property: transform, translate, opacity;   /* 保留各自的 duration/ease 清單（atlas translate 照舊對位） */
   }
   body.mode-color :is([data-nav-hover-bound], .atlas-filter-btn[data-nav-hover-bound]):not(.active) .anchor-nav-inner {
     transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard) !important;
@@ -333,15 +151,14 @@
   span.class-group-label {
     transition: transform var(--dur-fast) var(--ease-standard);
   }
-  /* mode3：小標題＋btn 整組 hover 才翻黑白（user 2026-09-28「hover 小標題也變色」；原本只認 btn:hover，color.css）。
-     組＝「label + btn」的父層：只寫 > .class-division-btn 會連外層 flex 列也命中（MDES 是它的直屬子）→
-     hover 任一鈕 MDES 都翻成 active 色（user 2026-10-02） */
+  /* mode3：小標題＋btn 整組 hover 才翻黑白。組＝「label + btn」的父層：只寫 > .class-division-btn 會連外層 flex 列也命中
+     （MDES 是它的直屬子）→ hover 任一鈕 MDES 都翻成 active 色 */
   body.mode-color #class-buttons-sticky div:has(> .class-group-label + .class-division-btn:not(.active)):hover > :is(.class-group-label, .class-division-btn) {
     background: var(--theme-fg) !important;
     color: var(--theme-fg-inverse) !important;
   }
-  /* curriculum：BFA 小標題與 btn 同一組（user 2026-09-28「hover 小標題也要變色」）——hover 小標題或 btn 色塊，兩者一起上色；
-     label 是 btn 的 sibling → --nav-hover 掛在 group、JS 也以 group 進出當 hover（courses-section-switch.js） */
+  /* curriculum：BFA 小標題與 btn 同一組，hover 任一者兩者一起上色；label 是 btn 的 sibling →
+     --nav-hover 掛在 group、JS 也以 group 進出當 hover（courses-section-switch.js） */
   body:not(.mode-color) .courses-program-group:has(> [data-nav-hover]:not(.active)):has(.anchor-nav-inner:hover, .courses-bfa-label:hover) :is(.anchor-nav-inner, .courses-bfa-label) {
     background-color: var(--nav-hover, var(--color-pink)) !important;
     color: #000 !important;
@@ -366,14 +183,11 @@
   }
 }
 
-/* ===== Mobile Nav (漢堡選單) =====
- * mobile-menu.js 用 GSAP stagger fade-in 進場（y: 20 → 0、opacity 0 → 1）
- * 預設 color 繼承 body 文字色（mode-standard 黑 / mode-inverse 白 / mode-color theme-fg，後兩者在 themes/*.css 已覆寫）
- * EN/ZH 並列：EN 走 semibold + 主字級、ZH 較細較淺，視覺主副區分但兩語都看得清 */
+/* ===== Mobile Nav（漢堡選單）=====
+   預設 color 繼承 body 文字色（inverse / color 在 themes/*.css 覆寫） */
 
-/* menu 開著時手指在面板上滑動不可「鏈」到背後頁面（iOS：body overflow:hidden 不鎖背景，
- * 面板內容不滿一屏時 overscroll 會把背景捲走 → 關 menu 發現頁面被捲回 hero，user 2026-06-12 報）。
- * contain 斷開 scroll chaining：面板自己捲到底就停，不外溢給 body */
+/* 面板 overscroll 不可鏈到背後頁面（iOS：body overflow:hidden 不鎖背景，面板不滿一屏時會把背景捲走）。
+   contain 斷開 scroll chaining */
 .mobile-nav,
 .mobile-nav nav {
   overscroll-behavior: contain;
@@ -381,18 +195,14 @@
 
 .mobile-nav-en,
 .mobile-nav-zh {
-  /* EN/ZH 同色同 weight，僅 HTML 兩 span 間的 whitespace 區隔（user 2026-05-25 拍板「一個空格即可」） */
+  /* EN/ZH 同色同 weight，僅靠 HTML 兩 span 間的空格區隔 */
   color: inherit;
 }
 
-/* ===== 平板 gate（768–1199）：header 換手機排 2026-07-21 =====
- * 內容照吃桌面 md: 版面（iPad 螢幕放得下；user 拍板「拿桌面去改」），只有 header 塞不下
- * （桌面整排最小 ~1525、上面壓縮 tier 地板 ~1200）→ 沿用矮橫向 landscape.css 5b 同招：
- * 純 CSS 藏桌面排、顯示手機排（56px Lottie logo + mode 鈕 + 漢堡）＋手機全螢幕選單面板。
- * mobile-menu.js 與手機 logo 初始化不看寬度（header 載入即綁好）→ 純 CSS 顯隱即可用。
- * JS 端手機 header gate 同步加 <1200：lightbox-shell getHeaderTargets / header.js
- * getFooterHideLogo / triggerGenerateLogo；footer 版型不跟（usesMobileFooter 仍 768，
- * 平板 footer 照桌面 scatter）。#site-header 提特異度蓋 .hidden/md:flex/md:hidden utility。 */
+/* ===== 768–1023：header 換手機排 =====
+   內容照吃桌面 md: 版面，只有 header 塞不下 → 同矮橫向 landscape.css 5b：純 CSS 藏桌面排、顯示手機排
+   （Lottie logo + mode 鈕 + 漢堡）＋手機全螢幕選單。mobile-menu.js 與手機 logo 初始化不看寬度 → 純 CSS 顯隱即可用。
+   #site-header 提特異度蓋 .hidden/md:flex/md:hidden utility。 */
 @media (min-width: 768px) and (max-width: 1023px) {
   #site-header header .site-container > .md\:flex {
     display: none;
@@ -404,7 +214,7 @@
     display: flex;
   }
   /* 底色帶：md:hidden utility 在 ≥768 收掉它 → 開回來；app 頁（body.overflow-hidden）
-   * 的 display:none gate 特異度 (0,2,0) 輸 #id → 這裡用同 #id 權重補一條 */
+     的 display:none gate 特異度 (0,2,0) 輸 #id → 這裡用同 #id 權重補一條 */
   #site-header .mobile-header-bg {
     display: block;
   }
@@ -413,34 +223,30 @@
   }
 }
 
-/* ===== 桌面（≥1200）漢堡 menu 2026-09-27 =====
- * 桌面 nav bars 已拆，改由 #menu-btn 開同一個 .mobile-nav 面板（mobile-menu.js，gate 同 DESKTOP_MENU_MQ）：
- * 透明全屏層、不鎖捲動也不吃事件（點外面關閉＝document 監聽）、選項靠右成黑底 btn（mode2 白底，走 theme-fg 反色）、英中並列、
- * 無滑入位移（面板直接到位、選項 clip-reveal）；旋轉掛在 clip-reveal wrapper，nav btn 同款「hover 抽新角、
- * 離開保持、click 沿用」；active＝三原色底（--menu-accent，JS 在 active 頁變了才重抽）。
- * min-height 排除矮橫向（走手機 header）。#site-header 提特異度＋!important 蓋 bg-white/md:hidden 與 themes 的
- * .mobile-nav / .mobile-nav-link 顏色 !important。 */
-/* 左下「當前頁」卡只在下面 ≥1200 段顯示；<1200 / 矮橫向不做（放 media 之前：同 #id 權重後者勝） */
+/* ===== 桌面（≥1024）漢堡 menu =====
+   #menu-btn 開同一個 .mobile-nav 面板（mobile-menu.js，gate 同 DESKTOP_MENU_MQ）：透明全屏層、不鎖捲動也不吃事件
+   （點外面關閉＝document 監聽）、選項靠右成 theme-fg 底 btn、英中並列；選項 clip-reveal，旋轉掛在 clip-reveal wrapper
+   （hover 抽新角、離開保持）；active＝三原色底（--menu-accent）。min-height 排除矮橫向（走手機 header）。
+   #site-header 提特異度＋!important 蓋 bg-white/md:hidden 與 themes 的 .mobile-nav / .mobile-nav-link 顏色 !important。 */
+/* 左下「當前頁」卡只在下面桌面段顯示（放 media 之前：同 #id 權重後者勝） */
 #page-indicator-track {
   display: none;
 }
-/* 卡頂高度註冊成 <length>：computed 值＝解好的 px，library-card.js 直接讀來讓位；≥1200 gate 外＝initial 0 */
+/* 卡頂高度註冊成 <length>：computed 值＝解好的 px，library-card.js 直接讀來讓位；桌面 gate 外＝initial 0 */
 @property --page-indicator-top {
   syntax: '<length>';
   inherits: true;
   initial-value: 0px;
 }
 @media (min-width: 1024px) and (min-height: 501px) {
-  /* 面板不吃事件（user：menu 開著畫面仍可 scroll）→ 滾輪/hover/內捲盒直達底下頁面；只有選項本身可點。
-     點外面關閉由 mobile-menu.js 掛 document 監聽。
+  /* 面板不吃事件（menu 開著畫面仍可 scroll）→ 只有選項本身可點；點外面關閉由 mobile-menu.js 掛 document 監聽。
      雙 id：color.css 的 .bg-white !important 帶 :not(#faculty-panel)＝1 id 權重，單 id 蓋不過 → mode3 面板變實色蓋掉內容 */
   #site-header #mobile-nav-panel {
     display: flex;
     background: transparent !important;
     pointer-events: none;
   }
-  /* 第一顆 top＝漢堡鈕底（頂 48＋高 48＝96）與 nav line（--nav-line 184）的中點＝鈕到選項間距砍半（user 2026-09-28，
-     原本對齊 nav line、間距 88 太鬆）；下組貼底、底距＝漢堡鈕離頂距離（header 列 pt 48、items-start → 鈕頂 48） */
+  /* 第一顆 top＝漢堡鈕底（頂 48＋高 48＝96）與 --nav-line 的中點；下組貼底、底距 48＝漢堡鈕離頂距離 */
   #site-header .mobile-nav .site-container {
     padding-top: calc((var(--nav-line) + 96px) / 2);
     padding-bottom: 48px;
@@ -449,12 +255,12 @@
     overflow: visible; /* 蓋 overflow-x-hidden：靠右旋轉 btn 的凸角不被切 */
   }
   #site-header .mobile-nav ul {
-    align-items: flex-end; /* 選項間距吃 HTML gap-sm（user 2026-10-03 由 md 收回 sm、與手機同） */
+    align-items: flex-end; /* 選項間距吃 HTML gap-sm（與手機同） */
   }
   #site-header .mobile-nav-link {
     pointer-events: auto;
     background: var(--theme-fg);
-    padding: 8px 12px 7px; /* 字級 lg 配 nav btn 標準 6/8/5 太擠（user 2026-09-28） */
+    padding: 8px 12px 7px; /* 字級 lg 配 nav btn 標準 6/8/5 太擠 */
     font-size: var(--font-size-lg);
     line-height: var(--line-height-lg);
   }
@@ -473,7 +279,7 @@
   #site-header .mobile-nav-link.active span {
     color: #000 !important;
   }
-  /* hover＝三原色底黑字（--menu-hover 由 mobile-menu.js mouseenter 抽；user 2026-09-28），active 不變 */
+  /* hover＝三原色底黑字（--menu-hover 由 mobile-menu.js mouseenter 抽），active 不變 */
   #site-header .mobile-nav-link:not(.active):hover {
     background: var(--menu-hover, var(--color-pink));
   }
@@ -493,14 +299,11 @@
     color: var(--theme-fg) !important;
   }
 
-  /* 左下「當前頁」卡（2026-09-27）：卡＝menu 選項同款底色/padding，文字同頁內 nav btn（.anchor-nav-btn：text-s 粗體、
-     英中同行距 line-height-s、英中距 --space-en-zh-s；user 2026-09-27）；角度掛外層遮罩（同 menu clip wrapper，
-     滑入不切旋轉凸角）。位置鏡像 menu 下組：左＝container padding、底 48。header.js updateNavActive 填字＋抽角＋clip-reveal。
-     跟著內容走＝原生 sticky（user「像 nav btn」；JS 捲動事件寫位移會慢一幀而抖，已棄）：卡在隱形軌道
-     #page-indicator-track 底端（header.html，fixed header 外），軌道＝hero 底 → footer 頂（header.js
-     layoutPageIndicatorTrack 寫 top/height），上下 padding 48 ⇒ hero 還在時卡被軌道頂擋在畫面下、footer 來時卡被帶著往上走。
-     --page-indicator-top＝卡頂離視窗底（48 + padding 11 + 英中兩行 + 英中距，跟下方卡片樣式同步）：
-     atlas 切換鈕 / legal 標題 / library 色卡讓位用 */
+  /* 左下「當前頁」卡：底色/padding 同 menu 選項，文字同頁內 nav btn（text-s 粗體、英中距 --space-en-zh-s）；
+     角度掛外層遮罩（滑入不切旋轉凸角）。位置鏡像 menu 下組：左＝container padding、底 48。header.js updateNavActive 填字＋抽角＋clip-reveal。
+     跟著內容走＝原生 sticky（JS 捲動事件寫位移會慢一幀而抖）：卡在隱形軌道 #page-indicator-track 底端（header.html，fixed header 外），
+     軌道＝hero 底 → main 底（header.js layoutPageIndicatorTrack 寫 top/height），上下 padding 48。
+     --page-indicator-top＝卡頂離視窗底（48 + padding 11 + 英中兩行 + 英中距，跟下方卡片樣式同步）：atlas 切換鈕 / legal 標題 / library 色卡讓位用 */
   :root {
     --page-indicator-top: calc(48px + 11px + var(--font-size-s) * var(--line-height-s) * 2 + var(--space-en-zh-s));
   }
@@ -532,7 +335,7 @@
   .page-indicator-card:empty {
     display: none;
   }
-  /* 英中兩行（user 2026-09-27）：兩個 span 各自成行；英中同行距、英中距同 nav btn 的 gap（--space-en-zh-s） */
+  /* 英中兩行：兩個 span 各自成行；英中距同 nav btn（--space-en-zh-s） */
   .page-indicator-card > span {
     display: block;
   }

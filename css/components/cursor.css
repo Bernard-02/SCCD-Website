@@ -1,11 +1,6 @@
-/* 自製 cursor 全域規則
- *
- * --cursor-* 定義在 js/utils/helpers.js（唯一來源，含後台覆蓋）。全站一律寫 var(--cursor-X)：
- * component CSS、JS inline、HTML inline 都一樣；Tailwind cursor-* utility 也已映射到 var（tailwind.config.js）。
- * 勿寫裸 keyword（cursor:pointer/default）——會露出系統游標。
- *
- * 本檔只補「瀏覽器／Tailwind preflight 內建 keyword 游標」的元素，新元件不用來這裡登記。
- */
+/* 自製 cursor 全域規則：--cursor-* 唯一定義在 js/utils/helpers.js（含後台覆蓋）
+   全站一律寫 var(--cursor-X)（Tailwind cursor-* 已映射），勿寫裸 keyword＝露系統游標
+   本檔只補瀏覽器／Tailwind preflight 內建 keyword 游標的元素，新元件不用登記 */
 
 /* 1) 預設：全站繼承；:disabled 蓋 preflight 的 keyword default */
 html,
@@ -38,13 +33,7 @@ body [contenteditable="true"] {
   cursor: var(--cursor-text);
 }
 
-/* ─────────────────────────────────────────────────────────────
- * 4) Left / Right arrow cursors（特殊方向 cursor）
- *    timeline 邊界照片 + nav zone
- *    courses / faculty slide-in overlay 點任何處關閉 → 左箭頭暗示
- * ───────────────────────────────────────────────────────────── */
-body .timeline-photo[data-tl-edge="left"],
-body .timeline-photo[data-tl-edge="left"] *,
+/* 4) 方向游標：about timeline nav zone ＋ faculty / courses slide-in overlay（點任何處關閉 → 左箭頭暗示） */
 body [data-tl-nav-edge="left"],
 body [data-tl-nav-edge="left"] *,
 body #faculty-overlay,
@@ -53,8 +42,6 @@ body #courses-overlay,
 body #courses-overlay * {
   cursor: var(--cursor-w-resize);
 }
-body .timeline-photo[data-tl-edge="right"],
-body .timeline-photo[data-tl-edge="right"] *,
 body [data-tl-nav-edge="right"],
 body [data-tl-nav-edge="right"] * {
   cursor: var(--cursor-e-resize);

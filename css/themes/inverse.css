@@ -1,24 +1,17 @@
-/**
- * Inverse Mode Theme
- * 黑底白字模式，透過 body.mode-inverse 觸發
- * 所有 inverse 相關覆蓋集中在此檔案管理
- *
- * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
- * 對組，三 mode 都可用（2026-05-18 起 standard/inverse 也定義了固定值）。
- * 之後可寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條規則
- * 覆蓋兩 mode，取代兩檔各寫一份的重複。本檔尚未全 migrate（風險>收益），新加規則照新 pattern。
- */
+/* Inverse Mode Theme（mode2）：黑底白字，由 body.mode-inverse 觸發
+   新 mode-aware 規則優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)（三 mode 皆有定義），
+   可寫 `body:is(.mode-inverse, .mode-color) .X { color: var(--theme-fg) }` 一條覆蓋兩 mode；本檔尚未全 migrate（風險>收益） */
 
 /* ===== Base ===== */
 body.mode-inverse {
   /* Theme tokens 反轉：所有用 var(--theme-fg)/var(--theme-bg) 的元件會自動跟著切換 */
   --theme-fg: var(--color-white);
   --theme-bg: var(--color-black);
-  --theme-fg-inverse: var(--color-black);     /* inverse fg=白，對比色=黑 */
+  --theme-fg-inverse: var(--color-black);
   --theme-fg-rgb: 255, 255, 255;
   --theme-bg-rgb: 0, 0, 0;
   --theme-fg-inverse-rgb: 0, 0, 0;
-  --list-zebra-alpha: 0.15;  /* 白疊色(fg=白) 15%（user 2026-06-22） */
+  --list-zebra-alpha: 0.15;  /* 白疊色(fg=白) 15% */
 
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
   --lib-bg: var(--dark-gray);
@@ -42,26 +35,15 @@ body.mode-inverse header {
   background-color: transparent;
 }
 
-/* .bg-white 反轉黑底；about bar 用 :not(:hover) 讓 hover 時 JS inline 三原色不被蓋
- * 排除 #faculty-panel：JS 設 inline cardColor（卡片隨機三原色），不能被 !important 蓋成黑 */
-body.mode-inverse .bg-white:not([data-bar="about"]):not(#faculty-panel),
-body.mode-inverse [data-bar="about"]:not(:hover) {
+/* .bg-white 反轉黑底；排除 #faculty-panel：JS 設 inline cardColor（卡片隨機三原色），不能被 !important 蓋成黑 */
+body.mode-inverse .bg-white:not([data-bar="about"]):not(#faculty-panel) {
   background-color: black !important;
 }
 
-body.mode-inverse .bg-gray-9 {
-  background-color: var(--gray-2) !important;
-}
-
 /* ===== Typography ===== */
-/* :not(.timeline-year-item)：該 class 的 DOM 已隨舊桌面 timeline 卡片 view 移除（2026-08-16 確認），
-   但 :not() 是特異度配重——hero.css / color.css 多處註解以 (0,3,1) 計算 cascade，拆掉會降級破疊層，保留 */
+/* :not(.timeline-year-item) 是特異度配重（該 class DOM 已移除）：hero.css / color.css 以 (0,3,1) 計算 cascade，拆掉會破疊層，保留 */
 body.mode-inverse .text-black:not(.timeline-year-item) {
   color: white !important;
-}
-
-body.mode-inverse .text-gray-6 {
-  color: var(--gray-5) !important;
 }
 
 /* ===== Borders ===== */
@@ -69,15 +51,7 @@ body.mode-inverse .border-black {
   border-color: white !important;
 }
 
-body.mode-inverse .border-gray-9 {
-  border-color: var(--gray-2) !important;
-}
-
 /* ===== Navigation ===== */
-body.mode-inverse .nav-link {
-  color: white;
-}
-
 body.mode-inverse .mobile-nav-link {
   color: white !important;
 }
@@ -90,35 +64,17 @@ body.mode-inverse .mobile-nav {
   background-color: black;
 }
 
-body.mode-inverse .mega-menu {
-  background-color: black;
-}
-
-@media (min-width: 768px) {
-  body.mode-inverse .nav-link:hover {
-    color: white;
-  }
-}
-
-/* ===== Theme Toggle Button ===== */
-/* 由 components/buttons.css 的 var(--theme-fg) 自動處理；此處不再覆蓋 */
-
-
-/* Footer logo：inverse mode 由 footer.js 直接載入 SCCDLogoStandard.json (黑 filled)，
- * 不需 CSS filter；default filter:none 沿用 footer.css */
+/* Footer logo：inverse 由 footer.js 直接載 SCCDLogoStandard.json，不需 CSS filter */
 
 /* ===== Theme Invert（黑色靜態圖在 inverse mode 自動翻成白色）===== */
-/* 用法：對純黑（或單色）SVG/PNG 加 class="theme-invert"，inverse mode 自動 filter:invert(1) → 黑變白
- * 適用：about 頁中間的 hero SCCD 黑色 logo 等 */
+/* 用法：純黑（單色）SVG/PNG 加 class="theme-invert" → inverse 自動 invert 成白 */
 body.mode-inverse .theme-invert {
   filter: invert(1);
 }
 
 /* ===== Highlighted text 強制保留黑字 ===== */
-/* 文字底色由 JS 套成 accent（綠/粉/藍），這些都是淺色 → 文字必須維持黑色才看得到
- * inverse mode 預設把文字反白，這裡 narrow 蓋過讓 accent bg 上的文字一律維持黑字
- * 包含：about overview hl / class division hl / works hl / 封鎖綫 section-title-strip
- *      timeline 年份卡片 + 敘述卡片（bg=accent，排除 era 卡片 .bg-black） */
+/* JS 套的 accent 底（綠/粉/藍）皆淺色 → 字維持黑：about overview/class/works hl、section-title-strip、
+   timeline 年份/敘述卡（排除 era 卡 .bg-black） */
 body.mode-inverse [data-overview-hl],
 body.mode-inverse [data-overview-hl] *,
 body.mode-inverse [data-class-hl],
@@ -133,8 +89,6 @@ body.mode-inverse .timeline-card-inner:not(.bg-black) * {
 }
 
 /* ===== Timeline Era 卡片：inverse 反轉成白底黑字 ===== */
-/* 標準模式：bg-black + text-white（Tailwind class 寫死）
- * inverse 模式：要變白底黑字（user 指定），這裡蓋過 */
 body.mode-inverse .timeline-card-inner.bg-black {
   background-color: white !important;
 }
@@ -144,7 +98,7 @@ body.mode-inverse .timeline-card-inner.bg-black * {
 }
 
 /* ===== Nav Buttons (左側 section/program btn) ===== */
-/* inactive: 純黑底 + 100% 白字（user 2026-09-28）；hover 隨機三原色見 navigation.css「nav btn hover」段；active 彩色 background 由 JS inline 設定 */
+/* inactive 純黑底白字；hover 見 navigation.css「nav btn hover」段；active 底色由 JS inline 設 */
 body.mode-inverse .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .faculty-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .activities-section-btn:not(.active) .anchor-nav-inner,
@@ -161,10 +115,9 @@ body.mode-inverse .courses-program-btn.active .anchor-nav-inner {
   color: black !important;
 }
 
-/* Courses BFA Class label：inactive 字吃 courses.css base var(--theme-fg)＝inverse 自動白，不另寫（user 2026-09-28 100% 不透明） */
+/* Courses BFA label：inactive 字吃 courses.css base var(--theme-fg)＝自動白，不另寫 */
 
 /* ===== Filter Buttons (右側 filter btn) ===== */
-/* inactive: 純黑底 + 100% 白字（同上方 nav btn）*/
 body.mode-inverse .activities-filter-btn:not(.active) .anchor-nav-inner,
 body.mode-inverse .courses-filter-btn:not(.active) .anchor-nav-inner {
   background-color: rgba(0, 0, 0, 1) !important;
@@ -187,60 +140,34 @@ body.mode-inverse .courses-filter-btn.active .anchor-nav-inner {
   }
 }
 
-/* ===== Accordion / Course Items ===== */
-body.mode-inverse .course-item {
-  border-color: white !important;
-}
-
-/* 淺底/亮三原色底容器內的 .border-black 維持黑色分隔線（依全站對比原則：淺底→黑內容）
- * - .list-content：active 亮三原色底（activities accordion 展開）
- * 廣域 .border-black→white 會把分割線變白，這裡蓋回黑色
- *
- * #library-card-content 已不在此清單：library 主矩形 inverse 已改深灰底（#333333）+ 白文字，
- * 分隔線改用 var(--lib-fg) 跟著翻白，不用蓋回黑 */
+/* ===== Accordion ===== */
+/* 亮三原色底容器（active .list-content）內的分隔線蓋回黑：廣域 .border-black→white 會把它變白 */
 body.mode-inverse .list-content .border-black {
   border-color: black !important;
 }
 
 /* ===== Library 灰色主矩形（#library-card-content）：跟 mode 翻 ===== */
-/* 標準色 #f2f2f2 + 黑字 ↔ inverse #333333 + 白字（半透明同 alpha 翻成 rgba(255,...)）
- * --lib-bg / --lib-fg / --lib-fg-rgb 在 variables.css + 此檔 body.mode-inverse 各有定義
- * library.css / library.html / library-panels.js / library-card.js 都用 var() 取色，自動跟 mode */
+/* 標準 #f2f2f2 + 黑字 ↔ inverse #333 + 白字：--lib-bg / --lib-fg / --lib-fg-rgb 定義在 variables.css + 本檔 Base，
+   library.css / library.html / library-panels.js / library-card.js 都用 var() 取色 */
 
-/* lib-panel-title 標題 bar：無底色、文字跟卡走 var(--lib-fg)（inverse 已 remap 成白）→ 無需覆蓋 */
-
-/* Awards ticker logos：黑色 PNG → inverse 模式下翻白（!important 蓋過 JS inline filter:grayscale） */
+/* Awards ticker logo：黑 PNG 翻白（!important 蓋過 JS inline filter:grayscale） */
 body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   filter: invert(1) !important;
 }
 
-/* hover (未展開) 或 active (展開) 時 bg 變亮三原色（JS 設 inline），文字一律反黑
- * cover course-accordion.js + list-accordion.js 兩個元件
- *
- * 觸發條件用 [style*="background"] 偵測 inline bg：
- *   - hover: mouseenter 設 inline bg → match → 黑字；mouseleave 清 → 失效 → 回白
- *   - active 期間：inline bg 一直在 → 一直黑字
- *   - active 收合動畫期間：toggle 移除 .active 但 inline bg 仍在（onComplete 才清）→ 仍黑字（不會閃成白）
- *   - 收合 onComplete 清 inline bg → 失效 → 回白（這時動畫已結束沒人看到）
- *
- * content 內含 ref-link 等帶 .text-black 的元素，廣域 .text-black→white 會蓋過繼承色，
- * 所以需顯式 target `.list-content *` 用 !important 蓋回黑字 */
+/* hover / active 時 JS 設 inline 亮三原色 bg（list-accordion.js）→ 字一律反黑；用 [style*="background"] 偵測：
+   收合動畫期間 .active 已移除但 inline bg 到 onComplete 才清 → 仍黑字、不閃白。
+   .list-content * 需 !important：內含帶 .text-black 的 ref-link，會被廣域 .text-black→white 蓋掉 */
 @media (min-width: 768px) {
-  body.mode-inverse .course-header[style*="background"],
-  body.mode-inverse .course-header[style*="background"] + .course-content,
-  body.mode-inverse .course-header[style*="background"] + .course-content *,
   body.mode-inverse .list-header[style*="background"],
   body.mode-inverse .list-header[style*="background"] + .list-content,
   body.mode-inverse .list-header[style*="background"] + .list-content * {
     color: black !important;
   }
 
-  /* list-ref-btn hover (mode2)：白底黑字（user 2026-06-24）。base lists.css hover 是黑底白字＝standard 慣例；
-   * inverse 模式要翻過來——黑頁/暗 panel 上「黑底 hover」會糊掉，且應對齊 mode3 對 .list-ref-btn 的全 ref override。
-   * 蓋過 base `background:black !important` + `color:white !important`（本選擇器 0,3,1 > base 0,2,0）。
-   * 涵蓋所有 .list-ref-btn：activities / admission（active-content）+ awards / press / files（非 active-content）。
-   * lightbox ref chip 不套 .list-ref-btn class（自管 hover）→ 不受影響。
-   * bg 只套 root；子元素只繼承文字色，避免巢狀色塊（鏡像 base / mode3 pattern）。 */
+  /* list-ref-btn hover：白底黑字（base lists.css 的黑底 hover 在黑頁上會糊，且對齊 mode3）。
+     蓋過 base 的 background/color !important（本選擇器特異度較高）；bg 只套 root、子元素只給字色，避免巢狀色塊。
+     lightbox ref chip 不掛 .list-ref-btn（自管 hover），不受影響 */
   body.mode-inverse .list-ref-btn:hover {
     background: white !important;
     color: black !important;
@@ -249,8 +176,7 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
     color: black !important;
   }
 
-  /* legal 規章表列＝ref 同族（user 2026-09-10 ref 化：rest deep 底走 base）→ hover 同 ref mode2 慣例翻白底黑字，
-   * 蓋過 base legal.css hover 的 `background:black/color:white !important`（本選擇器特異度較高）。 */
+  /* legal 規章表列＝ref 同族 → hover 同 list-ref-btn 翻白底黑字（特異度高於 legal.css hover 的 !important） */
   body.mode-inverse .legal-reg-item:hover .legal-reg-name,
   body.mode-inverse .legal-reg-item:hover .legal-reg-unit {
     background: white !important;
@@ -262,7 +188,7 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   }
 }
 
-/* legal 規章表列手機按壓態（user 2026-09-11 :active＝hover 的觸控版）：mode2 同 hover 翻白底黑字 */
+/* legal 規章表列手機按壓態（:active＝hover 的觸控版）：同 hover */
 @media (max-width: 767px) {
   body.mode-inverse .legal-reg-item:active .legal-reg-name,
   body.mode-inverse .legal-reg-item:active .legal-reg-unit {
@@ -276,9 +202,8 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
 }
 
 /* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
-/* bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent，mouseleave 清掉
- * 用 [style*="background"] 偵測 hover 狀態 → 文字全部反黑（含半透明 0.5 白 → 0.5 黑）
- * 涵蓋：.files-item（files + album panel 共用）、.press-item */
+/* bindListItemHover（library-panels.js）hover 時 inline 設 accent bg → [style*="background"] 偵測，字全反黑（0.5 白 → 0.5 黑）；
+   .files-item 為 files + album 共用 */
 @media (min-width: 768px) {
   body.mode-inverse .files-item[style*="background"],
   body.mode-inverse .files-item[style*="background"] *,
@@ -287,23 +212,15 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
     color: black !important;
   }
 
-  body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag,
-  body.mode-inverse .press-item[style*="background"] .press-item-date,
-  body.mode-inverse .press-item[style*="background"] .press-item-media-icon,
-  body.mode-inverse .press-item[style*="background"] .press-item-cat-tag {
+  body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag {
     color: rgba(0, 0, 0, 0.5) !important;
   }
 
-  /* press-item-subtitle（報導單位）2026-08-03 改 100% 黑白，不跟 date/icon/cat-tag 一起降到 0.5——
-   * 上面 .press-item[style*="background"] * 已經是 color:black !important 全解析度，這裡不用再蓋 */
+  /* press-item-subtitle 刻意不列入上方 0.5：維持 100% 黑（由上面 * 規則給） */
 }
 
-/* ===== Courses Grid Cards：inverse 反轉成深灰底白字 =====
- * 標準色 rgba(0,0,0,0.06) on white ≈ #F0F0F0（淺灰） ↔ inverse var(--gray-2) #333 + 白字
- * hover/active 期間 JS 設 inline accent bg（亮三原色），需保留 inline bg 跟 standard 一致：
- *   default rule 必須用 :not([style*="background"]) 排除 hover 狀態，否則 `!important` 會蓋過
- *   JS inline accent bg（inline 不帶 !important，CSS !important 勝），inverse hover 變成
- *   深灰底而非三原色底 — 跟 standard hover (accent + black 字) 視覺不一致 */
+/* ===== Courses Grid Cards：inverse 深灰底白字 =====
+   :not([style*="background"]) 排除 hover/active：否則 !important 會蓋過 JS inline accent bg（跟 standard 不一致） */
 body.mode-inverse .courses-grid-card:not([style*="background"]) {
   background: var(--dark-gray) !important;
   color: white !important;
@@ -312,16 +229,15 @@ body.mode-inverse .courses-grid-card:not([style*="background"]) {
 body.mode-inverse .courses-grid-card[style*="background"] {
   color: black !important;
 }
-/* Sitemap 卡（news banner 同款，user 2026-10-03）：同首頁 news inverse——標題區白底黑字、編號 box 維持 rgb；
- * hover 對調＝標題區吃 rgb、box 變白底黑字 */
+/* Sitemap 卡（同首頁 news banner inverse）：標題區白底黑字、編號 box 維持 rgb；hover 對調＝標題區吃 rgb、box 白底黑字 */
 body.mode-inverse .legal-map-card { --map-body-bg: #fff; color: #000; }   /* 兩區底色走 --map-*-bg var（legal.css） */
 body.mode-inverse .legal-map-card.is-swap { --map-num-bg: #fff; --map-body-bg: var(--map-accent); }
 body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: #000; }
 
 /* ===== About Anchor Nav ===== */
-/* inactive 黑底 100% 白字（user 2026-09-28；hover 色見 navigation.css「nav btn hover」段）；#anchor-nav / #sticky-events-nav 同套 */
+/* inactive 黑底白字（hover 見 navigation.css「nav btn hover」段）；#anchor-nav / #sticky-events-nav 同套 */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background-color: #000 !important; /* 原 rgba(0,0,0,.5)，實色化防透出後方內容（inverse 頁底=黑） */
+  background-color: #000 !important; /* 實色（非半透明）防透出後方內容 */
   color: white !important;
 }
 
@@ -330,24 +246,15 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
   color: black !important;
 }
 
-/* ===== Faculty Card / Admission Item hover：inverse 下文字反黑（因 bg 變亮三原色）===== */
-/* standard 下文字繼承黑色，hover 不需動；inverse 下繼承白色，hover 時亮底白字看不清，反黑 */
-/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併反黑 */
-body.mode-inverse .admission-item.active {
-  color: black;
-}
+/* ===== Faculty Card hover：inverse 繼承白字，hover 亮三原色底上看不清 → 反黑 ===== */
 @media (min-width: 768px) {
-  body.mode-inverse .faculty-card:hover,
-  body.mode-inverse .admission-item:hover {
+  body.mode-inverse .faculty-card:hover {
     color: black;
   }
 }
 
-/* ===== List Accordion hover / active：inverse 下保留三原色 accent，字色強制黑 =====
- * list-accordion.js 在 .list-header hover 跟 active 時 inline 設 accent bg（綠/粉/藍），active 連 .list-content / .list-item 也染同色；
- * inverse 模式下 bg 保留三原色（user 指定），accent 底配黑字（與 mode1 一致）。
- * 用 [style*="background"] attribute selector 只 match 有 inline bg 的狀態（hover 或 active）。
- * 涵蓋 admission / activities / 任何用 list-accordion 的頁面。 */
+/* ===== List Accordion hover / active：保留三原色 accent，字強制黑 =====
+   list-accordion.js 在 hover / active 時 inline 設 accent bg（active 連 .list-content / .list-item）；[style*="background"] 只命中這兩態 */
 body.mode-inverse .list-header[style*="background"],
 body.mode-inverse .list-header[style*="background"] *,
 body.mode-inverse .list-content[style*="background"],
@@ -358,16 +265,9 @@ body.mode-inverse .list-item[style*="background"] * {
 }
 
 /* ===== Faculty Slide-in：inverse 模式下視覺等同 standard ===== */
-/* 設計考量：slide-in 是視覺獨立 modal — 70% 黑遮罩、卡片隨機色 panel、彩色 cursor、黑箭頭、黑文字
- * inverse mode 不反轉。
- *
- * Panel 底色：JS 動態設 inline cardColor（卡片隨機三原色），靠廣域 .bg-white inverse 規則
- *           已加 :not(#faculty-panel) 排除，inline 直接生效，這裡不再蓋。
- *
- * 兩層 reset 處理文字色：
- * 1. .text-black → 黑字（蓋 .text-black→white inverse 規則）
- * 2. 子樹根繼承色 → 黑（蓋 body.mode-inverse {color:white} 繼承色，cover 動態生成
- *    沒帶 .text-black 的元素如 faculty-grid-row 內的 <span>） */
+/* slide-in 是視覺獨立 modal，inverse 不反轉（同 standard）。
+   Panel 底色：JS inline cardColor，廣域 .bg-white 規則已 :not(#faculty-panel) 排除，不再蓋。
+   文字兩層 reset：.text-black → 黑（蓋 .text-black→white）；子樹根 color → 黑（蓋 body 繼承白，涵蓋動態生成無 .text-black 的元素） */
 body.mode-inverse #faculty-slide-in {
   color: black;
 }
@@ -390,8 +290,7 @@ body.mode-inverse .activities-search-input {
 }
 
 /* ===== Homepage Marquee + YT Card：inverse 反轉成白底黑字 ===== */
-/* 標準模式：黑底白字（inline 寫死 background:#000 / color:#fff）
- * inverse 模式：白底黑字；canvas WATCH! 文字由 index-yt-card.js 動態讀 --theme-bg 重繪 */
+/* 標準為 inline 寫死黑底白字（需 !important）；canvas WATCH! 文字由 index-yt-card.js 讀 --theme-bg 重繪 */
 body.mode-inverse .homepage-marquee-link {
   background: white !important;
 }
@@ -406,8 +305,7 @@ body.mode-inverse .hm-banner-row.is-swap .hm-banner-num {
   color: black !important;
 }
 
-/* watch-hover 遮蔽 overlay（hover WATCH 卡時整列蓋成 bar 色，數字方塊一起蓋）：inline 寫死 #000、
- * inverse bar 是白底 → 蓋黑會露餡，改跟 bar 同色蓋白 */
+/* watch-hover 遮蔽 overlay（整列蓋成 bar 色）：inline 寫死 #000，inverse bar 是白底 → 改蓋白 */
 body.mode-inverse .hm-banner-row-mask {
   background: white !important;
 }
@@ -416,28 +314,7 @@ body.mode-inverse #homepage-yt-card {
   background: white !important;
 }
 
-/* ===== Library / CREATE! 側邊 bar：inverse 完整反轉色階 ===== */
-/* 三狀態對稱原則：
- *   inactive (一般)：standard 白底黑字 ↔ inverse 黑底白字
- *   active   (該頁)：standard 黑底白字 ↔ inverse 白底黑字
- *   hover    (任意)：bg=隨機三原色（JS inline 設），文字 = 該 mode 的「一般字色」
- *                    standard hover=黑字 / inverse hover=白字
- *
- * Notes:
- *   - JS inline 設的 bg 須 !important 才蓋得過；hover 時 JS inline 改成三原色，
- *     用 :not(.is-bar-hover) 避開 hover 狀態避免 #000/#fff 蓋掉三原色
- *   - About bar 無需在此處理：本來就用 var(--theme-fg) 字色 + 現有 .bg-white→black 規則 */
-
-/* Inactive 一般情況反轉 */
-body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover),
-body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover),
-body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) {
-  background: #000 !important;
-}
-
-/* Mode btn 圓底：底色 = page bg（融入頁面），inverse 黑底白 icon
- * 沒 .bar-inactive/active 兩態（永遠顯示當前 mode icon），直接吃 [data-bar="mode"] */
+/* ===== Header 圓鈕：Mode btn 圓底＝page bg（融入頁面）、白 icon ===== */
 body.mode-inverse [data-bar="mode"] {
   background: #000 !important;
 }
@@ -451,68 +328,32 @@ body.mode-inverse .mobile-header-btn {
   color: #fff !important;
 }
 
-/* :not(.is-bar-hover) 讓 hover 時 navigation.css 的 is-bar-hover .nav-link { color:#000 } 規則生效（specificity 0,2,1）
- * 否則此 inverse 規則 (0,3,2) 會壓過 hover 規則導致 hover 仍是白/黑色 */
-body.mode-inverse [data-bar="library"].bar-inactive:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="atlas"].bar-inactive:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-inactive:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="alumni"].bar-inactive:not(.is-bar-hover) .nav-link {
-  color: #fff !important;
-}
-
-/* Active 在自己頁面反轉（alumni 在 alumni 頁時 display:none，保留規則對齊但無視覺生效） */
-body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover),
-body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover),
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover),
-body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) {
-  background: #fff !important;
-}
-
-body.mode-inverse [data-bar="library"].bar-active:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="atlas"].bar-active:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="generate"].bar-active:not(.is-bar-hover) .nav-link,
-body.mode-inverse [data-bar="alumni"].bar-active:not(.is-bar-hover) .nav-link {
-  color: #000 !important;
-}
-
-/* Hover 字色：standard / inverse 一律黑（亮三原色底對比），由 navigation.css 的
- * `is-bar-hover .nav-link { color: #000 !important }` 處理，inverse 不再 override */
-
-/* Degree Show card hover：圖片 wrapper hover 把 .degree-show-card-content bg 設成 accent 色，
- * inverse 預設 body color:white 會讓標題在 accent 底上看不清，force 回黑（全站對比規範） */
+/* Degree Show card hover：wrapper hover 把 .degree-show-card-content 設 accent bg，body 白字看不清 → 反黑 */
 body.mode-inverse .degree-show-card-content[style*="background"] *,
 body.mode-inverse .degree-show-card-content[style*="background"] {
   color: #000 !important;
 }
 
 /* ===== Atlas List View：inverse 反轉 =====
- * atlas.css 用 raw `color: black` 不是 .text-black utility class，
- * 廣域 .text-black→white 規則抓不到，要顯式 override：
- *   - .atlas-list-item / .atlas-list-nav-btn（chevron）：black → white
- *     子元素 .atlas-list-name-zh (opacity 0.8) / .atlas-list-item-label (opacity 0.6)
- *     自然繼承白色 → 變半透明白（user 要的「副標白色透明」）
- *   - .atlas-list-col-title chip：原本黑底白字 → 翻成白底黑字（user 指定） */
+   atlas.css 寫 raw `color: black`（非 .text-black），廣域規則抓不到，需顯式 override；
+   子元素 .atlas-list-name-zh / .atlas-list-item-label 靠 opacity 自然繼承成半透明白 */
 body.mode-inverse .atlas-list-item,
 body.mode-inverse .atlas-list-nav-btn {
   color: white !important;
 }
 
-/* 主 col title (Faculty/Alumni/Partners)：黑底白字 → 翻白底黑字（user 指定）
- * 排除 host/employ：那兩個走 atlas.css var(--lib-bg/fg) 深灰底白字（lib vars 在此檔 body.mode-inverse 已定義 #333333 + #ffffff）
- * 排除做法：用 :not([data-category="host"]):not([data-category="employ"])，避開原本 !important 蓋過 atlas.css host/employ rule 的 bug */
+/* 主 col title：黑底白字 → 白底黑字。
+   排除 host/employ（走 atlas.css var(--lib-bg/fg) 深灰底白字）：用 :not() 排除，!important 直接蓋會吃掉 atlas.css host/employ 規則 */
 body.mode-inverse .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-col-title,
 body.mode-inverse .atlas-list-group-label-col .atlas-list-col-title {
   background: white !important;
   color: black !important;
 }
 
-/* 右箭頭 nav-btn 跟主 col title 同款翻白底黑字（user 09-04「箭頭應該白色、看 title tab 怎麽做」）；
- * 排除 host/employ：那兩欄箭頭留 base var(--lib-bg) 深灰、同其欄標（chevron 色由上方廣域規則給白） */
+/* 右箭頭 nav-btn 同主 col title 翻白底黑字；host/employ 欄箭頭留 base var(--lib-bg) 深灰（chevron 色由上方廣域規則給白） */
 body.mode-inverse .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-nav-btn {
   background: white !important;
   color: black !important;
 }
 
-/* B 企業環 chip（系友任職企業 / hosting）：2026-06-08 起 JS inline 設隨機三原色底 + 黑字（同 D 城市方塊、
-   同 standard mode）→ inverse 沿用「保留三原色 accent、字色黑」慣例，不再 override 成白底黑字（舊邏輯，
-   當時 B 是黑底白字才需翻）。inline 三原色 bg + 黑字在 inverse 下直接顯示，無需任何規則。 */
+/* B 企業環 chip：JS inline 三原色底 + 黑字，inverse 直接沿用，無需規則 */

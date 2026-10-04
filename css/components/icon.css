@@ -1,8 +1,5 @@
-/* SCCD custom icons — CSS mask 系統
- * 用 mask + background-color: currentColor，icon 顏色繼承 text color（text-white / text-black / theme-fg 全套適用）
- * 替換 FA：<i class="fa-solid fa-X"> → <span class="icon icon-X">
- * size 沿用 FA 的 font-size 機制（width/height: 1em；text-xl / text-s 等仍生效）
- */
+/* SCCD custom icons — CSS mask 系統：<span class="icon icon-X">
+   mask + background-color: currentColor → 顏色繼承 text color；尺寸走 font-size（1em） */
 
 .icon {
   display: inline-block;
@@ -21,11 +18,9 @@
   flex-shrink: 0;
 }
 
-/* footer 社群 icon 變體：雙色實心 SVG（黑塊白 f）用「原色 background-image」渲染，非 mask（mask 單色、會把實心雙色填成整塊）。
- * 依 mode 用 filter:invert 反色：base 檔=黑塊白 f → standard 深底 invert=白塊黑 f、inverse 反色白底 as-is=黑塊白 f、
- * mode3 互補 hue 底亮暗會輪轉 → 吃 --footer-invert-filter 每幀跟 luminance 翻（極性同 footer logo）。
- * f 是實心填色（非透明鏤空）故 mode3 彩底也不透 hue。渲染見 footer-content.js buildSocialGroup。
- * 用 .icon.footer-social-glyph 複合選擇器提特異度蓋掉 unlayered base .icon 的 mask/background-color。 */
+/* footer 社群 icon 變體：雙色實心 SVG 用原色 background-image 渲染，非 mask（mask 單色會填成整塊）
+   依 mode 用 filter:invert 反色；mode3 吃 --footer-invert-filter 跟底色 luminance 翻（極性同 footer logo）；渲染見 footer-content.js buildSocialGroup
+   .icon.footer-social-glyph 複合選擇器提特異度，蓋掉 base .icon 的 mask/background-color */
 .icon.footer-social-glyph {
   background-color: transparent;
   -webkit-mask-image: none;
@@ -39,39 +34,30 @@
 body.mode-inverse .icon.footer-social-glyph { filter: invert(0); }
 body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, invert(1)); }
 
-/* size tier — 5 階；外加 hero 級 (footer social 走 --icon-hero / atlas-layout-btn 仍 32px hardcoded 個案) */
-/* XL 32px = share modal 等需要強調的主操作 icon（2026-05-20 新增） */
-/* L  24px = 主控按鈕 (video player / header toggle 24px via .theme-toggle-btn) */
-/* M  20px = lightbox / page-level arrow / chevron / zoom */
-/* S  16px = list-item 內 inline icon */
-/* XS 14px = search / sort-arrow 等輔助級 */
-.icon-xl { font-size: 2rem; }      /* 32px */
-.icon-l  { font-size: 1.5rem; }    /* 24px */
-.icon-m  { font-size: 1.25rem; }   /* 20px */
-.icon-s  { font-size: 1rem; }      /* 16px */
-.icon-xs { font-size: 0.875rem; }  /* 14px */
+/* size tier（footer social 另走 --icon-hero）：
+   XL 32px＝share modal 等強調主操作；L 24px＝主控按鈕（video player / header toggle）；M 20px＝lightbox / arrow / chevron / zoom；
+   S 16px＝list-item inline；XS 14px＝search / sort-arrow 等輔助 */
+.icon-xl { font-size: 2rem; }
+.icon-l  { font-size: 1.5rem; }
+.icon-m  { font-size: 1.25rem; }
+.icon-s  { font-size: 1rem; }
+.icon-xs { font-size: 0.875rem; }
 
 /* arrows */
 .icon-arrow-left   { --icon: url('../website-icons/arrow_left.svg'); }
 .icon-arrow-right  { --icon: url('../website-icons/arrow_right.svg'); }
 .icon-arrow-up     { --icon: url('../website-icons/arrow_up.svg'); }
 .icon-arrow-down   { --icon: url('../website-icons/arrow_down.svg'); }
-/* thin 變體：stroke 18 vs 28（粗版），用於 modal 等視覺重量需較輕的場景 */
-.icon-arrow-left-thin { --icon: url('../website-icons/arrow_left_thin.svg'); }
 
 /* ref jump icons — list 內 (accordion 跳轉樣式) 跟 lightbox 內 (跳出 + 上箭頭) 兩種圖形 */
 .icon-ref-list     { --icon: url('../website-icons/ref_accor.svg'); }
 .icon-ref-lightbox { --icon: url('../website-icons/ref_lightbox.svg'); }
 
-/* chevrons — 兩種粗度：lightbox(粗) / list(細)，方向用 Tailwind rotate class 達成：
- *   default = left (圖形朝左)
- *   rotate-180 = right
- *   rotate-90  = up      (base 朝左 + CSS 順時針 90° → 朝上)
- *   -rotate-90 = down    (= rotate-270) */
+/* chevrons — lightbox(粗) / list(細)；base 朝左，方向用 Tailwind rotate：rotate-180＝右、rotate-90＝上、-rotate-90＝下 */
 .icon-chevron-lightbox { --icon: url('../website-icons/chevron_left_lightbox.svg'); }
 .icon-chevron-list     { --icon: url('../website-icons/chevron_left_list.svg'); }
 
-/* media controls (compress 尚未做先用 FA fallback) */
+/* media controls */
 .icon-play        { --icon: url('../website-icons/play_theater.svg'); }
 .icon-pause       { --icon: url('../website-icons/pause.svg'); }
 .icon-volume      { --icon: url('../website-icons/volume.svg'); }
@@ -84,51 +70,33 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 .icon-fit-width    { --icon: url('../website-icons/fit_width.svg'); }
 
 /* navigation / pages */
-/* TODO: menu.svg 待補 SVG */
 .icon-menu       { --icon: url('../website-icons/menu.svg'); }
 .icon-atlas-list { --icon: url('../website-icons/atlas_list.svg'); }
 .icon-atlas-view { --icon: url('../website-icons/atlas_view.svg'); }
 .icon-rotate-phone { --icon: url('../website-icons/rotate_phone.svg'); }
 .icon-search     { --icon: url('../website-icons/search.svg'); }
-/* library 桌面工具列（user 2026-09-29）：佔位 icon，後台 site_icons 同 key 換檔即生效 */
+/* library 桌面工具列：後台 site_icons 同 key 換檔即生效 */
 .icon-filter        { --icon: url('../website-icons/filter.svg'); }
 .icon-filter-active { --icon: url('../website-icons/filter_active.svg'); }
-/* date sort 依方向二選一（user 2026-10-01；取代單一 time＋方向箭頭）：desc＝新→舊（預設）、asc＝舊→新 */
+/* date sort 依方向二選一：desc＝新→舊（預設）、asc＝舊→新 */
 .icon-time-desc     { --icon: url('../website-icons/time_desc.svg'); }
 .icon-time-asc      { --icon: url('../website-icons/time_asc.svg'); }
 
-/* social */
-.icon-youtube   { --icon: url('../website-icons/youtube.svg'); }
-.icon-instagram { --icon: url('../website-icons/instagram.svg'); }
-.icon-facebook  { --icon: url('../website-icons/facebook.svg'); }
-
 /* misc */
-/* album 是「相機」圖形，自然寬高比 ~1.43:1（外框長方形）；viewBox 已 tighten 到 0 24 160 112
-   去掉上下空白，CSS width 1.43em 讓 container 跟 SVG aspect 對齊 → mask 以高 fit、width 自然變寬
-   （同 alumni icon pattern：寬扁圖形不要硬塞 1em×1em container 否則被擠小） */
-.icon-album      { --icon: url('../website-icons/album.svg'); width: 1.43em; }
-/* alumni 是「畢業帽」圖形，自然寬高比 ~1.45:1（畫面比其他 1:1 圖示寬扁）；
-   viewBox 已 tighten 到 0 25 160 110 去掉上下空白，CSS width 設 1.5em 跟國旗 (.fi) 寬度一致，
-   讓 list 內 alumni icon 跟 flag icon 同一高度但 horizontal slot 較寬，避免被擠成小小一坨 */
+/* alumni（畢業帽）~1.45:1：viewBox 已 tighten，width 1.5em＝國旗 .fi 寬 → list 內與國旗同高、slot 較寬 */
 .icon-alumni     { --icon: url('../website-icons/alumni.svg'); width: 1.5em; }
 .icon-share      { --icon: url('../website-icons/share.svg'); }
 .icon-attachment { --icon: url('../website-icons/attachment.svg'); }
 .icon-copy       { --icon: url('../website-icons/copy.svg'); }
-.icon-donate     { --icon: url('../website-icons/donate.svg'); }
 .icon-download   { --icon: url('../website-icons/download_share.svg'); }
 .icon-reset      { --icon: url('../website-icons/reset.svg'); }
-.icon-shuffle    { --icon: url('../website-icons/shuffle.svg'); }
-.icon-custom     { --icon: url('../website-icons/custom.svg'); }
 
 /* mode toggle */
 .icon-mode-1 { --icon: url('../website-icons/mode_1.svg'); }
 .icon-mode-2 { --icon: url('../website-icons/mode_2.svg'); }
 .icon-mode-3 { --icon: url('../website-icons/mode_3.svg'); }
 
-/* 後台上傳制 icon（本地尚無 SVG，user 2026-09-15）：未上傳前整顆隱藏——--icon 缺省時 mask=none
-   會讓 .icon 的 background-color 露成實心色塊，不能見人。site-assets.js 掃到「本地規則帶 display:none」
-   ＝待上傳類，後台有檔時注入的覆蓋規則會補 display:inline-block 蓋回。上傳後若想補本地 fallback：
-   把 SVG 放進 website-icons/ 並刪掉這裡的 display:none 即可。 */
-/* pencil：本地 fallback＝Edit 2.svg 複本（user 2026-09-16）——CMS fetch 失敗（弱網）時全站唯一沒本地檔
-   的 icon 會變空鈕，正式站 4G 實測中招；有本地檔後 display:none「待上傳」機制對此 icon 退場 */
+/* 後台上傳制 icon（本地無 SVG）：規則加 display:none 先整顆隱藏（--icon 缺省時 mask=none 會露實心色塊）；
+   site-assets.js 把帶 display:none 的規則視為待上傳類，後台有檔時注入 display:inline-block 蓋回 */
+/* pencil：本地 fallback＝Edit 2.svg 複本；CMS fetch 失敗（弱網）時沒本地檔的 icon 會變空鈕 */
 .icon-pencil { --icon: url('../website-icons/pencil.svg'); }

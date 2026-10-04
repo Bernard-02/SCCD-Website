@@ -1,25 +1,9 @@
-/**
- * Courses Page Components
- * Inline grid layout（學期 × 必修/選修 × 年級）+ 右側 25% sticky desc panel
- *
- * Layout（桌面）：
- *   ┌────────── flex row ─────────────────────┐
- *   │ Left 75%                  │ Right 25%   │
- *   │ ┌─ program btn bar ─┐     │             │
- *   │ │ (對齊年級第一欄)   │     │             │
- *   │ ├─ courses-grid ────┤     │ desc panel  │
- *   │ │  sem | type | yr*N│     │ (sticky 底) │
- *   │ └───────────────────┘     │             │
- *   └─────────────────────────────────────────┘
- */
+/* Courses Components（curriculum 頁）：program nav ＋ 必修/選修 × 年級 grid ＋ 點卡片 slide-in 詳情 */
 
 @layer components {
 
-  /* ===== Section-level CSS variables（grid 與 program-bar 共用） =====
-   * 5 cols：type-col + 4 個年級欄（1fr）。不分學期 → 一個 program 只有必修列 + 選修列。
-   * 點卡片改成 faculty-style slide-in 模態，不再縮 grid，所以 grid 寬度不會 toggle。
-   * Section overflow-x: clip：擋住其他 absolute children 超出 section 的水平 scroll。
-   */
+  /* ===== Section-level CSS variables（grid 與 program-bar 共用）=====
+     type-col + N 個年級欄；一個 program 只有必修列 + 選修列。 */
   #courses-content-section {
     --courses-grid-type-col: 4rem;
     --courses-grid-col-gap: var(--spacing-xl);
@@ -29,9 +13,8 @@
     overflow-x: clip;
     overflow-y: clip;
   }
-  /* 桌面 inner-scroll frame（2026-06-30）：section 變 100vh frame、右欄 .inner-scroll-scroll-col 為唯一捲動層，
-     內容從 box 頂（= content 區頂、box margin-top 已對齊）開始 → section 不再需要 padding-top:200。改 0；
-     cover/type-label 的 sticky top 改成 box-relative（cover top:0、type-label top:80，見下方），維持原相對堆疊關係。 */
+  /* 桌面 inner-scroll frame：右欄 .inner-scroll-scroll-col 為唯一捲動層、內容從 box 頂開始 → section 不需 padding-top；
+     下方 cover / type-label 的 sticky top 都是 box-relative。 */
   @media (min-width: 768px) {
     #courses-content-section {
       padding-top: 0;
@@ -39,32 +22,15 @@
   }
 
   /* ===== Program button bar =====
-   * 桌面：左側 vertical sticky 側欄（fixed width）；
-   *       buttons 直向堆疊、各 group 含 absolute label，gap-2xl 給 label clearance
-   * 手機：水平 scroll bar（force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊）
-   *       HTML 預設 flex-col 由 mobile rule 強制改 row；label absolute top 在 btn 上方仍 OK
-   *
-   * Sticky stack（桌面 inner-scroll frame，box-relative；2026-06-30 由舊 window 值 200/200/280 改）：
-   *   1) program-bar     不再 sticky（在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位、頂部對齊）
-   *   2) row-cover/year-header  top: 0（黏 box 頂 = content 區頂）
-   *   3) type-label      top: 80px（cover 高 48 + row-gap 32，黏在 cover 正下方）
-   * z 由低往高。bg 全用 var(--theme-bg) 跟 mode 走。
-   *
-   * year-header 用 ::before 向上延伸 200px bg 蓋住 cards scroll 過 sticky 後在
-   * viewport y=0..200 露出的破口（仿 .activities-filter-bar::before pattern）。
-   */
+     桌面：左側直向 nav（在 .inner-scroll-nav-col 內、不 sticky）；手機：水平 scroll bar。
+     桌面 sticky stack（box-relative）：row-cover top 0 → type-label 接在 cover 下方；bg 全用 var(--theme-bg) 跟 mode 走。 */
 
   /* 手機：bar 改水平 scroll
-     - flex-direction:row 覆蓋 HTML inline flex-col
-     - overflow-x:auto + no-scrollbar 隱藏原生 scrollbar
-     - 兩側 -container-padding margin + 同值 padding：scroll 區延伸到 viewport 邊
-     - gap 用 spacing-xl 給 BFA label 旋轉/突出 clearance（label absolute 在 btn 上方，gap 太小會擠）
-     - padding-top 給 absolute label 上方留空間（label bottom: calc(100% + 4px) 凸出 btn 上沿 ~28px）
-     - .courses-program-group 加 flex-shrink:0 + 子元素 nowrap，btn 才不被擠扁 */
+     - overflow-x:auto + 隱藏原生 scrollbar；兩側負 margin + 同值 padding → scroll 區延伸到 viewport 邊
+     - gap xl 給 BFA label 旋轉/突出 clearance；padding-top 給 btn 上方的 absolute label 留空間
+     - group / btn flex-shrink:0 + nowrap，btn 才不被擠扁 */
   @media (max-width: 767px) {
-    /* !important 必要：HTML 內 inline Tailwind class `flex-col` 在 output.css 出現位置
-       晚於本 component rule（utility layer 在後），不加 !important 會被蓋成垂直堆疊
-       → mobile tab bar 失去水平 scroll 設計意圖 */
+    /* !important 必要：HTML 的 flex-col 是 utility（utilities layer 後於 components），不加會被蓋回垂直堆疊 */
     .courses-program-bar {
       flex-direction: row !important;
       align-items: flex-end;
@@ -88,12 +54,11 @@
     .courses-program-bar > .courses-program-btn {
       flex-shrink: 0;
     }
-    /* MDES btn 沒 group wrapper，直接是 bar child：水平模式下不要桌面那個 negative margin-top hack */
+    /* MDES btn 沒 group wrapper，直接是 bar child */
     .courses-program-bar > .courses-program-btn {
       margin-top: 0;
     }
-    /* Animation & Moving Image 手機保持一行（user 2026-07-09；同 landscape.css 5d 處理）：
-       HTML 顯式 <br> 藏掉，br 後的空格成為字間空格（span 已 nowrap 不會 rewrap） */
+    /* Animation & Moving Image 手機保持一行（同 landscape.css 5d）：藏掉 HTML 顯式 <br>，br 後的空格成為字間空格（span 已 nowrap） */
     .courses-program-btn .anchor-nav-inner > span:first-child br {
       display: none;
     }
@@ -101,17 +66,15 @@
   @media (min-width: 768px) {
     .courses-program-bar {
       flex: 0 0 14rem;
-      /* 100% ＝ nav wrapper 軌寬（col-span-3；「max 到欄界、文字沒那麼寬則以文字為主」user 2026-09-05）。
-         文字寬由 bindNavBtnFit 貼合；縮視窗軌變窄 → btn 換行在內、不疊右欄。≥1200 再收成前 2 欄（見下方）。 */
+      /* 100% ＝ nav wrapper 軌寬（col-span-3）：上限到欄界、文字窄則貼文字（bindNavBtnFit）；
+         縮視窗 btn 在內換行、不疊右欄。≥1024 再收成前 2 欄（見下方）。 */
       width: 100%;
       align-self: flex-start;
-      /* inner-scroll frame：bar 在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位到 content 區頂、
-         頂部對齊 → 不再 sticky（取代舊 position:sticky; top:200px）。 */
+      /* bar 在 .inner-scroll-nav-col wrapper 內、由 wrapper padding-top 定位到 content 區頂 → 不 sticky */
       position: static;
       z-index: 3;
       background: var(--theme-bg);
-      /* **BFA 小 tag 頂端**對齊右側年級表頭線（content 區頂）＝user 對齊基準（2026-08-24 / 09-02「對齊點是 BFA 小標題不是按鈕」）：
-         2026-09-28 起桌面 tag 在 flow 裡（見下方 .courses-bfa-label 桌面段）＝bar 頂即 tag 頂，不再用 padding-top 估 tag 突出量 */
+      /* 對齊基準＝BFA 小 tag 頂端對齊右側年級表頭線（content 區頂）；桌面 tag 在 flow 裡 → bar 頂即 tag 頂 */
       padding-bottom: var(--spacing-md);
     }
   }
@@ -120,9 +83,8 @@
     text-align: left;
   }
 
-  /* program btn line-height 綁 --line-height-s（=text-s 的 1.3，跟 curriculum 卡 .courses-grid-card 同步）：EN+ZH 一致，
-     EN/ZH 間距單靠 .anchor-nav-inner 的 flex gap（--space-en-zh-s 2px）——不再另加 margin-bottom
-     （舊機制，會疊在 gap 上讓 nav btn 比卡片鬆，2026-08-13 移除）。 */
+  /* line-height 綁 --line-height-s（同 .courses-grid-card）。EN/ZH 間距只靠 .anchor-nav-inner 的 flex gap，
+     勿另加 margin-bottom（會疊在 gap 上讓 nav btn 比卡片鬆）。 */
   .courses-program-btn .anchor-nav-inner {
     line-height: var(--line-height-s);
   }
@@ -130,18 +92,16 @@
   .courses-program-btn .anchor-nav-inner > span:first-child {
     white-space: nowrap;
   }
-  /* 桌面（含 iPad 直向；min-height 排除矮橫向 gate，同 lists.css 慣例）改回自然換行：
-     CMS label 變長（Division of Animation & Moving Image）後 nowrap 單行衝出 14rem bar、疊到右欄內容
-     （user 2026-09-05）；換行後寬度被 bar clamp、縮視窗自動調整。 */
+  /* 桌面（min-height 排除矮橫向 gate，同 lists.css 慣例）改回自然換行：CMS label 長時 nowrap 會衝出 bar 疊到右欄；
+     換行後寬度被 bar clamp。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-btn .anchor-nav-inner > span:first-child {
       white-space: normal;
     }
   }
-  /* 桌面 ≥1200（user 2026-09-27）：內容改 col-4 起、nav 與內容間只剩 gutter → btn 文字收在 cols 1-2 折行、
-     col 3 當呼吸空間。bar 寬＝nav wrapper（3 欄）裡的前 2 欄＝2×欄寬＋1 gutter。
-     中文 keep-all：不在字中間斷（免「動畫影像設計／組」孤字）；中文比 2 欄長時略凸進 gutter/col 3，同 faculty DCD 鈕。
-     平板 768-1199 不收：2 欄只剩 ~70px，中文會撞進內容。 */
+  /* 桌面：內容從 col-4 起、nav 與內容間只剩 gutter → btn 文字收在 cols 1-2 折行、col 3 當呼吸。
+     bar 寬＝nav wrapper（3 欄）的前 2 欄＝2×欄寬＋1 gutter。
+     中文 keep-all：不在字中間斷（免孤字）；中文比 2 欄長時略凸進 gutter，同 faculty DCD 鈕。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-bar {
       width: calc((100% - 2 * var(--spacing-gutter)) * 2 / 3 + var(--spacing-gutter));
@@ -149,8 +109,7 @@
     .courses-program-btn .anchor-nav-inner > span:last-child {
       word-break: keep-all;
     }
-    /* BFA 小標籤（CMS「BFA, DCD／媒體傳達設計學系 學士班」nowrap ~196px）同樣收窄：中文在空格斷成
-       「媒體傳達設計學系／學士班」＝3 行，1200 寬時才不伸進內容區、被年級表頭白底蓋掉。
+    /* BFA 小標籤同樣收窄：中文在空格斷行，才不伸進內容區被年級表頭白底蓋掉。
        group 前綴提特異度：基本規則 .courses-bfa-label（nowrap）寫在本段之後、同特異度會蓋回來 */
     .courses-program-group .courses-bfa-label {
       white-space: normal;
@@ -158,17 +117,15 @@
     }
   }
 
-  /* 桌面 nav 垂直間距（user 2026-09-28「curriculum nav btn 之間的 gap 要跟其他 nav btn 一樣」）：BFA 小標題改在 flow 裡
-     （position relative、left -12px 保留原本往左凸的位置），每顆 chip（小標題 / btn）之間一律全站 nav btn 間距
-     --nav-btn-gap（variables.css；bar／group HTML 皆 md:gap-[var(--nav-btn-gap)]）。取代 09-02「absolute label＋margin-top 估突出量＋gap-lg 32」模型——估算隨斷點
-     行數漂移（實測 1440 btn→下一組標題 15、1024 34、→MDES 32，參差不齊）。矮橫向（landscape.css static 併排）／
-     直向手機（absolute、JS --courses-bar-padtop）各自另有規則，本段 min-height 501 排除矮橫向。 */
+  /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative、left -12px 保留往左凸的位置），每顆 chip 之間一律全站
+     --nav-btn-gap（bar／group HTML 皆 md:gap-[var(--nav-btn-gap)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
+     矮橫向（landscape.css）／直向手機（absolute、JS --courses-bar-padtop）各有規則，min-height 501 排除矮橫向。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
       position: relative;
       bottom: auto;
     }
-    /* MDES 是跟「BFA 小標題」同層的第一層項目（BFA 底下兩顆組別才是第二層）→ 左緣對齊小標題的 -12（user 2026-09-29） */
+    /* MDES 跟「BFA 小標題」同層（BFA 底下兩顆組別才是第二層）→ 左緣對齊小標題的 -12 */
     .courses-program-bar > .courses-program-btn[data-program="mdes"] {
       position: relative;
       left: -12px;
@@ -180,13 +137,8 @@
     position: relative;
   }
 
-  /* BFA Class 學士班 小標籤（每個 BFA btn 上方一個）
-   * - 位置/旋轉比照 about .class-group-label：absolute 在 btn 上方 + 隨機旋轉（JS 設）
-   * - 預設**透明底 + 100% theme-fg 字**（不要黑底，跟 about 不同；hover 不改字色，user 2026-09-28 同全站 nav btn）
-   *     hover  = JS 設 accent 底 + 黑字（隨 btn 一起聯動）
-   *     active = JS 設 accent 底 + 黑字（rotate 與 btn 各自獨立）
-   * - padding 6/8/5＝全站 nav btn 標準（原 7/6/6 → 統一，user 2026-09-09）；font-size 保持 p1；transform transition 0.3s
-   */
+  /* BFA 學士班小標籤（每個 BFA btn 上方一個）：位置/旋轉比照 about .class-group-label（absolute + JS 隨機旋轉）。
+     預設透明底 + theme-fg 字；hover / active 由 JS 設 accent 底 + 黑字。padding 6/8/5＝全站 nav btn 標準。 */
   .courses-bfa-label {
     display: inline-block;
     width: fit-content;
@@ -197,7 +149,7 @@
     z-index: 2;
     font-size: var(--font-size-s);
     font-weight: 700;
-    line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（單行 pill 也跟 tier，對齊 about .class-group-label；user 08-13） */
+    line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（同 about .class-group-label） */
     color: var(--theme-fg);
     background: transparent;
     white-space: nowrap;
@@ -229,10 +181,9 @@
   }
 
   /* ===== 必修 / 選修兩列（限定 sticky scope）=====
-   * 2026-06-09 起不分學期 → 一個 program 只有 .courses-required-row + .courses-elective-row，
-   * 兩者直接當 .courses-grid 子項（grid-column 1/-1，subgrid 繼承外層欄）。
-   * type-label sticky containing block = 該 row → 必修/選修捲到底時 label 跟著上去。
-   * required ↔ elective 間距：outer grid row-gap(sm) + elective margin-top(sm) = lg。 */
+     .courses-required-row + .courses-elective-row 直接當 .courses-grid 子項（grid-column 1/-1，subgrid 繼承外層欄）。
+     type-label sticky containing block = 該 row → 捲到底時 label 跟著上去。
+     required ↔ elective 間距：outer row-gap(sm) + elective margin-top(sm) = lg。 */
   .courses-required-row,
   .courses-elective-row {
     grid-column: 1 / -1;
@@ -244,24 +195,16 @@
     margin-top: var(--spacing-sm);
   }
 
-  /* 必修列上方 16px buffer：±2° rotation × 寬 ~232px 卡片 corner protrusion ~4px，sm(16) 已遠超需要。
-     sticky labels top(280) = cover top 200 + cover height 48 + row-gap sm(16) + buffer sm(16) */
+  /* 必修列上方 sm buffer：卡片 ±2° 旋轉角凸出 ~4px，不被 sticky cover 切掉。改這值要同步 type-label 的 sticky top。 */
   @media (min-width: 768px) {
     .courses-grid > .courses-grid-row-cover + .courses-required-row {
       margin-top: var(--spacing-sm);
     }
   }
 
-  /* （v9 拿掉 is-active year margin trick — 點卡片改 slide-in 模態，grid 不再縮窄不需要） */
-
-  /* Year row cover：包住整個 row 1（corners + year-headers）的 sticky bar。
-     - outer grid 中：grid-column:1/-1 橫跨整列（含 col gaps）
-     - 自己跑 inner grid（同 template）讓內部 corners + year-headers 對齊 outer cols
-     - sticky top:200 + ::before 向上 200px 蓋住 cards/labels scroll 過 sticky 露出的部分
-     - ::after 向下 spacing-lg 蓋掉 row 1↔row 2 之間的 row-gap，避免 cards scroll 過 sticky
-       時在 cover 與 sem/type 之間的 32px 空隙露出
-     - z:1 在 cards (z=auto) 之上；sem-label / type-label (z:2) 在 cover 下方浮層
-   */
+  /* Year row cover：包住 row 1（corners + year-headers）的 sticky bar。
+     - grid-column:1/-1 橫跨整列；自己跑同 template 的 inner grid 讓表頭對齊 outer cols
+     - ::before 向上 200px 蓋住捲過 sticky 的卡片；::after 向下蓋 row-gap 縫隙 */
   .courses-grid-row-cover {
     grid-column: 1 / -1;
     display: grid;
@@ -273,9 +216,8 @@
   @media (min-width: 768px) {
     .courses-grid-row-cover {
       position: sticky;
-      top: 0;  /* inner-scroll frame：黏在 box 頂（content 區頂）；原 200px 是舊 window-scroll sticky 線 */
-      /* z:3 高於 sem-label/type-label (z:1)，讓 sem-label/type-label 在 release（學期/列結束）
-         時被往上推進 cover 區域時被 cover 蓋住，不會「露餡」上去重疊 cover 文字 */
+      top: 0;  /* 黏在 box 頂（content 區頂） */
+      /* z:3 高於 type-label (z:1)：label release 時被推進 cover 區會被蓋住，不露出重疊表頭文字 */
       z-index: 3;
       background: var(--theme-bg);
       padding-bottom: var(--spacing-xs);
@@ -289,9 +231,8 @@
       height: 200px;
       background: var(--theme-bg);
     }
-    /* ::after 向下蓋整個 row-gap，確保 scroll 時 sticky-cover 正常遞進蓋掉卡片
-       高度需 = .courses-grid 的 row-gap（sm=16）。第一行卡片的 rotation 凸出 buffer 在
-       .courses-grid > .courses-grid-row-cover + .courses-required-row margin-top 處理 */
+    /* ::after 高度需 = .courses-grid 的 row-gap（sm），捲動時蓋掉 cover 下的縫隙。
+       第一行卡片的旋轉 buffer 在 .courses-grid-row-cover + .courses-required-row margin-top 處理 */
     .courses-grid-row-cover::after {
       content: '';
       position: absolute;
@@ -303,47 +244,38 @@
     }
   }
 
-  /* 年級表頭（EN 上 / ZH 下）— 字體大小對齊 .courses-grid-type-label（p2）
-     EN 保 700、ZH 保 600（無 opacity，中文要實色不要半透明），僅尺寸跟必修/選修統一
-     桌面 sticky：top = header + bar 高度，bg 跟 mode；containment 是其 grid area
-     （單行 row 1，但 sticky 範圍含整個 grid 因為 grid container 是 containing block） */
+  /* 年級表頭（EN 上 / ZH 下）：字級同必修/選修 label；ZH 實色不加 opacity。sticky 由外層 cover 負責。 */
   .courses-grid-col-header {
     font-weight: 700;
     font-size: var(--font-size-s);
-    line-height: var(--line-height-s);   /* 對齊 text-s 1.3（跟 nav btn / 卡片一致） */
-    /* MDES 切換時 inner 做 slide 進出，外層當遮罩（仿 hero-title-wrapper pattern）
-       justify-self:start 讓 header 也縮成 content 寬度（grid cell 仍 1fr，header 只佔左側 content）
-       — 否則 mask 是整個 column 寬，inner 只移動文字寬度的距離還在可見區內 */
+    line-height: var(--line-height-s);
+    /* MDES 切換時 inner slide 進出、外層當遮罩。justify-self:start 讓遮罩縮成文字寬——
+       否則 mask 是整欄寬，inner 只移文字寬的距離還在可見區內 */
     overflow: hidden;
     justify-self: start;
-    transition: opacity var(--dur-fast) ease;  /* hover dim 分組高亮用（見下方 block） */
+    transition: opacity var(--dur-fast) ease;
   }
   .courses-grid-col-header-inner {
     display: flex;
     flex-direction: column;
     gap: var(--space-en-zh-s);
   }
-  /* year-header 是 cover bar 的內部 grid item，不再 sticky（cover 自己 sticky）；
-     padding-bottom 留在 cover 上不需要這裡 */
   .courses-grid-col-zh {
     font-weight: 700;
   }
 
-  /* 類別 label（必修/選修）— 實心、無半透明、無底色（col 2 type-col 內無卡片，
-     不需要 bg 蓋背景）。桌面 sticky containing block = .courses-required-row /
-     .courses-elective-row，row 到底時 label 跟著上去
-     color 用 var(--theme-fg) 自動跟 mode 走：standard=black / inverse=white / mode-color=動態對比色
-     不可硬寫 black，否則 inverse 變黑底黑字看不見 */
+  /* 類別 label（必修/選修）：桌面 sticky containing block = 所在 row，row 到底時 label 跟著上去。
+     color 用 var(--theme-fg)，勿硬寫 black（inverse 會黑底黑字） */
   .courses-grid-type-label {
     font-weight: 700;
     font-size: var(--font-size-s);
-    line-height: var(--line-height-s);   /* 對齊 text-s 1.3（跟 nav btn / 卡片一致） */
+    line-height: var(--line-height-s);
     align-self: start;
     color: var(--theme-fg);
-    /* 同 sem-label：label 當遮罩讓 inner 做年級式 slide 離場（見上方註解） */
+    /* label 當遮罩讓 inner slide 離場（同年級表頭） */
     overflow: clip;
     justify-self: start;
-    transition: opacity var(--dur-fast) ease;  /* hover dim 分組高亮用（見下方 block） */
+    transition: opacity var(--dur-fast) ease;
   }
   .courses-grid-type-label-inner {
     display: flex;
@@ -354,15 +286,13 @@
   @media (min-width: 768px) {
     .courses-grid-type-label {
       position: sticky;
-      /* ＝必修 label 的自然位置（user 2026-10-03：原位不動直接黏，不要先捲一點）：cover 實高（年級表頭英中兩行＋英中距＋pb xs）
-         ＋ grid row-gap sm ＋ 必修列 margin-top sm ＝ 83.6。原寫死 80（cover 單行 48 時代）＝往下捲 ~4px 才黏。
-         表頭字級／行數、cover padding、上面兩段間距改了要同步 */
+      /* ＝必修 label 的自然位置（原位直接黏、不先捲一點）：cover 實高（表頭英中兩行＋英中距＋pb xs）
+         ＋ grid row-gap sm ＋ 必修列 margin-top sm。表頭字級／行數、cover padding、上面兩段間距改了要同步 */
       top: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + var(--spacing-xs) + 2 * var(--spacing-sm));
       z-index: 1;  /* 低於 cover (z:3)，release 時 leak 上來會被 cover 蓋住 */
     }
   }
 
-  /* Cell：縱向堆疊卡片 */
   .courses-grid-cell {
     display: flex;
     flex-direction: column;
@@ -372,27 +302,24 @@
   }
 
   /* ===== 卡片 =====
-   * 預設淺灰底；hover 時 inline style 設 accent 色（JS bind）
-   * 標題溢出 marquee 仿 library.css（runMarqueeOverflow pattern）：
-   *   1) JS 偵測 overflow + 加 .is-overflow + 把 inner 內容換成兩份 .marquee-copy（seamless loop）
-   *   2) JS 量 copyWidth 後設 --marquee-distance / --marquee-duration（80px/s, min 3s）
-   *   3) CSS 只在 hover 時跑 animation，translateX 一份 copy 寬度後正好接到第二份起點
-   */
+     預設淺灰底；hover 由 JS inline 設 accent 色。
+     標題溢出 marquee：JS 偵測 → .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration；
+     CSS 只在 hover 時跑 animation（手機無 hover 自動跑） */
   .courses-grid-card {
     display: inline-flex;
     flex-direction: column;
-    /* 英中距：卡片 text-s、疊放雙語，沿用 nav chip token（值同為 2px；原硬寫 2px 收進 token） */
+    /* 英中距：沿用 nav chip token */
     gap: var(--space-en-zh-s);
     width: fit-content;
     max-width: 100%;
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 6/10/5 → 統一，user 2026-09-09）*/
-    background: var(--light-gray);   /* 2026-09-12 全站淺灰統一：原 rgba(0,0,0,0.06)≈#F0F0F0 → 實色 #f2f2f2 */
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
+    background: var(--light-gray);
     color: black;
     font-size: var(--font-size-s);
-    line-height: var(--line-height-s);   /* text-s 行距 1.3，跟 courses-program-btn nav 同步 */
+    line-height: var(--line-height-s);
     cursor: var(--cursor-pointer);
     user-select: none;
-    transition: transform var(--dur-micro) ease, opacity var(--dur-fast) ease;   /* 底/字色不過渡（hover 變色一律 instant，user 2026-10-02 全站） */
+    transition: transform var(--dur-micro) ease, opacity var(--dur-fast) ease;   /* 底/字色不過渡：hover 變色全站一律 instant */
     box-sizing: border-box;
   }
   .courses-grid-card-en,
@@ -404,8 +331,7 @@
     max-width: 100%;
   }
   .courses-grid-card-en { font-weight: 700; }
-  /* ZH 不加 opacity：半透明會讓中文看起來比英文淡/細（mode1 灰卡淡黑、mode-color 淡白），
-     user 要求中文 = 100% 實色（跟 EN 同實心，僅 weight 600 維持雙語慣例） */
+  /* ZH 不加 opacity：半透明會讓中文看起來比英文淡/細 → 中文 100% 實色 */
   .courses-grid-card-zh { font-weight: 700; }
   .courses-marquee-inner {
     display: inline-block;
@@ -421,7 +347,7 @@
       animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
-  /* 手機無 hover → overflow 卡片標題自動跑 marquee（桌面維持 hover 觸發，不受影響） */
+  /* 手機無 hover → overflow 卡片標題自動跑 marquee */
   @media (max-width: 767px) {
     .courses-grid-card-en.is-overflow .courses-marquee-inner,
     .courses-grid-card-zh.is-overflow .courses-marquee-inner {
@@ -433,15 +359,9 @@
     100% { transform: translateX(var(--marquee-distance, -50%)); }
   }
 
-  /* ===== Slide-in modal（v9 取代 desc-column）=====
-   * 點卡片時從右滑入，比照 #faculty-slide-in pattern：
-   *   - container 預設 invisible + pointer-events:none
-   *   - overlay opacity 0 → 0.8（dim grid）
-   *   - panel translateX 110% → 0 滑入；bg 套 card.dataset.accent
-   *   - close: overlay 點擊 / close btn / Esc
-   *   - body.overflow:hidden 鎖捲動，close 還原
-   * GSAP timeline 控動畫，無 GSAP fallback inline transition
-   */
+  /* ===== Slide-in modal（比照 #faculty-slide-in）=====
+     點卡片從右滑入；GSAP timeline 控動畫：overlay 0 → 0.8、panel translateX 110% → 0、bg 套卡片 accent。
+     close：overlay / close btn / Esc；開啟時 body 鎖捲動。 */
   #courses-slide-in {
     transition: visibility 0s linear 0s;
   }
@@ -459,19 +379,17 @@
   }
 
   /* Title 區（仿 faculty slide-in 右欄：title 固定、desc 獨立 box 捲動）
-     - 桌面（2026-08-16 改）：pt 移到 wrapper（inner md:pt-4xl，同 faculty container）、title↔desc 間距改
-       inner md:gap-lg（2rem），title 本身不留 padding；sticky/z/bg 遮罩在桌面失效（inner 不捲）但無害
-     - 手機：inner overflow-y-auto 整段捲，本元素 sticky top:0 黏頂；padding-top 收進自身當遮罩
-       （scroll container 有 pt 會讓 sticky 黏在 content-box 頂、上方留縫露 desc，故 pt 放這不放 inner），
-       bg inherit 繼承 panel accent 色遮住下方 desc；padding-bottom 給 title ↔ desc 視覺呼吸
-     - 矮橫向：landscape.css counter-override 回手機式（pt 96 + pb md、inner pt/gap 歸零） */
+     - 桌面：pt 在 wrapper（inner md:pt-4xl）、title↔desc 間距走 inner md:gap-lg，title 本身不留 padding
+     - 手機：inner 整段捲，本元素 sticky top:0；pt 放自身不放 inner（scroll container 有 pt 會讓 sticky 上方留縫露 desc），
+       bg inherit panel accent 色遮住下方 desc
+     - 矮橫向：landscape.css 蓋回手機式 */
   .courses-detail-title-sticky {
     position: sticky;
     top: 0;
     z-index: 2;
     flex-shrink: 0;
     background: inherit;
-    /* +1rem 對齊 faculty slide-in profile 圖片區塊頂部（faculty 同步由 2.5rem→1rem，user 2026-09-06「減少 pt、讓它 1rem」）；原 2.5rem/4rem */
+    /* +1rem 對齊 faculty slide-in profile 圖片區塊頂（faculty 同為 1rem） */
     padding-top: calc(var(--header-height, 80px) + 1rem);
     padding-bottom: var(--spacing-md);
   }
@@ -483,9 +401,8 @@
   }
 
   /* ===== Mobile / Desktop grid 切換 =====
-   * 桌面只顯示 .courses-grid（橫排年級 × 學期/類型 nested subgrid）
-   * 手機只顯示 .courses-grid-mobile（年級為外層 block 從上到下，內部分學期/類型 row）
-   * 兩種 DOM 結構共存，cards 各自存在 → click/hover binding 走 panel 級不需區分 */
+     桌面只顯示 .courses-grid；手機只顯示 .courses-grid-mobile（年級 block）。
+     兩套 DOM 共存、cards 各自存在 → click/hover binding 走 panel 級不需區分 */
   .courses-grid-mobile {
     display: none;
   }
@@ -501,16 +418,14 @@
     }
   }
 
-  /* ===== Mobile grid 結構（2026-07-09 改版：年級 btn bar 直接切換）=====
-   * .courses-mobile-grade-bar        ← 年級 pill btn（.courses-filter-btn 同款），排在 program nav 下方
-   * .courses-mobile-grade-block × N  ← 每年級一塊，同時只顯示 active 年級（其餘 .hidden）
-   *   .courses-mobile-row × 2        ← 必修 / 選修
-   *     .courses-mobile-row-label    ← 類型小標（en 上 zh 下），在卡片「上方」
-   *     .courses-mobile-cells        ← 課程卡片滿寬直排
-   */
+  /* ===== Mobile grid 結構（年級 btn bar 切換）=====
+     .courses-mobile-grade-bar        ← 年級 pill btn（.courses-filter-btn 同款），在 program nav 下方
+     .courses-mobile-grade-block × N  ← 每年級一塊，只顯示 active 年級（其餘 .hidden）
+       .courses-mobile-row × 2        ← 必修 / 選修
+         .courses-mobile-row-label    ← 類型小標（en 上 zh 下），在卡片上方
+         .courses-mobile-cells        ← 課程卡片直排 */
   .courses-mobile-grade-bar {
-    /* 單行水平 scroll（user 2026-07-09：年級排成一排）；同 program bar pattern——
-       負 margin + 同值 padding 讓 scroll 區延伸到 viewport 邊；
+    /* 單行水平 scroll；同 program bar：負 margin + 同值 padding 延伸到 viewport 邊；
        overflow 裁切線在 padding-box 邊 → 上下 0.5rem padding 容納 active pill 旋轉突出 */
     display: flex;
     flex-wrap: nowrap;
@@ -534,7 +449,7 @@
     gap: var(--spacing-2xl);
   }
   .courses-mobile-row {
-    /* 直排：類型 label 在上、卡片在下（user 2026-07-09 wireframe） */
+    /* 直排：類型 label 在上、卡片在下 */
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -546,7 +461,7 @@
     align-items: flex-start;
     row-gap: 4px;   /* 目前單一子（type block），此 gap no-op；EN/ZH 距在下方 -type row-gap */
     font-size: var(--font-size-s);
-    line-height: var(--line-height-s);   /* 對齊 text-s 1.3 */
+    line-height: var(--line-height-s);
     color: var(--theme-fg);
   }
   /* type label：英中上下排列（en 上 zh 下） */
@@ -562,8 +477,7 @@
     font-weight: 700;
   }
   .courses-mobile-cells {
-    /* 卡片直排、各卡寬度貼實際文字寬（fit-content，user 2026-07-09）；
-       align-self:stretch 給 max-width:100% 一個滿寬基準防 nowrap 撐爆 */
+    /* 卡片直排、各卡寬度貼文字寬（fit-content）；align-self:stretch 給 max-width:100% 滿寬基準，防 nowrap 撐爆 */
     align-self: stretch;
     min-width: 0;
     display: flex;
@@ -572,19 +486,15 @@
     gap: var(--spacing-sm);
   }
 
-  /* ===== Mobile 直向：nav / 年級 bar / 類型 label 三層 sticky（user 2026-07-13）=====
-   * 錨定值全固定 px（playwright 375×812 實測；貼 fixed header 的偏移屬「錨定值」桶）：
-   *   T1 112 = program bar 頂（mobile logo 底 82 + 齒輪視覺溢出 + 呼吸；BFA label 頂 ≈ T1+4 不再撞 logo）
-   *   T2 219 = T1 + bar 高 ~108.6 − ~1.6px tuck
-   *   T3 272 = T2 + 年級 bar 高 55 − 2px tuck（label 頂 padding 直接接到 bar 底）
-   * 縫隙策略（user 2026-07-13 四修「上下都有 padding 比較好」）：不靠鄰層 ::before overlap 補，
-   * 改「padding 長在自己盒內」＝tuck 只吃 padding 不吃內容——之前 tuck 4.6px 吃進 bar 的 pill
-   * 旋轉 clearance 區，pinned 時 pill 旋轉角被 nav 帶蓋掉（「原本不會切、sticky 就被切」）。
-   * label 換手改「推擠交接」：block row gap 0、間距搬進 cells padding-bottom → 下一個 label 頂
-   * 直接把上一個推出去，貼著換手、無空窗（同 iOS list header pattern），連 ::before 都不需要。
-   * z 由上而下 5/4/3；bg 全 var(--theme-bg)。三層 sticky 全加 translateZ(0)：pinned sticky 無自己
-   * compositor layer 時內容逐幀 repaint → pill 抖動 + 交界 sub-pixel 縫（同 lightbox 已知修法）。
-   * portrait 限定：矮橫向 nav 進 header（landscape.css）不套。 */
+  /* ===== Mobile 直向：nav / 年級 bar / 類型 label 三層 sticky =====
+     錨定值固定 px（375×812 實測）：
+       T1 112 = program bar 頂（mobile logo 底 82 + 視覺溢出 + 呼吸）
+       T2 = T1 + nav 實高 − tuck（JS 量寫 --courses-grade-top）
+       T3 = T2 + 年級 bar 實高 + 16（JS 量寫 --courses-rowlabel-top）
+     縫隙策略：padding 長在自己盒內，tuck 只吃 padding 不吃內容（否則 pinned 時 pill 旋轉角被上一層蓋掉）。
+     label 換手＝推擠交接：row gap 0、間距搬進 cells padding → 下一個 label 頂直接把上一個推出去、無空窗。
+     z 由上而下 5/4/3；bg 全 var(--theme-bg)。三層 sticky 全加 translateZ(0)：pinned sticky 無自己
+     compositor layer 時逐幀 repaint → pill 抖動 + 交界 sub-pixel 縫。portrait 限定：矮橫向 nav 進 header（landscape.css）不套。 */
   @media (max-width: 767px) and (orientation: portrait) {
     #courses-content-section {
       padding-top: 112px;
@@ -592,14 +502,13 @@
     #courses-content-section .courses-content-row {
       gap: 0;
     }
-    /* padding-top 給上方絕對定位的 group label（BFA/MDes 學位標）clearance，不被 bar overflow 上緣裁。
-       ⚠️label 兩行實高 ~53（EN+ZH），舊硬編 40 不夠 → 改吃 JS 量的 --courses-bar-padtop（labelH+16；courses-section-switch.js）。 */
+    /* padding-top 給 bar 上方 absolute 的 BFA/MDes 學位標 clearance，不被 bar overflow 上緣裁。
+       ⚠️ label 兩行實高 ~53，吃 JS 量的 --courses-bar-padtop（labelH+16；courses-section-switch.js）。 */
     #courses-content-section .courses-program-bar {
       margin-bottom: 0;
       padding-top: var(--courses-bar-padtop, 40px);
     }
-    /* label ↔ btn gap 比照 about .class-group-label（bottom: 100% + xs，user 2026-07-13 三修「以 about 設定為主」，
-       14px 太遠退役）；left 0 對齊主 btn 左緣（同日二修） */
+    /* label ↔ btn gap 比照 about .class-group-label（bottom: 100% + xs）；left 0 對齊主 btn 左緣 */
     #courses-content-section .courses-bfa-label {
       bottom: calc(100% + var(--spacing-xs));
       left: 0;
@@ -623,43 +532,36 @@
     }
     #courses-content-section .courses-mobile-grade-bar {
       position: sticky;
-      top: var(--courses-grade-top, 216px);   /* = 112 + nav 實高 − 2；JS 量寫（courses-section-switch.js）消 nav↔grade 縫（user 2026-09-06）*/
+      top: var(--courses-grade-top, 216px);   /* = 112 + nav 實高 − 2；JS 量寫（courses-section-switch.js）消 nav↔grade 縫 */
       z-index: 4;
       background: var(--theme-bg);
       transform: translateZ(0);
-      /* nav 帶（z-5、opaque theme-bg、bottom ~220.6）比 grade bar（top:216）低 → tuck 4.6px 蓋進來，
-         把 active pill（rotate ~5°，旋轉頂角實測到 217.7）覆掉 ~3px＝pinned 時「被切」。tuck 要留住
-         （grade bar 有 overflow 不能靠 ::before 補口，靠 tuck 蓋 nav↔grade 的縫）→ 改把 pill 內容往下推：
-         top padding 8→16，pill 旋轉頂角落在 ~225.7、清開 nav bottom 220.6 約 5px（吸收 nav 高度變動）。 */
+      /* nav 帶（z-5、opaque）底緣比 grade bar top 低 → tuck ~4.6px 蓋住 nav↔grade 縫（grade bar 有 overflow、不能靠 ::before 補口）。
+         tuck 會覆掉 active pill 旋轉頂角 → 改把 pill 往下推：top padding 16，旋轉頂角清開 nav 底約 5px（吸收 nav 高度變動）。 */
       padding-top: 16px;
     }
     #courses-content-section .courses-grid-mobile {
       gap: var(--spacing-sm);
     }
-    /* label 下 padding 16 併掉 row gap（初始版面不變）：sticky 釘住時 bg 延伸到字下 16px，
-       內容在 padding 邊消失、不貼字（user 2026-07-13「下面的內容直接貼到它」） */
+    /* label 下 padding 16 併掉 row gap（初始版面不變）：釘住時 bg 延伸到字下 16px，捲過的內容不貼字 */
     #courses-content-section .courses-mobile-row {
-      /* flex-column → block：label 是 sticky flex-item 時會繞自身高上下震盪（sticky-in-flex quirk）＝捲動時
-         required tag 位移（user 2026-09-08）。block 下 label 為乾淨 block sticky，配 rowlabelTop +16 與 grade
-         同拍 pin、恆保 16px 間距零位移。子項（label / cells）本來就直排堆疊，改 block 視覺不變。 */
+      /* flex-column → block：sticky flex-item 會繞自身高上下震盪（sticky-in-flex quirk）＝捲動時 label 位移。
+         block 下 label 為乾淨 block sticky，配 rowlabelTop 與 grade 同拍 pin、恆保 16px 間距。子項本來就直排，視覺不變。 */
       display: block;
       gap: 0;
     }
     #courses-content-section .courses-mobile-row-label {
       position: sticky;
-      top: var(--courses-rowlabel-top, 285px);   /* = gradeTop + 年級 bar 實高 + 16(grade↔block 自然 gap)；label 隨 grade 同拍 pin 不追趕（消捲動位移）；JS 量寫（courses-section-switch.js）*/
+      top: var(--courses-rowlabel-top, 285px);   /* = gradeTop + 年級 bar 實高 + 16；label 隨 grade 同拍 pin 不追趕；JS 量寫（courses-section-switch.js） */
       z-index: 3;
       align-self: stretch;
       padding-bottom: var(--spacing-sm);
       background: var(--theme-bg);
       transform: translateZ(0);
     }
-    /* 年級 bar ↔ label 之間 gap 的破口（有 overflow 的年級 bar 不能掛 ::before，蓋補掛在 label 上）；
-       高度 = gap 20 + 4px tuck 進年級 bar 底 + 1px 壓進 label（消 sub-pixel 縫）。
-       ⚠️ bottom 由 100% 改 calc(100% - 1px)＝補丁下緣壓進 label 頂 1px：原本 bottom:100% 讓 ::before 下緣與
-       label 盒頂（=文字頂，label 無 padding-top）剛好對齊零重疊，sticky 釘在小數 px 時兩塊各自 round 露 1px 縫
-       → 後方捲動卡片透出（user 2026-09-10「Required 上方 1px 縫」）。同 nav/年級 bar 的 tuck 重疊手法。
-       height 隨之 +1（24→25）維持頂端 tuck 進年級 bar 底的量不變。 */
+    /* 年級 bar ↔ label 之間 gap 的破口（年級 bar 有 overflow 不能掛 ::before → 蓋補掛在 label 上）。
+       高度 = gap 20 + 4px tuck 進年級 bar 底 + 1px 壓進 label。
+       ⚠️ bottom calc(100% - 1px)：零重疊時 sticky 釘在小數 px 兩塊各自 round 露 1px 縫 → 後方卡片透出；同 nav/年級 bar 的 tuck 重疊手法。 */
     #courses-content-section .courses-mobile-row-label::before {
       content: '';
       position: absolute;
@@ -669,10 +571,8 @@
       height: 25px;
       background: var(--theme-bg);
     }
-    /* 卡片 ±2° 旋轉 corner 外溢 ~4-6px：cells 尾端墊 12px，row 收場時 label（sticky 到 row 內容底）
-       的 bg 蓋得住最後一張卡的旋轉角，完全收進去不露（user 2026-07-13）；
-       頂端墊 12px 把第一張卡的旋轉角推出 label 的 opaque padding-bottom 區（±2° 全寬卡 corner 凸最多 ~6px），
-       否則頂角被 sticky bg 蓋掉「切平一條」（user 2026-07-21，桌面版對應 buffer 在 required-row margin-top） */
+    /* 卡片 ±2° 旋轉角外溢 ~4-6px：cells 尾端墊 12px → row 收場時 label bg 蓋得住最後一張卡的旋轉角；
+       頂端墊 12px → 第一張卡旋轉角推出 label 的 opaque padding-bottom 區，否則頂角被切平（桌面對應 buffer 在 required-row margin-top） */
     #courses-content-section .courses-mobile-cells {
       padding-top: 12px;
       padding-bottom: 12px;
@@ -694,10 +594,9 @@
     .courses-grid-type-label {
       font-size: var(--font-size-xs);
     }
-    /* 灰色卡片：mobile 字級 p1（學期/必修/選修 label 同步 p1，視覺統一） */
     .courses-grid-card {
       font-size: var(--font-size-s);
-      padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 5/8/4 → 統一，user 2026-09-09）*/
+      padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
     }
   }
 

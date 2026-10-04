@@ -1,55 +1,31 @@
-/**
- * Color Mode Theme
- * 持續變化的隨機色背景模式，由 body.mode-color 觸發
- *
- * 寫新 mode-aware 規則時優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)
- * 對組（2026-05-18 起三 mode 都可用）；可寫 `body:is(.mode-inverse, .mode-color) .X` 一條規則
- * 覆蓋兩 mode 取代雙寫，新加規則照新 pattern。本檔尚未全 migrate。
- *
- * 機制：
- * - JS (theme-toggle.js) RAF loop 每幀更新 --theme-bg/fg/overlay-25 inline CSS var
- * - 隨機 hue 旋轉（HSL hue, 80%, 50%），對比文字色由 luminance 決定
- * - 元件已用 var(--theme-fg)/(--theme-bg) 的會自動跟著走
- * - 純黑/白底 + 三原色 hl bg → 用 var(--theme-overlay-25) 蓋成半透明（顯露隨機色）
- *
- * 第一版 cover 範圍：對齊 inverse.css 大部分區塊；isolated 子樹（faculty/library）沿用 inverse 待遇
- * Hover 三原色 inline bg（bar/anchor 元件）由 :not(.is-bar-hover) / :not(:hover) 排除，仍走原色
- */
+/* Color Mode Theme（mode3）：持續變化的隨機色背景，由 body.mode-color 觸發
+   新 mode-aware 規則優先用 var(--theme-fg) / var(--theme-fg-inverse) / var(--theme-fg-rgb)；可寫 `body:is(.mode-inverse, .mode-color) .X` 一條覆蓋兩 mode（本檔尚未全 migrate）
+   機制：theme-toggle.js RAF loop 每幀更新 --theme-bg/fg 等 inline var（hue 旋轉，對比字色由 luminance 決定），用 var() 的元件自動跟走；
+   三原色 accent 元件（多為 JS inline 設色）一律 !important 改 strict B/W：bg=var(--theme-fg)、字=var(--theme-fg-inverse) */
 
 /* ===== Base ===== */
 body.mode-color {
   background-color: var(--theme-bg);
   color: var(--theme-fg);
 
-  /* Footer：用互補 hue (hue+180°) 跟 body bg 永遠對比；--theme-bg-contrast / --theme-fg-contrast
-   * 由 theme-toggle.js applyColorVars 每幀同步更新，footer 自動跟著 cycle */
+  /* Footer 用互補 hue（hue+180°）永遠跟 body 對比；--theme-*-contrast 由 theme-toggle.js applyColorVars 每幀更新 */
   --footer-bg: var(--theme-bg-contrast);
   --footer-fg: var(--theme-fg-contrast);
 }
 
-/* html bg 跟 body 同步：身為 body bg 在 body height < viewport 時的 fallback，
- * 並順便壓掉 faculty-slide-in.js / courses-map.js instant 設 html bg = cardColor 的行為——
- * mode-color 下 panel bg 已強制 = theme-bg，html 也跟著走 theme-bg 避免縫隙露白。
- * 用 html.mode-color 不用 html:has(body.mode-color)（2026-10-01）：applyMode 對 html/body 同步加減 mode class 恆等價；
- * :has 未命中時要掃整棵 DOM，library 一次切 mode 實測耗 14ms 選擇器時間 */
+/* html bg 跟 body 同步：body 矮於 viewport 時的 fallback，並壓掉 faculty-slide-in.js / courses-map.js 設 html bg=cardColor（避免縫隙露色）。
+   用 html.mode-color 不用 html:has(body.mode-color)：applyMode 同步加減兩邊 class；:has 未命中要掃整棵 DOM（切 mode 實測 14ms） */
 html.mode-color {
   background-color: var(--theme-bg) !important;
 }
 
-/* Footer logo：mode-color 載入 SCCDLogoWireframeStandard.json (黑 wireframe)，
- * 由 theme-toggle.js applyColorVars 依 footer bg (互補 hue) luminance 即時翻 invert(1)/none */
+/* Footer logo：mode3 載 SCCDLogoWireframeStandard.json（黑 wireframe），theme-toggle.js 依 footer bg luminance 翻 invert(1)/none */
 body.mode-color .footer-logo-inner {
   filter: var(--footer-invert-filter, invert(1));
 }
 
-/* Footer scatter 文字卡片：standard/inverse 用 JS inline 設的隨機三原色底（footer-scatter.js
- * applyAccentColors）；mode-color 跟全站 accent 元件一致改 strict B/W（否則彩色卡片疊在 vivid
- * 互補 hue footer bg 上對比不足、且只有 footer 沒翻黑白顯得不一致）。
- * 底 = fg-contrast（對比 footer bg 的純黑白）、字 = fg-inverse-contrast（對比卡片底的純黑白）；
- * !important 蓋過 JS inline background。
- * ≥1200 scatter 限定：<1200（手機＋平板 tab 版型）無 scatter、JS 不設 accent 底，維持透明底 +
- * var(--footer-fg) 文字（手機 user 2026-06-11；平板 2026-08-11 user「mode3 文字資訊去掉底色」——
- * 原 scope min-width:768 讓平板誤吃白底卡）。 */
+/* Footer scatter 文字卡：JS inline 三原色底（footer-scatter.js）→ mode3 strict B/W（!important 蓋 inline）：
+   底 fg-contrast、字 fg-inverse-contrast（對比互補 hue footer）。只限桌面 scatter；較窄版型無 scatter、維持透明底 + var(--footer-fg) */
 @media (min-width: 1024px) {
   body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
     background: var(--theme-fg-contrast) !important;
@@ -60,44 +36,32 @@ body.mode-color .footer-logo-inner {
   }
 }
 
-/* Footer 社群 icon：實心方塊 badge（黑塊白 f）原色 background-image + filter:invert 反色，
- * mode3 亮暗底輪轉走 --footer-invert-filter——規則在 components/icon.css .icon.footer-social-glyph。 */
+/* Footer 社群 icon 的 mode3 反色走 --footer-invert-filter，規則在 components/icon.css .icon.footer-social-glyph */
 
 /* ===== Layout ===== */
 body.mode-color header {
   background-color: transparent;
 }
 
-/* ===== bg-white / bg-gray-9 / hero h-screen 處理 =====
- * mode-color 跟 generate-app wireframe Play 視覺對齊：整片 body --theme-bg vivid hue 流動，不加任何 overlay 軟化
- * 原本這些 section 套 var(--theme-overlay-25)（25% fg 半透明）軟化跟 vivid hue 對比，但會造成：
- *   1) section visible 色 ≠ body bg → 子元素（如 anchor-nav-btn）用 var(--theme-bg) 跟 visible 周圍對不上
- *   2) 跟 generate-app Wireframe Play（純 vivid 一片）視覺不一致
- * 
- * Hero section 保持 transparent，直接透出 body 背景。
- * 排除 #faculty-panel（modal isolated）跟 about bar（走 fg/fg-inverse strict 對比，見下方 header bar 規則） */
+/* Hero section 透明、直接透出 body bg：不加 overlay 軟化，否則 section 色 ≠ body bg，子元素用 var(--theme-bg) 會對不上 */
 body.mode-color main > section.h-screen {
   background-color: transparent !important;
 }
 
-/* bg-white / bg-gray-9 轉為 var(--theme-bg) 避免切換 mode 時 transparent 造成的過渡色差 (灰色泥濘感) */
-body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel):not(.activities-filter-bar),
-body.mode-color .bg-gray-9 {
+/* bg-white → var(--theme-bg)（不用 transparent：切 mode 過渡會有灰色色差）。
+   排除 #faculty-panel（modal 自管）、.activities-filter-bar（下條） */
+body.mode-color .bg-white:not([data-bar="about"]):not(#faculty-panel):not(.activities-filter-bar) {
   background-color: var(--theme-bg) !important;
 }
 
-/* sticky 元素必須有 opaque bg 才能蓋住滾動到下方的 list-content
- * 用 var(--theme-bg)（=body 同色）視覺上看不出來但實際不透明，蓋住內容避免「文字穿過 sticky bar 重疊」
- *   - .activities-filter-bar：activities 頁 sticky 搜尋/分類過濾條
- *   - .list-header.active：展開的 list item header 桌面 sticky */
+/* sticky 元素需不透明底蓋住捲到下方的內容：var(--theme-bg)＝body 同色、看不出但不透明
+   （activities filter bar、桌面 sticky 的 .list-header.active） */
 body.mode-color .activities-filter-bar,
 body.mode-color .list-header.active {
   background-color: var(--theme-bg) !important;
 }
 
-/* Degree Show card hover：JS 在 .degree-show-card-content inline 設 --card-color 三原色 bg
- * mode-color 改成 strict B/W：bg = theme-fg、字 = theme-fg-inverse，跟其他 strict 元件一起翻黑白
- * 用 [style*="background"] attribute selector 只在 hover 狀態（有 inline bg）才生效 */
+/* Degree Show card hover：JS inline 設三原色 bg → strict B/W；[style*="background"] 只命中 hover 中（有 inline bg） */
 body.mode-color .degree-show-card-content[style*="background"] {
   background: var(--theme-fg) !important;
 }
@@ -107,10 +71,8 @@ body.mode-color .degree-show-card-content[style*="background"] * {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Degree Show detail 頁 Next Project 區 hover：
- *   - #prev-clip / #next-clip：被覆蓋卡片的 clip-path 掃入色（JS 設 ACCENT 三原色）→ strict B/W
- *   - #prev-labels / #next-labels 內 <p> chip：hover 卡片的 year / title-en / title 標籤（JS 設 cardColor 三原色 bg + HTML inline color:#000）→ strict B/W chip + 翻字
- *     ⚠️chip 標籤 2026-07-13 已從 h4/h2 改 <p>（JS querySelectorAll('p')）；此規則同步改 p，別回 h4/h2（會抓不到＝mode3 accent 不翻黑白） */
+/* Degree Show detail Next Project hover：#prev/#next-clip 掃入色、#prev/#next-labels 內 <p> chip（JS inline 三原色）→ strict B/W
+   ⚠️ chip 是 <p>（JS querySelectorAll('p')），別改回 h4/h2（抓不到＝accent 不翻黑白） */
 body.mode-color #prev-clip[style*="background"],
 body.mode-color #next-clip[style*="background"] {
   background: var(--theme-fg) !important;
@@ -122,30 +84,21 @@ body.mode-color #next-labels p[style*="background"] {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Degree Show detail sticky info chip（title / branch）：
- * JS 在 .sticky-chip-inner inline 設 background = ACCENT 三原色（粉/綠/藍），mode-color 翻 strict B/W
- * （依 page bg 對比自動翻黑/白，跟 atlas-layout-inner、degree-show-card-content 同 pattern）
- * events nav chip 不在此列：掛 .anchor-nav-btn/.anchor-nav-inner 走下方 nav btn 統一規則（2026-08-18） */
+/* DSD sticky info chip（title / branch）：JS inline 三原色 → strict B/W。events nav chip 走下方 nav btn 統一規則 */
 body.mode-color #sticky-year-chip .sticky-chip-inner,
 body.mode-color #sticky-title-chip .sticky-chip-inner {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Degree Show detail 手機 Next Project 色塊卡（2026-07-09 取代原 event 標題 chip）：JS inline 隨機
- * accent 底、黑字由 .dsd-next-card-m 的 color 給（不掛 .text-black），mode-color 翻 strict B/W
- * （同上 sticky chip pattern；卡是 md:hidden 桌面不顯示，不需 media scope）。字繼承卡 color，一條規則即可。 */
+/* DSD 手機 Next Project 色塊卡：JS inline accent 底、字由卡本身 color 給（無 .text-black）→ strict B/W（md:hidden，不需 media scope） */
 body.mode-color .dsd-next-card-m {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 
-/* 自訂影片 player UI（createLightboxVideo，lightbox-video.js；dsd inline 影片 + activities lightbox 共用）：
- * mode1/2 = accent 色塊 + 黑 ink（JS inline），mode-color 翻 strict B/W（依 page hue 對比翻黑/白，user 2026-08-19）。
- *   - .lb-video-block（中央 bar / 全螢幕塊）accent 底 → var(--theme-fg)
- *   - .lb-video-ink（icon 鈕 / 時間字）黑字 → var(--theme-fg-inverse)（對比色塊）
- *   - .lb-video-ink-bg（進度/音量 track/fill/thumb）黑線 → var(--theme-fg-inverse)
- * inline var 會隨 mode-color 每幀 hue cycle 自動 resolve；手機走原生 controls 不掛這些 class。 */
+/* 自訂影片 player UI（lightbox-video.js createLightboxVideo）：mode1/2 為 JS inline accent 色塊 + 黑 ink → strict B/W：
+   .lb-video-block 底 fg；.lb-video-ink 字 / .lb-video-ink-bg 線 fg-inverse。手機走原生 controls 不掛這些 class */
 body.mode-color .lb-video-block {
   background: var(--theme-fg) !important;
 }
@@ -157,19 +110,13 @@ body.mode-color .lb-video-ink-bg {
 }
 
 /* ===== 三原色 highlight bg → strict B/W ===== */
-/* timeline-card-inner 改 strict B/W（不用 overlay-25 半透明）：
- *   - bg = var(--theme-fg)（根據 page bg 對比自動翻黑/白）
- *   - 字色 = var(--theme-fg-inverse)（見下方 typography rule）
- * 跟其他 strict 元件（[data-*-hl] / [data-section-title] / .anchor-nav-btn）一起翻黑白；
- * .bg-black 變體（era badge / photo tooltip）一併套同規則。
- * section-title-strip outer 不加 bg：section 已是 overlay-25，strip 再疊會 alpha 複合形成色帶；改讓 outer 透明，只剩內層 [data-section-title] chip strict B/W */
+/* timeline-card-inner → strict B/W：bg=theme-fg（字見 Typography 段；.bg-black era 卡另有反向規則）。
+   section-title-strip outer 不加 bg（疊色會形成色帶），只讓內層 [data-section-title] chip 翻 B/W */
 body.mode-color .timeline-card-inner {
   background-color: var(--theme-fg) !important;
 }
 
-/* about overview/class/works highlight chip + hero hl chip：JS 在 inline style 設三原色 bg，
- * mode-color 必須 !important 蓋掉，改 fg bg + fg-inverse 字（strict 對比，跟其他 strict 元件一起翻黑白）
- * [data-hero-hl]：所有 hero 頁面 (faculty/courses/activities/admission/awards/support/degree-show) 四個文字 chip 共用 */
+/* about overview/class/works hl chip + [data-hero-hl]（所有 hero 頁共用）：JS inline 三原色 → !important 改 strict B/W */
 body.mode-color [data-overview-hl],
 body.mode-color [data-class-hl],
 body.mode-color [data-works-hl],
@@ -177,22 +124,16 @@ body.mode-color [data-hero-hl] {
   background: var(--theme-fg) !important;
 }
 
-/* Courses BFA label (JS hover/active 時 inline 設 accent bg + 黑字 → mode-color 改 strict B/W)
- * Active group label：用 :has(.active) 捕捉
- * Hover label：JS 設 inline bg 但 group 沒 .active class → 用 [style*="background"] attribute selector 捕捉
- * Inactive label（兩條都不匹配）：透明底 + 100% theme-fg 字＝吃 courses.css base，不另寫（user 2026-09-28） */
+/* Courses BFA label：active 用 :has(.active)、hover 用 [style*="background"]（JS inline 但 group 無 .active）捕捉；
+   inactive 吃 courses.css base，不另寫 */
 body.mode-color .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label,
 body.mode-color .courses-bfa-label[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== About Resources colored-accordion：mode-color strict B/W =====
- * 旋轉卡片版 accordion (about 頁 Resources 區塊) 預設用三原色循環（粉/綠/藍）；
- * mode-color 下統一改 strict B/W：依 page bg luminance 自動翻黑白
- *   - bg = var(--theme-fg)（亮頁=黑、暗頁=白）
- *   - text = var(--theme-fg-inverse)（對比 bg）
- * Hover：JS inline 設 HOVER_COLORS（黃/紫/橘）→ 用 [style*="background"] 偵測，翻成相反 B/W 給視覺 feedback */
+/* ===== About Resources colored-accordion：strict B/W =====
+   Hover：JS inline HOVER_COLORS → [style*="background"] 偵測，翻成相反 B/W */
 body.mode-color .colored-accordion .accordion-item,
 body.mode-color .colored-accordion .accordion-label,
 body.mode-color .colored-accordion .accordion-text-wrap,
@@ -219,14 +160,9 @@ body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
   }
 }
 
-/* Timeline era 卡片 / photo tooltip（標準是 bg-black + text-white）：mode-color 下也走 strict B/W，跟一般 timeline-card-inner 同款（規則已在上方統一） */
-
-/* ===== About Programs 結構樹（#program-structure）：mode-color strict B/W =====
- * chip 全去三原色改 strict B/W；SCCD 塊與右色塊「同色」（user 2026-09-05，撤回 09-03 反色版）：
- *   - 右 box（.prog-box）= var(--theme-fg) 底 + var(--theme-fg-inverse) 字（!important 蓋 JS inline accent + CSS 預設）
- *   - 左 SCCD 塊（.prog-acronym）= 同 var(--theme-fg) 底；wordmark（.prog-acronym-mark）填
- *     var(--theme-fg-inverse) 對比（standard/inverse 原填 --theme-bg，mode3 是 vivid hue 會「吃背景色」）。
- * .prog-seg 連結橫綫、.prog-lines 斜綫已吃 var(--theme-fg) 自動跟走，不需在此覆蓋。 */
+/* ===== About Programs 結構樹（#program-structure）：strict B/W =====
+   .prog-box 與左 SCCD 塊（.prog-acronym）同 theme-fg 底（!important 蓋 JS inline accent）；wordmark 填 fg-inverse（base 填 --theme-bg，mode3 會吃背景色）。
+   .prog-seg / .prog-lines 已吃 var(--theme-fg)，不需覆蓋 */
 body.mode-color #program-structure .prog-box {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
@@ -243,20 +179,13 @@ body.mode-color #program-structure .prog-acronym-mark {
 }
 
 /* ===== Typography ===== */
-/* :not([data-hero-hl]) 把 hero hl chip 從廣域 .text-black→theme-fg 排除，避免跟下方 [data-hero-hl] strict B/W 規則同 specificity 廝殺；
- * 排除後 hero h1/p 的 color 只剩 [data-hero-hl] 規則一條，直接走 theme-fg-inverse 對比 chip bg */
+/* :not([data-hero-hl]) 把 hero hl chip 排除在廣域 .text-black→theme-fg 外，避免跟下方 [data-hero-hl] strict B/W 規則互搶 */
 body.mode-color .text-black:not(.timeline-year-item):not([data-hero-hl]) {
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .text-gray-6 {
-  color: rgba(var(--theme-fg-rgb), 0.6) !important;
-}
-
-/* Highlighted text 內字色（overlay 半透明上方文字）→ 對比 fg */
-/* data-*-hl bg 已改 var(--theme-fg) → 字必須 fg-inverse 才看得到
- * [data-hero-hl] 用雙重屬性 (0,3,0) 蓋過 `body.mode-color .text-black:not(.timeline-year-item)` (0,3,0) 且後出順序勝
- *   ── h1/p 同時有 .text-black + data-hero-hl，單寫 [data-hero-hl] (0,2,0) 會輸給 .text-black 規則被拉回 theme-fg → 跟同色底融在一起看不到字 */
+/* data-*-hl bg 已是 theme-fg → 字走 fg-inverse。
+   [data-hero-hl] 雙寫拉高特異度：h1/p 同時有 .text-black，避免被拉回 theme-fg（與底同色看不到） */
 body.mode-color [data-overview-hl],
 body.mode-color [data-overview-hl] *,
 body.mode-color [data-class-hl],
@@ -274,14 +203,13 @@ body.mode-color .section-title-strip * {
   color: var(--theme-fg) !important;
 }
 
-/* timeline-card-inner bg 改為 theme-fg（strict B/W），字必須翻 theme-fg-inverse 才看得到 */
+/* timeline-card-inner 底為 theme-fg → 字翻 fg-inverse */
 body.mode-color .timeline-card-inner,
 body.mode-color .timeline-card-inner * {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* era badge（.timeline-card-inner.bg-black）：mode-color 翻成 fg-inverse 底 + fg 字＝跟主卡(fg 底)相反，
-   才不會跟黑色主卡/深色照片糊在一起看不清（2026-06-08 user 報「要反過來才看得清楚」；只動此 badge，主卡不變）。 */
+/* era badge（.timeline-card-inner.bg-black）反向：fg-inverse 底 + fg 字，才不會跟主卡/深色照片糊在一起 */
 body.mode-color .timeline-card-inner.bg-black {
   background-color: var(--theme-fg-inverse) !important;
 }
@@ -290,15 +218,8 @@ body.mode-color .timeline-card-inner.bg-black * {
   color: var(--theme-fg) !important;
 }
 
-/* about history list view era 標頭：bg 由 JS renderListEra 設三原色 inline → mode3 去色改 strict B/W，
-   同主卡（theme-fg 底、text 已由上方 .timeline-card-inner * 翻 fg-inverse）。桌機 + 手機通用。 */
-body.mode-color .tl-list-era-head {
-  background-color: var(--theme-fg) !important;
-}
-
-/* about history 手機兩層 sticky 頭（era 標籤 / 年份）：釘頂需不透明底遮下方捲過的內文。
-   mode1/2 走 var(--tl-card-bg)（JS 設的卡片色）；mode3 卡片翻 strict B/W(theme-fg)，sticky 頭同步覆蓋才不露 accent。
-   桌機通用（那裡 era/年份各自成欄不遮，theme-fg 底＝同卡色，隱形無害）。 */
+/* about history 手機 sticky 頭（era / 年份）需不透明底遮捲過的內文：mode1/2 用 var(--tl-card-bg)，mode3 卡已翻 theme-fg 故同步；
+   桌機同卡色、隱形無害 */
 body.mode-color .tl-era-label,
 body.mode-color .tl-list-year {
   background-color: var(--theme-fg) !important;
@@ -309,60 +230,35 @@ body.mode-color .border-black {
   border-color: var(--theme-fg) !important;
 }
 
-body.mode-color .border-gray-9 {
-  border-color: rgba(var(--theme-fg-rgb), 0.3) !important;
-}
-
-/* 亮 overlay 上的分隔線維持黑色（同 inverse 規則） */
+/* list-content 內分隔線維持黑（同 inverse.css）；active 時被下方 Activities list 規則改 fg-inverse */
 body.mode-color .list-content .border-black {
   border-color: black !important;
 }
 
-/* Library 主卡片內的分隔線改用 --lib-fg，跟著 lib-bg 翻黑白
- * 亮 hue → lib-bg=淺灰 / lib-fg=黑 → 分隔線黑色
- * 暗 hue → lib-bg=深灰 / lib-fg=白 → 分隔線白色 */
+/* Library 主卡內分隔線跟 --lib-fg 翻黑白 */
 body.mode-color #library-card-content .border-black {
   border-color: var(--lib-fg) !important;
 }
 
 /* ===== Navigation ===== */
-body.mode-color .nav-link {
-  color: var(--theme-fg);
-}
-
 body.mode-color .mobile-nav-link,
 body.mode-color .mobile-nav-link span {
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .mobile-nav,
-body.mode-color .mega-menu {
+body.mode-color .mobile-nav {
   background-color: var(--theme-bg);
 }
 
-@media (min-width: 768px) {
-  body.mode-color .nav-link:hover {
-    color: var(--theme-fg);
-  }
-}
-
 /* ===== Theme Invert（黑色靜態圖反轉成對比色）===== */
-/* --theme-invert-filter 由 theme-toggle.js applyColorVars 設：
- *   page bg 亮（luminance > 0.5）→ 'none'（黑 SVG 保留黑色對比）
- *   page bg 暗 → 'invert(1)'（黑 SVG 翻白色對比）
- * hue cycle 過閾值時自動翻色，與 fg/fg-inverse pattern 一致 */
+/* --theme-invert-filter 由 theme-toggle.js applyColorVars 設：page 亮 → none、暗 → invert(1) */
 body.mode-color .theme-invert {
   filter: var(--theme-invert-filter, invert(1));
 }
 
-/* ===== 統一所有 nav / filter btn 樣式（mode-color）=====
- * Active   = strict B/W chip：bg = var(--theme-fg)、color = var(--theme-fg-inverse)；hue luminance 自動翻黑/白底
- * Inactive = 跟 body bg 同步動態變色：bg = var(--theme-bg) vivid hue、color = theme-fg 100%（hover＝黑白翻 hue 亮度，見 navigation.css「nav btn hover」段，user 2026-09-28）
- * transition 排除 background：navigation.css 的 `.anchor-nav-inner` 是 `transition: all 0.3s`，
- * 會讓 bg 每幀 var 更新被 interpolate 300ms 而落後 body（body 沒 transition、每幀 instant 更新）→ 視覺上 btn 比 body 偏淡；
- * 只保留 color / opacity / transform transition 給 hover 效果用
- * 涵蓋：.anchor-nav-btn (About) + .faculty-filter-btn / .activities-section-btn / .courses-program-btn
- *      / .activities-filter-btn / .courses-filter-btn / .atlas-filter-btn */
+/* ===== 統一 nav / filter btn（mode-color）=====
+   Active＝strict B/W chip；Inactive＝bg 跟 body 同 var(--theme-bg)、字 100% theme-fg（hover 見 navigation.css「nav btn hover」段）。
+   inactive transition 排除 background：navigation.css .anchor-nav-inner 的 transition: all 會讓每幀 var 更新被補間、落後 body 偏淡 */
 
 /* Active：strict B/W chip */
 body.mode-color .anchor-nav-btn.active .anchor-nav-inner,
@@ -395,11 +291,8 @@ body.mode-color .atlas-filter-btn:not(.active) .anchor-nav-inner {
               transform var(--dur-fast) var(--ease-standard) !important;
 }
 
-/* Mode 切換窗口（0.4s）：inactive nav-inner 底色要跟 body 一起 fade，不要 snap。
- * 上面那條穩態規則刻意把 background 排除（避免 loop 每幀 var 更新被 300ms transition retarget lag），
- * 但切換瞬間 .mode-switching 在 body 上、--theme-bg 是凍結值 → 此時應把 bg 加回 transition 跟大背景同步。
- * 多一個 .mode-switching class 拉高 specificity（0,5,1）蓋過上面排除 bg 的 !important（0,4,1）。
- * loop 開始前 .mode-switching 已移除 → 不影響穩態。 */
+/* Mode 切換窗口：.mode-switching 期間 --theme-bg 凍結 → 把 bg 加回 transition，跟大背景一起 fade 而非 snap。
+   多一個 class 拉高特異度（0,5,1）蓋過上條排除 bg 的 !important（0,4,1）；loop 開始前 class 已移除，不影響穩態 */
 body.mode-color.mode-switching .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .section-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color.mode-switching .faculty-filter-btn:not(.active) .anchor-nav-inner,
@@ -424,33 +317,15 @@ body.mode-color.mode-switching .atlas-filter-btn:not(.active) .anchor-nav-inner 
   }
 }
 
-/* ===== Courses type label（必修/選修）：strict B/W =====
- * courses.css `.courses-grid-type-label` 寫死 color:black（無 .text-black class），
- * mode-color 不會被 typography .text-black→theme-fg 規則涵蓋；sem-label 因無顯式 color 自然繼承
- * body.mode-color 的 theme-fg，type-label 需在此顯式對齊翻白/黑 */
+/* ===== Courses type label（必修/選修）=====
+   courses.css 寫死 color:black（非 .text-black），廣域規則抓不到，需顯式翻 */
 body.mode-color .courses-grid-type-label {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Accordion / Course Items ===== */
-body.mode-color .course-item {
-  border-color: var(--theme-fg) !important;
-}
-
-/* hover/active 三原色 inline bg → overlay；content 內文字反 fg（course-header 桌面 only：手機沒 hover、active 走另一條路徑） */
-@media (min-width: 768px) {
-  body.mode-color .course-header[style*="background"],
-  body.mode-color .course-header[style*="background"] + .course-content,
-  body.mode-color .course-header[style*="background"] + .course-content * {
-    color: var(--theme-fg) !important;
-  }
-}
-
-/* Activities list hover/active：三原色 accent 翻成 strict B/W chip
- * JS list-accordion.js 在 hover / active 時設 inline bg=accent 在 .list-item / .list-header / .list-content 三處；
- * mode-color 一律蓋成 var(--theme-fg)（依 page hue luminance 自動翻黑/白）、字 = var(--theme-fg-inverse) 對比
- * 跟其他 strict 元件（faculty-card hover / timeline-card / hl chip）一起翻黑白
- * 桌面手機都要 apply — 手機 active（點開 accordion）也會被 JS 設 inline bg，缺這條會看到原始三原色撞 page hue */
+/* ===== Accordion ===== */
+/* Activities list hover/active：list-accordion.js 在 .list-item / .list-header / .list-content inline 設 accent → strict B/W。
+   桌面手機都要：手機點開 accordion 也會設 inline bg */
 body.mode-color .list-item[style*="background"],
 body.mode-color .list-header[style*="background"],
 body.mode-color .list-header[style*="background"] + .list-content {
@@ -464,28 +339,14 @@ body.mode-color .list-header[style*="background"] + .list-content,
 body.mode-color .list-header[style*="background"] + .list-content * {
   color: var(--theme-fg-inverse) !important;
 }
-/* list-content 內 .border-black 分隔線：active bg=fg → border 改 fg-inverse 對比
- * 蓋過上方 `body.mode-color .list-content .border-black { border-color: black }` 規則 */
+/* active 底為 fg → 分隔線改 fg-inverse（蓋過上方 .list-content .border-black 黑） */
 body.mode-color .list-header[style*="background"] + .list-content .border-black {
   border-color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== Courses Grid Cards：mode-color rest 融底淡疊色（user 2026-06-22 改），hover/active 走 strict B/W =====
- * ⚠️ 2026-06-22 更新：mode-color 下卡片 rest 改用 `var(--list-zebra-strip)`（= activities list 同款融底白色淡疊色，
- *   theme-toggle.js 依 hue 設 rgba(255,255,255, 亮 hue 0.4 / 暗 hue 0.15)）→ 透出 page hue 但仍是「看得見的卡片面」，
- *   跟 activities list 視覺一致。**先前試 `background: transparent`（全透明）user 反映「卡片都沒顏色了」＝卡片消失，故改淡疊色**。
- *   不做 zebra 交叉（卡片是分離方塊，uniform 一律同一淡疊色）。**只動 mode3**——mode1/2 維持原本灰卡（base courses.css
- *   var(--light-gray) #f2f2f2（2026-09-12 全站淺灰統一，原 rgba(0,0,0,0.06)）/ inverse.css 灰底，不在此檔、未動）。
- *   下面舊註解講的 neutral-gray 已不適用 mode-color rest（保留說明 hover/active 與 mode1/2 脈絡）：
- * 預設 bg：var(--theme-neutral-gray)（theme-toggle.js 依 page bg luminance 設）
- *   - 亮 hue → var(--gray-9) #E6E6E6（最淺灰，對齊 mode1 標準色 rgba(0,0,0,0.06) on white ≈ #F0F0F0 視覺）
- *   - 暗 hue → var(--gray-2) #333333（對齊 mode2 inverse card bg）
- *   兩端都是純灰固定值，完全不碰 vivid hue 不會染色
- *   舊版 rgba(fg, 0.2) 半透明會吃 hue 看起來像帶 hue 的半透明 → user 不要
- * 字色 = var(--theme-fg) 跟 page 對比一致（淺灰 card on light bg → black text；深灰 card on dark bg → white text）
- * hover/active（JS 設 inline background=accent）：用 [style*="background"] 偵測，
- *       強制 strict B/W：bg=theme-fg、字=theme-fg-inverse，
- *       與 timeline-card-inner / hl chip / faculty hover 等 strict 元件一起翻黑白 */
+/* ===== Courses Grid Cards（mode3）=====
+   rest：var(--list-zebra-strip) 白淡疊（theme-toggle.js 依 hue 設 alpha，同 activities list）；
+   不用 transparent（卡片消失）、不用 rgba(fg)（會吃 hue）。hover/active（JS inline accent）→ strict B/W */
 body.mode-color .courses-grid-card:not([style*="background"]) {
   background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
   color: var(--theme-fg) !important;
@@ -496,15 +357,13 @@ body.mode-color .courses-grid-card[style*="background"] {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* Sitemap 卡（news banner 同款，user 2026-10-03）：同首頁 news mode3 strict 黑白——標題區 theme-fg 底、
- * 編號 box 反色（不用 rgb）；hover 兩區黑白對調 */
+/* Sitemap 卡（同首頁 news banner mode3）：標題區 theme-fg 底、編號 box 反色（不用 rgb）；hover 兩區對調 */
 body.mode-color .legal-map-card { --map-num-bg: var(--theme-fg-inverse); --map-body-bg: var(--theme-fg); color: var(--theme-fg-inverse); }   /* 兩區底色走 --map-*-bg var（legal.css） */
 body.mode-color .legal-map-num { color: var(--theme-fg); }
 body.mode-color .legal-map-card.is-swap { --map-num-bg: var(--theme-fg); --map-body-bg: var(--theme-fg-inverse); color: var(--theme-fg); }
 body.mode-color .legal-map-card.is-swap .legal-map-num { color: var(--theme-fg-inverse); }
 
-/* Alumni sponsor 卡片 — 對齊 courses-grid-card mode-color pattern：
- * default 灰底 + fg 字；hover/active（JS 設 inline bg=accent）走 strict B/W */
+/* Alumni sponsor 卡：rest neutral-gray 底 + fg 字；hover/active（JS inline accent）→ strict B/W */
 body.mode-color .alumni-sponsor-card:not([style*="background"]) {
   background: var(--theme-neutral-gray) !important;
   color: var(--theme-fg) !important;
@@ -515,21 +374,9 @@ body.mode-color .alumni-sponsor-card[style*="background"] {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== Ref elements (list-ref-btn)：mode-color 走 neutral-gray =====
- * 標準/inverse 下 .list-ref-btn 用 var(--item-color-deep) 三原色 deep accent（pink/green/blue 深色）；
- * mode-color 下不要 accent — 改用「跟本地容器對比」的純灰，分兩種情境：
- *
- *   1) ref 在「未 active」list-content 外（罕見，list-content 收起隱藏不可見）→ 用 var(--theme-neutral-gray)
- *      跟 page hue 同側（亮頁=淺灰、暗頁=深灰）
- *
- *   2) ref 在「active list-content」內（常見，accordion 展開）→ list-content bg 已被前述 rule 設成 var(--theme-fg)
- *      （亮頁 → list-content 黑底；暗頁 → list-content 白底）
- *      ref 要跟 list-content 本地對比：亮頁 list-content 黑 → ref 深灰 + 白字、暗頁 list-content 白 → ref 淺灰 + 黑字
- *      → 用 var(--theme-neutral-gray-inverse)（亮頁=gray-2 深灰、暗頁=gray-9 淺灰）+ var(--theme-fg-inverse) 字
- *
- * hover 翻 strict B/W：bg=theme-fg / 字=theme-fg-inverse — 注意 active list-content 內的 ref hover 時
- * bg=theme-fg = 跟容器同色合體，視覺上「消失」剩字浮在容器上（合預期 hover「按下去」效果，user 沒抱怨先這樣）
- * 適用：admission 附件、activities ref chip（list-ref-btn 是統一 class，含舊的 workshop-ref-btn / industry-ref-btn）*/
+/* ===== Ref (list-ref-btn)：mode3 不用 deep accent，改跟所在容器對比的純灰 =====
+   一般：var(--theme-neutral-gray)（跟 page 同側）；
+   active list-content 內（容器底已是 theme-fg）：var(--theme-neutral-gray-inverse) + fg-inverse 字 */
 body.mode-color .list-ref-btn {
   background: var(--theme-neutral-gray) !important;
   color: var(--theme-fg) !important;
@@ -541,14 +388,8 @@ body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn 
   color: var(--theme-fg-inverse) !important;
 }
 
-/* hover：bg 只套在 root (.list-ref-btn 本身)，children 只繼承文字色
- * 原本 `:hover *` 一併套 background → 每個子 span/icon 自己都長一塊色塊（巢狀色塊閃爍 + 不順）
- * 鏡像 lists.css base hover pattern：root 套 bg+color、children 只 color
- *
- * Hover 跟「ref 所在容器」對比，不跟 page 對比：
- *   - default rule（ref 在 active list-content 外，罕見）：hover bg = theme-fg / 字 = theme-fg-inverse 跟 page 對比
- *   - active list-content 內的 ref（常見）：list-content bg 已是 theme-fg，用 theme-fg 會合體看不出 hover，
- *     翻成 theme-fg-inverse bg + theme-fg 字 — 亮頁 list-content 黑 → hover 白底黑字、暗頁 list-content 白 → hover 黑底白字 */
+/* hover：bg 只套 root、子元素只給字色（`:hover *` 套 bg 會長出巢狀色塊；同 lists.css base）。
+   一般 hover＝strict B/W；active list-content 內的 hover 翻 fg-inverse 底（用 theme-fg 會跟容器同色看不出） */
 body.mode-color .list-ref-btn:hover {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
@@ -568,11 +409,8 @@ body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:
   color: var(--theme-fg) !important;
 }
 
-/* legal 規章表列＝ref 同族（user 2026-09-10 ref 化：rest deep 底＋hover 黑白）：
- * mode3 禁 accent，且卡片容器（active list-content）bg 已被上方規則翻成 theme-fg →
- * rest 改 inverse neutral-gray + fg-inverse 字（鏡像上方「active list-content 內 ref」rest 規則）；
- * hover 鏡像「active list-content 內 ref hover」＝跟容器反向對比（fg-inverse 底＋fg 字）。
- * rest 不 gate viewport（user 2026-09-10 手機也 ref 化、legal.css 手機拔色帶已撤）；hover 仍桌面 only。 */
+/* legal 規章表列＝ref 同族，鏡像上方「active list-content 內 ref」：rest neutral-gray-inverse + fg-inverse 字、hover 反向（fg-inverse 底 + fg 字）。
+   rest 不分 viewport，hover 桌面 only */
 body.mode-color .legal-reg-table {   /* 整張表 deep 底（含類別欄）＝ mode3 換 neutral-gray-inverse */
   background: var(--theme-neutral-gray-inverse) !important;
 }
@@ -592,7 +430,7 @@ body.mode-color .legal-reg-unit {
     color: var(--theme-fg) !important;
   }
 }
-/* 手機按壓態（user 2026-09-11 :active＝hover 的觸控版）：mode3 同 hover 翻 fg-inverse 底＋fg 字 */
+/* 手機按壓態（:active＝hover 的觸控版）：同 hover */
 @media (max-width: 767px) {
   body.mode-color .legal-reg-item:active .legal-reg-name,
   body.mode-color .legal-reg-item:active .legal-reg-unit {
@@ -605,12 +443,8 @@ body.mode-color .legal-reg-unit {
   }
 }
 
-/* ===== Courses Slide-in：mode-color 跟 hue 持續變色（非 strict B/W）=====
- * 使用者明示 panel bg 要跟 body hue 一起 cycle，文字才走對比：
- *   panel bg = var(--theme-bg)（vivid hue，每幀 RAF 跟著 body 變）
- *   標題 + 描述字 = var(--theme-fg)（依 page bg luminance 自動翻黑/白對比）
- * transition 排除 background：courses.css 預設 `transition: background 0.3s ease`
- * 會讓 panel 跟 body 同 var 但被 interpolate 300ms 而落後（同 anchor-nav-inner pitfall）→ 視覺脫節 */
+/* ===== Courses Slide-in：panel bg 跟 body hue cycle（非 strict B/W），字 theme-fg =====
+   transition:none：courses.css 的 background transition 會讓 panel 落後 body */
 body.mode-color #courses-detail-panel {
   background: var(--theme-bg) !important;
   transition: none !important;
@@ -623,8 +457,7 @@ body.mode-color .courses-detail-desc-zh {
   color: var(--theme-fg) !important;
 }
 
-/* desc scrollbar：lists.css 寫死黑 thumb，mode-color 下 panel bg = theme-bg（cycling hue）→ 黑 thumb 撞色/不可見。
- * 跟 var(--theme-fg) 翻黑白永遠對比 panel（同 #faculty-panel .list-scroll 處理）。 */
+/* scrollbar thumb：lists.css 寫死黑，cycling hue 底上會撞色 → 跟 theme-fg 翻 */
 body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
   background: var(--theme-fg) !important;
 }
@@ -634,49 +467,29 @@ body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
   }
 }
 
-/* ===== About Faculty / Admission hover ===== */
-/* admission-item.active（accordion 展開）同樣有亮底，需脫離 hover media query 一併處理 */
-body.mode-color .admission-item.active {
-  color: var(--theme-fg);
-}
+/* ===== About Faculty hover ===== */
 @media (min-width: 768px) {
-  body.mode-color .admission-item:hover {
-    color: var(--theme-fg);
-  }
-  /* faculty-card hover：strict B/W 蓋掉 cards.css 的 var(--card-color)
-   * bg = var(--theme-fg) 跟 page hue 對比自動翻黑/白
-   * 字 = var(--theme-fg-inverse) 對比 bg；子元素 h5/p 無 .text-black 自然繼承
-   * 旋轉/transform 等其他 hover 行為（cards.css:88-92）不動 */
+  /* faculty-card hover：strict B/W 蓋掉 cards.css var(--card-color)；子元素無 .text-black，自然繼承字色 */
   body.mode-color .faculty-card:hover {
     background-color: var(--theme-fg) !important;
     color: var(--theme-fg-inverse);
   }
-  /* 代用 logo hover：卡片 bg 翻成 var(--theme-fg)（黑/白）→ logo 線條要再反一次才對比可見。
-   * 疊在 base 的 var(--theme-invert-filter) 上再 invert(1)（淺底 hover：none invert(1)=反；深底 hover：invert(1)invert(1)=還原）。*/
+  /* 代用 logo hover：卡底翻 theme-fg → 在 base filter 上再 invert(1) 才對比 */
   body.mode-color .faculty-card-placeholder:hover .faculty-card-image {
     filter: var(--theme-invert-filter, invert(0)) invert(1);
   }
 }
 
-/* mode3 代用 logo 對比黑/白：用「黑線框圖 + var(--theme-invert-filter)」(theme-toggle 每幀設、含遲滯)，
- * 而非 JS 換黑/白兩張圖。淺底 → none(黑線)、深底 → invert(1)(白線)。跟頁面文字吃「同一個 var、同一幀」翻色
- * = 完美同步零延遲（解決 user 報「mode3 自轉時 logo 翻色比文字慢」）。.faculty-card-image 已有 filter transition。
- * 非 :hover 限定、手機桌面都套（對比不分螢幕）；hover 疊加見上方 media query。 */
+/* mode3 代用 logo：黑線框圖 + var(--theme-invert-filter)（theme-toggle 每幀設），跟文字同 var 同幀翻色、零延遲（不用 JS 換圖）；手機桌面都套 */
 body.mode-color .faculty-card-placeholder .faculty-card-image {
   filter: var(--theme-invert-filter, invert(0));
 }
 
-/* ===== Faculty Slide-in：mode-color 跟 courses-detail-panel 一樣動態 hue 變色 + auto-contrast 文字 =====
- * panel bg = var(--theme-bg)（vivid hue 跟 body 同步 cycle，每幀 RAF 更新）
- * JS faculty-slide-in.js 在開啟時 inline 設 slideInPanel.style.backgroundColor = cardColor (accent)；
- * mode-color 用 !important 蓋過 inline → bg 強制走 theme-bg
- * transition 排除 background：避免 panel bg 跟 body var 同步但被 transition lag（同 anchor-nav-inner / courses-detail-panel pitfall）
- * 文字 = var(--theme-fg)（依 page bg luminance 自動翻黑/白對比） */
+/* ===== Faculty Slide-in：panel bg 跟 body hue cycle，字 theme-fg =====
+   !important 蓋 faculty-slide-in.js inline cardColor；transition:none 防 bg 落後 body */
 body.mode-color #faculty-panel {
-  /* --faculty-panel-bg 也跟著翻 theme-bg（user 2026-07-17）：JS 把它 inline 設成 cardColor accent（無 !important），
-   * 這裡 !important 蓋過 → 所有遮罩 consumer（#faculty-profile-block、手機 header 遮擋帶 faculty.html:113、
-   * .faculty-section-title-col、年份/獲獎 sticky 首欄、profile box-shadow）全一次跟 panel body 同色（cycling hue），
-   * 不用逐一 patch（原本漏 profile-block + 遮擋帶＝mode3 露粉色）。standard/inverse 不套 → 維持 accent（見 inverse.css:46 刻意）。 */
+  /* --faculty-panel-bg 也翻 theme-bg（!important 蓋 JS inline cardColor）：所有遮罩 consumer（profile-block、手機 header 遮擋帶、
+     section-title-col、sticky 首欄、box-shadow）一次同色。mode1/2 不套、維持 accent（見 inverse.css .bg-white:not(#faculty-panel)） */
   --faculty-panel-bg: var(--theme-bg) !important;
   background-color: var(--theme-bg) !important;
   transition: none !important;
@@ -687,28 +500,21 @@ body.mode-color #faculty-slide-in .text-black {
   color: var(--theme-fg) !important;
 }
 
-/* 右欄 .list-scroll thumb：lists.css 寫死 #000000，mode-color 下 panel bg = theme-bg（vivid hue 每幀 cycle），
- * 黑 thumb 在深 hue 幀變不可見 / 撞色 → 跟著 var(--theme-fg) 翻黑白，永遠對比 panel bg（同 panel 文字色）。
- * 只 scope faculty panel：別處 .list-scroll 背景語意不同（如 activities list-content bg=theme-fg），不一起改。 */
+/* panel 右欄 thumb：lists.css 寫死黑，cycling hue 上會不可見 → theme-fg。只 scope faculty panel（別處 .list-scroll 底語意不同） */
 body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   background: var(--theme-fg) !important;
 }
-/* Firefox 專屬：標準 scrollbar-color 必須包在 @supports(-moz) 內，否則 Chromium 121+/Safari 18+ 也認得它 →
- * 切到系統 scrollbar（帶箭頭 + 粗 track）覆蓋上面的 webkit 5px 自繪 thumb（lists.css:551 同 pattern）。
- * Chromium/Safari 的 thumb 色已由上一條 ::-webkit-scrollbar-thumb 處理，這裡只補 Firefox。 */
+/* Firefox：scrollbar-color 必須包在 @supports(-moz) 內——Chromium 121+/Safari 18+ 也認得它，會切回系統 scrollbar 蓋掉 webkit 自繪 thumb（lists.css 同 pattern） */
 @supports (-moz-appearance: none) {
   body.mode-color #faculty-panel .list-scroll {
     scrollbar-color: var(--theme-fg) transparent;
   }
 }
 
-/* Degree show events 捲軸的三 mode thumb 色已移到 lists.css（.dsd-events-scroll 一條涵蓋，含 mode2 修正），此處不再重複。 */
+/* Degree show events 捲軸 thumb 的三 mode 色在 lists.css（.dsd-events-scroll） */
 
-/* activities/admission 展開列（desc + album 捲軸）、about timeline list view：
- * 這幾個容器 mode-color 下 bg = var(--theme-fg)（strict B/W override，見 color.css:425-428 / :149-151），
- * lists.css 寫死黑 thumb 在「淺 hue 幀（theme-fg=黑）」= 黑底黑 thumb 不可見。
- * → thumb 用 var(--theme-fg-inverse)（theme-fg 的保證對比色）永遠看得見。
- * （mode1/2 這些容器 bg=三原色 accent、黑 thumb 本來就對比，不受影響，故只 scope mode-color。）*/
+/* activities/admission 展開列、about timeline、resources 捲軸：mode3 容器底為 theme-fg，lists.css 黑 thumb 在黑底上會消失 → fg-inverse
+   （mode1/2 容器底為 accent，不受影響） */
 body.mode-color .list-header[style*="background"] + .list-content .list-scroll::-webkit-scrollbar-thumb,
 body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb,
 body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll::-webkit-scrollbar-thumb {
@@ -722,8 +528,7 @@ body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].
   }
 }
 
-/* about/works 自建 playlist 縮圖欄：底色＝JS inline 隨機三原色 → mode3 strict B/W（!important 蓋 inline）；
- * thumb / active outline 用 var(--theme-fg-inverse) 保證對比（同上方 activities 展開列 pattern）。 */
+/* about/works playlist 縮圖欄：JS inline 三原色底 → strict B/W；thumb / active outline 用 fg-inverse */
 body.mode-color .works-playlist-scroll {
   background: var(--theme-fg) !important;
 }
@@ -739,27 +544,16 @@ body.mode-color .works-playlist-item.is-active {
   outline-color: var(--theme-fg-inverse) !important;
 }
 
-/* （sticky section title col + 年份/獲獎 sticky 首欄遮罩底原本各自 background:var(--theme-bg)!important，
- * 2026-07-17 已被上方 `--faculty-panel-bg: var(--theme-bg)!important` 統一涵蓋 → 移除重複規則。） */
-
-/* ===== Library 主卡片：mode-color 下依 page bg 對比度兩階切換固定灰 =====
- * 對比邏輯：亮 page → 淺灰底黑字 / 暗 page → 深灰底白字（同 mode1/2 對比方向）
- * --lib-bg 由 theme-toggle.js applyColorVars 兩階切換 #f2f2f2 / #333333（不寫 default 避免蓋掉 inline 值） */
+/* ===== Library 主卡片 =====
+   --lib-bg 由 theme-toggle.js applyColorVars 兩階切換 #f2f2f2 / #333333，這裡不寫 default（會蓋掉 inline 值） */
 body.mode-color {
   --lib-fg: var(--theme-fg);
   --lib-fg-rgb: var(--theme-fg-rgb);
 }
 
-/* mode3 「反色島」（user 2026-06-27）：library 主卡改成「對比 page hue」——亮 hue→深灰卡＋白字、
- * 暗 hue→淺灰卡＋黑字（淺 hue 上灰卡要明顯＝深灰底才對）。⚠️只在 card subtree remap lib vars：
- * atlas 也借用 :root 的 --lib-bg/--lib-fg 當中性灰 chip（匹配 page）→ 全域翻會連 atlas 一起翻，故 scope 在此。
- * 卡內所有內容（picker/search/list/count）都在 #library-card-content；斑馬列改吃 --lib-fg-rgb（library.css）。
- * ⚠️ scope 必須跟著「當前 active 灰卡」走，不能只綁 #library-card-main：switchTab 把 #library-card-content
- * 搬進被點的 colorEl、那個 div 變成新灰卡（setAsGray 設 inline `background:var(--lib-bg)`），但它不是
- * #library-card-main → 只綁 id 會漏掉新卡 → 新卡 --lib-bg 退回 :root 非 contrast 值＝卡底跟 page 同色(沒翻)、
- * 內文字卻仍 contrast → 切分頁後「卡底沒翻、字翻了」配錯看不清(user 2026-06-28)。用 [style*="--lib-bg"] 抓當前灰卡
- * ＝setAsGray 的標記（color.css line 706/718 既有慣例同樣靠它辨識 active 灰卡；setAsColor 把 demote 的卡改實心色、
- * 標記消失 → 不誤中）。#library-card-content 內的 year sticky header 等 inline var(--lib-bg) 靠繼承 content 的 contrast。 */
+/* 反色島：library 灰卡對比 page hue（亮 hue → 深灰卡白字、暗 hue → 淺灰卡黑字）。
+   ⚠️ 只在 card subtree remap：atlas 借用 :root --lib-bg/fg 當中性灰 chip，全域翻會連 atlas 一起翻。
+   ⚠️ 用 [style*="--lib-bg"]（setAsGray 的 inline 標記）抓當前灰卡，不能只綁 #library-card-main：switchTab 會把內容搬進被點的色塊成為新灰卡 */
 body.mode-color #library-card-main[style*="--lib-bg"],
 body.mode-color #library-card-stack > div[style*="--lib-bg"],
 body.mode-color #library-card-content {
@@ -769,41 +563,24 @@ body.mode-color #library-card-content {
   --lib-zebra-alpha: var(--lib-zebra-alpha-contrast);
   --lib-ref-bg: var(--lib-ref-bg-contrast);
 }
-/* 卡內文字本來繼承 body 的 --theme-fg（= page 對比，亮 hue 黑）；反色島翻卡後深卡上黑字看不到。
- * 在 card subtree 顯式吃 --lib-fg（已 remap 成卡的反色字）→ award/press/files/album 所有文字跟著卡翻白/黑。
- * lib-panel-title 標題 bar 也在此 subtree 內 → 文字色一併跟 --lib-fg（無底色，不需另覆蓋）。 */
+/* 卡內文字顯式吃 --lib-fg（不繼承 body 的 theme-fg），跟反色卡一起翻 */
 body.mode-color #library-card-content {
   color: var(--lib-fg);
 }
 
-/* 手機灰卡：initLibraryCard 桌面才跑（main-modular.js <768 分支跳過）→ #library-card-main 沒有 setAsGray
- * 寫入的 inline --lib-bg 標記 → 命中不了上方 [style*="--lib-bg"] 反色島 remap，卡底停在 :root 的 --lib-bg
- * （亮 hue 淺灰）；但卡內文字（#library-card-content）已 remap 成 contrast（亮 hue 白字）→ 淺卡白字看不見
- * （user 2026-07-17「灰卡跑掉」）。手機直接把 main 也 remap 成反色島，卡底與內文同島（亮 hue 深卡白字 /
- * 暗 hue 淺卡黑字，同桌面 active 灰卡）。桌面不套（≥768 走 [style] 標記路徑，此值會蓋掉 demote 成 color rect 的情境）。*/
+/* 手機：initLibraryCard 只在桌面跑 → 無 inline --lib-bg 標記，直接 remap main，否則淺卡配白字。
+   桌面不套（會蓋掉 demote 成 color rect 的情境） */
 @media (max-width: 767px) {
   body.mode-color #library-card-main {
     --lib-bg: var(--lib-bg-contrast);
   }
 }
 
-
-/* ===== Library color rect stack：mode-color 三原色 → strict B/W =====
- * library-card.js JS 把 #library-card-stack 內三個矩形染成 PRIMARY_COLORS（粉/綠/藍）
- * + hover 時 inline 切到 '#000' (standard) 或 '#fff' (inverse)。mode-color 一律蓋成 var(--theme-fg)
- * （跟 page hue 對比自動翻黑/白），跟其他 strict 元件一起翻黑白。
- * !important 蓋 JS 設的 inline background（inline 無 !important，CSS !important 勝）
- * 範圍涵蓋：
- *   1. #library-card-stack 內三個動態生成的 color rect
- *   2. #library-card-main：原本是 static 主卡，但 panel 切換時 library-card.js 把它 demote 成 color rect（DOM 仍在 stack 外面，是 sibling）
- * :not([style*="--lib-bg"]) 排除被 setAsGray() promote 成主卡的元素：JS 在點到的元素 inline 設 background:var(--lib-bg)，
- *   這時要走 lib-bg 翻 neutral-gray，不能被這條 strict B/W 規則蓋回 theme-fg
- * 桌面限定：手機跳過 initLibraryCard（main-modular.js < 768 分支），#library-card-main 沒有 inline --lib-bg
- *   可排除 → 會被這條蓋成純黑/白底（疊同色 --lib-fg 文字看不見）；手機底色走 library.css 的 var(--lib-bg) 兩階灰 */
-/* Hover：bg / title 互換到另一端 strict B/W（亮 hue 黑↔白翻轉，暗 hue 反之）——改由 JS applyCardHover 寫 inline
- * `var(--theme-fg-inverse)` 底＋`var(--theme-fg)` 字（user 2026-09-28：原 CSS :hover 版只管直接 hover，箭頭預覽寫的 inline
- * 被下面 !important 吃掉＝mode3 預覽不變色；改 JS 後觸發時機與 mode1/2 同一套）。下面兩條以該 inline 標記
- * `[style*="--theme-fg-inverse"]` 放行 hover 中的卡。 */
+/* ===== Library color rect stack：三原色 → strict B/W =====
+   !important 蓋 library-card.js inline bg；含 demote 成 color rect 的 #library-card-main（stack 外的 sibling）。
+   :not([style*="--lib-bg"]) 排除 setAsGray 升為主卡者。桌面限定：手機不跑 initLibraryCard、無標記可排除，會被蓋成純黑白 */
+/* Hover 由 JS applyCardHover 寫 inline fg-inverse 底 + fg 字（箭頭預覽同一套）；
+   以 [style*="--theme-fg-inverse"] 標記放行 hover 中的卡，免被下面 !important 吃掉 */
 @media (min-width: 768px) {
   body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]),
   body.mode-color #library-card-main:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]) {
@@ -811,25 +588,16 @@ body.mode-color #library-card-content {
   }
 }
 
-/* color-rect-title：JS inline 設 color='#000' inactive 或 '#000'/'#fff' hover；
- * mode-color 下 card bg 已強制 var(--theme-fg)，title 必須 var(--theme-fg-inverse) 才對比（hover 中的卡放行給 JS inline）。
- * #library-card-main 一併包進來：panel 切換後它會 demote 成 color rect（bg=theme-fg，sibling 不在 stack 內），
- * 漏掉的話 demote 主卡的 title 停在 inline #000 → 亮 hue（theme-fg=黑）時黑字疊黑底看不見（bg/hover 規則早就含它，這條之前漏） */
+/* color-rect-title：底已強制 theme-fg → 字 fg-inverse（hover 中的卡放行給 JS inline）。
+   須含 demote 後的 #library-card-main，否則 title 停在 inline #000 */
 body.mode-color #library-card-stack > div:not([style*="--theme-fg-inverse"]) .color-rect-title,
 body.mode-color #library-card-main:not([style*="--theme-fg-inverse"]) .color-rect-title {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* files-item-title / press-year-label：text 跟著 --lib-fg 翻黑白
- * 原 mode-color 力鎖 color: black（搭配未翻 lib-bg 的淺灰底）；現在 lib vars 已翻黑白，移除這層 force 讓自然繼承 --lib-fg */
-
-/* ===== Press / Files / Album list-item hover：strict B/W 取代三原色 =====
- * bindListItemHover (library-panels.js) mouseenter 設 inline bg=accent (粉/綠/藍)，mouseleave 清掉
- * mode-color 用 [style*="background"] 偵測 hover 狀態，強制【卡反色】底＋字：bg=var(--lib-fg)、字=var(--lib-bg)。
- * ★反色島：hover highlight 要對比「卡」不是 page（2026-06-28）。原本用 --theme-fg(page)→亮 hue 深卡上塗黑 hover
- *   看不見（深 on 深）。改 --lib-fg/--lib-bg：亮 hue 深卡→白底深字 hover、暗 hue 淺卡→黑底白字。
- * 不含 Awards：awards record item 只改 text color 不改 bg，hover 仍走三原色（user 限定 awards 以外三個分頁）
- * scope 在 #library-card-content；.album-panel-item 同時也是 .files-item 一併涵蓋 */
+/* ===== Press / Files / Album hover（mode3）=====
+   bindListItemHover（library-panels.js）inline accent → [style*="background"] 偵測，改「卡反色」：bg=--lib-fg、字=--lib-bg
+   （對比反色島卡、非 page；用 theme-fg 會深 on 深）。不含 Awards（只改字色）；.album-panel-item 也是 .files-item */
 body.mode-color #library-card-content .press-item[style*="background"],
 body.mode-color #library-card-content .files-item[style*="background"] {
   background: var(--lib-fg) !important;
@@ -842,8 +610,7 @@ body.mode-color #library-card-content .files-item[style*="background"] * {
   color: var(--lib-bg) !important;
 }
 
-/* Awards ticker logos：黑色 PNG，要跟「反色島卡底」對比（非 page）：亮 hue 卡深→翻白 / 暗 hue 卡淺→不翻。
- * 用 --lib-invert-contrast（= --theme-invert-filter 相反；2026-06-27 反色島後改此，原本跟 page 會在深卡上看不見）。 */
+/* Awards ticker logo 跟反色島卡底對比（非 page）：--lib-invert-contrast（= --theme-invert-filter 相反） */
 body.mode-color #library-awards-ticker .awards-ticker-wrapper img {
   filter: var(--lib-invert-contrast, none) !important;
 }
@@ -861,22 +628,11 @@ body.mode-color .activities-search-input {
   color: var(--theme-fg);
 }
 
-/* ===== Atlas page：所有三原色 → strict B/W =====
- * Atlas 在 standard/inverse 用 PRIMARY_COLORS（粉/綠/藍）染：
- *   - 非 D items 的 label 文字 (.atlas-name color JS inline 設)
- *   - D 城市 chip：bg = primary + 黑字（.atlas-name backgroundColor inline）
- *   - View 切換 cover 層 (.atlas-name-cover backgroundColor inline = item.color/bgColor)
- *   - SVG 連線 stroke / linearGradient stops（item→city 及 city→city ring）
- *   - 右下 hover detail panel (#atlas-detail backgroundColor inline + 黑字)
- *   - Alumni career rotating chip（map view .atlas-alumni-career / list view .atlas-list-col-career；bg inline primary + 黑字）
- *   - List view 標題 chip (.atlas-list-col-title 寫死 black bg + white text，inverse 翻過，mode-color 對比翻)
- *   - List 項目文字 (.atlas-list-item / .atlas-list-nav-btn 寫死 black text)
- *
- * mode-color 全部蓋成 var(--theme-fg) + var(--theme-fg-inverse)（依 page hue luminance 翻黑白）
- * .atlas-filter-btn 已由上方統一 nav/filter 規則處理（active = fg chip / inactive = bg + half-fg），這裡不重複 */
+/* ===== Atlas：所有三原色 → strict B/W（fg / fg-inverse）=====
+   涵蓋：A/C label 字、D/B chip、view 切換 cover、SVG 連線、#atlas-detail、career chip、list 欄標、list 項目字（寫死 black）。
+   .atlas-filter-btn 由上方統一 nav/filter 規則處理 */
 
-/* 非 chip items (A/C) label：text → fg；inline color (primary) 被 !important 蓋掉
-   D 國家 + B 系友任職企業 (chip) 不在此列，走下方 chip 翻盤規則 */
+/* A/C label 字 → fg（!important 蓋 inline primary）；D/B chip 走下條 */
 body.mode-color .atlas-anchor:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-name {
   color: var(--theme-fg) !important;
 }
@@ -888,46 +644,37 @@ body.mode-color .atlas-cat-b .atlas-name {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* B host 退場（色塊 clip-out 期間）：上方白底(theme-fg)＋黑字(theme-fg-inverse)都是 !important、
- * JS inline 壓不掉＝①本體白底蓋住 clip-out 的 ghost 色塊（clip 動畫看不到）②字卡在黑色→色塊消失時黑字露在彩底＝突兀。
- * .atlas-b-exit 覆寫成 透明底 + theme-fg 白字＝ghost 色塊 clip 掉時同步露出白字（user 09-04）。
- * forward exit（paired switchToList／unpaired buildMapExitTl）加、switchToMap 回程清。*/
+/* B host 退場（clip-out 期間）：上條白底黑字 !important、JS inline 壓不掉 → 會蓋住 ghost 色塊、黑字露在彩底。
+   .atlas-b-exit 改透明底 + theme-fg 字；forward exit（switchToList / buildMapExitTl）加、switchToMap 清 */
 body.mode-color .atlas-cat-b .atlas-name.atlas-b-exit {
   background-color: transparent !important;
   color: var(--theme-fg) !important;
 }
 
-/* B host 回程 bloom（色塊 clip-in 期間）：透明底讓 ghost 演色塊；文字走 --atlas-b-ink＝gsap 由 theme-fg(頁對比白)
- * tween 到 theme-fg-inverse(色塊對比黑)＝色塊出來時「一起」變色（!important 直接改 color 被 base 擋→靠 var 繞過，
- * 同 flight 的 --atlas-fly-c 手法）。clip-in 到位(onComplete)移 class＝恢復上方 base 白底黑字、與 tween 終態無縫（user 09-04）*/
+/* B host 回程 bloom（clip-in 期間）：透明底讓 ghost 演色塊；字走 --atlas-b-ink 讓 gsap 從 fg tween 到 fg-inverse
+   （!important color 擋住 inline，靠 var 繞過，同 --atlas-fly-c）。onComplete 移 class 回 base */
 body.mode-color .atlas-cat-b .atlas-name.atlas-b-bloom {
   background-color: transparent !important;
   color: var(--atlas-b-ink, var(--theme-fg-inverse)) !important;
 }
 
-/* View 切換 cover 層：bg primary → fg；
- * 非 D items cover = fg 與 fg text 同色（覆蓋時文字「同色融入」消失），
- * D items cover = fg 與 chip bg (fg) 同色（覆蓋時整塊維持 fg bg），兩種情境視覺都連續 */
+/* View 切換 cover 層 → fg：A/C 覆蓋時與字同色融入、D 與 chip 同色，視覺連續 */
 body.mode-color .atlas-name-cover {
   background-color: var(--theme-fg) !important;
 }
 
-/* 單一節點 morph 飛行色塊（2026-08-25）：mode3 恆 fg——spawn 時抄的 computed 色若遇 hue 翻轉，
- * 此規則讓飛行中色塊與全畫面同幀跟上（動畫只補間 transform/clip-path、色彩全交 cascade） */
+/* 單一節點 morph 飛行色塊恆 fg：hue 翻轉時飛行中色塊同幀跟上（動畫只補間 transform/clip-path，色彩交 cascade） */
 body.mode-color .atlas-view-mask {
   background-color: var(--theme-fg) !important;
 }
 
-/* mode3 nav btn（host/employ subchip ⇄ 欄標題）chrome 飛行色塊：半透明白、不轉實心黑/白（user 09-08 只點名
- * 這兩顆 nav btn；其餘 chrome＝3 主 btn／alumni master 維持上方恆 fg）。class 由 maskFlyChrome opts.maskClass 掛。
- * 值＝subchip active 態底色同源（--list-zebra-strip，見下方 subchip 規則）＝色塊從鈕上起飛像素無縫；
- * ⚠️同 subchip 規則：不可用 rgba(theme-fg)——亮 hue 會翻黑、非白 */
+/* host/employ subchip ⇄ 欄標題的 chrome 飛行色塊（maskFlyChrome opts.maskClass 掛）：同 subchip active 底 --list-zebra-strip，起飛像素無縫。
+   ⚠️ 不可用 rgba(theme-fg)：亮 hue 會翻黑 */
 body.mode-color .atlas-view-mask.atlas-mask-ghost {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
 }
 
-/* SVG 連線：stroke primary / gradient → 純 fg（CSS !important 蓋過 path 的 stroke 屬性與 url(#grad) 引用）
-   .atlas-company-ring-shape (B 企業環 outline) 排除 — user 要求拿掉橢圓的綫，三 mode 都不顯示 */
+/* SVG 連線 → 純 fg（!important 蓋 stroke 屬性與 url(#grad)）；B 企業環 outline 三 mode 都不顯示 */
 body.mode-color .atlas-line,
 body.mode-color .atlas-city-line:not(.atlas-company-ring-shape) {
   stroke: var(--theme-fg) !important;
@@ -936,10 +683,7 @@ body.mode-color .atlas-company-ring-shape {
   stroke: none !important;
 }
 
-/* 手機圓點星雲的圓點（.atlas-name::after，atlas.css:1160）：讀 inline --atlas-chip-c＝item bgColor/color
- * （三原色）。mode3 上方把 label 文字 / chip / cover / 連線都翻成 var(--theme-fg) strict B/W，唯這顆
- * 圓點漏了 → 手機 mode3 圓點仍是粉/綠/藍（user 2026-07-17）。跟 A/C label 文字同走 theme-fg（依 page hue
- * 對比翻黑白）。selector 與 atlas.css 圓點規則對齊（D 方塊/co host 已由上方 chip 規則涵蓋，不重複）。*/
+/* 手機圓點星雲的圓點（.atlas-name::after）讀 inline --atlas-chip-c（三原色）→ fg。selector 與 atlas.css 圓點規則對齊 */
 body.mode-color #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
   background-color: var(--theme-fg) !important;
 }
@@ -949,7 +693,7 @@ body.mode-color #atlas-detail {
   background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
-/* 黑頭區（兩區設計 2026-09-09）：與卡身（theme-fg 底）對翻＝fg-inverse 底＋fg 字，維持頭/身對比 */
+/* 黑頭區：與卡身（theme-fg 底）對翻＝fg-inverse 底 + fg 字 */
 body.mode-color #atlas-detail .atlas-detail-head {
   background-color: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
@@ -960,61 +704,47 @@ body.mode-color #atlas-detail .atlas-detail-foot {
   color: var(--theme-fg) !important;
 }
 
-/* Career rotating chip（map + list 共用）mode3＝alumni chip 的「相反色」：bg var(--theme-fg-inverse)＋字 var(--theme-fg)
- * （alumni 主標 chip 是 theme-fg 底 → career 用 fg-inverse 底＝黑白對翻、一眼分主次）。
- * .atlas-alumni-subchip 共用 className 但走自己邏輯（active 白半透明 / inactive theme-bg），故 :not 排除避免被蓋。
- * 2026-09-02 定案（user）：推翻舊 2026-05-25「strict B/W 太強改 --lib-bg 灰」與 2026-06-23「list view 不變」——
- *   career 現統一走 alumni 反色，map + list 同待遇。 */
+/* Career chip＝alumni 主標 chip 的相反色：fg-inverse 底 + fg 字，一眼分主次（list 的 .atlas-list-col-career 同待遇）。
+   :not(.atlas-alumni-subchip)：subchip 共用 className 但走自己邏輯 */
 body.mode-color .atlas-alumni-career:not(.atlas-alumni-subchip) {
   background-color: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
 }
-/* host/employ subchip inactive（user 08-27）：底色對齊 .atlas-filter-btn inactive 的 mode3 規則
-   （theme-bg 底；字 09-29 起實 fg、不再 half-fg；active 見下方半透明白底） */
+/* host/employ subchip inactive：theme-bg 底（同 .atlas-filter-btn inactive）、字實 fg 不半透明 */
 body.mode-color .atlas-alumni-subchip.subchip-inactive {
   background-color: var(--theme-bg) !important;
 }
-/* inactive 字不半透明（user 2026-09-29）：實 fg，inactive 只靠 theme-bg 底區分 */
 body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-en,
 body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
   color: var(--theme-fg) !important;
 }
-/* host/employ subchip active（user 09-02）：mode3 改白色半透明（--list-zebra-strip，同 list host/employ 欄標）；
-   原本 active 態無 mode3 規則 → 吃 base 的 --lib-bg 灰。⚠️不可用 rgba(theme-fg)：亮 hue 會變黑疊非白（同下方 903 註解）。
-   文字色靠 base color:var(--lib-fg)＋mode3 --lib-fg:var(--theme-fg) 繼承，不另寫。 */
+/* host/employ subchip active：白半透明 --list-zebra-strip（同 list host/employ 欄標）。⚠️ 不可用 rgba(theme-fg)：亮 hue 會變黑疊。
+   字色靠 base color:var(--lib-fg) 繼承 */
 body.mode-color .atlas-alumni-subchip:not(.subchip-inactive) {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
 }
 body.mode-color .atlas-list-col-career {
-  /* 2026-09-02：list career 亦改 alumni 反色（同 map view，見上；原 --list-zebra-strip 半透明退場） */
   background-color: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
 }
 
-/* List view column title chip：分階級 mode-color 處理（2026-05-25 修）
- *   主 col (Faculty/Alumni/Partners)：strict B/W chip（強對比，主分類）
- *   副 col (host/employ)：lib-bg 灰底 chip（弱階級，子分類）
- * 對齊 standard (#000/#f2f2f2) 跟 inverse (#fff/#333333) 的視覺層次 */
+/* List view 欄標 chip 分階級：主欄 strict B/W、host/employ 副欄淡疊（下條），對齊 mode1/2 視覺層次 */
 body.mode-color .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-col-title,
 body.mode-color .atlas-list-group-label-col .atlas-list-col-title {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
 
-/* ⚠️ 限 > .atlas-list-col-titleblock（跟 atlas.js colTitle 同款）：09-01 起 Alumni 主標 .atlas-list-group-label-col
-   巢在 host 欄頂端也含 .atlas-list-col-title，不限定會被此 zebra 規則（特異度較高）命中→Alumni 主標變半透明，
-   而非上方 897 的 theme-fg strict B/W。加直下限定後只命中 host/employ 自己的欄標（在 titleblock 內）。 */
+/* ⚠️ 限 > .atlas-list-col-titleblock（同 atlas.js colTitle）：Alumni 主標 .atlas-list-group-label-col 巢在 host 欄頂也含
+   .atlas-list-col-title，不限定會被本條（特異度較高）命中變半透明 */
 body.mode-color .atlas-list-col[data-category="host"] > .atlas-list-col-titleblock .atlas-list-col-title,
 body.mode-color .atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock .atlas-list-col-title {
-  /* mode3 用 --list-zebra-strip 固定白淡疊（user 2026-06-23：同 curriculum courses-grid-card / activities 斑馬；
-     theme-toggle.js 依 hue set rgba(255,255,255, 亮 0.4/暗 0.15)）。⚠️不可用 rgba(theme-fg)——那會吃 hue、亮 hue 變黑疊，user 不要 */
+  /* --list-zebra-strip 白淡疊（同 courses-grid-card / activities 斑馬）。⚠️ 不可用 rgba(theme-fg)：會吃 hue、亮 hue 變黑疊 */
   background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
   color: var(--lib-fg) !important;
 }
 
-/* 右箭頭 nav-btn 跟其欄標 title chip 同款 mode-color 處理（user 09-04「看 title tab 怎麽做」）：
- *   主欄(faculty/partners)：strict B/W（theme-fg 底 + 反色 chevron），對齊上方主 col title
- *   host/employ：半透明白疊（--list-zebra-strip），對齊上方 host/employ 欄標 */
+/* 右箭頭 nav-btn 跟其欄標同款：主欄 strict B/W、host/employ 半透明白疊 */
 body.mode-color .atlas-list-col:not([data-category="host"]):not([data-category="employ"]) .atlas-list-nav-btn {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
@@ -1032,19 +762,14 @@ body.mode-color .atlas-layout-inner {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* host/employ 副 title 在 mode-color 不蓋 — atlas.css 用 var(--lib-bg/fg)，
-   --lib-bg 在 color.css 已定義為 --theme-neutral-gray + --theme-fg，自動切換 */
-
-/* List 項目主標 / chevron nav btn：black → fg
- * 子層 .atlas-list-name-zh (opacity 0.8) / .atlas-list-item-label (opacity 0.6) 沒 explicit color
- * 自然繼承 fg → 半透明 fg 副標仍跟 page 對比 */
+/* List 項目主標 / chevron：寫死 black → fg；子層半透明副標自然繼承 */
 body.mode-color .atlas-list-item,
 body.mode-color .atlas-list-nav-btn {
   color: var(--theme-fg) !important;
 }
 
 /* ===== Homepage marquee + YT card ===== */
-/* mode-color：strict 黑白對比（floating items 同套），不用 overlay-25 */
+/* strict 黑白（floating items 同套） */
 body.mode-color .homepage-marquee-link,
 body.mode-color #homepage-yt-card {
   background: var(--theme-fg) !important;
@@ -1055,7 +780,7 @@ body.mode-color .homepage-marquee-clone {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* News marquee 數字方塊（JS 設 inline accent bg）→ mode-color 切 strict 反色（bar 是 --theme-fg，square 用反色） */
+/* News 數字方塊（JS inline accent）→ 跟 bar（theme-fg）反色 */
 body.mode-color .hm-banner-num[style*="background"] {
   background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
@@ -1072,107 +797,18 @@ body.mode-color .hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-mar
   color: var(--theme-fg) !important;
 }
 
-/* watch-hover 遮蔽 overlay（hover WATCH 卡時整列蓋成 bar 色，數字方塊一起蓋）：inline #000 → mode3 跟 bar 同色 */
+/* watch-hover 遮蔽 overlay（整列蓋成 bar 色）：inline #000 → 跟 bar 同色 */
 body.mode-color .hm-banner-row-mask {
   background: var(--theme-fg) !important;
 }
 
-/* ===== Header bars mode-color spec =====
- * 拆兩組處理：
- *
- * (A) About bar (左側 5 links)：
- *     bg = var(--theme-bg) 跟 body 同色融為一片（hue 動態變化）
- *     .nav-link color = var(--theme-fg) 跟 body hue 對比 strict B/W
- *     has-active 時 inactive link 50% alpha 弱化、active link 100%
- *     hover inactive link → 升回 100% 焦點
- *
- * (B) Library/Atlas/Generate (右側 3 個單 link bar)：
- *     **永遠 100% 不透明 solid bar**（不跟 body 融）
- *     inactive: bg = var(--theme-fg) + text = var(--theme-fg-inverse)（strict B/W solid）
- *     active:   翻成 bg = var(--theme-fg-inverse) + text = var(--theme-fg)（黑白互換 = 「我是當前頁」視覺暗示）
- *     hover (inactive)：預覽 active 翻轉效果
- */
-
-/* (A) About bar — bg follows body hue
- * transition 排除 background：header.js inline 設 transition:background 0.4s ease，
- * 配 RAF 每幀 set --theme-bg → bg lag 400ms 跟 body 不同步偏色；用 explicit list 排除 bg 讓 var() 更新即時生效
- * （同 anchor-nav-btn pattern）。color 還留 transition 給 link hover feedback。
- * ⚠️ 不可列 transform：footer-near 收展是 GSAP 每幀寫 transform，常駐 transform transition
- * 會低通每幀寫入（bar 整段 tween 幾乎不動、tween 完才被 transition 快速補完＝mode3 專屬怪 ease） */
-body.mode-color [data-bar="about"] {
-  background: var(--theme-bg) !important;
-  transition: color var(--dur-fast) ease !important;
-}
-
-body.mode-color [data-bar="about"] .nav-link {
-  color: var(--theme-fg) !important;
-}
-
-/* has-active 時非 active link 50% alpha（強調 active link） */
-body.mode-color [data-bar="about"].has-active .nav-link:not(.active) {
-  color: color-mix(in srgb, var(--theme-fg), transparent 50%) !important;
-}
-
-/* mode3 換色 header 與 body 同幀（user 09-08：color wheel 換色時 header 變色有延遲感）：
- * .nav-link 基底 transition-all(--dur-fast 0.3s) 會讓 --theme-fg 黑白翻轉在「字」上拖 0.3s 尾
- * （bars bg / logo 都同幀翻、唯獨字慢半拍＝header 看起來慢）。mode3 穩態把 header 內字與 bars 的
- * transition 全收（hover alpha 變化同步變 snap；mode1/2 不受影響）。
- * `html:not(.mode-switching)` gate＝mode 切換 0.4s fade window 本條不匹配、typography.css whitelist 照常接手。
- * ⚠️ nav-link-cn 中文揭露動畫掛在 .nav-link-cn / -cn-i 子元素、不在此列＝不受影響。 */
-html:not(.mode-switching) body.mode-color #site-header .nav-link,
+/* ===== Header 圓鈕（mode3）=====
+   穩態收掉 transition，跟 body 同幀換色；html:not(.mode-switching) gate：mode 切換 fade 窗口不匹配、交 typography.css whitelist */
 html:not(.mode-switching) body.mode-color #site-header [data-bar] {
   transition: none !important;
 }
 
-/* Hover：inactive link 升回 100% */
-@media (min-width: 768px) {
-  body.mode-color [data-bar="about"].has-active .nav-link:not(.active):hover {
-    color: var(--theme-fg-inverse) !important;
-  }
-
-  /* hover 翻轉：bg = fg（淺 hue→黑 / 深 hue→白），text = fg-inverse 對比
-   * user 2026-06-22：淺 hue hover 黑底白字、深 hue 白底黑字（bg 走 theme-fg、字走 fg-inverse）
-   * header.js inline 設亮三原色 bg，用 !important 蓋過讓 mode-color 走 strict B/W 對比 */
-  body.mode-color [data-bar="about"]:hover {
-    background: var(--theme-fg) !important;
-  }
-
-  body.mode-color [data-bar="about"]:hover .nav-link.active,
-  body.mode-color [data-bar="about"]:hover .nav-link:hover {
-    color: var(--theme-fg-inverse) !important;
-  }
-
-  body.mode-color [data-bar="about"]:hover .nav-link:not(.active):not(:hover) {
-    color: color-mix(in srgb, var(--theme-fg-inverse), transparent 50%) !important;
-  }
-}
-
-/* (B) Library/Atlas/Generate/Alumni — 100% solid，inactive vs active 翻轉
- * inline transition:background 0.4s 也要排除（同 about bar），避免 RAF var 更新 lag
- * Alumni (AA) bar 視覺規格跟其他三個一致；on alumni 頁時 JS 把它 display:none 改顯示 alumni-full bar，
- * 所以 .bar-active 規則對 alumni 不會視覺生效但保留對齊避免未來行為改變漏覆蓋 */
-body.mode-color [data-bar="library"],
-body.mode-color [data-bar="atlas"],
-body.mode-color [data-bar="generate"],
-body.mode-color [data-bar="alumni"] {
-  /* 同 about bar：不可列 transform（會拖垮 GSAP footer-near 收展） */
-  transition: color var(--dur-fast) ease !important;
-}
-
-/* Inactive：bg 跟 body 動態 + text 100% theme-fg
- * （任何時候只要不是 active 就 dynamic；不管 sibling 是否 active）
- * user spec：「100% 不透明」指 text，不是 bg；bg 一律隨 body */
-body.mode-color [data-bar="library"].bar-inactive,
-body.mode-color [data-bar="atlas"].bar-inactive,
-body.mode-color [data-bar="generate"].bar-inactive,
-body.mode-color [data-bar="alumni"].bar-inactive {
-  background: var(--theme-bg) !important;
-}
-
-/* Mode btn 圓底：底色 = page bg（融入頁面），icon 對比走 theme-fg
- * mode-color 下 bg 跟著 hue 變化，icon 用 fg（亮 hue→黑 / 暗 hue→白，由 applyColorVars 算）
- * 關掉 transition：header.html inline `transition: background 0.4s ease` 是給 mode 切換 fade 用，
- *   但 mode-color 內部 RAF 每幀更新 --theme-bg 會被 0.4s 平滑成連續 tween 跟 body bg 不同步（落後 ~0.4s） */
+/* Mode btn 圓底＝page bg、icon theme-fg。transition:none：background transition 會讓每幀 --theme-bg 落後 body */
 body.mode-color [data-bar="mode"] {
   background: var(--theme-bg) !important;
   transition: none !important;
@@ -1188,61 +824,9 @@ body.mode-color .mobile-header-btn {
   transition: none !important;
 }
 
-body.mode-color [data-bar="library"].bar-inactive .nav-link,
-body.mode-color [data-bar="atlas"].bar-inactive .nav-link,
-body.mode-color [data-bar="generate"].bar-inactive .nav-link,
-body.mode-color [data-bar="alumni"].bar-inactive .nav-link {
-  color: var(--theme-fg) !important;
-}
-
-/* Active：bg = fg / 字 = fg-inverse（跟 hover 同邏輯：淺 hue 黑底白字、深 hue 白底黑字。
- * user 2026-06-22 對齊 hover——active 與 hover 現在同方向，inactive-resting（bg=body hue）才是區別） */
-body.mode-color [data-bar="library"].bar-active,
-body.mode-color [data-bar="atlas"].bar-active,
-body.mode-color [data-bar="generate"].bar-active,
-body.mode-color [data-bar="alumni"].bar-active {
-  background: var(--theme-fg) !important;
-}
-
-body.mode-color [data-bar="library"].bar-active .nav-link,
-body.mode-color [data-bar="atlas"].bar-active .nav-link,
-body.mode-color [data-bar="generate"].bar-active .nav-link,
-body.mode-color [data-bar="alumni"].bar-active .nav-link {
-  color: var(--theme-fg-inverse) !important;
-}
-
-/* Inactive bar hover (桌面)：bg = fg（淺 hue→黑 / 深 hue→白）+ text = fg-inverse
- * user 2026-06-22：淺 hue hover 黑底白字、深 hue 白底黑字（與 about bar + .bar-active 同邏輯）。
- * 蓋掉 JS 在 .is-bar-hover 時設的 inline 三原色 bg。*/
-@media (min-width: 768px) {
-  body.mode-color [data-bar="library"].bar-inactive:hover,
-  body.mode-color [data-bar="library"].bar-inactive.is-bar-hover,
-  body.mode-color [data-bar="atlas"].bar-inactive:hover,
-  body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover,
-  body.mode-color [data-bar="generate"].bar-inactive:hover,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover,
-  body.mode-color [data-bar="alumni"].bar-inactive:hover,
-  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover {
-    background: var(--theme-fg) !important;
-  }
-
-  body.mode-color [data-bar="library"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="library"].bar-inactive.is-bar-hover .nav-link,
-  body.mode-color [data-bar="atlas"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="atlas"].bar-inactive.is-bar-hover .nav-link,
-  body.mode-color [data-bar="generate"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="generate"].bar-inactive.is-bar-hover .nav-link,
-  body.mode-color [data-bar="alumni"].bar-inactive:hover .nav-link,
-  body.mode-color [data-bar="alumni"].bar-inactive.is-bar-hover .nav-link {
-    color: var(--theme-fg-inverse) !important;
-  }
-}
-
-/* ===== Class Division Buttons + Group Labels（about 學制分頁 tab）=====
- * user 2026-06-28：inactive 不可融底（吃 hue 色看不清），要「反色 strict chip」＝跟 active 對調。
- *   inactive 靜止 = theme-fg-inverse 底 / theme-fg 字（深 hue 黑底白字、淺 hue 白底黑字）
- *   hover / active = strict B/W（bg=theme-fg、字=theme-fg-inverse）→ 跟 inactive 相反、hue 深淺自動翻黑白。
- * JS 仍設 inline 三原色/theme-fg，這裡 !important 一律蓋掉。label 沒 .active class，用 :has(+) 跟 sibling btn 狀態聯動。 */
+/* ===== Class Division Buttons + Group Labels（about 學制 tab）=====
+   inactive＝反色 strict chip（fg-inverse 底 / fg 字；不融底，吃 hue 色看不清）；hover / active＝strict B/W。
+   !important 蓋 JS inline 色；label 無 .active，用 :has(+) 跟 sibling btn 聯動 */
 body.mode-color .class-division-btn,
 body.mode-color .class-group-label {
   background: var(--theme-fg-inverse) !important;
@@ -1255,10 +839,8 @@ body.mode-color .class-group-label:has(+ .class-division-btn.active) {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* about 手機 pill 列的 BFA label：inactive 走上方 class-group-label 反色 chip 通用規則（比照桌面，
- * user 2026-07-13 四改；同日稍早的透明底 50% 字 curriculum 化退役）。
- * active（JS 設 inline accent bg，[style*="background"] 偵測）= strict B/W——桌面 active 聯動的
- * :has(+ .class-division-btn.active) 對不到手機 .mobile-division-btn，仍需這條。 */
+/* about 手機 pill 列 BFA label：inactive 走上方通用規則；active（JS inline accent）需這條——
+   桌面的 :has(+ .class-division-btn.active) 對不到手機 .mobile-division-btn */
 body.mode-color #mobile-division-nav .class-group-label[style*="background"] {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
@@ -1272,9 +854,8 @@ body.mode-color #mobile-division-nav .class-group-label[style*="background"] {
   }
 }
 
-/* about 手機分組 pill（#mobile-division-nav）：對齊上方桌面 .class-division-btn。
- * inactive 靜止=反色 strict chip（bg=theme-fg-inverse / 字=theme-fg，不融底）；active=strict B/W（bg=theme-fg / 字=theme-fg-inverse）。
- * id 特異度蓋過 setActiveNavBtn 設的 inline accent bg 與 .section-nav-btn 一般 theme 規則。 */
+/* about 手機分組 pill：對齊桌面 .class-division-btn（inactive 反色 chip、active strict B/W）。
+   #id + !important 蓋過 setActiveNavBtn inline accent 與 .section-nav-btn 通用規則 */
 body.mode-color #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
   background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
@@ -1284,9 +865,8 @@ body.mode-color #mobile-division-nav .section-nav-btn.active .anchor-nav-inner {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* ===== 封鎖綫 (.section-title-inner[data-section-title]) chip：strict B/W in mode-color =====
- * JS 在 inline 設 accent bg（綠/粉/藍）；跟 [data-*-hl] 圖文 chip 對齊：mode-color 一律 fg + fg-inverse。
- * 上方既有 `.section-title-strip *` color=fg 規則被以下 `[data-section-title] *` (0,2,2) 蓋過 */
+/* ===== 封鎖綫 [data-section-title] chip → strict B/W =====
+   JS inline accent（同 [data-*-hl] 處理）；`[data-section-title] *` 後出、蓋過上方 `.section-title-strip *` color=fg */
 body.mode-color [data-section-title] {
   background: var(--theme-fg) !important;
 }

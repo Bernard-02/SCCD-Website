@@ -1,24 +1,13 @@
 /* 桌面 section 磁吸（原生 CSS scroll-snap）
-   - 只桌面（手機不套，desktop-first）；reduced-motion 整個關（靠 no-preference gate）
-   - 模式由 router 依頁面掛在 <html>：
-       .snap-mandatory（index / faculty）＝強吸、最像原生即時（捲動當下就磁化）
-       .snap-proximity（about）＝軟吸、不困住比視窗高的長 section（resources/history 可讀中段）
-   - 其餘頁 <html> 無 class → 無 snap-type → footer 的 .snap-zone 也不吸
-     （避免未設定頁只剩持久 footer 一個 snap 點被 mandatory 硬拉的 bug）
-   - 不設 scroll-padding-top：吸附落點交給各 .snap-zone 自己的 scroll-margin-top，
-     對齊 anchor-nav scrollIntoView({block:'start'}) 落點（about overview 200 / class·works 100）
-   - scroll-snap-type 設在 html 不會把 html 變成新 scroll container（與 overflow:hidden 不同），
-     不影響 about 左側 nav 的 position:sticky
-   snap 點 = 標了 .snap-zone 的元素（各頁 HTML）。目前掛在 index / about / faculty。
-   ⚠️ mandatory 對「比視窗高的 section」會難讀中段（about 因此用 proximity；faculty 卡片多時若卡，
-      把 router 那行的 faculty 從 mandatory 移到 proximity 即可）。 */
-/* window scroll anchoring 全站關閉（2026-07-09）：本站的捲動落點全由自己的動畫/對齊邏輯管理，
-   anchoring 的「補償」只會打架——已三度中招：①activities search bar 收合抖動（box 級已關）
-   ②list 開合期間 anchoring 逐幀微調 scrollY＝畫面顫動 ③展開把 footer 往下推時 anchor 選在
-   footer → scrollY 被跟著補 ~30px＝內容鑽進 pinned title 底下。逐一排除 anchor 候選是打地鼠
-   （headless 實測排掉 section+footer 後 anchor 換位、振盪仍在；html 級關閉 → 振盪 0、落點 −0.4px）。
-   Safari 未實作 anchoring → 全關＝跨瀏覽器行為一致。設在 html（window 的 scroller）＝整個
-   window 捲動不做 anchoring；box scroller 各自的 anchoring 不受此影響（如 .activities-scroll-col 另關）。 */
+   - 只桌面；reduced-motion 整個關（no-preference gate）
+   - router 依頁面在 <html> 掛 .snap-mandatory（generate/atlas/library/404 與 main 內無 .snap-zone 的頁不掛）；.snap-proximity 規則保留備用
+   - 無 class → 無 snap-type → footer 的 .snap-zone 也不吸（避免整頁只剩 footer 一個 snap 點被 mandatory 硬拉到底）
+   - 不設 scroll-padding-top：落點交給各 .snap-zone 的 scroll-margin-top（對齊 anchor-nav scrollIntoView({block:'start'})）
+   - scroll-snap-type 設在 html 不會產生新 scroll container（≠ overflow:hidden），不影響 about 左側 nav 的 position:sticky
+   ⚠️ mandatory 對比視窗高的 section 難讀中段，必要時該頁改掛 proximity */
+/* window scroll anchoring 全站關：捲動落點全由自己的動畫/對齊邏輯管，anchoring 補償只會打架
+   （list 開合逐幀微調 scrollY＝顫動；footer 被選為 anchor → 內容鑽進 pinned title 下；逐一排除 anchor 候選是打地鼠）。
+   Safari 未實作 anchoring → 全關＝跨瀏覽器一致。只管 window；box scroller 各自另關（如 .activities-scroll-col） */
 html {
   overflow-anchor: none;
 }
@@ -32,90 +21,56 @@ html {
     scroll-snap-align: start;
   }
 
-  /* （2026-06-29 移除 #activities-content-section 的 scroll-margin-top:8px）：activities 桌面改 inner-scroll 後，content
-     section 本身變成剛好 100vh 的 frame（md:h-screen），snap 落點＝「section 頂對齊 viewport 0、frame 填滿視窗」，不再需要
-     8px 補償（那 8px 原是為「pt-192 + filter-bar sticky-top 200」的舊 window-scroll 佈局對齊；frame 化後 filter bar 改在
-     #activities-scroller 內 pt-200，與 window snap 落點無關）。留著 8px 反而會讓 frame 往下偏 8px → 頂部露出 hero 8px。 */
+  /* 勿給 #activities-content-section 加 scroll-margin-top：它是剛好 100vh 的 frame，snap 頂對齊 viewport 0；
+     加 offset 會讓 frame 下偏、頂部露出 hero */
 
-  /* footer 一定要被吸住：捲到底經過 footer 時必停在 footer，不准飛過去（user 2026-06-27）。
-     proximity 頁中段照樣軟吸/可停半屏，只有 footer 像「攔截閘」一定接住。
-     #site-footer = SPA 各頁 footer 容器；#site-footer-static = index 靜態 footer。
-     ★scroll-snap-align:end（不用 start，覆蓋上面 .snap-zone 的 start，靠 #id 特異度勝出）：
-     footer 是末段滿版 100vh section，align:start 的落點 == maxScroll（零容差）→ Win11 顯示縮放讓 1vh 非整數、
-     sub-pixel rounding 偶爾把落點 round 成 > maxScroll → 該 snap 點不可達 → mandatory 退回唯一穩定點 hero
-     ＝user 報的「往下捲不到 footer、被拉回 hero、抖動很卡」（activities 因展開長 list 變 oversized section 更明顯）。
-     end＝footer 底邊對齊 viewport 底＝文件最底端，瀏覽器夾在 maxScroll 永遠可達；落點數值與 start 相同、視覺零差異。
-     通則：「最後一個滿版 100vh section」當 snap 點要用 align:end 不用 start。 */
+  /* footer 一定要被吸住（proximity 頁也一樣，像攔截閘）。#site-footer＝SPA footer 容器；#site-footer-static＝index 靜態 footer。
+     ★align:end 不用 start（#id 特異度蓋上面 .snap-zone）：滿版末段 section 的 start 落點 == maxScroll 零容差，
+     顯示縮放下 sub-pixel rounding 會讓它 > maxScroll 不可達 → mandatory 拉回 hero 抖動。end 被夾在 maxScroll 永遠可達、視覺零差。
+     通則：最後一個滿版 100vh section 當 snap 點用 align:end */
   html:is(.snap-mandatory, .snap-proximity) :is(#site-footer, #site-footer-static).snap-zone {
     scroll-snap-align: end;
     scroll-snap-stop: always;
   }
 }
 
-/* ===== about 100vh sections（2026-07-03 user 拍板）=====
-   桌面高視窗（≥900px 高）：overview / class 視圖 / works 視圖 / resources 各硬 100vh、snap 頂對齊一步到位
-   （hero / history / footer 本來就是一屏）。矮視窗不套 → 退回自然高度 + 原 marker−100/−200 落點（user 選定）。
-   基準 scroll-margin（原 about.html inline style 移入；不分寬度 → 手機 deep-link 落點不變）：
-   overview = 對齊 #anchor-nav sticky top＝nav line（160／≥1200 184，variables.css；user 2026-08-31 由 200 收上來，比照四頁 nav） */
+/* ===== about 100vh sections =====
+   高視窗（≥900 高）：overview / class / works / resources 各 100vh、snap 頂對齊；矮視窗退回自然高度＋marker −100 落點。
+   基準 scroll-margin 不分寬度（手機 deep-link 落點不變）；overview＝#anchor-nav sticky top（--nav-line） */
 #overview { scroll-margin-top: var(--nav-line); }
 #class, #class-info-anchor, #works { scroll-margin-top: 100px; }
 #class-info-area { min-height: 100vh; }
 #resources { min-height: 100vh; }
-/* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗（2026-09-01 #10） */
+/* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗 */
 #program-structure { min-height: 100svh; }
-/* 短桌面(<900h)tree 也頂對齊：#program-structure 的 pt-4xl 已當框景，免再疊 #class 的 100px marker 落點
-   （否則 100+128=228 → tree 偏下、與高視窗 128 不一致）。min-height:501 排除橫向手機 gate（那走手機值）。
-   #class-info-anchor 也歸 0（2026-09-13）：留 100px 會在 division 視圖頂露出 tree 尾端 100px，
-   右下 Term/Degree 說明卡（bottom:32、高 ~83）正好卡在帶內；頂對齊＝與 ≥900 行為一致、卡片不進下一屏。 */
-@media (min-width: 1024px) and (min-height: 501px) and (max-height: 899px) {
-  #class, #class-info-anchor { scroll-margin-top: 0; }
-  /* division 視圖頂對齊後（上行）文字盒起點少了 100px 落點緩衝、鑽進 sticky btn（底 298）
-     → 同 100vh gate 把緩衝補進 padding（文字頂回 362、btn 下留 2xl 呼吸）；
-     說明文字改內捲壓縮盒高（公式同 100vh gate；max() 保底防極矮視窗盒縮到不可讀）。 */
-  #class-info-area { padding-top: calc(var(--spacing-2xl, 64px) + 100px); }
-  .class-info-panel [data-class-text] {
-    overflow-y: auto;
-    max-height: max(8rem, calc(100svh - 440px));
-  }
-  .class-info-panel [data-class-text].has-scroll-pr { padding-right: var(--spacing-sm); }
-}
-
-/* 手機（2026-07-07）：anchor strip 改全程 sticky（釘 88、高 91 → 底 179，2026-07-13 從 96 收上來）後，
-   落點要讓出 strip 高度，否則點 nav 對齊的內容鑽進 strip/blocker 底下。180 = strip 底 +1；
-   overview 也收 180（原 200 落點時 strip 停自然位置未釘、btn 頂 125 ≠ 四頁的 104，user 2026-07-13）。
-   ⚠️ 與 about.html strip top:88 / division nav top:168 為配對值，改 strip 高度三處同步。 */
+/* 手機：anchor strip 全程 sticky（釘 88、高 91 → 底 179），落點要讓出 strip，180 = strip 底 +1。
+   ⚠️ 與 about.html strip top:88 / division nav top:168 為配對值，改 strip 高度三處同步 */
 @media (max-width: 767px) {
   #overview { scroll-margin-top: 180px; }
-  #class, #class-info-anchor { scroll-margin-top: 180px; }   /* class-info-anchor 2026-09-28 起是 Programs btn 落點，同讓出 strip */
-  /* resources/history 收 178（180−2）：180 剛好貼 strip 底(179)，前一區（works playlist）的底緣/分隔線
-     會在接縫露出 1-2px → 多捲 2px 把縫藏進 strip 底下（user 2026-07-07） */
+  #class, #class-info-anchor { scroll-margin-top: 180px; }   /* class-info-anchor＝Programs btn 落點，同讓出 strip */
+  /* 178（180−2）：剛好貼 strip 底會在接縫露出前一區底緣 1-2px → 多捲 2px 藏進 strip 下 */
   #resources, #history { scroll-margin-top: 178px; }
-  /* works 要再讓出「釘住的 division nav」（top 168 高 126——BFA label 上移後增高 → 底 294）：
-     180 落點會少捲到讓 nav 被 containment 推上去疊住 strip、內容又鑽進 nav 下面 → 307 = 294 + 13 呼吸，
-     nav 保持釘 168（2026-07-13 從 180 收上來、疊進 strip 下 padding 帶，見 about.html 註解）、
-     works 內容（desc/標題/playlist）完整落在其下。class 落點的 nav 是自然 flow 位置、180 即可。 */
+  /* works 再讓出釘住的 division nav（top 168 高 126 → 底 294）：307 = 294 + 13 呼吸；
+     落點不夠會讓 nav 被 containment 推上去疊住 strip。class 落點的 nav 在自然 flow 位置、180 即可 */
   #works { scroll-margin-top: 307px; }
 }
 
-/* about 封鎖綫（.section-title-strip 大字斜帶）直向手機整支不渲染（user 2026-07-13）。
-   data-anchor 列舉限定 about 四條（alumni 的 strip 用不同 anchor 名、不受影響）；
-   矮橫向不動：landscape.css 已各自處理（class/works 藏、resources/history 重釘當視覺元素）。 */
+/* about 封鎖綫（.section-title-strip）直向手機不渲染；data-anchor 限定 about 四條（alumni 不受影響）；
+   矮橫向由 landscape.css 各自處理 */
 @media (max-width: 767px) and (orientation: portrait) {
   .section-title-strip:is([data-anchor="class"], [data-anchor="works"], [data-anchor="resources"], [data-anchor="history"]) {
     display: none;
   }
 
-  /* works 視圖保底一屏（user 2026-07-13）：文字盒改 max-height fit 後，短文 panel 撐不滿畫面
-     → resources 內容在 works 視圖底部提早露出；min-height 保證 resources 至少一屏後才開始。 */
+  /* works 保底一屏：短文 panel 撐不滿時 resources 會在 works 視圖底部提早露出 */
   #works { min-height: 100svh; }
 }
 
 @media (min-width: 768px) and (min-height: 900px) {
-  /* 落點全部頂對齊；原本 −100/−200 offset 提供的框景改由各 section 內部 padding 補（見下） */
+  /* 落點全部頂對齊；框景改由各 section 內部 padding 補（見下） */
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
-  /* overview：一屏、理念文字頂端對齊左側 #anchor-nav 的 sticky 位置（top:var(--nav-line)，見 about.html）。
-     user 2026-08-05：原 align-items:center 改 flex-start，padding-top 由 header-height 改對齊 nav btn（2026-08-31 由 200→160）。 */
+  /* overview：一屏、理念文字頂端對齊左側 #anchor-nav sticky 位置（--nav-line） */
   #overview {
     height: 100vh;
     padding-top: var(--nav-line);
@@ -125,39 +80,35 @@ html {
   }
   #overview > .site-container { width: 100%; }
 
-  /* class 視圖 = btn 列(198px) + 圖文(100vh−198px)、works 視圖 = 100vh → 共用 section 精確 200vh。
-     btn 列固定 198px（pt-3xl + pills 內容 + pb-md 實測值）確保加總不飄；內容若換行溢出仍 overflow visible。 */
+  /* class 視圖 = btn 列 198 + 圖文(100vh−198)、works 視圖 = 100vh → 共用 section 精確 200vh。
+     btn 列 198 = pt-3xl + pills 內容 + pb-md 實測值，固定才加總不飄 */
   #class-buttons-sticky { height: 198px; }
   #class-info-area {
     height: calc(100vh - 198px);
     min-height: 0;
-    /* 頂對齊落點少了 100px 緩衝 → 補進 padding，圖文內容起點與舊落點視覺一致、不被 sticky btn（底 298px）壓到 */
+    /* 落點少了 100px 緩衝 → 補進 padding，免被 sticky btn（底 298px）壓到 */
     padding-top: calc(var(--spacing-2xl, 64px) + 100px);
   }
   #works {
     height: 100vh;
-    padding-top: 100px; /* 同上：補回舊 marker−100 落點的內容框景（desc/影片起點維持 ~356px 不變） */
+    padding-top: 100px; /* 同上：補回 100px 框景 */
   }
   #class-works-area { padding-bottom: 0; }
 
-  /* 封鎖綫：落點從 −100 改 0 → strip 基準補 +100px，viewport 位置不變（!important 蓋 inline top:15vh） */
+  /* 落點 −100 → 0，strip 補 +100px 保持 viewport 位置（!important 蓋 inline top:15vh） */
   #class .section-title-strip,
   #works .section-title-strip { top: calc(15vh + 100px) !important; }
 
   #resources { height: 100vh; }
 
-  /* Vision/Programs/Works 文字盒一屏 desktop 版（user 2026-08-27）：一屏（100vh section）下長文改內捲、
-     不撐破版面往下屆溢出；顯示細黑 scrollbar（about.html 內層 [data-*-text] 加 .list-scroll class）。
-     手機/矮橫向早已各自內捲（軸隱藏，見 variables.css / landscape.css）。
-     max-height 扣掉各 section 內容起點 top offset（見上方各 padding）＋底部呼吸；padding-right 讓 10px thumb 不壓字。
-     只在 100vh gate（min-height:900）生效＝短桌面維持自然高、頁面照常往下捲，無 regression。 */
+  /* Vision/Programs/Works 文字盒：一屏 section 下長文內捲（about.html 內層加 .list-scroll 顯細 scrollbar）。
+     max-height＝扣各 section 內容起點 offset＋底部呼吸。只在 ≥900 高 gate 生效，短桌面維持自然高 */
   #overview [data-overview-text],
   .class-info-panel [data-class-text],
   .class-works-panel [data-works-text] {
     overflow-y: auto;
   }
-  /* vision/program/works 說明卡：pr 只在文字真的溢出(顯 scrollbar)時給，不捲時貼文字（user 2026-09-04→05）。
-     .has-scroll-pr 由 fitCardToText / toggleScrollPr 依 scrollHeight>clientHeight 動態掛。 */
+  /* .has-scroll-pr：只在文字真的溢出時給 pr 讓 thumb 不壓字；由 fitCardToText / toggleScrollPr 依 scrollHeight>clientHeight 動態掛 */
   #overview [data-overview-text].has-scroll-pr,
   .class-info-panel [data-class-text].has-scroll-pr,
   .class-works-panel [data-works-text].has-scroll-pr { padding-right: var(--spacing-sm); }
@@ -166,19 +117,16 @@ html {
   .class-works-panel [data-works-text] { max-height: calc(100svh - 400px); }
 }
 
-/* ===== about 桌面 ≥1200「上下同錨」框（user 2026-09-29）=====
-   每個一屏區塊上下都從縮小態 logo 中線（--header-logo-mid 98）起算：區塊高 100svh、框內可用高 100svh − 2×98，
-   扁／高螢幕上下留白恆等＝看起來一致。不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。
-   例外：Vision 文字頂對齊左側 nav btn（nav line 184，user 2026-08-31），底仍 98；盒長到放不下時改上下同距置中（10-03）。
-   不分高度（≥501）都套＝在 ≥1200 取代上面 ≥900 的 100vh gate 與 501–899 的舊落點；平板 768–1199 維持舊規則。
-   同框的另兩處在各自檔內：resources（accordion.css）、學制樹（about-structure.css）。
-   ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'）。 */
+/* ===== about 桌面「上下同錨」框 =====
+   每個一屏區塊上下都從縮小態 logo 中線（--header-logo-mid 98）起算：區塊高 100svh、框內可用高 100svh − 2×98。
+   不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。Vision 例外：文字頂對齊 nav btn，放不下改上下同距置中。
+   不分高度都套，取代上面 ≥900 gate。同框另兩處：resources（accordion.css）、學制樹（about-structure.css）。
+   ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'） */
 @media (min-width: 1024px) and (min-height: 501px) {
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
-  /* Vision／學制樹 上下框 98／98，上下兩個 spacer 均分剩餘高：上 spacer 封頂 nav line−98 → 內容矮時頂對齊第一顆 nav btn；
-     窄螢幕文字折多、內容長到放不下時上 spacer 跟著縮＝上下同距置中，最高到 98 框（user 2026-10-03）。
-     樹的 98 padding 在 about-structure.css（!important 蓋 md:pt utility）。 */
+  /* Vision／學制樹：上下 spacer 均分剩餘高；上 spacer 封頂 nav line − 98 → 內容矮時頂對齊第一顆 nav btn，
+     放不下時上 spacer 跟著縮＝上下同距置中。樹的 98 padding 在 about-structure.css（!important 蓋 md:pt utility） */
   #overview {
     height: 100svh;
     padding-top: var(--header-logo-mid);
@@ -192,23 +140,22 @@ html {
   /* 英↔中盒距＝program 鈕列 gap（gutter+sm，about.html #class-buttons-sticky）：grid gap 外補 sm */
   #overview .grid-20 > div:nth-child(2) { margin-left: var(--spacing-sm); }
 
-  /* Programs／Works 共用的 division 鈕列：sticky 貼頂 0（原 inline top:100 是舊 marker 落點）。
-     可見頂＝「BFA 學士班」小標題頂＝98 線：小標題 absolute 掛鈕上方、不佔 flow → pt 要加小標題塊高
-     （--about-pill-label，公式同 buttons.css MDES 置中那條：padding 6+5 + text-s 兩行 + xs 間距）。
-     列高＝pt + 鈕 91 + pb 24（鈕 91 實測＝最高那顆 3 行：後台標籤改「Division of …」後 Animation／Creative Media 折 3 行，
-     2026-09-29 由 78 同步；字級／行數改要同步——不同步＝鈕旋轉的角掉出列底、被 sticky 列 clip-path inset(0) 裁掉）；圖文區＝100svh − 列高。 */
+  /* Programs／Works 共用 division 鈕列：sticky 貼頂 0（!important 蓋 inline top:100）。
+     可見頂＝「BFA 學士班」小標題頂＝98 線：小標題 absolute 不佔 flow → pt 加小標題塊高
+     （--about-pill-label＝padding 6+5 + text-s 兩行 + xs，同 buttons.css MDES 置中那條）。
+     列高＝pt + 鈕 91（最高那顆 3 行實測）+ pb md；字級／行數改要同步——否則鈕旋轉角掉出列底、被 sticky 列 clip-path inset(0) 裁掉 */
   :root {
     --about-pill-label: calc(11px + 2 * var(--font-size-s) * var(--line-height-s) + var(--spacing-xs));
     --about-pill-row-h: calc(var(--header-logo-mid) + var(--about-pill-label) + 91px + var(--spacing-md));
   }
   #class-buttons-sticky { top: 0 !important; padding-top: calc(var(--header-logo-mid) + var(--about-pill-label)); height: var(--about-pill-row-h); }
   #class-info-area { height: calc(100svh - var(--about-pill-row-h)); min-height: 0; padding-top: var(--spacing-2xl); }
-  /* 圖容器吃滿框內剩餘高（原 min-height 440 在扁螢幕會戳出 98 線）；圖依容器高等比 cap 見 class-images-slideshow.js */
+  /* 圖容器吃滿框內剩餘高（min-height 會戳出 98 線）；圖依容器高等比 cap 見 class-images-slideshow.js */
   .class-info-panel .division-images { min-height: 0; height: calc(100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid)); }
   #works { height: 100svh; padding-top: 0; }
   #class-works-panels { padding-top: calc(var(--about-pill-row-h) + var(--spacing-2xl)); }
-  /* works 影片高＝欄寬 × 9/16，扁螢幕會戳出 98 線 → 寬度上限由「框內剩餘高 × 16/9」反推（媒體等比縮、不內捲）；
-     旁邊 playlist 欄 stretch 跟播放器同高、自動跟上。flex item 上直接 max-height 不會傳回寬度，故鎖寬 */
+  /* works 影片高＝欄寬 × 9/16，扁螢幕會戳出 98 線 → 寬度上限由「框內剩餘高 × 16/9」反推（等比縮、不內捲）；
+     flex item 上 max-height 不會傳回寬度，故鎖寬；playlist 欄 stretch 自動跟上 */
   #class-works-panels .works-player-box {
     max-width: calc((100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid)) * 16 / 9);
   }
@@ -225,8 +172,7 @@ html {
   .class-info-panel [data-class-text],
   .class-works-panel [data-works-text] { max-height: max(8rem, calc(100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid) - 1em)); }
 
-  /* History：上下 98。inline padding-top:100／timeline-area inline 高度要 !important 才蓋得掉；
-     list 卡與切換鈕底貼框底（原 bottom 32），卡高封頂＝框高 */
+  /* History：上下 98。inline padding-top／timeline-area inline 高度要 !important 才蓋得掉；list 卡與切換鈕底貼框底、卡高封頂＝框高 */
   #history { padding-top: var(--header-logo-mid) !important; padding-bottom: var(--header-logo-mid); }
   #history #timeline-area { height: calc(100svh - 2 * var(--header-logo-mid)) !important; }
   #history .tl-list-grid,

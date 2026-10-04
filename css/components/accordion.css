@@ -1,16 +1,9 @@
-/**
- * Accordion Components
- * Course Accordion、Workshop Accordion、Horizontal Accordion 等
- */
+/* Accordion Components：year toggle chevron + Horizontal Accordion（about resources 旋轉卡；horizontal-accordion.js / resources-cycling.js） */
 
 @layer components {
-  /* ===== Workshop Accordion ===== */
-  /* Padding is controlled via JS/Tailwind classes (pt-md, pb-md)
-     to support dynamic filter reflow */
 
   /* ===== Year Toggle Chevron Rotation ===== */
-  .list-year-toggle .icon-chevron-list,
-  .activities-year-toggle .icon-chevron-list {
+  .list-year-toggle .icon-chevron-list {
     transition: transform var(--dur-fast) var(--ease-standard);
   }
 
@@ -20,7 +13,7 @@
   .accordion-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 0 !important; /* 強制無間距 */
+    gap: 0 !important;
   }
 
   /* colored-accordion：旋轉卡片版，允許溢出 */
@@ -28,18 +21,8 @@
     overflow: visible !important;
   }
 
-  /* 桌面旋轉手風琴高度（取代 horizontal-accordion.js 舊 inline 650）：正常 650，矮螢幕用 min() 封頂
-     → 手風琴＋區塊上下 padding(240) 收在一屏內、頂部維持與 header 的距離、不必把卡片頂捲到 header 底下
-     （user 2026-09-08，同 history 卡短螢幕封頂）。gate=(min-width:768 and min-height:501)＝桌面旋轉版範圍，
-     排除矮橫向 gate(≤500 走 carousel、另有高度)＋手機(carousel)。 */
-  @media (min-width: 1024px) and (min-height: 501px) {
-    .colored-accordion {
-      height: min(650px, calc(100svh - 248px));
-    }
-  }
-  /* ≥1200 桌面（user 2026-09-28）：卡上緣對齊縮小態 logo 中線（--header-logo-mid 98）、下緣留同一距離、
-     高度＝兩段 padding 之間 → 區塊剛好一屏 100svh（取代上面 650 封頂；平板 768-1199 走手機 header、維持舊值）。
-     section / container 的 pt-3xl / pb-xl 是 utilities layer，components 內要 !important 才蓋得掉 */
+  /* 桌面旋轉手風琴高度由 CSS 控（JS 不設 inline 高）：卡上緣對齊縮小態 logo 中線（--header-logo-mid 98）、下緣留同距離 → 區塊剛好一屏 100svh
+     section / container 的 pt-3xl / pb-xl 在 utilities layer，components 內要 !important 才蓋得掉 */
   @media (min-width: 1024px) and (min-height: 501px) {
     #resources { padding-top: var(--header-logo-mid) !important; }
     #resources > .site-container { padding-top: 0 !important; padding-bottom: var(--header-logo-mid) !important; }
@@ -59,8 +42,8 @@
     flex-direction: row;
     cursor: var(--cursor-pointer);
     min-width: 0;
-    margin: 0; /* 確保無外距 */
-    border: none; /* 確保無邊框 */
+    margin: 0;
+    border: none;
   }
 
   @media (min-width: 768px) {
@@ -68,7 +51,7 @@
       height: 100%;
     }
 
-    /* 展開卡整張 default（body 繼承）；inactive 卡露出的圖／文字區照 item pointer（可點切換，user 2026-10-03） */
+    /* 展開卡 default 游標；inactive 卡整張 pointer（可點切換） */
     .accordion-item.active {
       cursor: var(--cursor-default);
     }
@@ -79,7 +62,7 @@
     flex-shrink: 0;
     background: #000;
     display: flex;
-    align-items: flex-end;    /* 文字靠底部 */
+    align-items: flex-end;
     justify-content: center;
     padding: var(--spacing-md) var(--spacing-sm);
   }
@@ -95,11 +78,8 @@
     background-color: var(--color-blue);
   }
   
-  /* Accordion Body Colors (Matching Label)
-   * img-wrap 也上底色：圖區有 padding（桌面上下/手機左右）時露出的邊要是卡片 accent 色。
-   * item 母層同色當 backstop：卡片整張旋轉時，label/img/text 三盒交界的 sub-pixel AA 縫
-   * 會露出後面的透明層（=頁面白底）→ 母層同色讓縫隱形（同 sticky ::before 疊 2px 的思路，
-   * 但這裡蓋不到縫、只能讓露出來的顏色＝卡色） */
+  /* Body 底色同 label：img-wrap 也上色（圖區 padding 露出的邊＝卡色）
+     item 母層同色當 backstop：整張旋轉時三盒交界的 sub-pixel AA 縫會露出後面白底 → 母層同色讓縫隱形 */
   .colored-accordion .accordion-item:nth-child(3n+1),
   .colored-accordion .accordion-item:nth-child(3n+1) :is(.accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--color-pink);
@@ -123,10 +103,8 @@
     color: var(--color-black);
   }
 
-  /* Hover（非展開卡片）翻 strict B/W — 取代舊 JS HOVER_COLORS（黃/紫/橘）。
-   * 非 mode-color（standard/inverse）：bg 由 JS inline 設 var(--theme-fg)
-   *   （standard 黑 / inverse 白），此處只翻字色 = var(--theme-fg-inverse)（白/黑）。
-   * mode-color 的 hover 翻色另在 themes/color.css 處理（[style*="background"] 偵測）。 */
+  /* Hover（非展開卡）翻 strict B/W：bg 由 JS inline 設 var(--theme-fg)，此處只翻字色
+     mode-color 的 hover 翻色在 themes/color.css（[style*="background"] 偵測） */
   @media (min-width: 768px) {
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-label-inner,
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-text-wrap p {
@@ -134,10 +112,7 @@
     }
   }
 
-  /* Inner: 使用 writing-mode 實現垂直排版
-     writing-mode: vertical-rl + rotate(180deg)
-     = 頭往左傾閱讀，數字在視覺下方，標題在視覺上方
-     HTML 順序：<span>01</span> 在前（旋轉後在下），<span>標題</span> 在後（旋轉後在上） */
+  /* Inner: vertical-rl + rotate(180deg) 垂直排版（桌面/手機/矮橫向在下方各自覆寫） */
   .accordion-label-inner {
     white-space: nowrap;
     color: #fff;
@@ -157,11 +132,11 @@
   .accordion-body {
     overflow: hidden;
     min-width: 0;
-    width: 0;                 /* 初始收合 */
+    width: 0;
     flex-shrink: 0;
     box-sizing: border-box;
     height: 100%;             /* colored-accordion 展開不跳動 */
-    /* padding 移至 inner 或由 gap 控制，這裡保持乾淨以利寬度計算 */
+    /* 不加 padding，以利 JS 寬度計算 */
   }
 
   /* Inner: 固定寬度容器，防止內容擠壓 */
@@ -176,7 +151,7 @@
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    /* 桌面圖上下露卡片底色（user 2026-07-13）：值＝text-wrap 上下 padding（md）；手機/矮橫向各自蓋成左右版 */
+    /* 桌面圖上下露卡片底色：值＝text-wrap 上下 padding（md）；手機/矮橫向各自蓋成左右版 */
     padding: var(--spacing-md) 0;
   }
 
@@ -194,7 +169,7 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    /* padding 當固定 frame：捲動下放內層兩欄、上下留白不隨捲動、scrollbar 內縮不貼卡緣（user 2026-09-05） */
+    /* padding 當固定 frame：捲動放內層、上下留白不隨捲動、scrollbar 不貼卡緣 */
     padding: var(--spacing-md);
     overflow: hidden;
   }
@@ -206,9 +181,8 @@
     height: 100%;
     overflow: hidden;
   }
-  /* 旋轉卡內圖片邊緣鋸齒（user 2026-09-15，同批 tree 說明卡 clip-path 案）：paint 路徑對「旋轉祖先內的
-     overflow 裁切圖」邊緣不做 AA → 把圖片容器切成永久 layer，邊緣交給 compositor edge-AA（強 hint 慣例
-     同 input.css [data-section-title]）。桌面限定：手機 carousel 卡不旋轉、不用多付 layer 記憶體。 */
+  /* 旋轉卡內圖片邊緣鋸齒：paint 路徑對旋轉祖先內的 overflow 裁切圖不做 AA → 切成永久 layer 交給 compositor edge-AA（同 input.css [data-section-title]）
+     桌面限定：手機 carousel 卡不旋轉，省 layer 記憶體 */
   @media (min-width: 768px) {
     .colored-accordion .res-switcher { will-change: transform; }
   }
@@ -219,29 +193,28 @@
     display: block;
   }
 
-  /* about resources（colored-accordion）桌面：title 與說明文字改頂端對齊（user）。
-     base 是 label 靠底(align-items:flex-end)、text 靠底(justify-content:flex-end)。 */
+  /* about resources 桌面：title 與說明文字改頂端對齊（base 是靠底） */
   @media (min-width: 768px) {
-    /* 桌面版面（user 2026-09-11 二版）：圖在上、文字在下，比例 6:4；body-inner 由左右並排改直向。 */
+    /* 圖在上、文字在下 6:4；body-inner 改直向 */
     .colored-accordion .accordion-body-inner {
       flex-direction: column;
     }
     .colored-accordion .accordion-img-wrap {
       flex: 6;
-      /* 上下一致 md、右 md，左＝0（user 2026-09-11 二版：左不要 padding、圖貼卡片左緣） */
+      /* 左 0：圖貼卡片左緣 */
       padding: var(--spacing-md) var(--spacing-md) var(--spacing-md) 0;
     }
     .colored-accordion .accordion-text-wrap {
       flex: 4;
       justify-content: flex-start;
-      /* 文字去掉上＋左 padding＝貼齊圖片底、且左緣對齊貼左的圖（user 2026-09-11 二版）；右下維持 md frame */
+      /* 文字去掉上＋左 padding：貼齊圖片底、左緣對齊圖；右下維持 md frame */
       padding-top: 0;
       padding-left: 0;
     }
     .colored-accordion .accordion-label {
       align-items: flex-start;
     }
-    /* 說明文字內捲 box：靠左、最寬 80%（不全寬）；padding-right = 文字與 .list-scroll scrollbar 的呼吸 gap。 */
+    /* 說明文字內捲 box：最寬 80%；padding-right＝文字與 .list-scroll scrollbar 的間距 */
     .colored-accordion .accordion-text-wrap > [data-resources-text] {
       flex: 1 1 auto;
       min-height: 0;
@@ -249,15 +222,14 @@
       max-width: 80%;
       padding-right: var(--spacing-sm);
     }
-    /* 中英間距只交給 -sep 空格管；拿掉 base 137 的 0.4em（否則 sep + margin 疊加、EN/ZH 看起來太遠） */
+    /* 中英間距只交給 -sep 空格；拿掉 base 的 0.4em 免疊加 */
     .colored-accordion .accordion-label-zh {
       margin-top: 0;
     }
   }
-  /* 旋轉手風琴標籤直式改版（user 2026-09-28，gate＝旋轉版範圍、排除矮橫向 carousel）：英在上、中在下各自成段——
-     inner 不再整段 rotate(180)，改 column 疊放；EN vertical-rl + sideways＝字頭朝右、由上往下讀（＝原本反向旋 180°）；
-     ZH vertical-rl + upright＝直排字正；sep 空格退場、英中距吃 lg 字級 token。span 帶 writing-mode 會被 blockify、
-     寬＝1 行（line-height 1）＝跟原 inner 同寬 → getLabelWidth 量到的 label 寬不變 */
+  /* 桌面標籤直式：英在上、中在下各自成段（inner 不 rotate，改 column）
+     EN vertical-rl + sideways＝字頭朝右由上往下讀；ZH upright＝直排字正；sep 隱藏、英中距吃 lg token
+     span 帶 writing-mode 會 blockify、寬＝1 行＝原 inner 同寬 → horizontal-accordion.js getLabelWidth 量到的寬不變 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .colored-accordion .accordion-label-inner {
       writing-mode: horizontal-tb;
@@ -270,19 +242,18 @@
     .colored-accordion .accordion-label-zh {
       writing-mode: vertical-rl;
     }
-    /* 英文墨線對齊中文直排中線（user 2026-09-28「英文要再往右一點」）：sideways 拉丁字的 alphabetic baseline 落在
-       1em 行框左側 ~0.136em（Inter ascent .969/descent .242 置中後的位置），x-height 帶中心≈0.41em、比行框中心
-       偏左 ~0.09em；直立中文則正置中 → 英文右推 0.1em（3× 截圖比對 0/0.1/0.15，0.1 對齊、0.15 偏右） */
+    /* 英文墨線對齊中文直排中線：sideways 拉丁字 x-height 帶中心比 1em 行框中心偏左 ~0.09em（Inter metrics），
+       直立中文正置中 → 英文右推 0.1em（截圖比對：0.1 對齊、0.15 偏右） */
     .colored-accordion .accordion-label-en { text-orientation: sideways; translate: 0.1em 0; }
     .colored-accordion .accordion-label-zh { text-orientation: upright; margin-top: var(--space-en-zh-lg); }
     .colored-accordion .accordion-label-sep { display: none; }
   }
 
-  /* ===== Mobile: 垂直堆疊 ===== */
+  /* ===== Mobile：通用版垂直堆疊、colored-accordion 改水平 carousel ===== */
   @media (max-width: 767px) {
-    /* colored-accordion 手機改水平 carousel（user 2026-07-06：取消堆疊 accordion 與旋轉，卡片恆展開、左右滑）：
-       原生 scroll-snap 免 JS drag；負 margin 讓軌道 bleed 到 viewport 邊、scroll-padding 補回容器縮排對齊；
-       overflow-x 蓋掉上方 visible !important（同 layer 同特異度後出勝）、y 軸 clip 防被軸連動算成 auto。 */
+    /* colored-accordion 手機＝水平 carousel（卡片恆展開、不旋轉、左右滑）：原生 scroll-snap 免 JS drag；
+       負 margin 讓軌道 bleed 到 viewport 邊、scroll-padding 補回對齊；
+       overflow-x 蓋上方 visible !important（同 layer 同特異度後出勝）、y 用 clip 防被軸連動算成 auto */
     .colored-accordion {
       flex-direction: row;
       align-items: flex-start;      /* 卡片各自自然高，不拉齊最高卡 */
@@ -299,10 +270,10 @@
       display: none;
     }
     .colored-accordion .accordion-item {
-      flex: 0 0 90%; /* 82→90（user 2026-07-07 加寬）：下一張留窄邊提示可滑即可 */
+      flex: 0 0 90%; /* 下一張留窄邊提示可滑 */
       scroll-snap-align: start;
     }
-    /* title / 文字卡 padding：左右 8px 沿用全站 nav btn 慣例（14px/13px 為堆疊時代的 buffer，保留視覺不變） */
+    /* 左右 8px 沿 nav btn 慣例；上下 14/13px 保留原視覺 */
     .colored-accordion .accordion-label {
       padding: 14px 8px 13px;
     }
@@ -324,11 +295,9 @@
       padding: 14px 8px 13px;
     }
 
-    /* Resources 卡片一屏預算（user 2026-07-09）：卡片上移到 anchor strip 正下方（section/容器 pt 96+96 → 0+24，
-       蓋到封鎖線 OK——封鎖線由 resources-cycling.js 依卡片列上緣重釘、半疊卡片後）；文字盒固定高、
-       最長文字盒內捲——同 about vision/programs/works 一屏 pattern。
-       505 = 186 resources 落點 + 24 容器 pt + 51 title 列（14+13 padding + p1 一行）+ 220 圖 + 24 底部呼吸；
-       落點/anchor strip 配對組見 scroll-snap.css，改要同步。 */
+    /* Resources 卡片一屏預算：卡片上移到 anchor strip 正下方（封鎖線由 resources-cycling.js 依卡片列上緣重釘）；文字盒固定高、內捲
+       505 = 186 resources 落點 + 24 容器 pt + 51 title 列（14+13 padding + p1 一行）+ 220 圖 + 24 底部呼吸
+       落點/anchor strip 配對組見 scroll-snap.css，改要同步 */
     #resources {
       padding-top: 0;
     }
@@ -337,13 +306,10 @@
     }
     .colored-accordion .accordion-text-wrap {
       height: max(calc(100svh - 505px), 150px);
-      /* base 是 flex + justify-content:flex-end（桌面文字靠底）：配內捲會讓溢出往上長、
-         開頭被裁掉且捲不回去 → 必須翻回 flex-start（同下方矮橫向 block 的既知坑）。 */
+      /* ⚠️ 必須翻回 flex-start：base 的 flex-end 配內捲會讓溢出往上長、開頭被裁且捲不回去 */
       justify-content: flex-start;
     }
-    /* 內捲改掛內層 [data-resources-text]（user 2026-07-13）：text-wrap 的 padding 固定不隨捲動、
-       文字在 padding 內側捲（同 vision/class/works pattern）。flex:1 + min-height:0 讓內層
-       吃滿 wrap 固定高並可縮出捲軸；wrap 本身內容不再溢出（base overflow-y:auto 留著無害、當無內層時的 fallback）。 */
+    /* 內捲掛內層 [data-resources-text]：wrap 的 padding 固定不隨捲動；flex:1 + min-height:0 讓內層吃滿 wrap 固定高並出捲軸 */
     .colored-accordion .accordion-text-wrap > [data-resources-text] {
       flex: 1;
       min-height: 0;
@@ -356,7 +322,7 @@
 
     .accordion-item {
       flex-direction: column;
-      /* Remove max-height and transition, let JS control body height */
+      /* No max-height / transition: JS controls body height */
     }
 
     .accordion-label {
@@ -389,20 +355,20 @@
 
     .accordion-body {
       flex-direction: column;
-      width: 100%;           /* 手機: body 全寬 */
+      width: 100%;
       height: auto;
     }
 
     .accordion-body-inner {
       flex-direction: column;
-      width: 100% !important; /* 手機版強制全寬，不使用 JS 計算的固定寬度 */
+      width: 100% !important; /* 強制全寬，蓋 JS 計算的固定寬度 */
     }
 
     .accordion-img-wrap {
       width: 100%;
       height: 220px;
       flex: none;
-      /* 手機圖左右露卡片底色（user 2026-07-13）：值＝text-wrap 左右 padding 8px */
+      /* 手機圖左右露卡片底色：值＝text-wrap 左右 padding 8px */
       padding: 0 8px;
     }
 
@@ -412,12 +378,10 @@
     }
   }
 
-  /* ===== 矮橫向手機：resources 同款水平 carousel（user 2026-07-07 mockup：卡片並排 2 張、往右滑）=====
-     寬 ≥768 吃到桌面規則 → 把上方 portrait carousel 整組複刻進 landscape gate；
-     JS 端 resources-cycling.js 同 gate 走手機分支（不跑 initRotatedAccordion）。
-     ⚠️ 本區塊必須留在本檔（@layer components 內）不能搬 landscape.css：
-     unlayered 的 !important 反而輸給 layer 內 !important（cascade important 反轉），
-     上方 .colored-accordion { overflow: visible !important } 只能在同 layer 內後出覆蓋。 */
+  /* ===== 矮橫向 gate：resources 同款水平 carousel =====
+     寬 ≥768 會吃桌面規則 → 把上方 portrait carousel 複刻進 gate；resources-cycling.js 同 gate 走手機分支（不跑 initRotatedAccordion）
+     ⚠️ 必須留在本檔（@layer components 內）不能搬 landscape.css：unlayered !important 輸給 layer 內 !important，
+     上方 overflow: visible !important 只能在同 layer 內後出覆蓋 */
   @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .colored-accordion {
       align-items: flex-start;
@@ -434,7 +398,7 @@
       display: none;
     }
     .colored-accordion .accordion-item {
-      flex: 0 0 58%; /* 45→58（user 2026-07-09「調寬放更多文字」）：一屏 1 張＋下一張 peek */
+      flex: 0 0 58%; /* 一屏 1 張＋下一張 peek */
       scroll-snap-align: start;
       flex-direction: column;
       height: auto; /* 蓋桌面 min-width:768 的 height:100% */
@@ -472,14 +436,12 @@
     }
     .colored-accordion .accordion-img-wrap {
       width: 100%;
-      height: 120px; /* 160→120（user 2026-07-09 卡片一屏預算）：讓文字盒分到高度 */
+      height: 120px; /* 卡片一屏預算：讓文字盒分到高度 */
       flex: none;
       padding: 0 8px; /* 同手機直向：圖左右露卡片底色（text 左右 padding 8px） */
     }
-    /* 文字盒一屏預算內捲（user 2026-07-09「整個文字框不要超過畫面高度」，原 45vh 卡底溢出 fold ~86px）：
-       291 = 卡頂落點 96（landing −32 + section pt-3xl 96 + 容器 pt-lg 32）+ title 列 51 + 圖 120 + 底部呼吸 24。
-       ⚠️ justify-content 必須翻回 flex-start：base 的 flex-end（桌面文字靠底）配 max-height 內捲
-       會讓溢出往上長、捲不回去＝段落開頭被永久裁掉（user 報「英文被切到」）。 */
+    /* 文字盒一屏預算內捲：291 = 卡頂落點 96（landing −32 + section pt-3xl 96 + 容器 pt-lg 32）+ title 列 51 + 圖 120 + 底部呼吸 24
+       ⚠️ justify-content 必須翻回 flex-start：base 的 flex-end 配 max-height 內捲會讓溢出往上長、段落開頭被永久裁掉 */
     .colored-accordion .accordion-text-wrap {
       width: 100%;
       flex: none;

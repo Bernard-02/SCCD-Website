@@ -6,11 +6,10 @@ module.exports = {
     "./js/**/*.js",
     "./data/**/*.json",
   ],
-  // js 裡的否定式 `!active`（如 `if (!active || ...)`）被 content scanner 當成 important 變體 candidate，
-  // 害 Tailwind 對所有引用 `.active` 的 @layer components 規則生成 `\!active` 孿生版（含 `:not(.\!active)!important`）。
-  // 那條 `[data-bar=about].has-active .nav-link:not(.\!active){color:50%!important}` 會誤匹配真 active link
-  // （class 是 `active` 非 `!active`）→ 蓋過 `.nav-link.active` 的黑色 → 高亮失效（2026-06-08 實測）。blocklist 擋掉。
-  blocklist: ['!active'],
+  // js 裡的否定式（`!active`、`!container`、`!icon`…）被 content scanner 當成 important 變體 candidate，
+  // Tailwind 會生成 `.\!X{…!important}` 孿生規則（`:not(.\!active)` 版曾誤匹配真 active 元素、蓋掉高亮）。
+  // 站內沒有任何刻意的 `!utility` class → 全數 blocklist。
+  blocklist: ['!active', '!container', '!icon', '!visible', '!block', '!grid'],
   // 字級 utility 全自定義（值見 variables.css）。封鎖綫等改用裸標籤後，text-3xl / text-md 不再以 class 出現在
   // content，JIT 掃不到就不生成 → safelist 強制產出全套 7 階，保證任何地方用 class 套用都有效。
   safelist: ['text-xs', 'text-s', 'text-md', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'],

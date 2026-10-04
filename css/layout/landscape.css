@@ -1,29 +1,15 @@
-/**
- * Landscape Mobile（橫向手機）短高度防護層 — Phase 0
- *
- * 觸發條件：orientation: landscape 且視窗高 ≤ 500px。
- *   → 只命中「手機橫向」（高 ~375–430px）。
- *   → 桌面（高 > 500px）、直向手機（portrait）、平板橫向（iPad landscape 高 ≥ 744px）全都不匹配。
- *   ∴ 本檔「不可能」影響桌面版 / 直向版（符合 desktop-first + RWD 互不影響鐵則）。
- *
- * 為什麼是這層而不是新版型：各大網站不做獨立橫向版，主流是「讓既有響應式版面在矮橫向也不壞」。
- *   橫向手機真正的問題是「高度很矮」，把為高螢幕設計的滿版 hero 壓壞——這層就是把那個壓壞修掉。
- *   詳見 repo root『橫向手機版最佳實踐.md』。
- *
- * cascade：本檔「不包 @layer」（unlayered）→ 優先級高於所有 @layer components / Tailwind utilities；
- *   class override 一律抬高 specificity（main .X / body .X）確保贏同名 utility
- *   （見 memory reference_tailwind_utilities_after_components_cascade）。
- *
- * Phase 0 範圍：共用 hero / footer 的尺寸壓制。鎖頁（atlas / library / create）body 鎖 h-screen，
- *   結構與 panel 高度算法各異，留待 Phase 2 個別處理（本檔的 main > section 選擇器不會誤觸它們）。
- */
+/* Landscape gate（矮橫向／iPad）RWD 層
+   觸發＝橫向手機（landscape 且高 ≤500）或 768–1023 寬視窗，兩者同一套手機式排版；
+   ≥1024 桌面與 <768 直向都不命中。原理見 docs/橫向手機版最佳實踐.md。
+   cascade：本檔 unlayered，但同特異度純 class 仍可能輸 Tailwind md: utility（source order）
+   → 一律抬特異度（#id / main .X / body .X）；@layer 內的 !important 反而贏本檔 !important（見 5i resources）。
+   鎖頁（atlas / library / create）body 鎖 h-screen、結構各異，本檔 main > section 選擇器不誤觸它們。 */
 
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
-  /* 1) 字級整套沿用「手機版」值（user 2026-07-04 拍板「一切以手機版為主」，取代原本只壓 H1/H2）：
-        寬 ≥768 的橫向手機誤吃桌面版 Tailwind md: class，但那些 utility 都消費 --font-size-* 變數 →
-        在這裡把整套變數覆寫成 variables.css @media(max-width:767px) 的同值，字就全面回到手機尺寸。
-        ⚠️ 兩處要同步：variables.css 手機 block 改字級時這裡要跟著改（值一對一複製）。
-        :root 覆寫須用 :root（pseudo-class 特異度高於 body），且本檔在 variables.css 之後 import → 後出勝。 */
+  /* 1) 字級整套沿用手機值：寬 ≥768 的橫向誤吃 md: class，但那些 utility 都消費 --font-size-* →
+     覆寫成 variables.css @media(max-width:767px) 的同值即全面回手機尺寸。
+     ⚠️ 值一對一複製 variables.css 手機 block，那邊改這裡要同步。
+     須用 :root（pseudo-class 特異度高於 body），且本檔在 variables.css 之後 → 後出勝。 */
   :root {
     --font-size-3xl: 3rem;
     --font-size-2xl: 2.5rem;
@@ -31,10 +17,9 @@
     --font-size-xl: 1.5rem;
     --font-size-lg: 1.2rem;
     --font-size-md: 1rem;
-    --font-size-s: 0.875rem;   /* 14px＝手機值（08-10 手機縮 s 時此處漏同步；09-24 user 拍板矮橫向一律跟手機） */
+    --font-size-s: 0.875rem;   /* 14px＝手機值 */
     --font-size-xs: 0.8rem;
-    /* 宏觀留白 xl+ 同原則搬手機值（user 2026-09-24 拍板「矮橫向＝倒過來的手機」；07-04 只搬字級、這組當時漏掉）：
-       xs/sm/md/lg 兩端同值免搬；值一對一複製 variables.css 手機 block，同步規則同上。 */
+    /* 宏觀留白 xl+ 同樣搬手機值（xs~lg 兩端同值免搬）；同步規則同上。 */
     --spacing-xl: 2rem;        /* 32px (桌面 48px) */
     --spacing-2xl: 3rem;       /* 48px (桌面 64px) */
     --spacing-3xl: 4rem;       /* 64px (桌面 96px) */
@@ -43,43 +28,38 @@
     --spacing-6xl: 8rem;       /* 128px (桌面 192px) */
     --spacing-7xl: 10rem;      /* 160px (桌面 224px) */
     --spacing-8xl: 12rem;      /* 192px (桌面 256px) */
-    /* 左右 padding 同原則搬手機值（user 2026-07-04：桌面 60px 在橫向太肥、內容區要更大）；
-       site-container px / hero 左緣 / sticky chip 算式全都消費這顆，一改全站生效。同步規則同上。 */
+    /* 左右 padding 同搬手機值（桌面 60px 在橫向太肥）；site-container px / hero 左緣 / sticky chip 算式都消費這顆。同步規則同上。 */
     --container-padding: 1.5rem;
   }
 
-  /* 1b) text-s 的 input/textarea 保 16px（<16px 表單 focus 會被 iOS Safari 整頁放大）：
-        variables.css 與 lists.css 的兩條豁免都包在 max-width:767 內、矮橫向（寬 ≥768）吃不到
-        → s 搬 14px 後這裡鏡像同款（selector 一對一，改那兩處要同步這裡）。 */
+  /* 1b) text-s 的 input/textarea 保 16px（<16px focus 會被 iOS Safari 整頁放大）：
+     variables.css 與 lists.css 的豁免包在 max-width:767 內、寬 ≥768 吃不到 → 這裡鏡像（selector 一對一同步）。 */
   input.text-s,
   textarea.text-s,
   .activities-search-inner .activities-search-input {
     font-size: 16px;
   }
 
-  /* 2a) h-screen hero：本就該「剛好一屏」，改用 svh（工具列展開後的真實可視高）避免被高估而溢出。
-         維持「有固定高度」→ 不設 height:auto，否則絕對定位的桌面 hero grid 子元素會塌掉。 */
+  /* 2a) h-screen hero：改 svh（工具列展開後的真實可視高）避免高估溢出。
+     維持固定高度、不設 height:auto，否則絕對定位的桌面 hero grid 子元素會塌掉。 */
   main > section.h-screen {
     height: 100svh;
   }
 
-  /* 2b) min-h-screen 內容區（faculty/activities 等卡片列表，內容可能超過一屏）：
-         只把「下限」改 svh，保持可長高 → 千萬不要設固定 height，否則超出內容會被裁掉。 */
+  /* 2b) min-h-screen 內容區：只把下限改 svh、保持可長高 → 不要設固定 height，否則超出內容被裁。 */
   main > section[class*="min-h-screen"] {
     min-height: 100svh;
   }
 
-  /* 3) hero（2026-07-10 改版）：≥768 寬矮橫向改回桌面 .hero-rand-grid 隨機排版（user：圖同桌面
-        等比縮小、分佈做法同桌面）。原「桌面版 390px 高必互疊」（2026-07-06 待辦 (b)）的前提被兩件事拆掉：
-        randomizeHeroLayout 矮視窗常數組（H<500 段落收窄 280-380、bound 收緊）＋這裡 desc 限高內捲。
-        base hero.css ≥768 本就顯 grid → 不再強切；banner 寬 min(85vw, (100vh-120)*1.6) 自動隨矮高縮。
-        <768 窄橫向（SE 等）維持原手機 stack 壓制（見下方巢狀 media）。 */
+  /* 3) hero：≥768 寬矮橫向沿用桌面 .hero-rand-grid 隨機排版（圖等比縮）。不互疊靠兩件事：
+     randomizeHeroLayout 矮視窗常數組（H<500 段落收窄 280-380、bound 收緊）＋這裡 desc 限高內捲。
+     banner 寬 min(85vw, (100vh-120)*1.6) 自動隨矮高縮。<768 窄橫向維持手機 stack（見下方巢狀 media）。 */
   main .hero-rand-grid .hero-text-en,
   main .hero-rand-grid .hero-text-cn {
-    /* 390svh → 110px ≈ 4 行；4rem floor 保底可讀。旋轉照舊在 wrapper 上、scroll 在 chip 內。
+    /* 390svh → 110px ≈ 4 行；4rem floor 保底可讀。旋轉在 wrapper 上、scroll 在 chip 內。
        預算反推：直欄可用帶 = 390-110(top bound)-44(bottom+buffer) = 236；title bbox ~85 + collision
        pad 20 → desc wrapper bbox ≤ 131；wrapper 旋轉 3°×380 寬 +padding 吃 ~17 → chip max-height ≤ ~110。
-       再放大會回到「每欄 title+desc 必疊、placement 永無 0-penalty 解」（2026-07-10 實測 140 時每輪必疊） */
+       再放大（實測 140）每欄 title+desc 必疊、placement 無 0-penalty 解。 */
     max-height: max(4rem, calc(100svh - 280px));
     overflow-y: auto;
     scrollbar-width: none;
@@ -89,8 +69,7 @@
     display: none;
   }
   @media (max-width: 767px) {
-    /* 窄橫向手機 stack：180px 頂部留白在 390px 高的窗是致命的 → 砍到 96px，
-       min-height 改 svh，bg 圖跟著上移（超出 section 部分由 overflow clip 裁）。 */
+    /* 窄橫向手機 stack：180px 頂留白在 390 高太致命 → 96px；bg 圖跟著上移（超出由 overflow clip 裁）。 */
     main .hero-mobile {
       min-height: 100svh;
       padding-top: 96px;
@@ -100,8 +79,8 @@
     main .hero-mobile-bg {
       top: 96px;
     }
-    /* hero 內容（長 desc 段落）塞不下一屏 → section 放棄固定一屏，
-       自然增高、window 往下捲（snap 已關）。:has 只中手機 hero 頁，about/alumni logo hero 不動。 */
+    /* hero 長 desc 塞不下一屏 → section 放棄固定一屏、自然增高 window 捲（snap 已關）。
+       :has 只中手機 hero 頁，about/alumni logo hero 不動。 */
     main > section:has(> .hero-mobile) {
       height: auto;
       min-height: 100svh;
@@ -110,47 +89,33 @@
     }
   }
 
-  /* 4) footer 滿版高改 svh（同 2a：矮橫向避免被工具列高估）。 */
-  body .footer-shell {
-    height: 100svh;
-  }
-
-  /* 5)（已退役 2026-07-04）原「inner-scroll frame pad 縮小」——四頁（curriculum/admission/activities/faculty）
-        後來全數拆 frame（見 5d/5e/5f/5d+），矮橫向已無任何頁使用 100vh frame，pad 變數無消費者、規則移除。 */
-  /* 5b) header 整組換手機版（user 2026-07-04）：桌面 about-bar 在 844~932 寬塞不下
-        （Admissions 被右緣切掉、Library/Atlas/CREATE!/mode 全在畫面外）→ 沿用手機 header：
-        Lottie logo + mode btn + 漢堡 menu。
-        mobile-menu.js 與手機 logo 初始化都不看寬度（header 載入即綁好）→ 純 CSS 顯隱即可用。
-        JS 端兩處 width<768 判斷已補矮橫向（header.js getFooterHideTargets / triggerGenerateLogo）。 */
+  /* 5b) header 整組換手機版（Lottie logo + mode + 漢堡）：桌面 about-bar 在 844~932 寬塞不下。
+     mobile-menu.js 與手機 logo init 不看寬度 → 純 CSS 顯隱即可；JS 端版型判斷已含 gate（header.js getFooterHideTargets / triggerGenerateLogo）。 */
   body header .site-container > .md\:flex {
     display: none;
   }
   body header .site-container > .md\:hidden {
     display: grid;
-    /* 直向 header 列 pt 改 lg（2026-07-13）後蓋回 md：本檔遍布「92 帶」錨定（py-md 24×2 + 鈕 44），
-       pt 跟著變會全數跑位；selector (0,2,0) 贏 pt-lg utility (0,1,0) */
+    /* 蓋回 md（直向 header 列是 pt-lg）：本檔遍布「92 帶」錨定（py-md 24×2 + 鈕 44），pt 變會全數跑位；
+       (0,2,0) 贏 pt-lg utility (0,1,0) */
     padding-top: var(--spacing-md);
   }
   body header .mobile-nav {
     display: flex;
   }
-  /* 手機 logo 尺寸直接沿用直向 56px（user 2026-07-06 統一，原橫向獨立 40px 退役）；
-     錨點 top 保留橫向獨立校準：40px 時實測 -20（playwright 量 cy，Lottie svg 內距不透明），
-     56px 依「視覺中心不動」換算 -20 - (56-40)/2 = -28。 */
+  /* logo 沿用直向 56px；top 校準：40px 時實測 -20（playwright 量 cy，Lottie svg 內距不透明），
+     56px 依視覺中心不動換算 -20 - (56-40)/2 = -28。 */
   body [data-mobile-logo-lottie-anchor] {
     top: -28px;
   }
-  /* menu 面板直向的大留白（pt-6xl）在 390px 高會把選項全推出視野 → 壓縮；
-     選項總高仍可能超過一屏，nav 本身 overflow-y-auto 可捲。
-     （原上組 mt-3xl 歸零規則 2026-07-09 已隨 HTML 拿掉 mt-3xl class 一併移除） */
+  /* menu 面板直向大留白（pt-6xl）在 390 高會把選項推出視野 → 壓縮；超過一屏時 nav 本身 overflow-y-auto 可捲。 */
   body .mobile-nav .site-container {
     padding-top: var(--spacing-3xl);
     padding-bottom: var(--spacing-xl);
   }
-  /* menu 選項改 4 欄（user 2026-07-04 三改：欄1-2=About~Admissions、欄3 留空、欄4=Library~CREATE!，
-     兩組之間用空欄拉開視覺分組）：nav 轉 grid、兩個 ul 設 display:contents 讓 8 顆 li 直接當
-     grid item（li 盒子仍在 → reveal 遮罩/動畫不受影響；ul 的 gap/mt class 隨 contents 失效）；
-     中間的 .flex-1 spacer 藏掉。auto-flow 是橫向流做不出分組 → 8 顆顯式釘位。 */
+  /* menu 選項 4 欄：欄1-2=About~Admissions、欄3 空（分組間隔）、欄4=Library~CREATE!。
+     兩個 ul 設 display:contents 讓 li 直接當 grid item（li 盒子仍在 → reveal 遮罩/動畫不受影響；ul 的 gap/mt 隨之失效）；
+     .flex-1 spacer 藏掉。auto-flow 做不出分組 → li 顯式釘位。 */
   body .mobile-nav nav {
     display: grid;
     /* 欄寬跟內容走（均分 1fr 會讓「About 關於學系」折行）；欄3 是空的分組間隔 → 1fr 吃掉剩餘寬 */
@@ -175,38 +140,29 @@
   body .mobile-nav nav > ul:last-of-type li:nth-child(1) { grid-area: 1 / 4; }
   body .mobile-nav nav > ul:last-of-type li:nth-child(2) { grid-area: 2 / 4; }
   body .mobile-nav nav > ul:last-of-type li:nth-child(3) { grid-area: 3 / 4; }
-  body .mobile-nav nav > ul:last-of-type li:nth-child(4) { grid-area: 4 / 4; }  /* A.A. 若解除 TEMP HIDDEN 復活時仍在欄4 */
-  /* 四頁 content section 抬到手機 header 底色帶（.mobile-header-bg z-40，2026-08-08 平板段 768-1199
-     連矮橫向一起吃到）之上：hero-animation 給 hero 後 section inline `position:relative; z-index:1`
-     （防 hero 殘影）＝stacking context，section 內 z-55 的 fixed nav 被整包壓到帶底下 → faculty DCD／
-     courses program／admission·activities nav 整排被白帶蓋住看不到（user 2026-09-19）。
-     這四頁自帶 header 帶 blocker（faculty ::before / courses cover / admission·activities
-     .list-mobile-header-blocker，皆 z-40 в section 內）→ 抬高後帶內遮擋照常、nav 浮出。
-     帶本身保留：about/alumni/index 仍靠它遮捲過透明 header 的內容（拆帶會讓內容穿到 nav 後面，實測醜）。
-     !important 蓋 hero-animation 的 inline z:1；45 = 帶 40 之上、header 50/nav 55 之下。 */
+  body .mobile-nav nav > ul:last-of-type li:nth-child(4) { grid-area: 4 / 4; }  /* A.A.（header.html TEMP HIDDEN）復活時仍在欄4 */
+  /* 四頁 content section 抬到 .mobile-header-bg（z-40）之上：hero-animation 給 hero 後 section inline
+     position:relative; z-index:1（防 hero 殘影）＝stacking context，section 內 z-55 的 fixed nav 被整包壓到帶底下。
+     這四頁自帶 header 帶 blocker（z-40 在 section 內）→ 抬高後遮擋照常、nav 浮出。帶本身保留：about/alumni/index 靠它遮捲過透明 header 的內容。
+     !important 蓋 inline z:1；45 = 帶 40 之上、header 50/nav 55 之下。 */
   body :is(#faculty-cards, #courses-content-section, #admission-content-section, #activities-content-section) {
     z-index: 45 !important;
   }
 
-  /* 5b+) create 旋轉提示 overlay 讓出 header（user 2026-07-04「保留 header 的設定」）：
-        overlay 原 z:99999 連 header 一起蓋掉 → 降到 header(z-50) 之下，
-        橫向停在提示頁時 logo / mode / menu 仍可用，不用先轉直向就能離開 /create。
-        overlay 本來就只在橫向顯示（sketch.js handleOrientationChange），規則放本 gate 內零外溢。 */
+  /* 5b+) create 旋轉提示 overlay 降到 header(z-50) 之下（原 z:99999 連 header 蓋掉）：
+     橫向停在提示頁時 logo / mode / menu 仍可用、能離開 /create。overlay 只在橫向顯示（sketch.js handleOrientationChange）。 */
   body #landscape-overlay {
     z-index: 40;
   }
 
-  /* 5c) 磁吸關閉（user 2026-07-04「橫向手機不需要 snap」）：scroll-snap.css 的 gate（min-width:768）
-        誤含寬 ≥768 的橫向手機 → 這裡把 snap-type 關掉。router 照掛 class、snap-scroll.js 的
-        inline none/hold 邏輯不受影響（本來就是設 none）；activities onEnterBack 補捲 2026-06-29 已拿掉，無 JS 殘留補償。 */
+  /* 5c) 關磁吸：scroll-snap.css 的 gate（min-width:768）誤含寬 ≥768 的橫向。router 照掛 class、snap-scroll.js 的 inline none/hold 邏輯不受影響。 */
   html:is(.snap-mandatory, .snap-proximity) {
     scroll-snap-type: none;
   }
 
-  /* 5c+) scrollbar 全隱藏（user 2026-07-04「橫向手機都不需要 scrollbar，手機上沒有」）：
-        ①自製 window thumb——JS initCustomScrollbar 已加同 gate 不啟動；這裡 CSS 雙保險
-          （!important 蓋 JS recompute 的 inline display:block，涵蓋「直向進站轉橫向」時已 init 的殘留）
-        ②.list-scroll 細黑條（faculty box / slide-in desc / activities 說明框等）——藏視覺、touch 捲動照常。 */
+  /* 5c+) scrollbar 全隱藏：①自製 window thumb——JS initCustomScrollbar 同 gate 不啟動；CSS 雙保險
+     （!important 蓋 JS recompute 的 inline display:block，涵蓋直向進站轉橫向時已 init 的殘留）
+     ②.list-scroll 細黑條——藏視覺、touch 捲動照常。 */
   body #custom-scrollbar-thumb {
     display: none !important;
   }
@@ -217,9 +173,7 @@
     display: none;
   }
 
-  /* 5c++) nav btn 字級統一（user 2026-07-10「以 curriculum 學士班 label 的大小為主」）：
-        各頁 section nav chip 基底是 buttons.css/navigation.css 的 p1(1rem)，矮橫向偏大 →
-        收成 p2(0.875rem) ＝ .courses-bfa-label 同級。集中一條、新 nav 進 header 帶的頁面補 selector。 */
+  /* 5c++) nav btn 字級統一 p2（＝.courses-bfa-label）：各頁 nav chip 基底 p1 在矮橫向偏大。新 nav 進 header 帶的頁面補 selector。 */
   #courses-content-section .courses-program-btn,
   #faculty-cards .faculty-filter-btn,
   #admission-content-section .activities-section-btn,
@@ -227,9 +181,8 @@
   body #anchor-nav .anchor-nav-btn {
     font-size: var(--font-size-s);
   }
-  /* 5c+++) nav 進 header 的 nav-col 統一修 w-full：HTML Tailwind w-full(width:100%) 在 fixed 定位下
-     left+width 蓋掉 right → bar 延伸進右上 mode/menu 鈕底下（user 2026-07-10：nav 應排到 mode 鈕左邊
-     被裁、bar 內左右捲）。width:auto 讓 left/right 共同定寬。 */
+  /* 5c+++) nav 進 header 的 nav-col：HTML w-full 在 fixed 下 left+width 蓋掉 right → bar 伸進 mode/menu 鈕底下；
+     width:auto 讓 left/right 共同定寬（bar 內左右捲）。 */
   #activities-content-section .inner-scroll-nav-col,
   #admission-content-section .inner-scroll-nav-col,
   #courses-content-section .inner-scroll-nav-col,
@@ -237,16 +190,12 @@
     width: auto;
   }
 
-  /* 5d) curriculum 改手機式版面（user 2026-07-04 兩步收斂）：
-        ① program nav 改「頂部水平 tabs」（左欄 14rem 太佔寬、卡片要更多空間），bar 套 courses.css
-          手機 block（max-width:767）同款水平 scroll；
-        ② 拆掉 100vh inner-scroll frame（「不一定要滿足 100vh 的設計，這是橫向手機」）——box 只剩
-          ~130px 太矮 → section 自然高、window 捲動（同手機 portrait 行為），卡片表格完整展開。
-        JS 同步：courses-section-switch.js usesWindowScroll()（<768 或本 gate）讓 deep-link/切 program
-        走手機 window-scroll 路徑、program btn 點擊補 bar scrollLeft 對齊。
-        ⚠️ courses.css 手機 bar 規則改動時這裡同步。 */
+  /* 5d) curriculum 手機式版面：program nav 改水平 tabs（進 header 帶，見下）；拆 100vh inner-scroll frame
+     （box 只剩 ~130px 太矮）→ section 自然高、window 捲。
+     JS：courses-section-switch.js usesWindowScroll()（<768 或本 gate）讓 deep-link/切 program 走 window-scroll 路徑、
+     program btn 點擊補 bar scrollLeft 對齊。⚠️ courses.css 手機 bar 規則改動時這裡同步。 */
   body #courses-content-section {
-    height: auto;               /* 蓋 HTML md:h-screen（frame 已拆） */
+    height: auto;               /* 蓋 HTML md:h-screen */
     overflow-x: clip;
     overflow-y: clip;           /* 蓋 md:overflow-hidden，回到 courses.css base 的 clip（不成為捲動容器） */
     /* nav fixed 進 header 帶後卡片上移 → padding-top 讓卡片從 nav 下開始（= grade cover sticky top，見下） */
@@ -258,17 +207,14 @@
     flex-direction: column;
     height: auto;               /* 蓋 lists.css 的 100vh */
   }
-  /* nav（program 分頁）進 header 帶 fixed（user 2026-07-09，比照 faculty 5d+ / about 5i）：
-     position:fixed 定在 logo 右～mode/menu 左之間、z:55 浮在內容上，捲動不動＝一直 lock 在 header。
-     脫離 flow 後卡片上移，section padding-top（上面）讓卡片從 nav 下開始、grade cover 接著 sticky。
-     hero 時 nav 由 JS clip-path 收掉（各 btn 個別方向、同時）、pointer-events 一併關；進 content section
-     才 clip-reveal（courses-section-switch.js IO）。不用 opacity、不加白底。 */
+  /* nav（program 分頁）fixed 進 header 帶：logo 右～mode/menu 左、z:55。脫離 flow → section padding-top 讓卡片從 nav 下開始。
+     hero 時 JS clip-path 收、進 content section 才 clip-reveal（courses-section-switch.js IO），pointer-events 一併 JS 切；不用 opacity、不加白底。 */
   #courses-content-section .inner-scroll-nav-col {
     position: fixed;
     top: 0;
-    left: 128px;                /* 離 logo（同 faculty gate）*/
+    left: 128px;                /* 離 logo */
     right: 140px;               /* 避開右上 mode/menu 鈕 */
-    height: 92px;               /* label 拆到 btn 左側後 bar 變矮 → 垂直置中 92 header 帶（同 5f activities） */
+    height: 92px;               /* 垂直置中 92 header 帶（同 5f） */
     display: flex;
     align-items: center;
     z-index: 55;
@@ -285,16 +231,12 @@
     width: auto;
     max-width: 100%;            /* col 改 flex 後 width:auto 的 flex item 會撐到 max-content 溢出 mode 鈕下 → 夾回 col 寬、bar 內捲 */
     align-self: center;         /* 蓋 courses.css md: 的 align-self:flex-start → 垂直置中 92 帶 */
-    /* label 已改 static 併排（見下）不再凸出上緣 → 四邊只剩旋轉 clearance
-       （±2° × btn 寬 ~240 ≈ 5px 凸出，12px 給足）。原 absolute label 時代 padding-top
-       1.75rem(28px) < label 凸出 31px，被 overflow-y:clip 切頂＝「btn 被切」根因。 */
+    /* 四邊只剩旋轉 clearance（±2° × btn 寬 ~240 ≈ 5px 凸出，12px 給足）；凸出 padding 外會被 overflow-y:clip 切頂。 */
     margin: 0;
     padding: 0.75rem;
   }
-  /* BFA 學士班 label 拆到 btn 左側（user 2026-07-12，比照 about #mobile-division-nav 的
-     .mobile-division-group）：absolute 浮上緣改 static 併排，省 header 帶高又不再切頂。
-     2026-09-19 統一兩行（EN 一行／ZH 一行、中文不折、無 max-width，user 指定）：原 min-content+keep-all
-     在後台 ui_labels 文字加長（BFA, DCD／媒體傳達設計學系 學士班）後逐空格折成三行。 */
+  /* BFA 學士班 label 放 btn 左側 static 併排（比照 about .mobile-division-group）：省 header 帶高、不切頂。
+     EN/ZH 各一行 nowrap、無 max-width：min-content+keep-all 在後台文字加長後會逐空格折成三行。 */
   #courses-content-section .courses-program-group {
     flex-direction: row;
     align-items: flex-start;
@@ -319,49 +261,43 @@
   #courses-content-section .courses-program-bar > .courses-program-btn {
     margin-top: 0;
   }
-  /* Animation & Moving Image 保持一行（user 2026-07-04）：HTML 顯式 <br> 藏掉，
-     br 後的空格成為字間空格（span 已 nowrap 不會 rewrap） */
+  /* Animation & Moving Image 保持一行：藏 HTML 的 <br>，其後空格成字間空格（span 已 nowrap） */
   #courses-content-section .courses-program-btn .anchor-nav-inner > span:first-child br {
     display: none;
   }
-  /* 5d+) courses slide-in 改手機式（user 2026-07-09 改滿版，原 2026-07-04 60%）：滿版 100%
-     （比照 faculty 5d+）；panel 蓋滿 → 需返回鍵（md:hidden 收掉的 #courses-back-btn-mobile 重顯）。
-     inner 整段自然捲（同 portrait、原生條由 .no-scrollbar 藏）＝desc 拆掉獨立 scroll box、
-     不出現 list-scroll 黑色細條；title sticky 黏頂＋desc 左英右中兩欄；title 上方避讓 96px 清開 logo 列。 */
+  /* 5d+) courses slide-in 滿版 100%（比照 faculty）→ 重顯 md:hidden 的 #courses-back-btn-mobile 返回鍵。
+     inner 整段自然捲（.no-scrollbar 藏條，不出 list-scroll 黑細條）；title sticky 黏頂、desc 左英右中兩欄；title pt 96 清 logo 列。 */
   body #courses-detail-panel {
     width: 100%;
   }
   #courses-detail-panel #courses-back-btn-mobile {
-    display: block;      /* 蓋 md:hidden：滿版 panel 蓋掉 dim overlay → 需返回鍵（同 faculty）*/
+    display: block;      /* 蓋 md:hidden：滿版蓋掉 dim overlay → 需返回鍵（同 faculty） */
   }
   #courses-detail-panel .courses-detail-inner {
     overflow-y: auto;    /* 蓋 md:overflow-hidden：整段捲 */
     padding-top: 0;      /* 蓋 md:pt-4xl：避讓走 title sticky pt 96（scroll container 透明 pt 帶會露捲動內容） */
     gap: 0;              /* 蓋 md:gap-lg：間距走 title padding-bottom（透明 gap 帶同理會露捲動內容） */
   }
-  /* title 照原本 stacked（英上中下，courses.css base）；user 2026-07-09 #5 改回 sticky：
-     捲 desc 時課程名黏頂（bg inherit + z:2 由 base 帶，蓋住捲過的說明文字）。padding-top 96 清 logo 列。
-     padding-bottom 蓋回手機值（courses.css 桌面 min-768 已歸零，矮橫向靠它當 title↔desc 距＋sticky 遮罩）。 */
+  /* title 英上中下 + sticky 黏頂（bg inherit + z:2 由 base 帶，蓋住捲過的說明）；pt 96 清 logo 列。
+     pb 蓋回手機值（courses.css ≥768 歸零；這裡靠它當 title↔desc 距＋sticky 遮罩）。 */
   #courses-detail-panel .courses-detail-title-sticky {
     position: sticky;
     top: 0;
     padding-top: 96px;
     padding-bottom: var(--spacing-md);
   }
-  /* 滿版 panel 蓋滿 → 浮在上方的 logo（z 拉高）落在 bright accent panel 上（非 dim overlay）→ 黑線恆可見。
-     header.js 的 slideInLeavesLogoOnDim 是 60% 時代把矮橫向 slide-in logo 設白，滿版後前提失效 →
-     !important 蓋掉 JS 每幀寫的 inline filter（mode3 auto 也一樣）；:has 只在 courses slide-in 開啟時生效、不動 faculty。 */
+  /* 滿版 panel 上的 logo 落在 accent 底（非 dim overlay）→ 要黑線。header.js slideInLeavesLogoOnDim 每幀寫 inline filter
+     （為舊 60% 寬設計）→ !important 蓋掉（mode3 亦然）；:has 只在 courses slide-in 開啟時生效。 */
   body:has(#courses-slide-in:not(.invisible)) #header-logo-mobile {
     filter: none !important;
   }
-  /* desc 照 about vision 兩欄（滿版有寬度，user 2026-07-09 #4）：左英右中並排；
-     DOM 序 EN→ZH 天然落左右欄。sticky title 在上、兩欄說明在下一起捲。 */
+  /* desc 兩欄（同 about vision）：DOM 序 EN→ZH 天然落左右欄，與 sticky title 一起捲。 */
   #courses-detail-panel .courses-detail-desc-wrapper {
     flex: none;          /* 蓋 md:flex-1（不再撐滿剩餘高） */
     min-height: auto;
     overflow: visible;   /* 蓋 md:overflow-y-auto：文字自然往下排 */
     margin-top: 0;       /* 蓋 md:mt-xl；title 區自帶 padding-bottom md 當間距（同 portrait） */
-    padding-right: 0;    /* 蓋 md:pr-md（原 scrollbar 保留間距，已無 scrollbar） */
+    padding-right: 0;    /* 蓋 md:pr-md（scrollbar 保留間距，已無 scrollbar） */
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--spacing-2xl);
@@ -378,12 +314,9 @@
     overflow: visible;
     align-self: stretch;
   }
-  /* sticky 表頭 window-relative，避開 fixed program nav（現在 nav 在 header 帶、cover 要接在 nav 下）：
-     cover 釘 116（= section padding-top，跟卡片起點齊 → 捲動無跳動），::before 向上 200px 補上方破口背景。
-     padding-top 4：年級字原貼齊 cover 頂，被 ::before「底疊 2px 進本體」的縫補丁咬掉 cap（user 2026-09-19
-     「年級 bar 被擋住」）→ 墊 4px 讓字落在補丁下。
-     type-label top = 116 + cover 實高 56（pad-top 4 + 兩行 44 + pad-bottom 8）+ row-gap 16 = 188：
-     原 172 落在 ::after 縫補丁帶（cover 底 -2 起、高 sm+2）內＝Required/Elective cap 被白帶咬掉（user 同批）。 */
+  /* sticky 表頭 window-relative、接在 fixed program nav 下：cover 釘 116（= section padding-top，跟卡片起點齊 → 捲動無跳動），
+     ::before 向上補上方破口背景。padding-top 4：讓年級字落在 ::before 底疊 2px 縫補丁之下（貼頂會被咬掉 cap）。
+     type-label top = 116 + cover 實高 56（pt 4 + 兩行 44 + pb 8）+ row-gap 16 = 188（再高會落進 ::after 縫補丁帶被咬）。 */
   #courses-content-section .courses-grid-row-cover {
     top: 116px;
     padding-top: 4px;
@@ -391,14 +324,13 @@
   #courses-content-section .courses-grid-type-label {
     top: 188px;
   }
-  /* sticky 消 1px sub-pixel 接縫（user 2026-07-09，見 reference_sticky_blocker_before_seam_1px_line）：
-     cover ::before(上補丁) / ::after(下補 row-gap) 各多疊 2px 進本體，蓋掉捲過卡片在 body↔pseudo 交界露的灰線。 */
+  /* 消 sticky 1px sub-pixel 接縫（見 memory reference_sticky_blocker_before_seam_1px_line）：
+     cover ::before(上補丁) / ::after(下補 row-gap) 各多疊 2px 進本體，蓋掉捲過卡片在交界露的灰線。 */
   #courses-content-section .courses-grid-row-cover::before {
-    height: 202px;                 /* 原 200：底邊多疊 2px 進 cover 本體 */
+    height: 202px;                 /* 200 + 底邊多疊 2px 進 cover 本體 */
   }
-  /* 上補丁只在過 hero 後渲染（user 2026-07-10「hero 裡出現奇怪白 bar」）：cover 未 pinned（半路、
-     hero 還在畫面）時 202px 白補丁浮在 hero 圖上；class 由 courses-section-switch.js 的
-     嚴格 hero gate 切（同 nav btn 時機）。桌面不受影響（本規則在 landscape gate 內）。 */
+  /* 上補丁只在過 hero 後渲染：cover 未 pinned（hero 還在畫面）時 202px 白補丁會浮在 hero 圖上；
+     class 由 courses-section-switch.js 嚴格 hero gate 切（同 nav btn 時機）。 */
   #courses-content-section:not(.courses-nav-revealed) .courses-grid-row-cover::before {
     content: none;
   }
@@ -416,20 +348,15 @@
     height: 3px;
     background: inherit;           /* = panel accent（title bg 亦 inherit）*/
   }
-  /* 灰卡課名溢出自動 marquee（user 2026-07-04「還是在手機上、過長要 marquee」）：courses.css 的自動版
-     包在 max-width:767（寬橫向吃不到）、桌面版要 :hover（觸控沒有）→ gate 內補自動播放；
-     .is-overflow 標記與 --marquee-duration/-distance 由既有 JS 量測（≥768 照跑），keyframes 在 courses.css 外層全域可用。 */
+  /* 灰卡課名溢出自動 marquee：courses.css 自動版包在 max-width:767、桌面版要 :hover（觸控無）→ gate 內補自動播。
+     .is-overflow 與 --marquee-* 由 JS 量測（≥768 照跑），keyframes 在 courses.css 全域。 */
   #courses-content-section .courses-grid-card-en.is-overflow .courses-marquee-inner,
   #courses-content-section .courses-grid-card-zh.is-overflow .courses-marquee-inner {
     animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
   }
 
-  /* 5d+) faculty 拆 frame（user 2026-07-04「nav btn 比照手機排上方、老師四個 col」）：
-        section 自然高 + window 捲；nav 回手機「水平 scroll strip」（HTML 手機 class 全在——
-        flex-row overflow-x-auto -mx-md px-md py-md，蓋掉 md: 覆寫即還原）；卡片牆 cards.css
-        ≥768 本就是 repeat(4, minmax(0,250px)) 4 欄，拆 frame 滿寬後即 user 要的四欄、不用另設。
-        faculty-filter.js 的 box 回頂呼叫有 `≥768 && scrollCol` guard——box 不可捲後 scrollTop=0 是
-        無害 no-op，不需 JS 分流；bar 點擊對齊的 <768 判斷已加 gate。 */
+  /* 5d+) faculty 拆 frame：section 自然高 + window 捲；nav 進 header 帶（見下）；卡片牆 cards.css ≥768 本就 4 欄。
+     faculty-filter.js 的 box 回頂有 `≥768 && scrollCol` guard——box 不可捲後 scrollTop=0 是無害 no-op。 */
   body #faculty-cards {
     height: auto;                       /* 蓋 md:h-screen */
     overflow: visible;                  /* 蓋 md:overflow-hidden */
@@ -442,10 +369,8 @@
     height: auto;                       /* 蓋 lists.css 100vh */
     gap: var(--spacing-md);
   }
-  /* nav（DCD 系所鈕，2026-08-24 與分類 filter 對調後）進 header 列（user 2026-07-09；對齊規格 2026-09-19
-     統一成 admission/courses 同款）：fixed 垂直置中 92 帶、left 抵銷 > div 的 0.5rem 旋轉 clearance padding
-     → chip 左緣對齊 128（原 top:24 + left:128 是舊 filter 排的調校值，chip 偏低 14px、左偏 8px）。
-     脫離 flow 後 scroll-col（卡片）上移，section pt 104 讓卡片從 header 下開始、不被 nav 蓋。 */
+  /* nav（DCD 系所鈕）fixed 進 header 帶、垂直置中 92 帶（同 admission/courses）；left 扣 > div 的 0.5rem 旋轉 clearance
+     → chip 左緣對齊 128。脫離 flow 後 section pt 104 讓卡片從 header 下開始、不被 nav 蓋。 */
   #faculty-cards .inner-scroll-nav-col {
     position: fixed;
     top: 0;
@@ -456,14 +381,11 @@
     align-items: center;
     z-index: 55;
     padding-top: 0;
-    /* hero 屏藏/捲到 cards section 才現＝JS clip-path（faculty-filter.js 嚴格 hero gate，user 2026-07-10
-       指定 clip-path 非 opacity、同 curriculum），CSS 不設 opacity；pointer-events 也由 JS 切。 */
+    /* hero 屏藏、捲到 cards 才現＝JS clip-path（faculty-filter.js 嚴格 hero gate），CSS 不設 opacity；pointer-events 也由 JS 切。 */
   }
-  /* header 帶遮擋（user 2026-07-10 統一：admission/activities 有 blocker、curriculum 有 cover 補丁，
-     faculty 原缺→卡片捲過透明 header 疊在 nav btn 後）：section 的 fixed ::before 全寬 96px theme-bg 帶。
-     z-40＝卡片(z auto)之上、header(z-50)/nav col(z-55)之下——不能掛 nav col 內（z:-1 仍困在 z-55
-     context、整條帶會蓋過 logo z-50）。綁嚴格 hero gate class（faculty-filter.js setNav 切），
-     hero 屏不掛、不蓋 hero 圖。96 高同 admission blocker。 */
+  /* header 帶遮擋：section 的 fixed ::before 全寬 96px theme-bg 帶（卡片捲過透明 header 會疊在 nav 後）。
+     z-40＝卡片之上、header(50)/nav col(55) 之下——不能掛 nav col 內（z:-1 仍困在 z-55 context、會蓋過 logo）。
+     綁嚴格 hero gate class（faculty-filter.js setNav 切）→ hero 屏不蓋圖。96 同 admission blocker。 */
   #faculty-cards.faculty-nav-revealed::before {
     content: '';
     position: fixed;
@@ -480,37 +402,31 @@
     overflow-x: auto;
     gap: var(--spacing-md);
     margin: 0;                         /* fixed 定位不需負 margin bleed */
-    /* padding 四邊 0.5rem 給 active chip 旋轉角 clearance（overflow-x:auto 連動 y 也 auto 會裁旋轉上下角，
-       左角凸出 nav 左緣 128 被裁＝user 2026-07-09 報「旋轉後 btn 被切」）→ 四邊留 padding 讓角落在 padding 內不裁 */
+    /* 四邊 0.5rem 給 active chip 旋轉角 clearance（overflow-x:auto 連帶 y 也 auto、會裁旋轉角） */
     padding: 0.5rem;
     width: 100%;                       /* col 改 flex 置中後 flex item 縮到內容寬 → 撐滿供 overflow-x 內捲（同 admission） */
   }
   #faculty-cards .inner-scroll-scroll-col {
     margin-top: 0;
     height: auto;
-    overflow: visible;                  /* 兩軸一起（軸連動雷，同 5d/5e/5f） */
+    overflow: visible;                  /* 兩軸一起（軸連動雷） */
     align-self: stretch;
     padding: 0;                         /* 蓋 lists.css box padding:md（box 裁切用的旋轉 clearance，window 捲無裁切） */
   }
-  /* 老師 slide-in 比照直向手機滿版（user 2026-07-09 三改）：100% 滿版 + 直向 stack（照片→名字→sections）
-     + 整段捲 + 返回鍵；profile/title sticky（見下，右側詳情用手機版排法且釘住）。 */
+  /* 老師 slide-in 滿版 100% + 返回鍵；profile 左欄＋sections 右欄（見下）。 */
   body #faculty-panel {
-    width: 100%;                        /* 蓋 md:w-[79.1666%]；滿版（user 2026-07-09，原 60%）*/
+    width: 100%;                        /* 蓋 md:w-[79.1666%]：滿版 */
     right: 0;                           /* 蓋 cards.css min-width:768 的 right:-10（scrollbar gutter 補償）→ 滿版貼左緣不露縫 */
   }
-  /* 滿版 panel 蓋滿 → logo 落在 bright accent panel 上（非 dim overlay）→ 要黑線可見（user 2026-07-09）。
-     header.js slideInLeavesLogoOnDim 每幀給矮橫向 slide-in logo 寫 inline filter:invert(1)（60% 時代設白，
-     滿版後前提失效）→ !important 蓋成 none 讓 logo 回原本黑 wireframe（比照 courses slide-in 同修法）。 */
+  /* 滿版 panel 上 logo 要黑線：!important 蓋 header.js slideInLeavesLogoOnDim 每幀寫的 inline filter（同 courses slide-in）。 */
   body:has(#faculty-slide-in:not(.invisible)) #header-logo-mobile {
     filter: none !important;
   }
-  /* 滿版有空間 → 恢復桌面式左右分欄（profile 左欄固定寬、sections 右欄獨立捲），蓋掉前版 flex-col stack。
-     overflow hidden＝panel 不整段捲、由右欄 list-scroll 捲 → section title 才有捲動容器可 sticky。 */
+  /* 滿版 → 左右分欄（profile 左、sections 右）。overflow hidden＝panel 不整段捲，右欄 list-scroll 才是 section title sticky 的捲動容器。 */
   #faculty-panel > div {
-    /* 對齊點從 header 帶起算（user 2026-07-10：頭像/名字放 logo 右側；原 104 是讓位 logo 下緣）——
-       內容頂 = logo 頂（~24），左欄另以 padding-left 讓開 logo 本體（見 profile-block） */
+    /* 內容頂 = logo 頂（~24）；左欄另以 padding-left 讓開 logo（見 profile-block） */
     padding-top: var(--spacing-md);
-    padding-bottom: var(--spacing-md);  /* 右欄捲到底底部 padding（user 2026-07-09 三反饋改 md；原 2xl→sm→md）*/
+    padding-bottom: var(--spacing-md);  /* 右欄捲到底的底部 padding */
     overflow: hidden;
   }
   #faculty-panel #faculty-back-btn-mobile {
@@ -520,13 +436,12 @@
     display: none;                      /* 矮橫向走上面手機右側返回鍵；桌面左上角這顆隱藏（#id 蓋 md:flex）*/
   }
   #faculty-panel .faculty-detail-layout {
-    flex-direction: row;                /* 左右分欄（user 2026-07-09 wireframe：profile 左、awards 右）*/
+    flex-direction: row;                /* 左右分欄：profile 左、awards 右 */
     gap: var(--spacing-2xl);
     flex: 1;                            /* 撐滿 panel 可視高，右欄 min-h-0 捲動基準 */
     min-height: 0;
   }
-  /* 左欄改吃剩餘一半寬（原 200px 固定會逼長英文名換行；user 2026-07-10「文字內容佔一半即可」）＋
-     自身可捲（title 兩個以上/長名字超過一屏時捲看，不被畫面切掉）。 */
+  /* 左欄吃剩餘寬（固定 200px 會逼長英文名換行）＋自身可捲（多 title／長名字超過一屏）。 */
   #faculty-panel .faculty-detail-layout > #faculty-profile-block {
     flex: 1;
     min-width: 0;
@@ -536,39 +451,34 @@
     overflow-y: auto;
     min-height: 0;
     scrollbar-width: none;              /* 同 .list-scroll：橫向手機藏 scrollbar */
-    /* overflow:auto 讓左欄變裁切容器 → 照片 rotate(-4deg) 凸出的角被裁（user 2026-07-10）
-       → 四邊留 padding 讓旋轉角落在 padding 內不裁（同 nav chip 修法）；負 margin 抵銷佔位、視覺落點不變 */
+    /* overflow:auto 讓左欄成裁切容器 → 照片 rotate(-4deg) 凸角被裁 → 四邊 padding 容旋轉角（同 nav chip 修法）；
+       負 margin 抵銷佔位、視覺落點不變 */
     padding: 0.75rem;
-    /* 讓開 logo（user 2026-07-10：內容上移到 header 帶後，頭像/名字排 logo 右側）：
-       logo 左 24 + 寬 56 = 右緣 80，+24 呼吸 → 內容起點 104（容器 pad 24 + 80） */
+    /* 讓開 logo：logo 左 24 + 寬 56 = 右緣 80，+24 呼吸 → 內容起點 104（容器 pad 24 + 80） */
     padding-left: calc(0.75rem + 80px);
     margin: -0.75rem;
   }
   #faculty-panel .faculty-detail-layout > #faculty-profile-block::-webkit-scrollbar {
     display: none;
   }
-  /* 照片：矮橫向縮小讓名字+title 完整一屏（user 2026-07-09 二反饋 title 被切 → 130→100）*/
+  /* 照片縮小讓名字+title 完整一屏 */
   #faculty-panel div:has(> #faculty-detail-image) {
     width: 100px;
-    margin-left: 0;                     /* 左欄內圖不縮排（原 spacing-xl 是 stack 版）*/
-    margin-bottom: var(--spacing-md);   /* 圖↔名字間距（縮圖後補一點呼吸）*/
+    margin-left: 0;                     /* 左欄內圖不縮排 */
+    margin-bottom: var(--spacing-md);   /* 圖↔名字間距 */
   }
-  /* 右欄整欄寬固定 55%（user 2026-07-10 二反饋「50% 有點太剛好」），剩餘讓給左欄名字不換行。
-     結構改版後右欄＝#faculty-detail-right（原 .list-scroll 是右欄本身，現 list-scroll 下移到內層捲動 wrapper；
-     矮橫向 lead 在 profile 左欄故此欄只含 sections 捲動區）。 */
+  /* 右欄固定 55%，剩餘讓左欄名字不換行。list-scroll 在內層捲動 wrapper；矮橫向 lead 在左欄，此欄只含 sections。 */
   #faculty-panel #faculty-detail-right {
     flex: none;
     width: 55%;
     min-height: 0;
   }
-  /* 內層 sections 獨立捲（恢復桌面 overflow-y-auto/min-h-0）→ title sticky 有捲動容器可釘。
-     窄橫向（<768 寬）md:overflow 不套 → 這裡明寫；flex:1 由 utility flex-1 提供填滿整欄高。 */
+  /* 內層 sections 獨立捲 → title sticky 有捲動容器可釘。窄橫向（<768）md:overflow 不套 → 明寫；flex-1 utility 填滿欄高。 */
   #faculty-panel #faculty-detail-right .list-scroll {
     overflow-y: auto;
     min-height: 0;
   }
-  /* 右欄 sections 間距縮成手機式（user 2026-07-09「上下 padding 太大、呈現不了多少文字」）：
-     section 之間 gap-2xl(64) → lg(32)；下方不留多餘 padding（panel > div 已有 pb-2xl 到底部才 padding）。 */
+  /* sections 間距收成手機式（gap 2xl → lg）：一屏多看點字。 */
   #faculty-panel #faculty-detail-sections {
     gap: var(--spacing-lg);
   }
@@ -577,32 +487,34 @@
     flex-direction: column;
     gap: var(--spacing-xs);
   }
-  /* section title sticky 釘右欄捲容器頂（捲 sections 時 Education/Awards 接力，user 2026-07-09「右邊要有 sticky」）*/
+  /* section title sticky 釘右欄捲容器頂（Education/Awards 接力） */
   #faculty-panel #faculty-detail-sections .faculty-section-title-col {
     width: 100%;
     position: sticky;
     top: 0;
     background: var(--faculty-panel-bg, transparent);
     z-index: 2;
-    padding-bottom: 1rem;                              /* title↔第一個 row 多留呼吸（user 2026-07-09 二反饋，原 0.5rem 太貼）*/
-    box-shadow: 0 -1px 0 var(--faculty-panel-bg);      /* 上補 1px 蓋 sticky title 頂 sub-pixel 縫（捲過內容從縫露線；user 2026-07-09）*/
+    padding-bottom: 1rem;                              /* title↔第一個 row 呼吸 */
+    box-shadow: 0 -1px 0 var(--faculty-panel-bg);      /* 上補 1px 蓋 sticky title 頂 sub-pixel 縫（捲過內容會露線） */
   }
   /* profile 左欄天然固定（右欄獨立捲、左欄不在捲動流）→ 不 sticky */
   #faculty-panel #faculty-profile-block {
     position: static;
   }
-  /* 左欄 sticky 是直向手機的行為（cards.css <768 改 float 版）：矮橫向左欄不捲動流、維持 grid 兩欄制 →
-     float/sticky/margin 全數還原（667 寬小機橫向兩個 media 都命中） */
+  /* 直向手機左欄 sticky float 版（cards.css <768）不適用：矮橫向維持 grid 兩欄 → float/sticky/margin 還原
+     （667 寬橫向兩個 media 都命中） */
   #faculty-panel .faculty-grid-row > span:first-child,
   #faculty-panel .faculty-grid-row-award > span:nth-child(-n+2) {
     position: static;
     background: transparent;
+  }
+  /* 獲獎 row 的 float/width 由下方 .faculty-grid-row-award 規則給 */
+  #faculty-panel .faculty-grid-row > span:first-child {
     float: none;
     width: auto;
   }
-  /* 詳情 row 照手機 layout（user 2026-07-04「照著手機去 layout」；複製 cards.css max-width:767 block）：
-     桌面 4 欄 grid 在 60% panel 會切字 → 手機兩欄制＝左欄年份固定 4rem、右欄其餘內容逐列 stack、自然換行。
-     ⚠️ cards.css 手機 block 改動時同步（2026-07-13 起 <768 是 float 版，這裡自成 grid 版不再逐條同步）。 */
+  /* 詳情 row 用手機兩欄制：左欄年份 4rem、右欄逐列 stack 自然換行（桌面 4 欄 grid 會切字）。
+     cards.css <768 是 float 版，這裡自成 grid 版、不逐條同步。 */
   #faculty-panel .faculty-grid-row {
     display: grid;   /* 蓋 cards.css <768 的 flow-root（左欄 sticky float 版） */
     grid-template-columns: 4rem 1fr;
@@ -622,8 +534,7 @@
   #faculty-panel .faculty-rows {
     gap: 2rem;
   }
-  /* 獲獎 row：左右兩欄各自獨立 flow（同步 cards.css 手機 block 2026-07-09 float 版）：
-     year/country 浮動左欄軌直排、name/category 一般 block——category 緊貼 name、不被左欄高度拖遠 */
+  /* 獲獎 row：year/country 浮動左欄、name/category 一般 block（category 緊貼 name、不被左欄高度拖遠）；同 cards.css 手機 block */
   #faculty-panel .faculty-grid-row-award {
     display: flow-root;
   }
@@ -640,8 +551,7 @@
   #faculty-panel .faculty-grid-row-award > span:nth-child(4) {
     margin-top: 0.25rem;
   }
-  /* 學歷 row 矮橫向同步拿掉左欄 4rem 固定寬（2026-08-03，同 cards.css 手機版理由：country 併入
-     學校名稱後首欄變長字）：3 個 span 全落 col1、grid-template 單欄，靠 row-gap 排開 */
+  /* 學歷 row 拿掉左欄 4rem 固定寬（同 cards.css 手機版：country 併入學校名後首欄變長）：3 span 全落單欄、靠 row-gap 排開 */
   #faculty-panel .faculty-grid-row-education {
     grid-template-columns: 1fr;
   }
@@ -651,8 +561,7 @@
     margin-left: 0;
     margin-top: 0;
   }
-  /* Contact 內文同步升 p1 對齊詳情 row（同 cards.css 手機 block；admin tab 的 Contact 是唯一內容區塊，
-     不升會比 fulltime 的 row 小一階，user 2026-07-04） */
+  /* Contact 內文升 p1 對齊詳情 row（同 cards.css 手機 block；不升會比 fulltime row 小一階） */
   #faculty-panel .faculty-contact-text {
     font-size: var(--font-size-s);
   }
@@ -666,14 +575,11 @@
     white-space: normal;
   }
 
-  /* 5e) admission 橫向（user 2026-07-09 wireframe，取代 2026-07-04 拆 frame 橫排版）：
-        ① nav btn 進 header 帶（position:fixed，同 faculty 5）——logo 右側、避開右上 mode/menu、z-55 高於
-           header 直接可點；left:128 = list 對齊點。
-        ② list 對齊 nav btn 左緣：scroll-col 全寬 + padding-left（--adm-ls-indent 104 → 內容起 24+104=128）。
-        ③ logo 下方（左 gutter 24~128）：announcement 留白；camp 放年份（year toggle absolute 投影進 gutter、
-           items 收平全寬 flush 128）。
-        section 仍自然高 + window 捲（拆 frame，JS getScrollableBox 看 computed overflow:visible 走 window 路徑）。
-        --adm-ls-indent：scroll-col padding 與 year toggle 投影距離共用一個值，改一處同步。 */
+  /* 5e) admission：① nav btn fixed 進 header 帶（同 faculty）、left 128 = list 對齊點。
+     ② list 對齊 nav btn 左緣：scroll-col padding-left --adm-ls-indent 104（內容起 24+104=128）。
+     ③ logo 下方 gutter（24~128）：announcement 留白；camp 年份 absolute 投影進 gutter、items flush 128。
+     section 自然高 + window 捲（JS getScrollableBox 看 computed overflow:visible 走 window 路徑）。
+     --adm-ls-indent 同時給 scroll-col padding 與年份投影距離，改一處同步。 */
   body #admission-content-section {
     --adm-ls-indent: 104px;
     height: auto;                       /* 蓋 md:h-screen */
@@ -686,10 +592,8 @@
     display: block;                     /* 蓋 md:grid */
     height: auto;                       /* 蓋 lists.css 100vh */
   }
-  /* nav 進 header 列（同 faculty 5 / about 5i）：fixed 在 logo 右側、垂直置中於 92 帶內。
-     hero 屏藏/捲到 content section 才現＝JS clip-path（admission-section-switch.js IO -45%，user
-     2026-07-10 定為原則：nav btn 進出場 clip-path 非 opacity、同 curriculum/faculty），CSS 不設
-     opacity；pointer-events 也由 JS 切。 */
+  /* nav fixed 進 header 帶、垂直置中 92 帶（同 faculty / about 5i）。hero 屏藏、進 content 才現＝JS clip-path
+     （admission-section-switch.js IO -45%），CSS 不設 opacity；pointer-events 也由 JS 切。 */
   #admission-content-section .inner-scroll-nav-col {
     position: fixed;
     top: 0;
@@ -710,8 +614,7 @@
     scrollbar-width: none;
     gap: var(--spacing-md);
     margin: 0;
-    /* 四邊 0.75rem：overflow clip 容器內給 active chip 旋轉（±4~6°）上下投影/角落 clearance——
-       原 0.25rem 0 不夠、chip 頂被平切（user 2026-07-10 截圖）；同 faculty nav 修法 */
+    /* 四邊 0.75rem：clip 容器內給 active chip 旋轉（±4~6°）上下/角落 clearance（0.25rem 會平切 chip 頂） */
     padding: 0.75rem;
     width: 100%;
   }
@@ -721,7 +624,7 @@
   #admission-content-section .inner-scroll-scroll-col {
     margin-top: 0;
     height: auto;
-    overflow: visible;                  /* 兩軸一起（軸連動雷，同 5d/5f）→ 走 window 捲 */
+    overflow: visible;                  /* 兩軸一起（軸連動雷）→ 走 window 捲 */
     padding-left: var(--adm-ls-indent); /* 內容對齊 nav btn 左緣（128） */
   }
   /* 描述塊：桌面 col-start-6 收回全寬 → 跟著 scroll-col padding 對齊 128（direct child 只中描述 grid-12，
@@ -729,14 +632,13 @@
   #admission-content-section .activities-panel > .grid-12 > div {
     grid-column: 1 / -1;
   }
-  /* camp 年份投影進左 gutter（logo 下方）：year-group relative；年份欄（year-group 內非 items 的那個 div，
-     summer-camp 是非-toggle 版故不含 .list-year-toggle class → 用 :not(.list-year-items) 兼容兩版）
-     absolute 到 padding 外側（left = -indent，回到 container 邊 24）；items 收平全寬 flush 128（對齊 nav btn 左緣） */
+  /* camp 年份投影進左 gutter（logo 下方）：年份欄（summer-camp 非-toggle 版無 .list-year-toggle → 用 :not(.list-year-items) 兼容兩版）
+     absolute 到 padding 外（left = -indent，回到 container 邊 24）；items 收平全寬 flush 128 */
   #admission-content-section .list-year-group {
     position: relative;
   }
-  /* selector 用 `> div:first-child` 對齊 lists.css:579 `#panel-summer-camp .list-year-group > div:first-child`
-     （那條 min-width:768 設 position:sticky，(1,2,1)）——同特異度、landscape.css 在 lists.css 後載入 → source order 蓋成 absolute */
+  /* selector 用 `> div:first-child` 對齊 lists.css `#panel-summer-camp .list-year-group > div:first-child`
+     （min-width:768 設 sticky，(1,2,1)）——同特異度、本檔在 lists.css 後 → source order 蓋成 absolute */
   #admission-content-section .list-year-group > div:first-child {
     position: absolute;
     top: 0;
@@ -753,10 +655,8 @@
   #admission-content-section .list-header.active {
     top: 96px;
   }
-  /* 手機 header blocker（元素帶 md:hidden 在 ≥768 被藏 → 這裡強制顯示）：sticky top:0 的 96px theme-bg
-     帶，補實透明 fixed header 底下的帶。**2026-07-09 改常駐**（原只 .list-has-pinned-header 時顯示）：
-     nav btn 進 header 後，捲動時 description（z-20）/ list 內容會透過透明 header 疊到 fixed nav 上
-     → 需一條常駐不透明帶（z-40 > 內容 z-20、< header z-50 / nav z-55）遮住捲過的內容。 */
+  /* 手機 header blocker（md:hidden 在 ≥768 被藏 → 強制顯示）：sticky top:0 的 96px theme-bg 帶，常駐——
+     nav 進 header 後，捲過的 description/list 會透過透明 header 疊到 nav 上；z-40 > 內容 z-20、< header 50 / nav 55。 */
   body #admission-content-section .list-mobile-header-blocker {
     display: block;
     position: sticky;
@@ -767,16 +667,14 @@
     z-index: 40;
   }
 
-  /* 5f) activities 拆 frame（user 2026-07-04）＋ nav 進 header（user 2026-07-10 三改：比照 admission 5e）：
-        section 自然高 + window 捲、sticky title 釘 96 + blocker 常駐（同 5e）。
-        JS 分流全靠 getScrollableBox 系實況偵測（activities-section-switch / activities-search / list-accordion），
-        本區把 box overflow 改 visible 後自動走 window（手機）路徑；faculty 仍保留 frame 不受影響。
-        邊界交棒 initBoxSnapHandoff 有「box 不可捲即 return」guard → 自動 no-op。 */
+  /* 5f) activities 拆 frame＋nav 進 header（同 5e）：section 自然高 + window 捲、sticky title 釘 96 + blocker 常駐。
+     JS 分流靠 getScrollableBox 實況偵測（activities-section-switch / activities-search / list-accordion）：
+     box overflow 改 visible 後自動走 window 路徑；initBoxSnapHandoff 有「box 不可捲即 return」guard → no-op。 */
   body #activities-content-section {
-    height: auto;                       /* 蓋 md:h-screen（inline min-height:100vh 保留，短 panel 撐高無害） */
+    height: auto;                       /* 蓋 md:h-screen（inline min-height:100vh 保留無害） */
     overflow: visible;                  /* 蓋 md:overflow-hidden */
     /* 96＝blocker 高度下限（margin-top -96 的 blocker 自然位不可高出 section 頂、否則白帶戳進 hero）；
-       子分類 chip 的旋轉 clearance 由 filter bar 自己的 padding-top 提供（見下），user 2026-07-10 五改「上方空間再減」 */
+       子分類 chip 旋轉 clearance 由 filter bar padding-top 給（見下） */
     padding-top: 96px;                  /* 蓋 md:pt-0：手機式 header 讓位 */
     padding-bottom: var(--spacing-2xl); /* 蓋 md:pb-0 */
   }
@@ -786,15 +684,12 @@
     height: auto;                       /* 蓋 lists.css 100vh */
     gap: var(--spacing-md);
   }
-  /* nav 進 header 列（user 2026-07-10「跟其他頁一樣 logo 右側排到 mode 鈕左邊」；同 5e admission）：
-     fixed 在 logo 右側、垂直置中 92 帶內；9 顆超寬＝被右緣裁掉、bar 內 overflow-x 左右滑。
-     hero 屏藏/捲到 content 才現＝JS clip-path（activities-section-switch.js 嚴格 hero gate，同 admission
-     setNav）；pointer-events 也由 JS 切。 */
+  /* nav fixed 進 header 帶（同 5e）：logo 右側、垂直置中 92 帶；超寬被右緣裁、bar 內 overflow-x 左右滑。
+     hero 屏藏、捲到 content 才現＝JS clip-path（activities-section-switch.js 嚴格 hero gate）；pointer-events 也由 JS 切。 */
   #activities-content-section .inner-scroll-nav-col {
     position: fixed;
     top: 0;
-    /* 128/172 各外移 0.75rem 抵銷 bar 的旋轉 clearance padding → chip 左緣對齊 128；
-       右 172 = 鈕區 140 + 32 gap（user 2026-07-12「最右邊離 mode 鈕再大一點」） */
+    /* 128/172 各外移 0.75rem 抵銷 bar 旋轉 clearance padding → chip 左緣對齊 128；右 172 = 鈕區 140 + 32 gap */
     left: calc(128px - 0.75rem);
     right: calc(172px - 0.75rem);
     height: 92px;
@@ -802,17 +697,17 @@
     align-items: center;
     z-index: 55;
     padding-top: 0;
-    min-height: 0;                      /* 蓋 md:min-h（frame 時代規則） */
+    min-height: 0;                      /* 蓋 md:min-h */
   }
   #activities-content-section .activities-section-bar {
-    flex-direction: row;                /* 蓋 md:flex-col：9 顆 nav 橫排 chips */
+    flex-direction: row;                /* 蓋 md:flex-col：nav 橫排 chips */
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: clip;
     scrollbar-width: none;
     gap: var(--spacing-md);
     margin: 0;                          /* fixed 定位不需負 margin bleed */
-    /* 四邊 0.75rem：overflow clip 容器內給 active chip 旋轉（±4~6°）投影 clearance（同 5e/faculty 修法） */
+    /* 四邊 0.75rem：clip 容器內給 active chip 旋轉（±4~6°）clearance（同 5e/faculty） */
     padding: 0.75rem;
     width: 100%;
   }
@@ -820,54 +715,47 @@
   #activities-content-section .activities-section-bar > * {
     flex-shrink: 0;
   }
-  /* buttons.css 的 .activities-filter-bar::before（桌面 sticky top:200 向上 200px 白遮罩）在本 gate 是災難：
-     bar 已改 static、::before 的 absolute 改依附上層定位元素 → 白帶正好落在 content section 上方 200px
-     ＝蓋住 hero banner 下半（user 2026-07-10 截圖）。拆 frame 後 bar 會捲走、不需要遮罩 → 直接停用。 */
+  /* 停用 buttons.css .activities-filter-bar::before（桌面 sticky 向上 200px 白遮罩）：bar 改 static 後 absolute ::before
+     依附上層定位元素 → 白帶落在 section 上方蓋住 hero banner。拆 frame 後 bar 會捲走、不需遮罩。 */
   #activities-content-section .activities-filter-bar::before {
     content: none;
   }
-  /* nav→子分類間距縮小（user 2026-07-10 四改）：panel 的 --chip-clearance padding-top 是桌面 frame
-     sticky 配套（lists.css），拆 frame + nav 進 header 後不需要 → 歸零；Temporary chip 直接從
-     section pt 104 開始＝nav 帶（92）下方 12px。⚠️ pt 再往下壓要留意 chip 旋轉頂角別戳進常駐 blocker（z-40 蓋 chip z-10）。 */
+  /* panel 的 --chip-clearance padding-top 是桌面 frame sticky 配套（lists.css）→ 歸零，chip 直接從 section pt 起排。
+     ⚠️ pt 再往下壓要留意 chip 旋轉頂角別戳進常駐 blocker（z-40 蓋 chip z-10）。 */
   #activities-content-section .activities-panel {
     padding-top: 0;
   }
-  /* search bar → 第一筆 list 的 pb：HTML pb-lg(32) 收成 md（user 2026-07-10「改成 md 就好」；只動矮橫向） */
+  /* search bar → 第一筆 list：HTML pb-lg 收成 md */
   #activities-content-section .activities-filter-bar > .grid-12 {
     padding-bottom: var(--spacing-md);
   }
   #activities-content-section .inner-scroll-scroll-col {
     margin-top: 0;
     height: auto;
-    overflow: visible;                  /* 兩軸一起（軸連動雷，同 5d/5e） */
+    overflow: visible;                  /* 兩軸一起（軸連動雷） */
     align-self: stretch;
     padding-top: 0;                     /* 蓋 --chip-clearance 的 padding-top（frame 裁切補償，拆 frame 不需要） */
   }
-  /* filter/search bar：手機不黏（md:sticky 蓋回 static；bar 會捲走，跟 portrait 行為一致），
-     搜尋收合由 window scroll handler 接管（activities-search isDesktopInnerScroll 實況偵測回 false）。
-     padding-top 12＝子分類 active chip 旋轉頂角 clearance：blocker（sticky、緊鄰在前）的下緣在自然位
-     恆等於本 bar 頂（幾何恆等式，調 margin/pt 都改不掉）、z-40 蓋 chip z-10 → 頂角凸出 bar 頂就被切
-     （user 2026-07-10「子 btn 不能被切」）。旋轉 −4~+6°×寬 ~170 → 凸 ~9px，12 給足；chip 視覺頂 ≈ 99。 */
+  /* filter/search bar 不黏（md:sticky 蓋回 static、隨頁捲走，同 portrait）；搜尋收合由 window scroll handler 接管
+     （activities-search isDesktopInnerScroll 實況偵測回 false）。
+     padding-top 12＝子分類 active chip 旋轉頂角 clearance：sticky blocker 下緣在自然位恆等於本 bar 頂（調 margin/pt 改不掉）、
+     z-40 蓋 chip z-10 → 頂角凸出 bar 頂就被切。旋轉 −4~+6°×寬 ~170 → 凸 ~9px，12 給足。 */
   #activities-content-section .activities-filter-bar {
     position: static;
     padding-top: 12px;
   }
-  /* sticky title 釘 96 + 手機 header blocker（同 5e admission，兩區規則平行；96 與 JS 拆-frame 分支同步） */
+  /* sticky title 釘 96（同 5e admission；96 與 JS 拆-frame 分支同步） */
   #activities-content-section .list-header.active {
     top: 96px;
   }
-  /* 年份欄（user 2026-07-04 三項）：
-     ①釘點對齊 96——updateStickyTop（activities-data-loader）用 filter bar computed top 算 inline top，
-       橫向 bar 是 static → top:auto → 算出 bar 高(~139) 跟 list header 的 96 對不上＝「開的 item 沒對齊年份」；
-       !important 蓋 JS inline（ResizeObserver 會反覆重設）。
-     ②chevron 完全靠左：拔 pl-xs（8px）。
-     （年份欄→title 間距曾試 2xl/64，user 拍板改回原 41px＝md:pl-[41px] 原值，不另設規則） */
+  /* 年份欄：①釘點對齊 96——updateStickyTop（activities-data-loader）用 filter bar computed top 算 inline top，
+     bar static → 算出 bar 高 ~139 對不上 list header 96；!important 蓋 JS inline（ResizeObserver 會反覆重設）。
+     ②chevron 靠左：拔 pl-xs。 */
   #activities-content-section .list-year-toggle {
     top: 96px !important;
     padding-left: 0;
   }
-  /* blocker 改常駐（同 5e admission 2026-07-09）：nav 進 header 後，捲動時 filter bar / list 內容會
-     透過透明 header 疊到 fixed nav 上 → 常駐不透明帶（z-40 > 內容、< header z-50 / nav z-55）遮住。 */
+  /* blocker 常駐（同 5e）：遮住捲過透明 header、疊到 fixed nav 上的 filter bar / list（z-40 > 內容、< header 50 / nav 55）。 */
   body #activities-content-section .list-mobile-header-blocker {
     display: block;
     position: sticky;
@@ -878,15 +766,10 @@
     z-index: 40;
   }
 
-  /* 5f+) legal 四頁（donate/regulations/accessibility/policy-and-statements）矮橫向（user 2026-09-24）：
-        比照 hero 慣例「矮橫向沿用桌面版面、只收緊矮高偏移」——保留左右兩欄 frame，不改手機 stack。
-        ①右欄 box 頂：legal.css 的 margin-top = --header-height(未定義→fallback 96) + 3xl 96 ＝ 192px，
-          390px 高的窗吃掉半屏（user「右邊區塊上面大空白」）→ 收成 104（92 白帶 + 12 呼吸，同 5e admission 錨定）。
-        ②左欄 title chip 貼底的 padding-bottom 3xl→xl：REGULATIONS 兩行 stack ~230px 在 390 高頂緣落 ~63
-          < 92 ＝鑽進 .mobile-header-bg 不透明白帶被蓋（768-1199 平板段無 orientation 限制、矮橫向命中）
-          → 抬離底部後最壞頂緣 ~110 > 92（user「regulation 卡片被切到」）。
-        ③100vh→100svh（工具列高估，同 2a/4）。
-        ≥768 限定：667 等窄橫向寬 <768 已走 legal.css 手機 stack，不可套 frame 偏移。 */
+  /* 5f+) legal 頁（donate/regulations/sitemap）：沿用桌面兩欄 frame、只收緊矮高偏移。
+     ①右欄 box 頂：legal.css margin-top（--header-height fallback 96 + 3xl 96 ＝ 192）在 390 高吃半屏 → 104（92 帶 + 12，同 5e）。
+     ②左欄 title chip pb 3xl→xl：REGULATIONS 兩行 ~230px 頂緣會落 ~63 < 92、鑽進 .mobile-header-bg 白帶被蓋 → 抬後最壞 ~110。
+     ③100vh→100svh（同 2a）。≥768 限定：<768 窄橫向已走 legal.css 手機 stack，不可套 frame 偏移。 */
   @media (min-width: 768px) {
     main .legal-page-section {
       height: 100svh;
@@ -901,17 +784,15 @@
     }
   }
 
-  /* 5g) 首頁比照手機版（user 2026-07-04）：WATCH 圓卡縮手機尺寸（cards.css 桌面 160/手機 96 的手機值）；
-        漂浮 items 數量（12）與 news banner slot/寬度由 floating-items.js / index-marquee.js 的
-        isMobile 判斷加同款 gate 處理（JS 端）。 */
+  /* 5g) 首頁比照手機版：WATCH 圓卡縮手機尺寸（cards.css 桌面 160/手機 96）；漂浮 items 數量與 news banner
+     slot/寬度由 floating-items.js / index-marquee.js 的版型判斷處理（JS 端）。 */
   body .homepage-card {
     width: 96px;
     height: 96px;
   }
-  /* 5g+) index WATCH 播放器（user 2026-07-10）：保留 control bar + 全螢幕，返回鍵改常駐
-     mobileCloseBtn 釘右上、箭頭轉 →（對齊全站 slide-in 返回鍵；video-player.js 矮橫向分支顯示它、
-     藏 controls 內返回塊）。bar 高 48→44（最小可點）＋兩側 padding 收（inline 24rem 是桌面寬值，
-     844 寬只剩 76px 可用＝截圖擠成一小坨）。inline style 都要 !important 蓋。 */
+  /* 5g+) index WATCH 播放器：保留 control bar + 全螢幕；返回鍵改常駐 mobileCloseBtn 釘右上、箭頭轉 →
+     （video-player.js 矮橫向分支顯示它、藏 controls 內返回塊）。bar 高 44（最小可點）＋兩側 padding 收
+     （inline 24rem 是桌面寬值，844 寬只剩 76px）。inline style 都要 !important 蓋。 */
   body #video-mobile-close-btn {
     top: 24px !important;          /* 蓋 inline top:6rem（直向 logo 下）；矮橫向對齊 header 帶右側 */
     left: auto !important;
@@ -922,9 +803,7 @@
     transform: rotate(180deg);     /* ← 轉 →：與 faculty/courses slide-in 右上返回鍵一致 */
   }
   body #video-controls {
-    /* bar 收進影片框內、不貼近視窗邊（user 2026-07-10 二反饋「太寬、在視窗內就好」）。
-       比例制 10vw（user 三反饋「不同手機差別會不會太大」）：667~932 寬全都固定佔 ~80%、
-       視覺比例一致；clamp 下限 56 保最小呼吸、上限 96 防超寬窗過度內縮。 */
+    /* bar 收進影片框內：10vw 比例制讓 667~932 寬都佔 ~80%；clamp 下限 56 保呼吸、上限 96 防超寬過度內縮。 */
     padding: 0 clamp(56px, 10vw, 96px) !important;
     bottom: 1.25rem !important;
   }
@@ -936,7 +815,7 @@
     padding: 0 0.75rem !important;
     gap: 0.75rem !important;
   }
-  /* 全螢幕鈕＝正方形 44×44（user 2026-07-10 二反饋「方形不要長方形」；同 mobileCloseBtn 尺寸） */
+  /* 全螢幕鈕＝正方形 44×44（同 mobileCloseBtn） */
   body #video-block-fullscreen {
     width: 44px;
     padding: 0 !important;
@@ -953,25 +832,20 @@
     justify-content: center;
   }
 
-  /* 5h) library 矮橫向＝手機 JS 路徑 + tabs 左欄（user 2026-07-04，awards 起步）：
-        main-modular library init gate 已含矮橫向（走 tab bar/showPanel、跳過桌面 card stack 幾何、
-        press/files/album 的 year-picker DOM 搬移仍限真手機）。shell 沿用手機 v5 中和規則
-        （position/transform/clip 全 !important 釘死），但 tabs 改「左欄直排」、灰卡佔右側滿高；
-        panel 內部維持桌面版（awards 的 year picker 左欄 + list 右欄）。
-        :has scope 只命中 library section，不誤傷同樣 body.overflow-hidden 的 atlas/create。 */
+  /* 5h) library：main-modular library init gate 已含矮橫向（走 tab bar/showPanel、跳過桌面 card stack 幾何；
+     press/files/album 的 year-picker DOM 搬移仍限真手機）。shell 沿用手機 v5 中和規則（position/transform/clip !important 釘死）；
+     tabs 進 header 帶、panel 內部維持桌面版。:has 只中 library section，不誤傷同樣 body.overflow-hidden 的 atlas/create。 */
   body.overflow-hidden main#page-content > section:has(> #library-card-main) {
     display: flex;
     flex-direction: row;
     min-height: 0;
     overflow: hidden;
-    /* 整體上移（user 2026-07-04：logo 縮 40px 後 header 不用佔 96）：!important 蓋 HTML inline
-       margin-top/height 的 var(--header-height)。72 = 按鈕列底(~68) + 呼吸。 */
+    /* 整體上移：!important 蓋 HTML inline margin-top/height 的 var(--header-height)。72 = 按鈕列底(~68) + 呼吸。 */
     margin-top: 72px !important;
     height: calc(100vh - 72px) !important;
   }
-  /* tabs 移進 header 帶（user 2026-07-04 二改：利用 logo 與 mode 鈕之間的空位；原左欄退役）：
-     fixed 在按鈕列高度內水平置中排列，超寬可橫滑；z:40 低於 header(z-50)＝menu 面板照常蓋過。
-     tabs 脫離 flow → 灰卡成為 section 唯一 flex child、拿回全寬。 */
+  /* tabs 進 header 帶（logo 與 mode 鈕之間）：fixed、水平置中、超寬可橫滑；z:40 低於 header(z-50)＝menu 面板照常蓋過。
+     tabs 脫離 flow → 灰卡拿回全寬。 */
   body .library-mobile-tabs {
     position: fixed;
     top: 0;
@@ -982,7 +856,7 @@
     flex-direction: row;
     align-items: center;
     gap: var(--spacing-lg);
-    /* overflow clip 在 padding-box 邊：active chip 凸出量要留在 padding 內才不被切（user 報「榮譽左邊被切」） */
+    /* overflow clip 在 padding-box 邊：active chip 凸出量要留在 padding 內才不被切 */
     padding: 0 12px;
     margin: 0 !important;
     overflow-x: auto;
@@ -997,9 +871,8 @@
     flex: none;
     white-space: nowrap;
   }
-  /* header（z-50）整條蓋在 tabs（z-40）上會攔截點擊 → 已由全站 header 放行規則解決（navigation.css
-     `#site-header header` pe:none＋互動容器吃 --header-pe，2026-09-28 取代本段原矮橫向專用 !important 鏈）。
-     不能反過來把 tabs 抬到 z>50：menu 面板在 header 的 stacking context 內，tabs 會蓋住打開的 menu。 */
+  /* tabs 點擊靠全站 header 放行規則（navigation.css `#site-header header` pe:none＋--header-pe）。
+     不能把 tabs 抬到 z>50：menu 面板在 header stacking context 內，tabs 會蓋住打開的 menu。 */
   body #library-card-stack {
     display: none !important;
   }
@@ -1010,7 +883,7 @@
     min-height: 0 !important;
     width: auto !important;
     height: auto !important;
-    /* 左緣對齊第一顆分頁 btn（tabs 內容起點 104，user 2026-07-04） */
+    /* 左緣對齊第一顆分頁 btn（tabs 內容起點 104） */
     margin: var(--spacing-md) var(--spacing-md) var(--spacing-md) 104px !important;
     transform: none !important;
     background: var(--lib-bg);
@@ -1043,14 +916,13 @@
   [id^="lib-panel-"] > .lib-panel-title {
     display: none !important;
   }
-  /* ③ award ticker 縮小（同手機 40px；!important 蓋 JS inline height:60px）。
-        pt 給 sm（user 2026-09-20：橫向 list 貼 logo 太近；手機直向維持 0 是 06-12 舊拍板、勿同步） */
+  /* ③ award ticker 縮小（!important 蓋 JS inline height:60px）；pt sm 讓 list 別貼 logo（手機直向維持 0，勿同步） */
   body #library-awards-ticker {
     padding-top: var(--spacing-sm) !important;
     padding-bottom: var(--spacing-sm) !important;
   }
   body #library-awards-ticker img {
-    height: 28px !important;   /* user 二調：40 再小一點 */
+    height: 28px !important;
     aspect-ratio: 300 / 117 !important;
     width: auto !important;
     object-fit: contain !important;
@@ -1059,13 +931,9 @@
     gap: var(--spacing-lg) !important;
     padding-right: var(--spacing-lg) !important;
   }
-  /* ③b awards 年份欄對齊其他三頁（user 2026-07-12 二輪）：年份→list 視覺距比其他頁大的真因＝
-        左欄被 visibility:hidden 的「Year 年份」spacer p 撐寬（max-content 吃它的字寬），
-        spacer 縮 0 寬（高度保留、picker 下推對齊功能不變）→ 欄寬=年份字寬、外層 gap 維持
-        inline 2xl 與其他三頁完全一致。主表/ref 列 cell gap 1rem 由 JS render 時直接給
-        （library-panels.js AWARD_GRID 依 isShortLandscape 切，user 2026-07-12 指定不用 CSS 蓋 inline）。
-        files 年份 sticky 標題 pb 統一 0.25rem 同其他三頁（桌面 sm=16 是卡片區留白搬進標題、不動）；
-        #id 提特異度贏動態載入 library.css 的同 selector。 */
+  /* ③b awards 年份欄對齊其他三頁：左欄被 visibility:hidden 的「Year 年份」spacer p 撐寬 → spacer 縮 0 寬
+     （高度保留、picker 對齊不變）。主表/ref 列 cell gap 由 JS 給（library-panels.js AWARD_GRID 依 isShortLandscape，勿用 CSS 蓋 inline）。
+     files 年份 sticky 標題 pb 統一 0.25rem。#id 提特異度贏動態載入 library.css 的同 selector。 */
   #lib-panel-awards > div[style*="grid"] > div:first-child > p[aria-hidden="true"] {
     width: 0;
     white-space: nowrap;
@@ -1074,9 +942,8 @@
   #library-files-list .press-year-label {
     padding-bottom: 0.25rem;
   }
-  /* ④ 主表 cell（競賽/主辦/獎項/名次）窄欄 crop → 逐行 marquee：
-        .award-cell-line/.award-cell-inner 由 render 常駐包好（桌面無這些規則＝零視覺差），
-        JS runMarqueeOverflow 只在矮橫向掃描；keyframes press-marquee 在 library.css 全域。 */
+  /* ④ 主表 cell 窄欄 crop → 逐行 marquee：.award-cell-line/-inner 由 render 常駐包好（桌面無規則＝零視覺差），
+     JS runMarqueeOverflow 只在矮橫向掃描；keyframes press-marquee 在 library.css 全域。 */
   #library-awards-list .award-mid .award-cell-line {
     display: block;
     max-width: 100%;
@@ -1095,8 +962,7 @@
   #library-awards-list .award-cell-line.is-overflow .award-cell-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
-  /* 得獎人欄：同手機直排 + 個別 marquee（applyWinnersHMarquee 矮橫向走手機分支；
-     規則複製 library.css 手機 block，該處改動要同步） */
+  /* 得獎人欄：同手機直排 + 個別 marquee（applyWinnersHMarquee 矮橫向走手機分支）；規則複製 library.css 手機 block，改動要同步 */
   #library-awards-list .award-winners {
     overflow: hidden !important;
     width: auto !important;
@@ -1106,8 +972,7 @@
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
-    /* 得獎人之間行距對齊桌面 09-13 拍板「行距使用英中的那個」（library.css .award-winners-col 同 token）；
-       舊值 spacing-xs(8px) 是複製手機 block 的殘留＝多得獎人列 gap 突兀（user 2026-09-20） */
+    /* 得獎人行距同桌面 .award-winners-col 的 token（不跟手機 block 的 spacing-xs） */
     gap: var(--space-en-zh-xs) !important;
     width: 100% !important;
     animation: none !important;
@@ -1142,8 +1007,7 @@
   #library-awards-list .award-winner-zh.is-overflow .award-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite !important;
   }
-  /* album 分類 chips 單行左右滑（user 2026-07-04：wrap 四行吃掉半張卡）：
-     !important 蓋 HTML inline flex-wrap:wrap；藏 scrollbar、chips 不縮不折行 */
+  /* album 分類 chips 單行左右滑（wrap 會吃掉半張卡）：!important 蓋 HTML inline flex-wrap:wrap */
   body #library-album-cat-filter {
     flex-wrap: nowrap !important;
     overflow-x: auto;
@@ -1157,15 +1021,12 @@
     flex: none;
     white-space: nowrap;
   }
-  /* Documents 卡片一列 3 個（桌面 5 太擠、user 指定 3） */
+  /* Documents 卡片一列 3 個（桌面 5 太擠） */
   body .files-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  /* press / files / album 標題溢出自動 marquee（user 2026-07-06：橫向落在桌面 hover 規則區、觸控沒 hover
-     ＝長 title 靜止被切）：複製 library.css 手機 block（max-width:767）的自動播規則，
-     .is-overflow/時長距離由 JS 全寬度照量、keyframe press-marquee 全域 → 掛上 animation 即接上。
-     album item 同用 .files-item-title-* class、files 規則自動涵蓋。⚠️ 手機 block 改動時同步。
-     2026-09-24 補 files 副標 EN/ZH 兩行：手機 block 09-10 補副標漏掛時這裡沒同步＝橫向副標靜止被切。 */
+  /* press/files/album 標題溢出自動 marquee（觸控無 hover、長 title 會靜止被切）：複製 library.css 手機 block 自動播規則
+     （album 共用 .files-item-title-*；含 files 副標 EN/ZH）。.is-overflow/距離由 JS 量、keyframe press-marquee 全域。⚠️ 手機 block 改動時同步。 */
   .press-item .press-item-title-en.is-overflow .press-marquee-inner,
   .press-item .press-item-title-zh.is-overflow .press-marquee-inner,
   .press-item .press-item-subtitle.is-overflow .press-subtitle-inner,
@@ -1177,16 +1038,12 @@
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
 
-  /* 5i) about 矮橫向（user 2026-07-07）：
-        ① 左側 anchor nav（#anchor-nav）移進 header 帶——同 5h library tabs pattern：fixed 在
-          logo 與 mode 鈕之間、z:40 低於 header(z-50)；點擊放行靠全站 header 放行規則（navigation.css --header-pe）
-          （該鏈不分頁面、本 gate 全域生效）。左欄 track 本來就 width:0，nav fixed 後版面零位移。
-        ② vision 文字對齊手機版：字級 h5→p1（同直向手機 text-s）、[data-overview-hl] 45vh 內捲
-          （同 variables.css 手機 block）；nav 退出左欄後兩欄文字重分全寬（原 col 5-12 / 13-20
-          是留給左欄 nav 的空位）。 */
+  /* 5i) about：① #anchor-nav 移進 header 帶（同 5h library tabs）：fixed 在 logo 與 mode 鈕之間、z:40 低於 header；
+     點擊靠全站 header 放行規則（--header-pe）。左欄 track 本就 width:0，nav fixed 後零位移。
+     ② vision 文字對齊手機版：h5→p1、[data-overview-hl] 內捲；nav 退出左欄後兩欄文字重分全寬。 */
   body #anchor-nav {
     position: fixed;
-    top: 0 !important;          /* 蓋 inline top:200px（sticky 時代） */
+    top: 0 !important;          /* 蓋 inline top:200px */
     left: 92px;                 /* 內容起點 104（logo 24+56+呼吸）；12px 挪進 padding 容 active chip 旋轉凸出 */
     right: 136px;               /* mode + menu 鈕區 */
     height: 92px;               /* = 手機 header 列高 */
@@ -1216,7 +1073,7 @@
   #overview .grid-20 p {
     font-size: var(--font-size-s);
   }
-  /* 盒高吃到畫面下緣留 24 呼吸（user 2026-07-07「45vh 太短」）：128 = 落點 104 + spacing-md */
+  /* 盒高吃到畫面下緣留 24：128 = 落點 104 + spacing-md */
   #overview [data-overview-hl] {
     max-height: calc(100svh - 128px);
     overflow-y: auto;
@@ -1225,51 +1082,42 @@
   #overview [data-overview-hl]::-webkit-scrollbar {
     display: none;
   }
-  /* 落點：桌面 scroll-margin 200 在 390 高視窗吃掉半屏；nav 已上移 header 帶 → 104（=帶高 92 + 呼吸）。
-     class/works 原 100 > 92 帶高、本就安全不動。 */
+  /* 落點 104（帶高 92 + 呼吸）：桌面 scroll-margin 200 在 390 高吃掉半屏。 */
   #overview {
     scroll-margin-top: 104px;
     /* 直向 pt-md（strip↔盒間距）在矮橫向會吃掉 24 底部呼吸（上方 hl 預算 128=104+24 不含 pt）→ 歸零 */
     padding-top: 0;
   }
-  /* resources carousel（規則本體在 accordion.css landscape block——上方 overflow:visible !important
-     在 @layer 內、unlayered 的 !important 反而輸給它，故不能搬過來）：
-     這裡只解容器縮排——桌面 col-start-5 是留給左欄 nav 的，carousel 取回全寬。 */
+  /* resources carousel 規則本體在 accordion.css landscape block（那邊的 overflow:visible !important 在 @layer 內，
+     unlayered 的 !important 反而輸它，故不能搬來）；這裡只解容器縮排：col-start-5 是留給左欄 nav 的 → 取回全寬。 */
   #resources-accordion-container {
     grid-column: 1 / -1;
   }
-  /* 頂部 pt-3xl(96) 收 lg(32)：390 高的窗對齊後卡片只露 140px → 上移多露一截；
-     封鎖線是 JS 釘在卡片列上緣（半疊卡頂後方），跟著卡片上移、頂邊仍在 header 帶(92)之下不相撞。 */
+  /* 頂部 pt-3xl 收 lg：390 高對齊後卡片只露 140px → 上移多露一截；封鎖線由 JS 釘在卡片列上緣、跟著上移，
+     頂邊仍在 header 帶(92)之下。 */
   #resources > .site-container {
     padding-top: var(--spacing-lg);
   }
-  /* 落點再上提（user 2026-07-07「對齊點有點下方」）：負 scroll-margin 對齊時多捲 32px、
-     卡片列更高；封鎖線頂緣隨之 ~82、微微探進透明 header 帶但不壓 nav 字。 */
+  /* 落點再上提：負 scroll-margin 多捲 32px；封鎖線頂緣隨之 ~82、微探進透明 header 帶但不壓 nav 字。 */
   #resources {
     scroll-margin-top: -32px;
   }
-  /* nav hero 藏 / 進 footer 前收起＝JS clip-path 雙向（anchor-nav.js 矮橫向分支，user 2026-07-10
-     定為原則：nav btn 進出場 clip-path 非 opacity/translateY、同 curriculum/faculty/admission）；
-     舊 .anchor-nav-footer-hide translateY 版已退役，CSS 不設。 */
+  /* about nav：hero 藏／進 footer 前收起＝anchor-nav.js 矮橫向分支 JS clip-path（非 opacity/translateY），CSS 不設。 */
 
-  /* 5i++) about history（user 2026-07-07 wireframe）：手機版 buildMobile 移植（timeline.js gate 分支、
-     lists.css 手機 timeline block media query 已含 gate）＋ 四欄 grid 重排——
-     [list 鈕] [單圖輪播] [era chip ↑ / 年份卡 ↓] [下一年鈕]；era 在文字卡上方（DOM 序照舊，
-     era row1 貼底、卡 row2 貼頂）。高度預算：390 視窗 − header 帶 ~104 − 上下 padding。 */
-  /* section 撐一屏＋內容垂直置中：內容自然高只 ~250px，不撐高的話 footer 跟 history 擠同一屏
-     → nav 的 footer-hide 在 history 視圖就觸發（過早收起）。封鎖線 strip 是 absolute top:0 不受 flex 影響。
-     落點改頂對齊（user 2026-07-10）：原 96 讓 header 帶下透出 resources 尾巴；貼 0 後上方區塊
-     完全離場、strip(top:0) 自己補位 header 帶後方當 blocker，section 高剛好一屏 → 往下緊接 footer。 */
+  /* 5i++) about history：手機版 buildMobile 移植（timeline.js gate 分支、lists.css 手機 timeline block 已含 gate）＋四欄 grid——
+     [list 鈕] [單圖輪播] [era chip ↑ / 年份卡 ↓] [下一年鈕]；era row1 貼底、卡 row2 貼頂（DOM 序不變）。
+     高度預算：390 視窗 − header 帶 ~104 − 上下 padding。 */
+  /* section 撐一屏＋內容垂直置中：內容只 ~250px，不撐高則 footer 擠進同屏 → nav footer-hide 在 history 視圖就觸發。
+     scroll-margin 0（頂對齊）：96 會讓 header 帶下透出 resources 尾巴；strip(absolute top:0) 自己補位 header 帶後方當 blocker。 */
   #history {
     min-height: 100svh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     scroll-margin-top: 0;
-    /* 矮橫向 timeline 頂對齊（中和 inline padding-top:100）：原由 lists.css 共用 block 的
-       `#history { padding-top:0 }` 提供，2026-09-05 buildStrip 統一後那條移除、改在此保留矮橫向專屬 */
+    /* 中和 inline padding-top:100（timeline 頂對齊） */
     padding-top: 0;
-    padding-bottom: var(--spacing-sm);  /* pb-2xl(64) 收 16：圖高預算變大＋箭頭更貼畫面底 */
+    padding-bottom: var(--spacing-sm);  /* pb-2xl 收 16：圖高預算變大＋箭頭更貼畫面底 */
   }
   /* timeline-area 撐滿 section 剩餘高（inline padding-top:100 之下到 pb 之上）：
      grid 才有「畫面底」可以讓箭頭 align-self:end 貼齊。全程用 flex-grow 傳高、
@@ -1280,25 +1128,19 @@
     display: flex;
     flex-direction: column;
   }
-  /* list view 矮橫向重排（user 2026-07-10）：textbox 移到左右兩顆鈕之間、頂緣讓出 header 帶
-     （lists.css 共用 block 的 top:36 直接頂進透明 header 被蓋住）；「下一時期」箭頭釘回一般模式
-     next 鈕原位＝切換 list 視圖時箭頭位置不動。 */
+  /* list view 重排：textbox 移到左右兩顆鈕之間、頂緣讓出 header 帶（lists.css 共用 block 的 top:36 會頂進透明 header）；
+     「下一時期」箭頭釘回一般模式 next 鈕原位＝切換 list 視圖時位置不動。 */
   .tl-list-grid {
-    /* display:block 讓 .tl-list-cell 脫離桌面 20-col grid（cell grid-column:5/12 在此無效）、
-       填滿 top/bottom/left/right 框；原由 lists.css 共用 block 提供，2026-09-05 統一後改各自宣告 */
+    /* display:block 讓 .tl-list-cell 脫離桌面 20-col grid、填滿 top/bottom/left/right 框（各 gate 各自宣告） */
     display: block;
-    top: 128px;                /* rect 頂落在 header 帶(92)下（buildStrip era-head 在卡內、不再有凸出黑 chip）*/
+    top: 128px;                /* rect 頂落在 header 帶(92)下 */
     bottom: 0;                 /* rect 底 = grid 底 = 一般模式箭頭底 */
-    left: 192px;               /* list 鈕右緣 152 + 40 gap（user 2026-07-10「跟兩顆鈕的 gap 再大一點」） */
+    left: 192px;               /* list 鈕右緣 152 + 40 gap */
     right: 112px;              /* next 鈕左緣（右緣起 72）+ 40 gap */
     padding: 0;
   }
   .tl-list-rect {
     right: 0;                  /* 蓋共用 block 的 12（portrait 讓鈕跨邊用；橫向鈕移到外側原位） */
-  }
-  .tl-list-next-btn {
-    right: -88px;              /* 鈕(48)右緣 = cell 右緣(844−112) + 88 = 820 → 與一般模式 next 鈕同座標 */
-    bottom: 0;
   }
   /* 字卡四邊 padding 0.7em（矮橫向 list view；portrait 走 lists.css 的 md）*/
   .tl-list-content {
@@ -1306,24 +1148,19 @@
     padding-right: var(--spacing-sm);
   }
 
-  /* 5i+) about Programs / class division（user 2026-07-07 wireframe）：
-        ① division tabs 改左欄直排（沿用桌面 chip 設計）；<768 橫向也統一用桌面 markup
-          （強制顯示 hidden md:block 本體、portrait 水平 strip 藏掉）→ 兩種寬度同一套版
-        ② 右側「圖左文右」：圖=單圖置中自動輪播（JS slot gate 已含矮橫向，
-          class-images-slideshow.js）、文字盒內捲（同 portrait [data-class-hl] pattern）
-        ③ works 區照舊全寬排在下方（grid row 2） */
+  /* 5i+) about Programs / class division：① division tabs 改左欄直排（桌面 chip 設計）；<768 橫向也用桌面 markup
+     （強制顯示 hidden md:block 本體、藏 portrait 水平 strip）→ 兩種寬度同一套。
+     ② 右側圖左文右：單圖置中輪播（class-images-slideshow.js slot gate 已含矮橫向）、文字盒內捲。③ works 見 5i+#。 */
   #class-info-sticky-wrapper {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     column-gap: var(--spacing-lg);
-    /* 對齊畫面（user 2026-07-09 三調）：原 calc(15svh+172)≈230 把 tabs 推到視窗底＝沒對齊。
-       padding 歸零＋下方 #class scroll-margin 100→92（=header 帶高）→ tabs 直接貼 header 帶底、
-       無殘留空白；封鎖綫（strip top 15vh）由 wrapper z-index 蓋過、從縫隙露出。 */
+    /* padding 歸零＋#class scroll-margin 92（=header 帶高）→ tabs 直接貼 header 帶底、無殘留空白。 */
     padding-top: 0;
     position: relative;
     z-index: 1;
   }
-  /* #class 落點矮橫向對齊 header 帶底：scroll-snap.css 桌面預設 100 比帶高 92 多 8＝tabs 頂殘留空白 → 92 */
+  /* #class 落點對齊 header 帶底：scroll-snap.css 桌面 100 比帶高 92 多 8 → 92 */
   #class {
     scroll-margin-top: 92px;
   }
@@ -1332,16 +1169,14 @@
     grid-column: 1;
     grid-row: 1 / 3;            /* 跨到 works row：sticky containing block 含 works 視圖才黏得住 */
     align-self: start;          /* 高度=內容，sticky 才有滑移空間（stretch 撐滿 row 高就黏不動） */
-    /* 12px 容 active chip 旋轉凸出（同 anchor-nav 慣例）：貼 0 時第一顆 chip 的旋轉角
-       會探進 header 帶被蓋掉＝「第一個 item 被切到」（user 2026-07-10） */
+    /* 12px 容 active chip 旋轉凸出（同 anchor-nav）：貼 0 時第一顆 chip 旋轉角會探進 header 帶被蓋 */
     padding-top: 12px;          /* 蓋 pt-3xl（避讓已由 wrapper 承擔） */
     padding-left: var(--container-padding);
-    /* sticky top 對齊 header 帶底（HTML inline top:100 是桌面值、比矮橫向帶高 92 多 8 → tabs 黏點
-       比圖文低 8px；!important 蓋 inline）→ tabs 與圖文同貼 header 帶底 */
+    /* sticky top 對齊 header 帶底：!important 蓋 HTML inline top:100（桌面值）→ tabs 與圖文同貼帶底 */
     top: 92px !important;
   }
   #class-works-area > .md\:hidden {
-    display: none;              /* portrait 水平 division strip 退場 */
+    display: none;              /* portrait 水平 division strip 藏 */
   }
   #class-buttons-sticky .site-container {
     padding: 0;
@@ -1353,28 +1188,21 @@
   #class-buttons-sticky .grid-20 > div {
     flex-direction: column;     /* 蓋 HTML flex items-end：chips 直排 */
     align-items: flex-start;
-    /* 兩個 context 統一 12（user 2026-07-10「Programs 間距 follow works、不要切 works 才調」）；
-       12 也是 works context 4 顆 chip 塞進 298px（100svh−92）預算的上限。bfa-wrap 負 margin 同步。 */
+    /* Programs/works 兩 context 統一 12；也是 works context 4 顆 chip 塞進 298px（100svh−92）的上限。bfa-wrap 負 margin 同步。 */
     gap: 12px;
   }
-  /* tab 字級對齊手機版（user 2026-07-09「應該更小、跟手機版一樣」）：HTML chip 用 text-lg(矮橫向 1.2rem)
-     偏大 → 收成 p1(1rem)＝同 portrait division btn（.section-nav-btn 用 --font-size-s）。
-     chip 縮字後 max-content 左欄也自然變窄，圖/文佔比相應變大（point 3）。 */
+  /* tab 字級收成 p1（同 portrait division btn）：HTML text-lg 偏大；縮字後左欄變窄、圖文佔比變大。 */
   #class-buttons-sticky .class-division-btn div {
     font-size: var(--font-size-s);
   }
-  /* BFA 學士班 label 矮橫向隱藏（user 2026-07-09「bfa 框怪」）：桌面 absolute 小標浮 chip 角，
-     矮橫向直排 in-flow 化後兩個 division 各一個＝兩個重複大框醜；左欄已是學制 context、
-     division 名（Animation/Creative Media/MDES）本身足夠 → 直接隱藏。 */
+  /* BFA 學士班 label 隱藏：直排 in-flow 後兩 division 各一個＝重複大框；左欄已是學制 context，division 名足夠。 */
   #class-buttons-sticky .class-group-label {
     display: none;
   }
-  /* BFA/Design Fundamental wrap 收合改「垂直」：buttons.css 的 max-width:0 + margin-right 負 gap
-     是配橫排設計，直排下寬 0 仍佔一行高 + column gap → 換 max-height + margin-bottom 負 gap。
-     收起時溢出的 btn 用 clip-path 裁（垂直版鏡像桌面的水平 clip-path）——不能用 overflow:hidden，
-     它以 border box 為界會把展開後「旋轉 chip 凸出的角」也裁掉＝chip 上下被切（user 2026-07-10）；
-     clip-path 帶 -12px clearance、收合態 bottom calc(100%+12px) 全遮。
-     展開觸發 class 同桌面（#class-buttons-sticky.is-works-context）。⚠️ buttons.css 該段改動時同步。 */
+  /* BFA/Design Fundamental wrap 收合改垂直：buttons.css 的 max-width:0 + 負 margin-right 配橫排，直排下寬 0 仍佔一行高 + gap
+     → 換 max-height + margin-bottom 負 gap。溢出 btn 用 clip-path 裁——不能用 overflow:hidden（以 border box 為界，
+     會裁掉展開後旋轉 chip 凸出的角）；clip-path 帶 -12px clearance、收合態 bottom calc(100%+12px) 全遮。
+     展開 class 同桌面（#class-buttons-sticky.is-works-context）。⚠️ buttons.css 該段改動時同步。 */
   #class-buttons-sticky .class-division-bfa-wrap {
     max-width: none;
     max-height: 0;
@@ -1397,10 +1225,6 @@
     min-width: 0;
     padding: 0 var(--container-padding) 0 0;
   }
-  #class-info-sticky-wrapper > #works {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
   /* 圖左文右（蓋 md:order-1/2 與 grid 欄位）：圖吃剩餘寬、文字固定 42% */
   .class-info-panel .grid-20 {
     display: flex;
@@ -1416,10 +1240,10 @@
     order: 1;
     flex: 1 1 auto;
     min-width: 0;
-    /* 116 = 內容頂 92（header 帶底）+ 24 底部呼吸（user 2026-07-10「文字盒再長一點」；原 150 底下懸空 ~58） */
+    /* 116 = 內容頂 92（header 帶底）+ 24 底部呼吸 */
     min-height: calc(100svh - 116px);  /* 蓋 base 440px */
   }
-  /* 單圖置中 + 縮圖尺寸（比照 variables.css portrait block；!important 蓋 gsap inline top:70%；
+  /* 單圖置中 + 縮圖尺寸（比照 variables.css portrait block；!important 蓋 gsap inline top:70%）；
      390 高預算 ~240px → 直圖 180 寬（3:4 ≈ 240 高）、橫圖 300 寬 */
   .class-info-panel .class-img {
     top: 50% !important;
@@ -1438,31 +1262,28 @@
     display: none;
   }
 
-  /* 5i+#) about works（user 2026-07-10）：落點對齊 header 帶底＋重排「tabs 左｜playlist 中｜說明文字右」。
-     原樣＝落點 100（scroll-snap.css 桌面值）＋pt-8xl → strip 橫在中段、影片全在 fold 下。 */
+  /* 5i+#) about works：落點對齊 header 帶底＋重排「tabs 左｜playlist 中｜說明文字右」
+     （scroll-snap.css 落點 100 + pt-8xl 會讓影片全在 fold 下）。 */
   #works {
     scroll-margin-top: 92px;    /* 同 #class：貼 header 帶底 */
   }
-  /* 進 wrapper grid 第二欄（原 1/-1 全寬會從 tabs 正下方起排）：左欄 sticky tabs 於 works 視圖續黏。
-     min-height ≥ tabs 展開高（works context 含 Design Fundamental ~344 + buffer）：works 內容只 ~200 高，
-     row 太矮的話 sticky 下界（grid area 底 − tabs 高）會把 tabs 推出 header 帶上緣。 */
+  /* 進 wrapper grid 第二欄：左欄 sticky tabs 於 works 視圖續黏。min-height ≥ tabs 展開高（含 Design Fundamental）：
+     works 內容只 ~200 高，row 太矮時 sticky 下界（grid area 底 − tabs 高）會把 tabs 推出 header 帶上緣。 */
   #class-info-sticky-wrapper > #works {
     grid-column: 2;
     grid-row: 2;
     min-height: 330px;  /* ponytail: tabs works-context 疊高（~314）的定值鏡像，chips 增減時要跟著調 */
   }
   body #class-works-panels {
-    /* 頂 12 = tabs 的 padding-top（旋轉 clearance）：playlist/文字與第一顆 chip 同一水平線
-       （user 2026-07-10「content 對齊水平」）；左 padding 讓給 tabs 欄、蓋 pt-3xl/md:pt-8xl */
+    /* 頂 12 = tabs 的 padding-top（旋轉 clearance）→ playlist/文字與第一顆 chip 同水平線；左 padding 讓給 tabs 欄、蓋 pt-3xl/md:pt-8xl */
     padding: 12px var(--container-padding) 0 0;
   }
-  /* class/works 封鎖線藏掉：落點貼 header 帶後 strip（top:15vh ≈ 落點下 150）會橫在內容正中；
-     resources/history 的 strip 是頂部 blocker 兼標題、續留 */
+  /* class/works 封鎖線藏：落點貼 header 帶後 strip（top:15vh）會橫在內容正中；resources/history 的 strip 兼頂部 blocker、續留 */
   .section-title-strip[data-anchor="class"],
   .section-title-strip[data-anchor="works"] {
     display: none;
   }
-  /* playlist 中（縮小）、文字右（加寬內捲）：蓋 grid-20 桌面欄位（原文字 4 欄 ~143px 太窄）與 md:ml-xl */
+  /* playlist 中（縮小）、文字右（加寬內捲）：蓋 grid-20 桌面欄位（文字 4 欄 ~143px 太窄）與 md:ml-xl */
   .class-works-panel .grid-20 {
     display: flex;
     gap: var(--spacing-lg);
@@ -1488,16 +1309,14 @@
     display: none;
   }
 
-  /* 6) alumni 巨型標題用 clamp(7rem, 20vw, 22rem)（alumni.css）、不吃 :root 的 --font-size-3xl 壓制 →
-        另行覆寫（844 寬原 ~169px、佔半屏 → cap 72px）。about hero 是 SVG 圖（max-height:60vh 自縮）不需處理。 */
+  /* 6) alumni 巨型標題 clamp(7rem, 20vw, 22rem)（alumni.css）不吃 --font-size-3xl → 另 cap 72px（844 寬原 ~169px）。
+     about hero 是 SVG（max-height:60vh 自縮）不需處理。 */
   main .alumni-hero-text {
     font-size: clamp(3rem, 30vh, 4.5rem);
   }
 
-  /* 7) footer 改用手機版線性堆疊（user 2026-07-04「橫向一切以手機版為主」）：
-        JS 端 footer-scatter usesMobileFooter() 矮橫向已走手機 reveal 路徑（不 scatter、不設 accent bg），
-        這裡把 footer.css @media(min-width:768) 的桌面 scatter 規則全數還原成手機 base 值（footer.css 1-157 行）。
-        兩檔要同步：footer.css 手機值改了這裡要跟著改。 */
+  /* 7) footer 改手機版線性堆疊：footer-scatter usesMobileFooter() 矮橫向走手機 reveal 路徑（不 scatter、不設 accent bg），
+     這裡把 footer.css ≥768 的桌面 scatter 規則還原成手機 base 值。⚠️ footer.css 手機值改了這裡要同步。 */
   body .footer-shell {
     /* 手機 stack 總高 > 390px 視窗 → 固定 100svh 會裁內容；改下限制 */
     height: auto;
@@ -1514,8 +1333,7 @@
     align-self: auto;
     padding-top: 1rem;
   }
-  /* 直向的 header 對齊負 margin（footer.css max-width:767，667 寬小機橫向也命中）不適用——
-     矮橫向 pt 1rem 是跟 office/privacy 對齊的三件套；wrapper-aware 蓋回 */
+  /* 直向 header 對齊負 margin（footer.css max-width:767，667 寬橫向也命中）不適用——pt 1rem 與 office/privacy 對齊；wrapper-aware 蓋回 */
   body .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
     margin-top: 0;
   }
@@ -1524,12 +1342,9 @@
     width: 56px;
     height: 56px;
   }
-  /* 三欄配置 2026-09-19 改「手機式 tab 分頁」（user：footer 跟手機一樣分 tab 整合、不要全部 show）：
-     col1 = logo、col2 = tabs 橫排 + active 群組卡直排、col3 = privacy links 在上 + copyright 貼底（不變）。
-     群組顯隱同手機走 JS applyGroupVisibility（footer-scatter 的矮橫向全顯豁免已拆）、切 tab 動畫走
-     switchFooterGroup 手機 clip-reveal 路徑。舊「全群組 3 欄×5 列釘位」版（2026-07-11 wireframe）退場。
-     :is(區塊, :has(> 區塊)) 涵蓋 reveal wrapper 已包/未包兩態。
-     shell 轉 flex 讓 inner 撐滿 100svh（copyright 貼 footer 底，免猜 shell padding 值）。 */
+  /* 三欄：col1 logo、col2 手機式 tabs 橫排 + active 群組卡直排、col3 privacy links 在上 + copyright 貼底。
+     群組顯隱走 JS applyGroupVisibility、切 tab 走 switchFooterGroup 手機 clip-reveal。
+     :is(區塊, :has(> 區塊)) 涵蓋 reveal wrapper 已包/未包兩態。shell 轉 flex 讓 inner 撐滿 100svh（copyright 貼底）。 */
   body .footer-shell {
     display: flex;
     flex-direction: column;
@@ -1542,7 +1357,7 @@
     grid-template-rows: 1fr;
     column-gap: var(--spacing-xl);
     align-items: start;
-    /* 蓋平板段 padding-top:104（那是「header 捲到 footer 不藏」的讓位；矮橫向 header 元素 footer-near 會收起） */
+    /* 蓋平板段 padding-top:104（header 捲到 footer 不藏的讓位；矮橫向 header 在 footer-near 會收起） */
     padding-top: var(--container-padding);
   }
   /* 釘位下在「可能是 reveal wrapper」那層（logo 會被手機 clip-reveal 包 wrapper） */
@@ -1555,8 +1370,7 @@
     margin-top: 0;
     display: contents;
   }
-  /* 欄2＝tab 分頁區：tabs 首子橫排、active 群組卡片直排堆疊；內容超過一屏時 footer 長高（檔尾
-     unlayered min-height 規則涵蓋矮橫向）＝同手機直向行為。 */
+  /* 欄2＝tab 分頁區：tabs 橫排、active 群組卡直排；超過一屏時 footer 長高（檔尾 unlayered min-height 規則）＝同手機直向。 */
   body .footer-random {
     position: static;
     grid-column: 2;
@@ -1569,8 +1383,7 @@
     gap: var(--spacing-md);
     padding-top: 1rem;   /* 三欄 pt 對齊 logo-area / privacy 的 1rem 三件套 */
   }
-  /* tabs 手機式 in-flow 橫排（footer.css 矮橫向舊「一律隱藏」已改只藏 .footer-tab-reserve）；
-     mark 尺寸同手機 64；溢出靠 base overflow-x:auto 內捲。 */
+  /* tabs 手機式 in-flow 橫排；mark 尺寸同手機 64；溢出靠 base overflow-x:auto 內捲。 */
   body .footer-random > .footer-tabs {
     display: flex;
     flex-direction: row;
@@ -1579,8 +1392,8 @@
     gap: var(--spacing-md);
     align-self: stretch;
     max-width: 100%;
-    /* 明寫 overflow：下方「.footer-random > div 還原 scatter」的 overflow:visible 會蓋掉 base 的
-       overflow-x:auto（本條特異度較高勝出）→ tab 多時溢出欄外壓到 col3 legal */
+    /* 明寫 overflow：下方「.footer-random > div 還原 scatter」的 overflow:visible 特異度較高、會蓋掉 base overflow-x:auto
+       → tab 多時溢出壓到 col3 legal */
     overflow-x: auto;
     overflow-y: clip;
     --tab-mark-w: 64px;
@@ -1607,10 +1420,8 @@
     display: flex;   /* 蓋桌面 display:contents，回到 support→YT→IG→FB 一橫排 */
     gap: var(--spacing-lg);
   }
-  /* 欄3：links 從頂、copyright 獨立貼底（user 2026-07-11「copyright 對齊底部、跟 links 分開」）：
-     privacy 跨滿全部 rows、內層 flex 撐滿，copyright margin-top:auto 推到底。
-     ⚠️ 釘位要下在「可能是 reveal wrapper」那層（grid item 是 wrapper 不是 privacy 本體，
-     對本體設 grid-row 無效、wrapper auto-flow 恰落 r1c3 位置對但不跨列）。 */
+  /* 欄3：links 從頂、copyright 獨立貼底：privacy 跨滿全部 rows、內層 flex 撐滿，copyright margin-top:auto 推到底。
+     ⚠️ 釘位要下在可能是 reveal wrapper 那層（grid item 是 wrapper，對 privacy 本體設 grid-row 無效）。 */
   body .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) {
     grid-column: 3;
     grid-row: 1 / -1;
@@ -1618,10 +1429,9 @@
   }
   body .footer-privacy {
     position: static;
-    padding-top: 1rem;   /* 三欄 pt 對齊 logo-area 的 1rem（user 2026-07-11 二反饋 #1） */
+    padding-top: 1rem;   /* 三欄 pt 對齊 logo-area 的 1rem */
     padding-left: 0;
-    /* 蓋平板段 margin-top:lg（768-1199 洩漏）：在 clip wrapper 內被推下 32px、height:100% 跟著溢出
-       → copyright 被 wrapper overflow:clip 切掉＝「底部白 bar 切到 copyright」（user 2026-09-19） */
+    /* 蓋平板段 margin-top:lg：在 clip wrapper 內被推下 32px、height:100% 跟著溢出 → copyright 被 wrapper overflow:clip 切掉 */
     margin-top: 0;
     display: flex;
     height: 100%;
@@ -1632,8 +1442,7 @@
   body .footer-privacy .footer-copyright {
     margin-top: auto;
   }
-  /* 無障礙標章 placeholder：正式標章拿到前全域隱藏（user 2026-09-12「先 hide」，footer.css base 已 display:none）；
-     矮橫向也維持隱藏，拿到標章要重開時三處一起（footer.css base + 此處）。 */
+  /* 無障礙標章 placeholder：正式標章前全域隱藏（footer.css base 已 none）；重開時 footer.css base + 此處一起改。 */
   body .footer-a11y-badge {
     display: none;
   }
@@ -1641,7 +1450,6 @@
   body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit) {
     padding: 0;
   }
-  /* （舊 office pt 1rem 對齊規則隨 tab 版退場：欄2 頂距改由 .footer-random padding-top 統一給） */
   /* 標題↔內容距 8→4：一屏預算 */
   body .footer-random h6 {
     margin-bottom: 4px;
@@ -1679,24 +1487,21 @@
     margin-top: 0;
   }
 
-  /* 5j) degree-show-detail 矮橫向（user 2026-07-10）：body 內容全走「手機版做法」。
-        DSD 的手機規則寫在 variables.css @media(max-width:767) 內，寬 ≥768 的橫向手機吃不到 →
-        這裡複製一份（值一對一，改一處要同步兩處）。JS 端 degree-show-data-loader.js 的
-        isMobileView() 已把 detail 頁各 mobile 分支（event strip / 單圖輪播 / next-project 色塊卡 /
-        sticky-chip 跳過）併入本 gate。
-        hero 例外：不用手機直向的「圖墊底＋文字集中左下」，改「手機式堆疊＋文字打散」（見 5j-hero）。 */
+  /* 5j) degree-show-detail：body 內容全走手機版做法。DSD 手機規則在 variables.css @media(max-width:767) 內、
+     寬 ≥768 吃不到 → 這裡複製一份（值一對一，改一處要同步兩處）。JS degree-show-data-loader.js isMobileView()
+     已把 detail 頁各 mobile 分支（event strip / 單圖輪播 / next-project 色塊卡 / sticky-chip 跳過）併入本 gate。
+     hero 例外：改「手機式堆疊＋文字打散」（見 5j-hero）。 */
 
-  /* md: 斷點錯配修正：矮橫向手機寬常 ≥768 → 吃桌面 md: 顯隱（手機專屬元素被藏、桌面專屬元素現形）。逐一翻回：
-     ① 桌面 sticky info card / 返回鍵 / ref 鍵 / next-project overlap stage：本頁改手機式 hero + 手機色塊卡
-        → 桌面 sticky-chip 系統整組不用（JS setupStickyAndHeroChips 已 isMobileView 早退不填內容），全藏。 */
+  /* md: 斷點錯配：寬 ≥768 吃桌面 md: 顯隱（手機元素被藏、桌面元素現形）→ 逐一翻回：
+     ① 桌面 sticky info card / 返回鍵 / ref 鍵 / next-project overlap stage 全藏（JS setupStickyAndHeroChips 已 isMobileView 早退不填內容）。 */
   #sticky-info-card,
   #degree-show-back-btn,
   #degree-show-ref-btn,
   #next-project-section > #next-project-stage {
     display: none;
   }
-  /* ② galleries root：md:block 蓋掉手機 flex-col → 翻回 flex（flex-col/gap-3xl 是 base class 仍在，只補 display
-        + py-3xl；子展覽 section 自身 py 已歸零，間距全靠這裡的 gap）。 */
+  /* ② galleries root：md:block 蓋掉手機 flex-col → 翻回 flex（flex-col/gap-3xl 是 base class 仍在，只補 display + py-3xl；
+     子展覽 section 自身 py 已歸零，間距全靠這裡的 gap）。 */
   #event-galleries-root {
     display: flex;
     padding-top: var(--spacing-3xl);
@@ -1706,9 +1511,8 @@
   #next-project-section > .md\:hidden {
     display: flex;
   }
-  /* ④ 桌面一屏 snap（md:h-screen，2026-07-13）矮橫向不適用 → 高度回自然流、py 回手機值
-        （#id 特異度贏 md: utility）。gallery section 的 height/display 在下方 #event-galleries-root 區塊蓋；
-        next-project 的 py 由下方既有 2xl 規則給（此處只回高度）。 */
+  /* ④ 桌面一屏 snap（md:h-screen）不適用 → 高度回自然流（#id 特異度贏 md: utility）。
+     gallery section 的 height/display 在下方 #event-galleries-root 區塊蓋；next-project 的 py 由下方 2xl 規則給。 */
   #next-project-section {
     height: auto;
   }
@@ -1724,19 +1528,15 @@
     padding-bottom: var(--spacing-3xl);
   }
 
-  /* 內容左緣對齊 header tab strip（user 2026-07-11 對齊複查）：桌面 grid col-start-5 縮排是給（矮橫向
-     已隱藏的）sticky info card 留位，且是 grid 相對位置（隨寬度變）→ 與 fixed strip(左緣 128) 對不齊。
-     改「固定縮排 128」＝ container padding(24) + grid padding-left(104)（同 admission --adm-ls-indent 104），
-     寬度無關、與 strip 同線。galleries/next 維持置中（刻意例外）。 */
+  /* 內容左緣對齊 header tab strip（左緣 128）：桌面 col-start-5 縮排是給（已隱藏的）sticky info card 留位、且隨寬度變。
+     改固定縮排 128＝container padding 24 + grid padding-left 104（同 admission --adm-ls-indent），寬度無關。
+     galleries/next 維持置中（刻意例外）。 */
   /* events-section 是 .site-container 直下的 .grid-20 → 縮排 104（起點 128）*/
   #dsd-desc-section > .site-container > .grid-20 {
     padding-left: 104px;
   }
-  /* events list wrapper：padded grid 內全寬（原 md:col-start-5 col-span-16）→ 起點＝128 */
+  /* events list wrapper：padded grid 內全寬 → 起點＝128 */
   #events-section > div { grid-column: 1 / -1; }
-
-  /* （events row 2026-08-18 改「標題自成一 row + 下方 日期:地點 1:1 + detail row」＝ .dsd-event-row 不再是 grid，
-     舊的 grid-template-columns 對齊規則已移除；landscape 寬 ≥768 吃 md:grid-cols-2 內層 grid，同桌面。） */
 
   /* 子展覽 tab（header 帶主 strip）上限 3/4 容器寬 + 溢出自動 marquee（觸控無 hover）*/
   .dsd-event-strip .class-division-btn {
@@ -1752,9 +1552,8 @@
   #event-galleries-root > .dsd-event-strip-wrap {
     display: flex;
   }
-  /* 5j #5) event tab 進 header 帶（user 2026-07-11「比照 activities 放 header、可左右滑」；同 5f nav）：
-     fixed 在 logo 右～mode/menu 左之間、z-55 浮在內容上、align-items:center 垂直置中於 92 帶。
-     hero gate（setupStripHeaderGate）用 clip-path 藏/現（hero 在畫面藏、捲過才現）。 */
+  /* 5j #5) event tab 進 header 帶（同 5f nav）：fixed 在 logo 右～mode/menu 左、z-55、垂直置中 92 帶、可左右滑。
+     hero gate（setupStripHeaderGate）用 clip-path 藏/現。 */
   #event-galleries-root > .dsd-event-strip-header {
     position: fixed;
     top: 0;
@@ -1809,30 +1608,23 @@
     height: 98px;
     background: var(--theme-bg);
   }
-  /* tab 點擊捲動落點：strip 已進 header 帶（92）→ 讓出 92 + 12 呼吸＝104（原 200 是下方 sticky 版）。 */
+  /* tab 點擊捲動落點：strip 進 header 帶（92）→ 92 + 12 呼吸＝104 */
   .event-gallery-section {
     scroll-margin-top: 104px;
     overflow-x: clip;
   }
-  /* ⚠️ section 自帶 `md:py-6xl`(192px) 在矮橫向是「圖被推到很下面」的真因（user 2026-07-11「第一個 btn
-     點下去位置比較下方」；實測 gallery top 比 section top 低 192）——歸零要用 #root 提 ID 特異度贏 Tailwind
-     utility `.md\:py-6xl`（純 .class 同特異度、utility source order 較後會贏，同 strip-wrap display 的坑）。
-     間距改由 #event-galleries-root flex gap 給。 */
+  /* ⚠️ section 自帶 md:py-6xl(192px) 會把圖推很下面——歸零要用 #root 提 ID 特異度贏 Tailwind `.md\:py-6xl`
+     （純 .class 同特異度、utility source order 較後會贏，同 strip-wrap display 的坑）。間距改由 #event-galleries-root flex gap 給。 */
   #event-galleries-root > .event-gallery-section {
     padding-top: 0;
     padding-bottom: 0;
-    /* 桌面一屏 snap（md:h-screen + md:flex 置中，2026-07-13）矮橫向不適用 → 回自然高度、直排堆疊 */
+    /* 桌面一屏 snap（md:h-screen + md:flex 置中）不適用 → 自然高、直排堆疊 */
     height: auto;
     display: block;
   }
-  .event-extra-panel:not(:has([data-class-hl])) > .division-images {
-    grid-column: 1 / -1;
-  }
 
-  /* 主影片 / 紀錄影片（user 2026-07-11「滿版影片從第一個 nav btn 左邊對齊、整體再小一些」）：
-     grid padding-left 104 → 左緣 128 對齊 strip/內容；影片欄收 13/20 cols（≈2/3 寬，2026-07-13 HTML 改
-     grid-20 後同步）＝整體縮小、不再滿寬到右緣；#id 特異度蓋掉桌面 md:col-start-5/span-16。
-     aspect-video 16:9 高度隨寬縮。 */
+  /* 主影片 / 紀錄影片：grid padding-left 104 → 左緣 128 對齊 strip/內容；影片欄收 13/20 cols（≈2/3 寬）；
+     #id 特異度蓋掉桌面 md:col-start-5/span-16。aspect-video 高度隨寬縮。 */
   #video-outer-section .grid-20,
   #documentary-outer-section .grid-20 {
     padding-left: 104px;
@@ -1847,9 +1639,8 @@
   .event-gallery-section .division-images--degree-show {
     min-height: calc(100svh - 140px);
   }
-  /* 單圖：垂直置中（!important 蓋 gsap inline top:70%）；尺寸改「固定 px」不用 vw——
-     vw 依寬度、矮橫向寬 844 時 60vw=506px 遠超一屏高（實測會戳出）。比照 about 5i 手機橫向
-     用高度預算反推：直圖 ~220 寬(3:4≈293 高)、橫圖 ~340 寬(16:9≈191 高)，落在 ~一屏可視內。 */
+  /* 單圖垂直置中（!important 蓋 gsap inline top:70%）；尺寸用固定 px 不用 vw——寬 844 時 60vw=506px 遠超一屏高。
+     高度預算反推（比照 about 5i）：直圖 ~220 寬(3:4≈293 高)、橫圖 ~340 寬(16:9≈191 高)。 */
   .event-gallery-section .class-img {
     top: 50% !important;
     max-width: 220px;
@@ -1858,8 +1649,7 @@
     max-width: 340px;
   }
 
-  /* Next Project 區塊（user 2026-07-11「色塊太大、集中中心、不超過畫面」）：section py 6xl→2xl 收窄，
-     色塊寬 53%→32%（32% of 844≈270px、4:3≈202px 高 < 一屏 390 不超出）；容器已 justify-center 置中。 */
+  /* Next Project：section py 收 2xl；色塊寬 32%（844 寬≈270px、4:3≈202px 高 < 一屏 390）；容器已 justify-center 置中。 */
   #next-project-section {
     padding-top: var(--spacing-2xl);
     padding-bottom: var(--spacing-2xl);
@@ -1884,13 +1674,10 @@
     margin-top: 2rem;
   }
 
-  /* 5j-hero) DSD hero 矮橫向：改「手機式堆疊＋文字打散」（user 2026-07-10：文字不集中左下、
-        分佈比照其他頁 hero）。≥768 橫向手機 hero.css 顯桌面 rand-grid + 左下字卡 → 這裡改成：
-        藏 rand-grid + 藏桌面左下字卡、顯 .hero-mobile（圖墊底 + 文字堆疊）。
-        打散＝.hero-mobile-text 直向 space-between（上中下散開）+ 三 chip 各 flex-start/center/flex-end
-        （左/中/右）；每 chip 隨機旋轉由 initHeroMobileSync 注入、滑入動畫由 setupHeroMobileEntrance
-        （isMobileView gate 已含本 gate）跑。變數/字級走 gate #1 手機值。
-        scope 全用 [data-hero-title-last]（只 DSD hero section 有）→ 不外溢共用 hero 頁。 */
+  /* 5j-hero) DSD hero：改「手機式堆疊＋文字打散」（分佈比照其他頁 hero）。≥768 橫向 hero.css 會顯桌面 rand-grid + 左下字卡 →
+     這裡藏 rand-grid 與桌面字卡、顯 .hero-mobile。打散＝.hero-mobile-text 直向 space-between + 三 chip 各 flex-start/center/flex-end；
+     chip 隨機旋轉由 initHeroMobileSync 注入、滑入由 setupHeroMobileEntrance（isMobileView 已含本 gate）跑。
+     scope 全用 [data-hero-title-last]（只 DSD hero 有）→ 不外溢共用 hero 頁。 */
   [data-hero-title-last] .hero-rand-grid {
     display: none;
   }
@@ -1906,27 +1693,23 @@
     overflow: clip;
     visibility: visible;            /* 保險：hero.css base 預設 hidden 等 sync，sync 完會設 inline visible */
   }
-  /* bg 圖以其他頁 hero 為原則（user 2026-07-11「不能被切、不需橫幅滿版」）：比照 .hero-banner——
-     置中「有界 16:9 box」、寬 min(80vw, (100svh-180)*1.5)（1.5 factor 保證旋轉後 bbox 完整落一屏內），
-     非 108vw cover 出血（原本 108vw + 旋轉 → 兩側/角被切）。img 仍 object-fit:cover 填滿 box、box 全可見。 */
+  /* bg 圖比照 .hero-banner：置中有界 16:9 box，寬上限由 svh 反推（旋轉後 bbox 仍完整落一屏內）；
+     非 108vw cover 出血（旋轉會切兩側/角）。img 仍 object-fit:cover 填滿 box。 */
   [data-hero-title-last] .hero-mobile-bg {
     top: 50%;
     left: 50%;
-    width: min(88vw, calc((100svh - 150px) * 1.7));   /* user 2026-07-11「再大一點」：1.5→1.7 factor + 80→88vw */
+    width: min(88vw, calc((100svh - 150px) * 1.7));
     height: auto;
     aspect-ratio: 16 / 9;
     transform: translate(-50%, -50%) rotate(-4deg);
   }
-  /* 年份字級對齊直向手機（variables.css portrait 的 h6 規則被 max-width:767 擋在 ≥768 橫向門外 → 這裡補；
-     gate #1 已把 --font-size-md 收成手機值 1rem）。標題用 HTML text-2xl class（非 media-gated）已正確。
-     padding 收窄（user 2026-07-11「年份 padding 再小一點、字也較小」）：hero-animation.js 給全站
-     [data-hero-hl] inline 0.5/0.6 → !important 蓋成手機段落慣例 0.3/0.45（同 #text-year 桌面字卡）。 */
+  /* 年份字級對齊直向手機（variables.css portrait 的 h6 規則被 max-width:767 擋住 → 補；--font-size-md 已由 gate #1 收成 1rem）。
+     padding：!important 蓋 hero-animation.js 給 [data-hero-hl] 的 inline 0.5/0.6 → 手機段落慣例 0.3/0.45。 */
   [data-hero-title-last] .hero-mobile-text-en {
     font-size: var(--font-size-md);
     padding: 0.3rem 0.45rem !important;
   }
-  /* 文字撐滿一屏高 space-between（垂直散開）；水平「不隔太遠」（user 2026-07-11）＝band 限寬置中：
-     width min(100%, 26rem) 隨寬度自適應（窄屏滿寬、寬屏 capped 置中）→ 三 chip 落同一居中帶、不再貼兩側緣。 */
+  /* 文字撐滿一屏高 space-between（垂直散開）；水平 band 限寬置中 min(100%, 26rem) → 三 chip 落同一居中帶、不貼兩側。 */
   [data-hero-title-last] .hero-mobile-text {
     min-height: calc(100svh - 96px - 1.5rem);
     justify-content: space-between;

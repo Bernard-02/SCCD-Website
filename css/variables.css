@@ -12,41 +12,39 @@
   --color-black: #000000;
   --color-white: #FFFFFF;
 
-  /* Secondary Colors */
+  /* Secondary Colors（三原色；JS 端 SCCDHelpers.ACCENT_COLORS 寫死同值，改色兩邊同步） */
   --color-green: #00FF80;
   --color-pink: #FF448A;
   --color-blue: #26BCFF;
 
   /* Grayscale - 10 階層 */
-  --gray-0: #000000;   /* 黑色 */
-  --gray-1: #1A1A1A;   /* 最深灰 */
+  --gray-0: #000000;
+  --gray-1: #1A1A1A;
   --gray-2: #333333;
   --gray-3: #4D4D4D;
   --gray-4: #666666;
-  --gray-5: #808080;   /* 中灰 */
+  --gray-5: #808080;
   --gray-6: #999999;
   --gray-7: #B3B3B3;
   --gray-8: #CCCCCC;
-  --gray-9: #E6E6E6;   /* 最淺灰 */
-  --gray-10: #FFFFFF;  /* 白色 */
+  --gray-9: #E6E6E6;
+  --gray-10: #FFFFFF;
 
-  /* 「淺灰色」／「深灰色」（user 語彙，2026-09-12 拍板）＝全站淺灰卡／深灰卡統一色（library 灰卡兩階同源）。
-     新灰底元件一律用這兩個，勿再用 rgba(0,0,0,0.06) 透明黑或散用 gray-N。 */
+  /* 「淺灰色」／「深灰色」（user 語彙）＝全站淺灰卡／深灰卡統一色（library 灰卡兩階同源）。
+     新灰底元件一律用這兩個，勿用 rgba(0,0,0,0.06) 透明黑或散用 gray-N。 */
   --light-gray: #f2f2f2;
   --dark-gray: #333333;
-
 
   /* ===== Typography ===== */
 
   /* Font Families */
-  /* ⚠️ --font-en 不可帶 generic（sans-serif）：atlas.css 以 var(--font-en), var(--font-zh) 組合雙語堆疊，
-     generic 卡在中間會讓中文字在 Noto 之前就命中系統字體（微軟正黑）＝字形比例跑掉（2026-09-20 career chip 案）。
-     各使用處尾端自帶 system-ui, sans-serif 兜底，這裡不需要 generic。 */
+  /* ⚠️ --font-en 不可帶 generic（sans-serif）：atlas.css 以 var(--font-en), var(--font-zh) 組雙語堆疊，
+     generic 夾在中間會讓中文在 Noto 之前就命中系統字體（微軟正黑）＝字形比例跑掉。
+     各使用處尾端自帶 system-ui, sans-serif 兜底。 */
   --font-en: 'Inter';
   --font-zh: 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
 
   /* Font Sizes (rem) - Base: 16px */
-  /* 字級刻度：xs → 3xl（2026-08-05 由 h1-h6/p1-p2 統一改名；原 h3 3.125rem 已移出文字階） */
   --font-size-3xl: 8rem;     /* 128px */
   --font-size-2xl: 6rem;     /* 96px */
   --font-size-xl: 2rem;      /* 32px */
@@ -55,7 +53,7 @@
   --font-size-s: 1rem;       /* 16px */
   --font-size-xs: 0.85rem;   /* 13.6px */
 
-  /* 非文字階：footer 社群 icon / 404 返回鈕的裝飾尺寸（原 h3，抽出文字刻度獨立管理） */
+  /* 非文字階：footer 社群 icon／404 返回鈕的裝飾尺寸 */
   --icon-hero: 3.125rem;     /* 50px */
 
   /* Font Weights */
@@ -63,9 +61,8 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Line Heights — 綁在「字級」上（2026-08-12 user 改 size-based，取代原 tag-based）：
-     Tailwind fontSize 用 [size, line-height] tuple → 設 .text-* 就自帶該階行距；標籤靠 @apply text-* 吃同一套。
-     單一來源＝此處。 */
+  /* Line Heights — 綁「字級」（size-based）：Tailwind fontSize 用 [size, line-height] tuple → .text-* 自帶該階行距；
+     標籤靠 @apply text-* 吃同一套。單一來源＝此處。 */
   --line-height-3xl: 1.1;
   --line-height-2xl: 1;
   --line-height-xl: 1.1;
@@ -73,7 +70,7 @@
   --line-height-md: 1.3;
   --line-height-s: 1.3;
   --line-height-xs: 1.3;
-  --line-height-base: 1.3;   /* <body> 預設 + leading-base 消費者（hero chip/lists 年份對齊；cards 學經歷 2026-08-13 改吃 --line-height-s）*/
+  --line-height-base: 1.3;   /* <body> 預設＋leading-base 消費者（hero chip／lists 年份對齊） */
 
   /* 中文獨立行距（size-based，對齊英文）：套在明確標了 lang="zh-Hant" 的元素（規則在 typography.css，
      用 [lang="zh-Hant"] 屬性選擇器 + .text-*／標籤選字級——不能用 :lang()，因 <html lang="zh-Hant"> 命中全站）。
@@ -86,15 +83,14 @@
   --line-height-zh-s: 1.4;
   --line-height-zh-xs: 1.3;
 
-  /* 英中間距 tokens——2026-08-13 user 定調「以字級為主」：一個字級一個值、任何用途共用（chip/卡/名字只要同字級就吃同值）。
-     疊放雙語 EN 元素的 margin-bottom／flex gap；單一調整點在此。段落 prose 是獨立軸（見 -body）。 */
+  /* 英中間距 tokens：以字級為主，一個字級一個值、任何用途共用（chip／卡／名字同字級吃同值）。
+     疊放雙語 EN 元素的 margin-bottom／flex gap；段落 prose 是獨立軸（見 -body）。 */
   --space-en-zh:      0.5rem;    /* 泛用 mb-en-zh 預設 8px：尚未逐字級細分的 utility 消費者（清單標題／JS builder 名字等） */
   --space-en-zh-xs:   0.0625rem; /* text-xs 1px：atlas 説明卡列/類別/co-em、list 項目名/副標、橫向 sub-btn 的英中距 */
   --space-en-zh-s:    0.125rem;  /* text-s 2px：nav chip／curriculum s-卡（含 Freshman/必選修）／faculty 副標／atlas 職業 chip 等 */
   --space-en-zh-lg:   0.25rem;   /* text-lg 4px：faculty/alumni 卡片人名 h5／about BFA/MDES 切換 */
-  --space-en-zh-xl:   0.5rem;    /* text-xl 8px：faculty/curriculum slide-in 名字/標題＋legal xl 標題（policy group/regulations/donate 條款標題）；user 08-13 調 2→4→8px */
+  --space-en-zh-xl:   0.5rem;    /* text-xl 8px：faculty/curriculum slide-in 名字/標題＋legal xl 標題（policy group/regulations/donate 條款標題） */
   --space-en-zh-body: 1.5rem;    /* 雙語「段落」prose 間距（獨立軸、非緊湊標籤）：about/admission，Tailwind mb-en-zh-body */
-
 
   /* ===== Spacing ===== */
   --spacing-xs: 0.5rem;   /* 8px */
@@ -116,36 +112,24 @@
   /* 全站 marquee 兩份 copy 之間的 gap（.marquee-copy padding-right）；Category B 的 em-space 分隔手動對齊此值 */
   --marquee-copy-gap: 2em;
 
-
   /* ===== Layout ===== */
   --container-padding: 3.75rem; /* 60px */
-  /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav / 四頁 inner-scroll nav＋內容頂 / atlas filter＋list /
-     DSD 年份 chip / 桌面 menu 第一顆 / library 色卡上界）。≥1200 見檔尾 184 */
+  /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav／四頁 inner-scroll nav＋內容頂／atlas filter＋list／
+     DSD 年份 chip／桌面 menu 第一顆／library 色卡上界）。真桌面見下方 184 */
   --nav-line: 160px;
-  /* 全站桌面 nav btn 之間的垂直間距（about／alumni #anchor-nav、faculty、curriculum（含 BFA 小標）、activities、admission
-     ＝各頁 HTML md:gap-[var(--nav-btn-gap)]；atlas filter＝atlas.css 基礎 gap 0.5rem＋margin 補差）。
-     user 2026-10-01 從 8 調開並統一；矮橫向／手機各有自己的間距不吃這個 */
+  /* 全站桌面 nav btn 垂直間距（about／alumni #anchor-nav、faculty、curriculum（含 BFA 小標）、activities、admission
+     ＝各頁 HTML md:gap-[var(--nav-btn-gap)]；atlas filter＝atlas.css 基礎 gap 0.5rem＋margin 補差）。矮橫向／手機各有自己的間距 */
   --nav-btn-gap: 0.75rem;   /* 12px */
-
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
   --transition-fast: var(--dur-micro) ease;
 
-  /* ===== Motion tokens（動畫時長 + ease，全站單一來源；2026-06-04 統一） =====
-   * duration：GSAP 端由 js/modules/ui/motion.js 用 getComputedStyle 讀進來
-   *   → 改這裡一處，CSS transition 與 GSAP tween 同步生效（真正單一來源）。
-   *   ⚠️ 改完必 `npm run build:css`（首頁 index.html 只吃 output.css 那份）。
-   * ease：GSAP 的 power* 與 CSS 的 cubic-bezier 是兩套數學無法共用，
-   *   GSAP ease 名定義在 motion.js（EASE），此處只放 CSS 用的 cubic-bezier。
-   *
-   * ── duration 階梯（第一階段沿用現有數值，零視覺變化）──
-   *   micro 0.2  hover 透明度 / 小淡出
-   *   fast  0.3  chevron 旋轉 / overlay 淡入 / CSS transition 主力 / hover transform
-   *   base  0.4  mode 切換 fade / 退場淡出
-   *   medium0.5  手風琴展收 / slide-in / clip 收展
-   *   slow  0.6  logo size / lightbox bar / 大型 layout
-   *   reveal  1.0  招牌 clip-reveal 進場 + atlas/大型 fly-in/idle standby（原 0.9 reveal 與 1.1 dramatic 已合併為 1.0s）
-   */
+  /* ===== Motion tokens（動畫時長＋ease，全站單一來源）=====
+     duration：GSAP 端由 js/modules/ui/motion.js getComputedStyle 讀進來 → 改這裡一處，CSS transition 與 GSAP tween 同步。
+     ⚠️ 改完必 `npm run build:css`（頁面吃的是 output.css）。
+     ease：GSAP 與 CSS 曲線是兩套；GSAP 名定義在 motion.js（EASE），此處只放 CSS cubic-bezier。
+     階梯：micro 0.2 hover 透明度／小淡出 · fast 0.3 chevron／overlay／hover transform · base 0.4 mode 切換 fade／退場淡出
+     medium 0.5 手風琴／slide-in／clip 收展 · slow 0.6 logo size／lightbox bar · reveal 1.0 clip-reveal 進場／大型 fly-in／idle standby */
   --dur-micro: 0.2s;
   --dur-fast: 0.3s;
   --dur-base: 0.4s;
@@ -153,29 +137,20 @@
   --dur-slow: 0.6s;
   --dur-reveal: 1s;
 
-  /* ── CSS ease 曲線（GSAP 端對照見 motion.js EASE）──
-   *   --ease-standard：transform / opacity / 顏色 主力（全站 ~40 處 cubic-bezier(0.4,0,0.2,1)）
-   *   --ease-wipe：clip-path 擦除（快出慢收）
-   */
+  /* CSS ease 曲線（GSAP 對照 motion.js EASE）
+     --ease-standard：transform／opacity／顏色主力
+     --ease-wipe：clip-path 擦除（快出慢收）；⚠️ GSAP 端 EASE.wipe 由 helpers.js CustomEase 註冊同一組 bezier，改要同步 */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-wipe: cubic-bezier(0.25, 0, 0, 1);
 
-
-  /* ===== Theme tokens（依 mode 切換的全站對比色） =====
-   * 預設值 = standard mode（黑前景 / 白背景）
-   * inverse mode 會在 themes/inverse.css 用 body.mode-inverse 蓋掉
-   * color mode 由 theme-toggle.js applyColorVars 每幀 setProperty 動態更新
-   * 元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換時自動跟著走，不必逐元件寫 inline
-   *
-   * --theme-fg-inverse：fg 的對比色（strict B/W 用）— mode-color 由 JS 依 hue luminance 翻黑/白以維持對比
-   * --theme-fg-rgb / --theme-bg-rgb：RGB 三元組（不含括號）給 alpha 用 → rgba(var(--theme-fg-rgb), 0.5)
-   *
-   * 統一所有 mode 都定義 --theme-fg-inverse + --theme-fg-inverse-rgb（之前只 mode-color 才設造成
-   * `feedback_theme_fg_inverse_only_in_color_mode` 限制，2026-05-18 解除：standard/inverse 也定義固定值）
-   */
+  /* ===== Theme tokens（依 mode 切換的全站對比色）=====
+     預設＝standard（黑 fg／白 bg）；inverse 由 themes/inverse.css body.mode-inverse 蓋；mode-color 由 theme-toggle.js applyColorVars 每幀 setProperty。
+     元件直接用 var(--theme-fg)/var(--theme-bg)，mode 切換自動跟著走。
+     --theme-fg-inverse：fg 的對比色（strict B/W 用；三 mode 都有定義，mode-color 由 JS 依 hue luminance 翻黑/白）
+     --theme-*-rgb：RGB 三元組，給 rgba(var(--theme-fg-rgb), 0.5) 用 */
   --theme-fg: var(--color-black);
   --theme-bg: var(--color-white);
-  --theme-fg-inverse: var(--color-white);     /* standard fg=黑，對比色=白 */
+  --theme-fg-inverse: var(--color-white);
   --theme-fg-rgb: 0, 0, 0;
   --theme-bg-rgb: 255, 255, 255;
   --theme-fg-inverse-rgb: 255, 255, 255;
@@ -183,30 +158,24 @@
   --list-zebra-alpha: 0.05;
 
   /* ===== Footer 主題色 token =====
-   * 預設 standard：黑底白字
-   * inverse mode 在 themes/inverse.css 翻成白底黑字
-   * color mode 在 themes/color.css 改用 --theme-bg-contrast / --theme-fg-contrast
-   *   （hue+180° 互補色 + 對應自動對比文字色，由 theme-toggle.js applyColorVars 每幀更新）
-   */
+     預設 standard 黑底白字；inverse 在 themes/inverse.css 翻白底黑字；
+     color mode 在 themes/color.css 改用 --theme-bg-contrast／--theme-fg-contrast（hue+180° 互補色，theme-toggle.js applyColorVars 每幀更新） */
   --footer-bg: var(--color-black);
   --footer-fg: var(--color-white);
 
   /* ===== Library 主矩形（#library-card-content）色彩 token =====
-   * 預設 standard：淺灰底（#f2f2f2）+ 黑字
-   * inverse mode 在 themes/inverse.css 蓋成深灰底（#434343）+ 白字
-   * --lib-fg-rgb 是 RGB 三元組，給半透明文字 rgba(var(--lib-fg-rgb), X) 用
-   */
+     預設淺灰底＋黑字；inverse 在 themes/inverse.css 蓋成深灰底＋白字。--lib-fg-rgb 給 rgba(var(--lib-fg-rgb), X) 用 */
   --lib-bg: var(--light-gray);
   --lib-fg: #000000;
   --lib-fg-rgb: 0, 0, 0;
 }
 
-/* 桌面 header（≥1200）logo 頂對齊鈕列（頂 48、縮小態 100 → 底 148）→ nav line 跟著下移 24，
-   維持 logo 底↔nav 36 間距（user 2026-08-24 定的距離；2026-09-27）。平板/矮橫向走手機 header，維持 160 */
+/* 真桌面 header：logo 頂對齊鈕列（頂 48、縮小態 100 → 底 148）→ nav line 下移 24，維持 logo 底↔nav 36 間距。
+   矮橫向／768–1023 走手機 header，維持 160 */
 @media (min-width: 1024px) and (min-height: 501px) {
   :root {
     --nav-line: 184px;
-    /* 縮小態 logo 中線＝鈕列頂 48 + 100/2：about resources 卡的上下 padding 對齊此線（user 2026-09-28） */
+    /* 縮小態 logo 中線＝鈕列頂 48 + 100/2：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box）對齊此線 */
     --header-logo-mid: 98px;
   }
 }
@@ -220,7 +189,7 @@
     --font-size-xl: 1.5rem;     /* 24px (桌面 32px) */
     --font-size-lg: 1.2rem;     /* 18px (桌面 22.4px) */
     --font-size-md: 1rem;       /* 16px (桌面 20px) */
-    --font-size-s: 0.875rem;    /* 14px (桌面 16px)（user 2026-08-10：手機內文 s 縮小；list 主標已改吃 lg 不受此影響；⚠️text-s 的 <input> 另保 16px 免 iOS focus 整頁縮放）*/
+    --font-size-s: 0.875rem;    /* 14px (桌面 16px)；⚠️ text-s 的 <input> 另保 16px 免 iOS focus 整頁縮放（見下方 input.text-s） */
     --font-size-xs: 0.8rem;     /* 12.8px */
     --icon-hero: 2rem;          /* 32px (桌面 50px) */
 
@@ -235,25 +204,20 @@
     --spacing-8xl: 12rem;      /* 192px (桌面版 256px) */
 
     /* Container Padding */
-    --container-padding: 1.5rem;  /* 24px (桌面版 32px) */
+    --container-padding: 1.5rem;  /* 24px (桌面 60px) */
   }
 }
 
-/* ===== About Page - Class Section Images =====
-   由 JS (class-images-slideshow.js) 動態 render 3 張 .class-img 到 slot 1/2/3，
-   每 5s 輪播：slot1 消失 → slot2/3 左移 → 新圖進 slot3。
-   位置與旋轉由 GSAP 控制；CSS 只定義初始樣式與 container 基本佈局。 */
+/* ===== Class 圖片輪播（about class／DSD 子展覽共用）=====
+   JS（class-images-slideshow.js）動態 render .class-img、GSAP 控位置與旋轉；CSS 只定初始樣式與容器佈局。 */
 .division-images {
   position: relative;
   min-height: 440px;
-  /* 不加 overflow:clip — slot 2 + landscape 462px 在較窄 viewport 會超 container 右緣、
-     slot 0 旋轉 ±4° 投影超左緣，clip 會兩邊都裁掉。
-     水平 scroll 由 router.js 對 about 頁加的 body.style.overflowX='hidden' 兜住，
-     圖片可以視覺溢出 container 但不會跑出 viewport。 */
+  /* 不加 overflow:clip：橫圖與 ±4° 旋轉投影會超出容器左右緣，clip 會裁掉。
+     水平溢出由 router.js 對 about 頁設的 body overflowX:hidden 兜住。 */
 }
-/* degree-show 跨全寬 + 等面積 vw 尺寸（2026-08-18 由 uniform-460px 改，見 degree-show-gallery.js）：
-   直式最高約 35vw（3:4 → 504px@1440 / 672px@1920）；min-height 720 當「不塌陷」的底（section 本身 md:h-screen
-   置中，比 720 高的直式靠 h-screen 容納）。避免 .class-img absolute top:50% 上下露出與相鄰 gallery section 相切 */
+/* degree-show：跨全寬＋等面積 vw 尺寸（見 degree-show-gallery.js），直式最高約 35vw。
+   min-height 720＝不塌陷的底（更高的直式靠 section md:h-screen 容納），免 absolute top:50% 的圖上下露出撞到相鄰 section */
 .division-images--degree-show {
   min-height: 720px;
 }
@@ -263,21 +227,19 @@
   left: 0;
   width: auto;
   height: auto;
-  max-width: 336px;  /* 橫圖由 JS 動態放寬（landscape class）；尺寸 +5% from 320 */
+  max-width: 336px;  /* 橫圖由 JS 加 .class-img--landscape 放寬 */
   transform-origin: center center;
   will-change: transform, clip-path;
   pointer-events: auto;
 }
-/* 橫圖（ratio > 1）放寬 */
 .class-img.class-img--landscape {
-  max-width: 520px; /* 橫向放大 462→520（user 2026-09-11）；須與 class-images-slideshow.js maxW 同步 */
+  max-width: 520px; /* 須與 class-images-slideshow.js maxW 同步 */
 }
 
 /* ===== Degree Show Detail — event strip tab 標題 marquee =====
-   結構由 degree-show-data-loader.js buildMobileEventStrip 產出（手機/矮橫向 sticky tab 列；
-   sub-tab 分層 2026-07-13 移除）：.class-division-btn（tab 卡片）> .dsd-tab-line（overflow window）×2(EN/ZH)
-   > .dsd-tab-marquee-inner（跑動內容）。applyMarqueeOverflow（共用模組）偵測溢出 → line 加 .is-overflow +
-   inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。手機 3/4 容器寬上限 → 溢出自動跑（無 hover）。 */
+   結構由 degree-show-data-loader.js buildMobileEventStrip 產出（手機／矮橫向 sticky tab 列）：
+   .class-division-btn > .dsd-tab-line（overflow window）×2(EN/ZH) > .dsd-tab-marquee-inner（跑動內容）。
+   applyMarqueeOverflow 偵測溢出 → line 加 .is-overflow、inner 換兩份 .marquee-copy＋設 --marquee-distance/duration。 */
 .dsd-tab-line {
   display: block;
   overflow: hidden;
@@ -304,39 +266,33 @@
 }
 /* ===== About Page — 手機版專屬調整（桌面不受影響） ===== */
 @media (max-width: 767px) {
-  /* grid-20 手機所有子元素 col-span-full 單欄堆疊；19 個 column-gap(20px=380px) 超過容器(~345px)
-     → col-span-full 區塊被撐成 380px 溢出右側（底色看起來偏右）。column-gap 歸零讓區塊 = 容器寬 → 底色置中。
-     只動 column-gap：row-gap(垂直堆疊間距) 不受影響。 */
+  /* grid-20 手機全部 col-span-full：19 個 column-gap(20px=380px) 超過容器(~345px) → 區塊被撐寬溢出右側。
+     column-gap 歸零讓區塊＝容器寬；row-gap 不受影響。 */
   #about-content-wrapper .grid-20 {
     column-gap: 0;
   }
 
-  /* 理念 EN/ZH 兩塊、Class 文字↔圖片 的手機堆疊間距改用父層 row-gap（不再各自帶 mb-lg），
-     最後一塊不會殘留 trailing margin。值對齊原 mb-lg(32px)。 */
+  /* 理念 EN/ZH、Class 文字↔圖片 的手機堆疊間距用父層 row-gap（不各自帶 mb），最後一塊不殘留 trailing margin */
   #overview .grid-20,
   .class-info-panel .grid-20 {
     row-gap: var(--spacing-lg);
   }
 
-  /* 理念段落：手機由 h5(19.2px) 改成 p1(16px) */
+  /* 理念段落手機用 s 字級 */
   #overview h5 {
     font-size: var(--font-size-s);
   }
 
-  /* text-s 的 <input>/<textarea> 手機保 16px：s 手機縮成 14px 後 <16px 表單 focus 會被 iOS Safari 整頁放大。
-     unlayered + input.text-s(高一級) 蓋掉 .text-s utility；搜尋框另有更高特異度規則在 lists.css 直接寫 16px。（user 2026-08-10）*/
+  /* text-s 的 <input>/<textarea> 手機保 16px：<16px 表單 focus 會被 iOS Safari 整頁放大。
+     unlayered＋input.text-s（高一級）蓋 .text-s utility；搜尋框另有更高特異度規則在 lists.css。 */
   input.text-s,
   textarea.text-s {
     font-size: 16px;
   }
 
-  /* Works panel（user 2026-07-09 對調）：手機影片在上、文字盒在下（HTML order-1/order-2），
-     pt-3xl(96)→md。文字盒內捲（user 2026-07-13 三改）：掛內層 [data-works-text]——外盒
-     [data-works-hl] 的上下 padding 固定不隨捲動、文字在 padding 內側捲（同 vision/class pattern）。
-     改 max-height（非 height）：文字短就 fit 內容高（user 2026-07-13；原「各 panel 定高等高」退役）。
-     375 = 307 works 落點（2026-07-13 division nav 釘點 180→168 收窄後同步）+ 24 pt + 20 row-gap
-     + 24 底部呼吸，再扣 16:9 影片高
-     （=(100vw − 2×container-padding)×9/16）；落點/nav 高度配對組見 scroll-snap.css，改要同步。
+  /* Works panel 手機：影片上、文字盒下（HTML order）。文字盒內捲掛內層 [data-works-text]（外盒 [data-works-hl] padding 不隨捲動）；
+     max-height＝文字短就 fit 內容高。375 = 307 works 落點 + 24 pt + 20 row-gap + 24 底呼吸，再扣 16:9 影片高
+     (100vw − 2×container-padding)×9/16；落點／nav 高度配對組見 scroll-snap.css，改要同步。
      −1em＝外盒上下 padding 0.5em×2；max() 150 保小屏最低可讀高。 */
   #class-works-panels {
     padding-top: var(--spacing-md);
@@ -350,16 +306,11 @@
     display: none;
   }
 
-  /* Class 圖片（手機＝單圖置中自動輪播，user 2026-07-07；slot opts 在 class-images-slideshow.js）——
-     全部 scope 在 .class-info-panel，避免影響共用 .division-images/.class-img 的 degree-show。
-     1. about 的 .division-images 跟 degree-show 共用 .works-container class，被 cards.css 手機
-        works-container 規則套上 display:flex + overflow:auto → 旋轉圖被裁切；這裡還原 block + overflow:visible。
-     2. 圖片垂直置中（原 JS 設 top:70% 偏下；!important 蓋過 gsap inline）。
-     3. 尺寸對齊 timeline 手機單圖（直式 220 / 橫式 320、容器 320 收納 ±4° 旋轉投影）。 */
-  /* 圖/文對半分（user 2026-09-15「nav btn 之後剩下的空間圖片及文字卡片對半分」，取代固定 240 圖高）：
-     386 = 626 預算扣掉圖 240 ＝ nav 以上 chrome(180+126+24) + row-gap 20 + 底呼吸 24 + 校正 12；
-     100svh − 386 ＝ nav 下方可用空間 → 圖容器/文字盒各半。120 floor 保極矮視窗可讀。
-     圖片本身另在 class-images-slideshow.js 依容器高等比 cap（不裁切、不溢出蓋到 nav/文字）。 */
+  /* Class 圖片（手機＝單圖置中自動輪播；slot opts 在 class-images-slideshow.js），全部 scope 在 .class-info-panel 免影響 degree-show：
+     1. about 與 degree-show 共用 .works-container，cards.css 手機規則套 flex＋overflow:auto 會裁旋轉圖 → 還原 block＋visible。
+     2. 圖片垂直置中（!important 蓋 gsap inline top）。 */
+  /* 圖／文對半分 nav btn 以下空間：386 = 626 預算（推導見下方 [data-class-text]）扣圖 240；
+     100svh − 386 → 圖容器／文字盒各半，120 floor 保極矮視窗。圖片另由 class-images-slideshow.js 依容器高等比 cap。 */
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
@@ -375,20 +326,16 @@
     max-width: 250px;
   }
 
-  /* 圖上方留白收斂（user 2026-07-09）：HTML pt-2xl(64) → md，配合圖縮小讓整個 panel 進一屏 */
+  /* HTML pt-2xl → md，讓整個 panel 進一屏 */
   #class-info-area {
     padding-top: var(--spacing-md);
   }
 
-  /* Class 説明文字盒（user 2026-07-13 三改）：內捲改掛內層 [data-class-text]——外盒
-     [data-class-hl] 的上下 padding 固定不隨捲動、文字在 padding 內側捲（同 vision pattern）。
-     626 = 180 class 落點 + 126 division nav（BFA label 上移後增高）+ 24 pt + 240 圖 + 20 grid
-     row-gap + 24 底部呼吸 + 12 實測校正（2026-07-13 於 390×844 量測 hl top=602、盒底離屏底 24），
-     與 anchor strip / division nav 高度配對組同步（見 scroll-snap.css）；max() 150 保小屏最低可讀高。
-     內層維持固定 height（非 max-height）：三個 division 面板等高、切換不跳版。
-     −1em＝外盒上下 padding 0.5em×2，內層 + padding 加總 = 外盒高。 */
+  /* Class 説明文字盒：內捲掛內層 [data-class-text]（外盒 [data-class-hl] padding 不隨捲動）；固定 height＝各 division 面板等高、切換不跳版。
+     626 預算 = 180 class 落點 + 126 division nav + 24 pt + 240 圖 + 20 row-gap + 24 底呼吸 + 12 實測校正（390×844）；
+     與 anchor strip／division nav 高度配對組同步（見 scroll-snap.css）。 */
   .class-info-panel [data-class-text] {
-    /* 對半分（同上 .division-images 註解）；−1em＝外盒 [data-class-hl] 上下 padding 0.5em×2 */
+    /* 對半分（見上）；−1em＝外盒 [data-class-hl] 上下 padding 0.5em×2 */
     height: max(calc((100svh - 386px) / 2 - 1em), 120px);
     overflow-y: auto;
     scrollbar-width: none;
@@ -398,18 +345,15 @@
   }
 
   /* ===== Degree Show Detail — 手機版專屬（桌面不受影響） ===== */
-  /* grid-20 手機 19 個 column-gap(20px=380px) 超過容器寬(~342px) → col-span-full 內容被撐爆
-     溢出右緣（內容直接貼到 viewport 右邊、沒有右 padding）。column-gap 歸零 = 區塊回容器寬。
-     同 about #about-content-wrapper 修法（event 區已無 grid-20，只剩 events 清單）。 */
+  /* grid-20 手機 column-gap 撐爆容器 → 歸零（同 about #about-content-wrapper 修法） */
   #dsd-desc-section .grid-20,
   #video-outer-section .grid-20,
   #documentary-outer-section .grid-20 {
     column-gap: 0;
   }
 
-  /* Hero title 卡片靠底 + 圖不裁切：bg 維持共用 .hero-mobile-bg 的 4/5.5 natural aspect（不蓋 cover），
-     hero-mobile 高度收斂到圖片底緣 = 180px(圖 top) + 108vw×5.5/4(圖高 148.5vw) + 1.5rem(旋轉 -5° 下緣
-     突出 ~17px 的 buffer，免得圖角戳出去蓋到下一個白底 section)；flex justify-end 把字卡推到底=疊圖片下緣。
+  /* Hero 字卡靠底＋圖不裁：bg 維持 .hero-mobile-bg 4/5.5 natural aspect；
+     hero-mobile 高＝180(圖 top) + 148.5vw(108vw×5.5/4 圖高) + 1.5rem(旋轉 -5° 下緣突出 buffer)；flex-end 把字卡推到圖下緣。
      section 手機無固定高（HTML 只給 md:h-screen）→ 高度由這裡決定。scope [data-hero-title-last] 只本頁。 */
   [data-hero-title-last] .hero-mobile {
     display: flex;
@@ -417,29 +361,24 @@
     justify-content: flex-end;
     min-height: calc(180px + 148.5vw + 1.5rem);
   }
-  /* 年份 chip 字級 h6（user 2026-06-11）：hero.css 對 .hero-mobile-text-en 設 p1（@layer components）、
-     typography 對 h6 tag 設 h6（@layer base），跨 layer cascade 不直觀 → 本頁 scope 用 unlayered 規則釘死 */
+  /* 年份 chip 字級：hero.css（@layer components）與 typography h6（@layer base）跨 layer 不直觀 → 本頁用 unlayered 規則釘死 */
   [data-hero-title-last] .hero-mobile-text-en {
     font-size: var(--font-size-md);
   }
 
-  /* 子展覽 tab（.dsd-event-strip 手機 sticky tab 列）：上限 = 容器內容寬的 3/4（user 2026-06-11：
-     讓右邊下一顆露出來，才知道可以往右滑），超長 title 交給 marquee 跑（applyMarqueeOverflow） */
+  /* 子展覽 tab 上限＝容器內容寬 3/4：讓下一顆露出、暗示可橫滑；超長 title 交給 marquee（applyMarqueeOverflow） */
   .dsd-event-strip .class-division-btn {
     max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
   }
 
-  /* strip 上方留白 clearance（2026-07-09 修「影片底被吃」）：strip-wrap 的 ::before 往上補 96px
-     theme-bg 遮 header 透明帶，但 strip 自然位置只距上方影片 64px（galleries-root pt-3xl）→ ::before
-     吃進影片底 32px。about 頁 strip 接 hero（bg 同 theme-bg 無感），本頁 strip 接影片故要主動讓開：
-     margin-top 48 → 影片↔strip 間距 64+48=112px > 96，::before 全落在空白 theme-bg 上、不碰影片。 */
+  /* strip 上方 clearance：wrap ::before 往上補 96px theme-bg 遮 header 帶，但 strip 距上方影片只 64（galleries-root pt-3xl）
+     → ::before 會吃進影片底。margin-top 48 → 間距 112 > 96，::before 全落在空白上。 */
   .dsd-event-strip-wrap {
     margin-top: var(--spacing-2xl);
   }
 
-  /* 手機子展覽 tab strip（buildMobileEventStrip，2026-07-09）：仿 about #mobile-anchor-strip——
-     負 margin 全出血、隱藏捲軸、overflow-y:clip 容 active pill 旋轉投影；position:relative 讓
-     JS 讀 btn.offsetLeft 以 strip 為基準（active tab 自動捲入可視範圍）。 */
+  /* 手機子展覽 tab strip（buildMobileEventStrip）：同 about #mobile-anchor-strip——負 margin 全出血、隱藏捲軸、
+     overflow-y:clip 容 active pill 旋轉投影；position:relative 讓 JS 以 strip 為基準讀 btn.offsetLeft（active tab 捲入可視）。 */
   .dsd-event-strip {
     position: relative;
     margin-left: calc(-1 * var(--container-padding));
@@ -452,11 +391,8 @@
   .dsd-event-strip::-webkit-scrollbar {
     display: none;
   }
-  /* strip 上方 0~96px 帶（header logo 列）遮擋：sticky 釘 96（inline top，JS 設）後上方是透明帶，
-     捲過的內容會從 logo 後面露出 → ::before 向上補 96px 底色（同 about .mobile-anchor-strip-wrap）。
-     height 98（多蓋 2px 進 strip）：::before 底緣(y=96) 原本正好在 strip 背景交界，DPR≥2 sub-pixel
-     接縫會露出後面 1px 內容（user 2026-07-09「nav btn 上面 1px 空隙」）→ 多蓋 2px 讓接縫落在
-     strip 自身 theme-bg 背景上（後面無內容）＝乾淨對齊頂部。 */
+  /* strip 上方 0~96px（header logo 帶）遮擋：sticky 釘 96（JS inline top）後捲過的內容會從 logo 後露出 → ::before 向上補 96px 底色。
+     height 98（多蓋 2px 進 strip）：消 DPR≥2 sub-pixel 接縫露出的 1px 內容。 */
   .dsd-event-strip-wrap::before {
     content: '';
     position: absolute;
@@ -471,14 +407,12 @@
     scroll-margin-top: 200px;
   }
 
-  /* 子展覽 slideshow 容器：手機單圖置中輪播（2026-07-09，exhibition / ref-based 都走
-     createClassImagesSlideshow 單 slot；原 3-slot/42vw 幾何退役），容器高維持 350 */
+  /* 子展覽 slideshow 容器：手機單圖置中輪播（createClassImagesSlideshow 單 slot） */
   .event-gallery-section .division-images--degree-show {
     min-height: 350px;
   }
 
-  /* 單圖輪播圖片：垂直置中（模組預設 top:70% about 版面用，!important 蓋 gsap inline）+
-     單張放大（直式 60vw / 橫式 86vw；350 容器裝得下 ±4° 旋轉投影） */
+  /* 單圖輪播：垂直置中（!important 蓋 gsap inline top）＋放大（直式 60vw／橫式 86vw；350 容器裝得下 ±4° 旋轉投影） */
   .event-gallery-section .class-img {
     top: 50% !important;
     max-width: 60vw;
@@ -487,10 +421,8 @@
     max-width: 86vw;
   }
 
-  /* Next Project 手機色塊卡（2026-07-09 取消 poster thumbnail）：左右並排 + 後卡 -6% overlap
-     （配 JS 隨機旋轉 = 截圖那種 collage 感）；文字靠左（align-items/text-align:left）、年份與標題
-     同字級（HTML 統一 text-lg，2026-09-10 由 text-s 放大）。#next-link-m margin-top 造高低落差（row items-start，故 margin 直接下推）。
-     黑字統一在這給（不掛 .text-black，inverse 會翻白）。內容多時自然長高。mode-color strict B/W 在 themes/color.css。 */
+  /* Next Project 手機色塊卡：左右並排＋後卡 -6% overlap（配 JS 隨機旋轉）；文字靠左。
+     #next-link-m margin-top 造高低落差（row items-start）。黑字在這給（不掛 .text-black，inverse 會翻白）；mode-color strict B/W 在 themes/color.css。 */
   .dsd-next-card-m {
     width: 53%;
     aspect-ratio: 4 / 3;
@@ -503,30 +435,24 @@
     padding: var(--spacing-sm);
     color: #000;
   }
-  /* 年份↔標題拉開 gap；英↔中用字級全域 token（text-lg → --space-en-zh-lg，user 2026-09-10）。標題過長時
-     aspect-ratio 讓位給內容、卡片自然往下長高（父層 items-start → 向下延伸）。 */
+  /* 年份↔標題 gap；英↔中用字級 token（text-lg → --space-en-zh-lg）。標題過長時 aspect-ratio 讓位、卡片往下長高 */
   .dsd-next-card-m > p:first-child { margin-bottom: var(--spacing-xs); }
   .dsd-next-card-m .dshow-next-title + .dshow-next-title { margin-top: var(--space-en-zh-lg); }
   .dsd-next-card-m + .dsd-next-card-m {
     margin-left: -6%;
   }
-  /* 右卡下推造高低落差（user 2026-07-09：兩卡不必水平對齊） */
+  /* 右卡下推造高低落差 */
   #next-link-m.dsd-next-card-m {
     margin-top: 2rem;
   }
 
-  /* 説明文字卡 [data-class-hl] padding：手機原本 !important 蓋成 0.8em/1em（偏大、跟 tab/nav btn 不一致）→
-     移除此 override，改由 JS inline 統一 6px 8px 5px（= 全站 nav btn / .class-division-btn 標準，桌機手機一致）。user 2026-06-11 */
-
-  /* 子展覽 section 橫向溢出就地裁切：slideshow 4-slot 第 4 格 ~103vw + 兩側 bleed 會溢出 viewport，
-     原本只靠 html/body overflow-x:clip 兜（SPA/某些情境可能沒套上 → 整頁可左右 pan）。
-     在 section 自身 clip（只裁 x、不建 scroll container、不破 sticky）＝就地兜住、不依賴全域 clip。user 2026-06-11 */
+  /* 子展覽 section 就地裁 x 溢出（slideshow 第 4 格 ~103vw＋兩側 bleed）：不依賴 html/body overflow-x:clip（SPA 某些情境沒套上）。
+     clip 不建 scroll container、不破 sticky。 */
   .event-gallery-section {
     overflow-x: clip;
   }
 
-  /* About anchor strip（hero 下方水平 nav，2026-07-07 取代 floating 圓鈕選單）：
-     同 division nav pattern——負 margin 全出血、隱藏捲軸、overflow-y:clip 容 active pill 旋轉投影。 */
+  /* About anchor strip（hero 下方水平 nav）：同 division nav pattern——負 margin 全出血、隱藏捲軸、overflow-y:clip 容 active pill 旋轉投影。 */
   #mobile-anchor-strip {
     margin-left: calc(-1 * var(--container-padding));
     margin-right: calc(-1 * var(--container-padding));
@@ -538,28 +464,22 @@
   #mobile-anchor-strip::-webkit-scrollbar {
     display: none;
   }
-  /* strip 上方 0~96px 帶（header logo 列）遮擋：sticky 釘 96 後上方是透明帶、捲過的內容會從
-     logo 後面露出 → ::before 向上補 96px 底色（同 activities .list-mobile-header-blocker pattern）。
-     未釘住（自然位置在 hero 底）時 ::before 蓋到 hero 尾端 96px——hero bg 同為 theme-bg、視覺無感。 */
+  /* strip 上方 header logo 帶遮擋：sticky 釘住後捲過的內容會從 logo 後露出 → ::before 向上補底色（同 activities .list-mobile-header-blocker）。
+     未釘住時蓋到 hero 尾端——hero bg 同為 theme-bg、無感。 */
   .mobile-anchor-strip-wrap::before {
     content: '';
     position: absolute;
     top: -88px;
     left: 0;
     right: 0;
-    /* 90（88+2）：多疊 2px 進 wrap 頂（strip 上有 py-sm 空白、無害）消 sub-pixel 接縫——
-       否則 ::before 底邊與 wrap 頂邊之間會露出後方捲過內容 1px 灰線（user 2026-07-09 回報）
-       88 = strip 釘點（about.html top:88 配對，user 2026-07-13 從 96 收上來） */
+    /* 90＝88+2：多疊 2px 進 wrap 頂消 sub-pixel 接縫（否則露 1px 灰線）；88＝strip 釘點（配對 about.html top:88） */
     height: 90px;
     background: var(--theme-bg);
   }
 
-  /* Vision 文字盒（user 2026-07-13 三改）：內捲改掛內層 [data-overview-text]——外盒
-     [data-overview-hl] 的上下 padding 固定不隨捲動、文字在 padding 內側捲；文字比上限矮時
-     盒高跟隨實際文字高（max-height 取代舊 height 固定等高）。
-     50svh−124 = (100svh − 180 落點 − 24 section pt（2026-07-13 strip↔盒間距）− 20 row gap
-     − 24 底部呼吸) / 2；−1em＝外盒上下 padding
-     0.5em×2，內層 + padding 加總恰為外盒上限。落點 180 / strip 底 179 見 scroll-snap.css 配對註解。 */
+  /* Vision 文字盒：內捲掛內層 [data-overview-text]（外盒 [data-overview-hl] padding 不隨捲動）；max-height＝文字矮時盒高跟實際文字。
+     50svh−124 = (100svh − 180 落點 − 24 section pt − 20 row gap − 24 底呼吸) / 2；−1em＝外盒上下 padding 0.5em×2。
+     落點 180／strip 底 179 見 scroll-snap.css 配對註解。 */
   #overview [data-overview-text] {
     max-height: calc(50svh - 124px - 1em);
     overflow-y: auto;
@@ -583,26 +503,21 @@
     display: none;
   }
 
-  /* 釘住才出現白底（user 2026-09-06 二輪）：自然 flow 時透明（tab 疊 floating polygons），
-     sticky pinned 後下方圖文會捲到 pill 上 → 加底色遮。is-stuck 由 bfa-division-toggle.js 的
-     sentinel + IntersectionObserver toggle（免 scroll listener）。var(--theme-bg) 三 mode 自動跟底。 */
+  /* 釘住才出現底色：自然 flow 透明（tab 疊 floating polygons），pinned 後下方圖文會捲到 pill 上 → 加底。
+     .is-stuck 由 bfa-division-toggle.js 的 sentinel＋IntersectionObserver toggle。 */
   .mobile-division-wrap.is-stuck {
     background: var(--theme-bg);
   }
 
-  /* Pill 配色對齊桌面 .class-division-btn（不要 .section-nav-btn 預設的白底半透明字）：
-     inactive = theme-fg 底 / theme-bg 字（standard 黑底白字、inverse 白底黑字）。
-     active 維持 accent 底（setActiveNavBtn inline）+ 黑字（buttons.css .section-nav-btn.active）。
-     !important：蓋過 inverse.css 的 .section-nav-btn 一般 theme 規則（那條帶 !important）。
-     mode-color 的 strict B/W 對齊在 color.css。 */
+  /* Pill 配色對齊桌面 .class-division-btn：inactive＝theme-fg 底／theme-bg 字；active＝accent 底（setActiveNavBtn inline）＋黑字（buttons.css）。
+     !important：蓋 inverse.css 帶 !important 的 .section-nav-btn 規則。mode-color strict B/W 在 color.css。 */
   #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
     background: var(--theme-fg) !important;
     color: var(--theme-bg) !important;
   }
 
-  /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（#mobile-division-nav.is-works-context）才展開，
-     讓使用者在 works 區點得到（對齊桌面 .class-division-bfa-wrap 行為）。收起時負 margin 不佔 gap。
-     收合用 clip-path（不用 overflow:hidden）——inset 四邊留 -12px 給 active pill 旋轉 clearance，避免旋轉角被裁切。 */
+  /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（.is-works-context）才展開（對齊桌面 .class-division-bfa-wrap）。
+     收起時負 margin 不佔 gap。收合用 clip-path（非 overflow:hidden）：inset 四邊留 -12px 給 active pill 旋轉，免裁角。 */
   #mobile-division-nav .mobile-division-btn--bfa {
     max-width: 0;
     pointer-events: none;
@@ -619,18 +534,14 @@
     clip-path: inset(-12px -12px -12px -12px);
   }
 
-  /* BFA 學士班 label（mobile）：桌面是 absolute 浮在 btn 上方，mobile 改 in-flow（group 內），
-     才不會被 nav 的 overflow-y 裁掉。bg/color 不蓋＝沿用 buttons.css 桌面 chip（theme-fg 底/theme-bg 字，
-     user 2026-07-13 四改「要有 box 比照桌面」；同日稍早的透明底 50% 字 curriculum 化退役）。
-     active 由 bfa-division-toggle.js 設 inline accent 底 + 黑字；inactive 清 inline → 回 chip。 */
+  /* BFA 學士班 label（mobile）：桌面 absolute 浮在 btn 上方，mobile 改 in-flow 免被 nav overflow-y 裁掉。
+     bg/color 沿用 buttons.css 桌面 chip；active 由 bfa-division-toggle.js 設 inline accent 底＋黑字，inactive 清 inline 回 chip。 */
   #mobile-division-nav .class-group-label {
     position: static;
     left: auto;
     bottom: auto;
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 7/6/6 → 統一，user 2026-09-09）*/
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
     line-height: 1;
   }
 }
-
-
 

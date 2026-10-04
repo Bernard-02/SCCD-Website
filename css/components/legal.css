@@ -1,12 +1,5 @@
-/**
- * Legal Pages（privacy-policy + accessibility 共用）
- *
- * 左欄 sticky 大標題 chip（比照 support 的 chip 風格）+ 右側內文（async 由 legal-data-loader 填入）。
- * 手機取消 sticky 改 stack flow。
- * accessibility 變體 `.legal-accessibility`：ACCESSIBILITY 單字長、旋轉後右下角會壓進右欄 → content col 左加 padding 避位。
- *
- * 2026-06-03 從 privacy-policy.html / accessibility.html 的 inline <style> 抽出合併。
- */
+/* Legal Pages（donate / regulations / sitemap 共用）
+   左欄 sticky 大標題 chip＋右側內文（legal-data-loader 非同步填入）；手機／直放 768–1023 改 stack flow。 */
 
 @layer components {
   .legal-page-section {
@@ -29,10 +22,9 @@
     padding-bottom: var(--spacing-3xl);
     /* 不加 padding-left：靠 site-container 的 gutter 對齊整頁基線 */
   }
-  /* ≥1200 左下「當前頁」卡（navigation.css #page-indicator）已顯示同一個頁名 → 標題 chip 不再顯示（user 2026-10-01；
-     取代 09-27 版「chip 底抬到卡頂之上」）。視覺隱藏而非 display:none：h1 留給讀屏／SEO；hero-animation 照常
-     對它建進退場（看不到、hero done 訊號照發）。手機／平板／1024–1199／矮橫向沒有當前頁卡 → chip 照舊當頁名。
-     gate 同 navigation.css 當前頁卡 */
+  /* 真桌面左下「當前頁」卡（navigation.css #page-indicator）已顯示頁名 → 標題 chip 視覺隱藏。
+     不用 display:none：h1 留給讀屏／SEO；hero-animation 照常建進退場、hero done 訊號照發。
+     其他 viewport 沒有當前頁卡 → chip 照舊當頁名。gate 同 navigation.css 當前頁卡 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .legal-title-block {
       position: absolute;
@@ -57,20 +49,16 @@
     padding-bottom: var(--spacing-3xl);
   }
 
-  /* 桌面：section 收成剛好一屏的 frame，右欄內文在 box 內捲動（比照 activities / faculty 等 inner-scroll 頁）。
-     左欄 sticky title chip 不變；只有 .legal-content-col 是捲動層。手機維持整頁 flow 捲動（見末段 max-width 區塊）。
-     三頁 loader 都 scrollGated:false（載入即全 reveal），不依賴 window 當捲動源，故轉 inner-scroll 安全。
-     ⚠️ 桌面 gate＝「≥1024 或 矮橫向」：直放平板 768-1023 標題壓內容欄（右欄只剩 ~240px）→ 改走手機 stack flow
-     （見下方手機區塊 gate）；矮橫向用 max-height:500 續留 frame＝landscape.css 5f 調校的前提，勿改 orientation 判。 */
+  /* 桌面：section 收成一屏 frame，右欄內文在 box 內捲（比照 activities / faculty 等 inner-scroll 頁）；只有 .legal-content-col 是捲動層。
+     loader 都 scrollGated:false（載入即全 reveal），不依賴 window 捲動源，故 inner-scroll 安全。
+     ⚠️ gate＝「≥1024 或 矮橫向」：直放 768–1023 標題壓內容欄 → 走 stack flow；矮橫向用 max-height:500 續留 frame＝landscape.css 5f 的前提，勿改 orientation 判。 */
   @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-page-section {
       height: 100vh;
       overflow: hidden;
     }
-    /* box 上緣對齊 content 區頂（fixed header + 上 pad）、高度填到 100vh（box 底貼齊 viewport 底，
-       跟 activities/faculty 等 inner-scroll 頁同款 2026-08-03 改法）；box 內從頂開始捲。
-       margin-top 取代原 padding-top:6xl 定位（內容不再捲到 header 底下）。
-       padding-bottom：捲到「真正的底」時的緩衝，不是 box 高度扣減（同 lists.css .inner-scroll-scroll-col）。 */
+    /* box 上緣對齊 content 區頂、高度填到 100vh（底貼 viewport 底，同 inner-scroll 頁）；用 margin-top 定位（內容不捲到 header 底下）。
+       padding-bottom＝捲到底的緩衝，不是 box 高度扣減（同 lists.css .inner-scroll-scroll-col）。 */
     .legal-content-col {
       --inner-pad: var(--spacing-3xl, 96px);
       --inner-pad-bottom: 0px;
@@ -87,31 +75,27 @@
     .legal-content-col::-webkit-scrollbar { display: none; }
   }
 
-  /* accessibility / regulations / combined 變體：ACCESSIBILITY / REGULATIONS / STATEMENTS 單字長、chip 旋轉後
-     右下角會超出 col 5 邊界蓋到右欄第一行內文 → 左加 padding 避位（chip 是 hero-animation.js 給 [data-hero-hl] 套的隨機旋轉） */
-  .legal-accessibility .legal-content-col,
-  .legal-regulations .legal-content-col,
-  .legal-combined .legal-content-col {
+  /* 長標題變體（REGULATIONS）：chip 旋轉後右下角超出 col 5 蓋到右欄第一行 → 左加 padding 避位
+     （旋轉由 hero-animation.js 給 [data-hero-hl]） */
+  .legal-regulations .legal-content-col {
     padding-left: var(--spacing-4xl);
   }
-  /* 桌面標題 chip 已隱藏（見上方 .legal-title-block）→ 不需避位；內容欄＝col 4–18（HTML min-[1024px]:），
-     左緣直接貼 col-4，同 activities / admission 清單起訖（user 2026-10-02）。gate 同 chip 隱藏。 */
+  /* 真桌面標題 chip 已隱藏 → 不需避位；內容欄＝col 4–18（HTML min-[1024px]:），左緣貼 col-4，同 activities / admission。gate 同 chip 隱藏。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .legal-page-section .legal-content-col {
       padding-left: 0;
-      --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（user 2026-10-03，同 curriculum/activities/admission） */
+      --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（同 curriculum/activities/admission） */
     }
-    /* sitemap 卡片貼 col-4 且帶旋轉 → 角落凸出內捲框（overflow:auto）左緣被裁（user 2026-10-03）：
-       框兩側各外推 24、內補 24 當旋轉 clearance＝卡片可見左緣仍在 col-4（同 faculty 框外推，lists.css:188） */
+    /* sitemap 卡片貼 col-4 且帶旋轉 → 角落凸出內捲框（overflow:auto）被裁：
+       框兩側各外推 24、內補 24 當旋轉 clearance＝卡片可見左緣仍在 col-4（同 lists.css faculty 框外推） */
     .legal-sitemap .legal-content-col {
       margin-left: calc(-1 * var(--spacing-md));
       width: calc(100% + 2 * var(--spacing-md));
       padding-inline: var(--spacing-md);
     }
-    /* 說明文字 sticky 貼內捲框頂（user 2026-10-03），卡片從底下捲過：下方留白改 padding＝底色連空白一起蓋、
-       卡片在固定邊界消失；左右吃掉框的 24 旋轉 clearance＝旋轉角捲過時兩側也蓋住。z-index 壓過帶 transform 的卡片 */
-    /* 不透明底只到 xl−md、再留 md 透明 margin：第一列卡片旋轉（含 hover 抽角）上角伸進這段不被蓋（user 2026-10-03
-       「第一個 item 旋轉後被頂部切到」）；文字到卡片總距仍＝xl，捲動消失邊界上移 md 照樣固定 */
+    /* 說明文字 sticky 貼內捲框頂、卡片從底下捲過：下方留白用 padding＝底色連空白一起蓋；
+       左右吃掉框的 24 clearance＝旋轉角捲過時兩側也蓋住。z-index 壓過帶 transform 的卡片 */
+    /* 不透明底只到 xl−md、再留 md 透明 margin：第一列卡片旋轉（含 hover 抽角）上角伸進這段不被蓋；文字到卡片總距仍＝xl */
     .legal-sitemap .legal-map-desc {
       position: sticky;
       top: 0;
@@ -120,7 +104,7 @@
       margin: 0 calc(-1 * var(--spacing-md)) var(--spacing-md);
       padding: 0 var(--spacing-md) calc(var(--spacing-xl) - var(--spacing-md));
     }
-    /* Donate／Regulations 說明段同樣 sticky 貼框頂（user 2026-10-04）：zebra 無旋轉卡＝底色連 xl 留白整段不透明；
+    /* Donate／Regulations 說明段同樣 sticky 貼框頂：zebra 無旋轉卡＝底色連 xl 留白整段不透明；
        展開標題列釘在其下（loader 量高寫 --list-header-sticky-top）；z 6 壓過被推上來的 sticky 標題列（5） */
     .legal-zebra .legal-page-desc {
       position: sticky;
@@ -132,10 +116,8 @@
     }
   }
 
-  /* chip 共用：defensive 預設綠底，等 hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent
-     （避免 JS 延遲時 mode-inverse 下黑字 on 黑 body 看起來空白）
-     width:max-content 讓 chip 嚴格 hug textbox 寬度（避免 .hero-title-wrapper block + flex align-start 下
-     wrapper 用滿欄寬，造成 inline-block chip 看起來右側 padding 過大） */
+  /* chip 預設綠底＝hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent 前的保底（否則 mode-inverse 黑字 on 黑底看似空白）。
+     width:max-content 讓 chip 嚴格 hug 文字寬（否則 wrapper 撐滿欄寬、右側 padding 看似過大） */
   .legal-title-block .hero-title,
   .legal-title-block .hero-title-cn {
     background: var(--color-green);
@@ -145,11 +127,8 @@
     max-width: 100%;
   }
 
-  /* 桌面：title chip 每次進頁隨機傾角 + 水平推右（值由 legal-title-random.js 設在 .legal-title-block 上）。
-     fallback 用原本固定角度，JS 未跑時維持舊樣式；shift 用 margin-left 在左欄 flex 內推右。
-     .legal-title-block 後代選擇器 (0,2,0) 蓋過 hero.css 全域 .hero-title-wrapper (0,1,0)。
-     只在桌面：手機/直放平板 legal-title-col 是 static stack，沿用 hero.css 基礎角度，不 random（RWD 互不影響）。
-     gate 同上方 frame 區塊；legal-title-random.js 的 JS gate 同式。 */
+  /* 桌面：chip 每次進頁隨機傾角＋水平推右（legal-title-random.js 設 var 於 .legal-title-block；未設時用 fallback 固定角度）。
+     (0,2,0) 蓋過 hero.css 全域 .hero-title-wrapper (0,1,0)。stack 版沿用 hero.css 基礎角度。gate 同上方 frame 區塊，legal-title-random.js 同式。 */
   @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-title-block .hero-title-wrapper {
       transform: rotate(var(--legal-rot-en, -4deg));
@@ -163,288 +142,40 @@
     }
   }
 
-  /* clip-reveal 遮罩：包住單一可動行（num / title / 副標 / 說明），進場 yPercent 滑入有遮罩、退場反向沉出。
-     overflow-y:clip 當遮罩、overflow-x:visible 讓內容橫向不被裁（對齊 scroll-animate.js setupClipReveal 慣例）。
-     loader renderStructured 用 reveal() 把每行包進 .legal-reveal；setupClipReveal 偵測父層已 clip 就不 reparent。 */
+  /* clip-reveal 遮罩：包單一可動行（num / title / 副標 / 說明），yPercent 進退場。overflow-y:clip 當遮罩、overflow-x:visible 不橫裁（同 setupClipReveal 慣例）。
+     setupClipReveal 偵測父層已 clip 就不 reparent。 */
   .legal-reveal {
     overflow-y: clip;
     overflow-x: visible;
   }
 
-  /* 前言（overview，loader 組出 .legal-intro）：與第一個編號 section 拉開距離 */
-  .legal-intro {
-    margin-bottom: var(--spacing-4xl);
-  }
-  /* p 已被 .legal-reveal 包 → 用 descendant；尾段留 sm（被 .legal-intro 的 4xl 吸收，視覺可忽略） */
-  .legal-intro p {
-    margin-bottom: var(--space-en-zh-body);   /* 前言是 prose → 英中距走 body 軸（24px，user 08-13） */
-  }
-  /* regulations 頂部說明文字：比照 admission 頁的說明文字（text-s bold），比一般 legal 前言更醒目（user 2026-07-15）。 */
-  .legal-regulations .legal-intro p {
-    font-weight: var(--font-weight-bold);
-  }
-
-  /* ── 編號 section：grid 兩欄（編號 / EN 標題+ZH 標題+內文）─── */
-  .legal-section {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: var(--spacing-md);
-    margin-bottom: var(--spacing-3xl);
-    /* 編號欄與內文欄都靠上對齊（編號對齊 title 第一行）。
-       關鍵：grid 預設 align-items:stretch 會把編號的 .legal-reveal clip-wrapper 撐到整列高（含內文），
-       單行編號 yPercent:100 只下移自身一行高 → 仍在高 wrapper 內＝藏不住，於是編號在 section 進場 trigger
-       前就先出現、title 卻還藏著（user 2026-06-07 regulations「數字先出現、title 沒出現」）。
-       start 讓編號 wrapper 收成單行高 → yPercent:100 確實裁掉，編號與 title 一起進場。內文欄本來就最高不受影響。 */
-    align-items: start;
-  }
-  /* 不編號變體（如 support：Funds / Others 是分類非條款）→ 無 num 欄，body 撐滿單欄 */
-  .legal-section--no-num {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  /* support：最後一個 section 不留尾端 margin（support 無 #legal-updated 區塊，否則底部多一段空白）。
-     只 scope support，其他 legal 頁最後 section 後面還接著「最後更新」區塊不受影響。 */
-  .legal-support .legal-section:last-child {
-    margin-bottom: 0;
-  }
-  .legal-section-num {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-xl);
-  }
-  /* title 已被 .legal-reveal 包 → 改 descendant（這兩 class 只出現在這裡，不會誤套子區塊次標題） */
-  .legal-section-body .legal-section-title-en,
-  .legal-section-body .legal-section-title-zh {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-xl);
-    margin: 0;
-  }
-  /* EN→ZH gap：拉開兩語標題距離（user 反映太擠） */
-  .legal-section-body .legal-section-title-en {
-    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（8px） */
-  }
-  .legal-section-body .legal-section-title-zh {
-    margin-bottom: var(--spacing-md);
-  }
-  /* 內文次標題（如 support 的 Single/Regular）：比群組標題（h4）小一級的 h5，與前文拉開層級才清楚 */
-  .legal-section-body h5 {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    line-height: 1.2;
-    margin-top: var(--spacing-lg);
-    margin-bottom: var(--spacing-sm);
-  }
-  /* 緊接群組標題的第一個次標題不另加上距；title 已被 reveal 包不再與 h5 相鄰 → 改 desc 首子 */
-  .legal-section-desc > h5:first-child {
-    margin-top: 0;
-  }
-
-  /* sections 子區塊（如 support Funds 的 Single 單次 / Regular 定期）：
-     雙語次標題（EN/ZH 各一行，比照群組標題 en→zh 收緊）+ 各自 EN/ZH 富文本內文。
-     用獨立 class 才能把 EN/ZH 次標題收成一組——裸 h5 各自帶 margin-top:lg 會把兩語次標題拆開。 */
-  .legal-subsection {
-    margin-top: var(--spacing-lg);
-  }
-  /* 第一個子區塊不另加上距（群組標題已有 margin-bottom）；title 已被 reveal 包 → 改 desc 首子 */
-  .legal-section-desc > .legal-subsection:first-child {
-    margin-top: 0;
-  }
-  /* support：子區塊各自包進獨立 .legal-sub-reveal（可分開依序進場）後，每個 .legal-subsection 都成了
-     自己 desc 的首子 → 被上面規則歸零上距。相鄰子區塊（Regular 緊接 Single）的群組內上距改由
-     reveal wrapper 補回；第一個子區塊（Single）靠群組標題 margin-bottom 自然留距，不加上距。 */
-  .legal-sub-reveal + .legal-sub-reveal {
-    margin-top: var(--spacing-lg);
-  }
-  /* (0,2,0) 蓋過上面 `.legal-section-body h5` (0,1,1) 的 margin，把兩語次標題收緊。
-     字級用 p2＝對齊 policy（.legal-combined）編號條款小標大小（user 2026-07-15「donate 的 Single/Regular 用 policy 小 title 大小」）。 */
-  .legal-section-body .legal-subsection-title-en,
-  .legal-section-body .legal-subsection-title-zh {
-    font-size: var(--font-size-s);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-s);
-    margin: 0;
-  }
-  .legal-section-body .legal-subsection-title-en {
-    margin-bottom: var(--space-en-zh-s);   /* text-s → s 字級英中距（2px） */
-  }
-  .legal-section-body .legal-subsection-title-zh {
-    margin-bottom: var(--spacing-sm);
-  }
-  /* 富文本段落純靠 line-height 排、不加 mb 干涉（比照 li；user 08-13：rich text 邏輯不該有 margin 介入）。 */
-  .legal-subsection > p {
-    margin-bottom: 0;
-  }
-  /* 內文 list / p：對齊到 col 2 左邊（與標題等距） */
-  .legal-section-body ul,
-  .legal-section-body ol {
-    padding-left: 1.25rem;
-    margin-bottom: var(--spacing-md);
-  }
-  /* Tailwind preflight 把 ul/ol 預設清成 list-style:none，loader 組出的清單要在此補回語意項目符號 */
-  .legal-section-body ul { list-style: disc; }
-  .legal-section-body ol { list-style: decimal; }
-  /* li 是 class-less 富文本 → 預設只繼承 body 16px，不吃全域 `p { text-s }`；桌面 p2==16px 兩者巧合一致，
-     但手機 p2 縮成 14px 而 li 仍 16px → 條列點比段落大。顯式對齊 p2 讓 point 與段落同級（桌面仍 16px 無變）。 */
-  /* 富文本 li 純靠 line-height 排（比照 admission-body：li 不加 mb 干涉、間距即行高）；font-size 仍顯式對齊 p2（手機分歧修正，見 memory）。 */
-  .legal-section-body li { font-size: var(--font-size-s); }
-  .legal-section-body ul:last-child,
-  .legal-section-body ol:last-child {
-    margin-bottom: 0;
-  }
-  /* 說明段落（desEn/desZh 富文本）：純靠 line-height 排、不加 mb 干涉（比照 li）。 */
-  .legal-section-desc > p {
-    margin-bottom: 0;
-  }
-  /* 英中段落對：EN 區塊與 ZH 區塊之間套英中距 body 軸（24px）；區塊內各行仍純 line-height。
-     邊界＝最後一個英文 p（無 lang、後面緊接中文 p）加 mb（統一全站 gap 一律 mb，用 :has 選前者）。 */
-  .legal-subsection > p:not([lang]):has(+ p[lang="zh-Hant"]),
-  .legal-section-desc > p:not([lang]):has(+ p[lang="zh-Hant"]) {
-    margin-bottom: var(--space-en-zh-body);
-  }
-  /* 富文本 ZH 區塊吃 ZH 獨立行距（比照 lists.css .admission-body p[lang]；normalizeBodyHtml 自動補 lang="zh-Hant"）。
-     desEn/desZh 是 text-s 級 → 用 zh-s（1.4）；只針對 p/li，標題走各自 title 規則。 */
-  .legal-section-desc p[lang="zh-Hant"],
-  .legal-subsection p[lang="zh-Hant"],
-  .legal-section-body li[lang="zh-Hant"] {
-    line-height: var(--line-height-zh-s);
-  }
-
-  /* regulations：每筆規章列（renderRegLine 組，<div>）＝左 規章名（EN<br>ZH 粗體）＋右 承辦單位（EN<br>ZH，去哪裡找）。
-     flex space-between 把單位排到欄位最右緣、align-items:flex-start 對齊文字頂部（第一行）。user 2026-07-15。
-     margin-bottom 補回列間距（原 <p> 吃 `.legal-section-desc > p` 的 sm，改 <div> 後要自己補、否則列擠在一起）。 */
-  .legal-regulations .legal-section-desc > .reg-line {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--spacing-md);
-    font-weight: var(--font-weight-bold);
-    margin-bottom: var(--spacing-sm);
-  }
-  .legal-regulations .legal-section-desc > .reg-line:last-child {
-    margin-bottom: 0;
-  }
-  /* 承辦單位：靠右緣不收縮，但內部 EN/ZH 靠左對齊（user 2026-07-15「英中靠左對齊」＝ZH 對齊 EN 起始、非右緣）；
-     常規字重與粗體規章名區分為次要資訊（去哪找）。後台 unit 欄尚未建時 renderRegLine 給預設文字（SCCD Office / 系辦）。 */
-  .legal-regulations .reg-line-unit {
-    flex-shrink: 0;
-    text-align: left;
-    font-weight: var(--font-weight-regular);
-  }
-  /* 規章名/承辦單位 EN/ZH：2026-08-13 由「EN<br>ZH 同 node」拆成 block span，EN→ZH 距收進 s tier（2px）；
-     :not(:last-child)＝缺一語的單語不加尾距；line-height 照 text-s tier（reg-line 是 text-s）。 */
-  .legal-regulations .reg-line-text > span,
-  .legal-regulations .reg-line-unit > span {
-    display: block;
-    line-height: var(--line-height-s);
-  }
-  .legal-regulations .reg-line-text > span:not(:last-child),
-  .legal-regulations .reg-line-unit > span:not(:last-child) {
-    margin-bottom: var(--space-en-zh-s);
-  }
-  /* 內文連結（如聯絡 email、捐款連結）：粗體、不加底線、無 hover 效果（user 偏好） */
-  .legal-section-body a {
-    font-weight: var(--font-weight-bold);
-    text-decoration: none;
-  }
-  /* 規章名帶 url → 可點跳轉，桌面 hover 補底線當可點提示（手機無 hover） */
-  @media (min-width: 768px) {
-    .legal-regulations .reg-line-link:hover { text-decoration: underline; }
-  }
-
-  /* ── 政策及聲明（policy-and-statements）：privacy + accessibility 合併頁 ── */
-  /* 兩大段標題（隱私權與資訊安全政策 / 無障礙聲明）＝原編號 section 標題大小（h4 粗體）。
-     每段做成 accordion（buildPolicyAccordions 把 .legal-group-head 搬進 .support-acc-header）：標題列上距歸零，
-     展開後內文的上距由 .support-acc-panel > :first-child 提供（見 support.css），收合態更 compact。 */
-  .legal-group-head {
-    margin-bottom: 0;
-  }
-  /* 每段自己的更新日期（收在該段 accordion panel 底；user 2026-07-14 每段各一份、取代原頁尾單一份） */
-  .legal-group-updated {
-    margin-top: var(--spacing-xl);   /* 最後條款→更新日期 3xl(96)→xl(48)，與條款間距一致（user 08-13） */
-  }
-  /* 更新日期 EN/ZH（兩 text-s <p> 疊放）→ s 字級英中距 2px（原 0 gap；user 08-13） */
-  .legal-group-updated > p:not(:last-child) {
-    margin-bottom: var(--space-en-zh-s);
-  }
-  .legal-group-title-en,
-  .legal-group-title-zh {
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-bold);
-    line-height: var(--line-height-xl);
-    margin: 0;
-  }
-  .legal-group-title-en {
-    margin-bottom: var(--space-en-zh-xl);   /* text-xl → xl 字級英中距（8px） */
-  }
-  /* 兩大段之間間距＝與 donate/regulations 的 list 間距一致（3xl 96px；user 2026-07-15 統一，原 6xl 拉大取消） */
-  .legal-group + .legal-group {
-    margin-top: var(--spacing-3xl);
-  }
-  /* 合併頁限定：編號條款的標題與編號縮到 p2（維持粗體當小標；user 2026-06-09「有數字的 title 改 p2 + 調行距」）。
-     line-height 1.35 收緊、雙語標題 EN→ZH 間距改 xs 讓中英成緊湊一組（蓋掉基礎的 sm/md）。 */
-  .legal-combined .legal-section-num,
-  .legal-combined .legal-section-body .legal-section-title-en,
-  .legal-combined .legal-section-body .legal-section-title-zh {
-    font-size: var(--font-size-s);
-    line-height: var(--line-height-s);
-  }
-  .legal-combined .legal-section-body .legal-section-title-en {
-    margin-bottom: var(--space-en-zh-s);   /* text-s → s 字級英中距（2px） */
-  }
-  .legal-combined .legal-section-body .legal-section-title-zh {
-    margin-bottom: var(--spacing-sm);
-  }
-  /* 合併頁：編號→文字的 grid 欄距縮一級（md→sm），配合縮小的 p2 編號（user 2026-06-09） */
-  .legal-combined .legal-section {
-    column-gap: var(--spacing-sm);
-    /* 條款間距 3xl(96px)→xl(48px)，policy 條款較密（user 08-13）；前言/更新日期邊界也收 xl → 整段 panel 間距統一 48px。
-       仍走 mb（非 container gap）：panel 是 accordion、flex 化會動到 height 動畫；三邊界各自 margin＋collapse 即可。 */
-    margin-bottom: var(--spacing-xl);
-  }
-  /* 合併頁前言→第一條款：4xl(128)→xl(48)，與條款間距一致（user 08-13）。scope 合併頁，donate/regulations 前言不動。 */
-  .legal-combined .legal-intro {
-    margin-bottom: var(--spacing-xl);
-  }
-
-  /* ── 學系規章（regulations）：單一群組 singleton，points = 5 大類（學則 / 修業 / 資源 / 組織 / 法規），
-     items = 該類規章名（每筆 EN<br>ZH）＋承辦單位、不編號（NO_NUMBER_PAGES）。
-     2026-07-15 大類標題改成 accordion（一行 EN+ZH + chevron，同 support）＋字級統一回 h4（拿掉原 h5 縮小、對齊 donate/policy 大標，user 要）。
-     ＝不再有 regulations 專屬 title 覆寫，吃預設 .legal-section-body .legal-section-title h4。 */
-
-  /* 手機＋直放平板 768-1023：取消 sticky，title 與內文 stack flow；高度回 auto。
-     平板段條件用 min-height:501 排除矮橫向（矮橫向續走桌面 frame），平板專屬補丁見下方獨立區塊 */
+  /* 手機＋直放 768–1023：取消 sticky，title 與內文 stack flow、高度回 auto。
+     768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
   @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     .legal-title-col {
       position: static;
       height: auto;
       justify-content: flex-start;
       padding-bottom: var(--spacing-xl);
-      /* padding-top 需含 header 高度 (~80px) + 額外呼吸感，否則 title chip 進場 yPercent reveal 時
-         起點在 viewport 頂被 logo 遮住 (user 反饋 2026-05-27) */
+      /* padding-top 含 header 高度＋呼吸，否則 chip 進場 yPercent reveal 起點在 viewport 頂被 logo 遮住 */
       padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
     }
     .legal-content-col {
       padding-top: var(--spacing-xl);
     }
-    /* mobile stack 排列下 chip 不會壓內文，取消 desktop 的 pl 避位 */
-    .legal-accessibility .legal-content-col,
-    .legal-regulations .legal-content-col,
-    .legal-combined .legal-content-col {
+    /* stack 下 chip 不壓內文，取消桌面的 pl 避位 */
+    .legal-regulations .legal-content-col {
       padding-left: 0;
     }
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     Zebra 手風琴（Regulations & Policy / Support / Site Map）— 2026-09-09
-     三頁改用 admission announcement 那套 list-item / list-header / list-content
-     （legal-data-loader.js mountZebra）＋ initListAccordion（hover accent、點開上色、
-     ref 深色）。斑馬底、accent 文字翻色、mode3 theme-fg 覆蓋、ref 深色全走 lists.css /
-     themes 既有「全域」規則（[style*=background] 等）——這裡只補 legal 專屬的：
-     ①斑馬底 scope 到 .legal-zebra ②標題/副標排版 ③三種卡片 body。
-     ══════════════════════════════════════════════════════════════════════ */
+  /* ══ Zebra 手風琴（Regulations & Policy / Support / Site Map）══
+     沿用 admission 的 list-item / list-header / list-content（legal-data-loader.js mountZebra）＋ initListAccordion。
+     斑馬底翻色、mode3 覆蓋、ref 深色走 lists.css / themes 全域規則（[style*=background] 等）；這裡只補 legal 專屬：
+     ①斑馬底 scope 到 .legal-zebra ②標題/副標排版 ③三種卡片 body。 */
 
-  /* 桌面：opened header 釘在 inner-scroll box 頂（var 未設時 CSS 預設 200px 離頂太遠）；gate 同 frame 區塊，
-     直放平板無 frame、釘點另走下方平板區塊的 96px */
+  /* 桌面：展開 header 釘在 inner-scroll box 頂（var 未設時預設 200px 離頂太遠）；gate 同 frame 區塊。
+     直放 768–1023 無 frame，釘點見檔尾 96px */
   @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-zebra { --list-header-sticky-top: 0px; }
   }
@@ -457,7 +188,7 @@
   body.mode-color .legal-zebra .list-item.list-item-zebra {
     background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
   }
-  /* 展開 item 被 hover-dim 清掉 inline accent 時補不透明斑馬底（同 admission，避免 sticky header 透出內容） */
+  /* 展開 item 的 header/content 補不透明斑馬底（同 admission）：沒有 inline accent 時 sticky header 才不會透出底下內容 */
   .legal-zebra .list-item.list-item-zebra > .list-header.active,
   .legal-zebra .list-item.list-item-zebra > .list-header.active + .list-content {
     background: linear-gradient(rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05)), rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05))), var(--theme-bg);
@@ -470,16 +201,12 @@
   body.mode-color .legal-zebra .list-item.list-item-zebra > .list-header.active + .list-content {
     background: linear-gradient(var(--list-zebra-strip, rgba(255, 255, 255, 0.15)), var(--list-zebra-strip, rgba(255, 255, 255, 0.15))), var(--theme-bg);
   }
-  /* ⚠️ 灰色條修正（user 2026-09-09b）：activities/admission 的 `.list-item{padding-bottom:4px}` 是給 4px 黑
-     divider 用；legal 無 divider → 那 4px 露出 item 斑馬底＝hover 時 accent header 下方多一條灰。legal 用斑馬
-     交錯分列、不需 divider → 直接歸零。 */
+  /* ⚠️ activities/admission 的 `.list-item{padding-bottom:4px}` 是給 4px divider 用；legal 用斑馬分列無 divider
+     → 那 4px 會露出斑馬底＝hover 時 header 下多一條灰 → 歸零。 */
   .legal-zebra .list-item { padding-bottom: 0; }
 
-  /* 真機 fractional DPR（Windows 125%/150% 縮放）下 header↔content 交界 1px 渲染縫：兩層同色 accent 在縫上
-     被 AA 混色、綠底互補偏紅褐＝user 2026-09-10 報「紅線」（headless DPR1/1.25 重現不出＝同 history 年份 sticky
-     縫家族）。lists.css 全站已有 `.list-header.active + .list-content{margin-top:-1px}`（0,2,1）但 user 機器
-     仍漏 → legal 加深 tuck 到 −2px（同色相疊不顯；同 curriculum/era 的 −2px 慣例）。selector 帶 .legal-zebra
-     提特異度（0,3,1）壓過全站 −1px。 */
+  /* 真機 fractional DPR（Windows 125%/150%）header↔content 交界 1px 縫：兩層同色 accent 被 AA 混色成紅褐線（headless 重現不出）。
+     lists.css 全站 −1px (0,2,1) 仍漏 → legal 加深到 −2px（同 curriculum/era 慣例），.legal-zebra 提特異度 (0,3,1) 壓過。 */
   .legal-zebra .list-header.active + .list-content { margin-top: -2px; }
 
   /* 標題欄（左，撐開）＋ chevron（右，不縮） */
@@ -499,14 +226,13 @@
   }
   .legal-zebra-title-en { margin-bottom: var(--space-en-zh-s); }
   .legal-zebra-title-zh { line-height: var(--line-height-zh-lg, 1.3); }
-  /* 副標＝最後更新（小字但不弱化：user 2026-09-09c 要 100% 前景色、不降 opacity）；無副標（地圖列）時不佔位 */
+  /* 副標＝最後更新（100% 前景色、不降 opacity）；無副標（地圖列）時不佔位 */
   .legal-zebra-sub {
     margin-top: var(--spacing-xs);
   }
   .legal-zebra-sub p:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
 
-  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，底部多留一點；
-     上距歸零（user 2026-10-03，同 10-01 list-content 拿掉 pt） */
+  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，上距 0、底部多留 */
   .legal-zebra-card {
     padding: 0 var(--spacing-sm) var(--spacing-lg);
   }
@@ -536,7 +262,7 @@
   }
   .legal-zebra-sub-title-en { margin-bottom: var(--space-en-zh-s); }
   .legal-zebra-sub-title-zh { margin-bottom: var(--spacing-sm); }
-  /* 富文本 list / 段落（比照 .legal-section-body）*/
+  /* 富文本 list / 段落 */
   .legal-zebra-card ul,
   .legal-zebra-card ol { padding-left: 1.25rem; margin-bottom: var(--spacing-md); }
   .legal-zebra-card ul { list-style: disc; }
@@ -551,14 +277,10 @@
   .legal-zebra-card a { font-weight: var(--font-weight-bold); }
 
   /* ── 規章表格（一個 accordion 內全部規章；桌面 3 欄無小標：類別 ｜ 規章名 ｜ 承辦單位）──
-     桌面＝09-09c 設計：同類別只顯示一次＋sticky（比照 faculty 卡片）——每個 .legal-reg-group 一類，
-     類別欄 grid-row 跨整組、sticky 釘在 accordion sticky header 正下方（top=--legal-reg-cat-top，
-     值由 loader 量 header 高寫入）。手機另走 ref 式直排（見下方 max-width 區塊；user 2026-09-11
-     「桌面手機要分開」——09-11 早上「桌面改手機同款」已撤回）。 */
-  /* user 2026-09-10：分組間無空格＋整張表一塊 deep 底（含欄縫）。
-     比照 ref 做法（.list-ref-btn 整條無外圍 padding、行自帶 padding、貼齊 content 邊）：
-     表自身零直向 padding（首末行的 cell padding 8px 就是內部呼吸，hover 黑帶直接頂到表緣、不露 deep 條）；
-     負 margin 左右吃掉 .legal-zebra-card 的 --spacing-sm、底部吃掉 --spacing-lg → 深色塊貼齊卡底、不露卡色。 */
+     桌面：每個 .legal-reg-group 一類，類別欄 grid-row 跨整組、sticky 釘在 accordion sticky header 正下方
+     （top=--legal-reg-cat-top，loader 量 header 高寫入）。手機另走 ref 式直排（見下方 max-width 區塊；桌面手機刻意分開）。 */
+  /* 分組間無空格＋整張表一塊 deep 底（含欄縫）。比照 .list-ref-btn：表自身零直向 padding（cell padding 就是呼吸，hover 黑帶頂到表緣、不露 deep 條）；
+     負 margin 左右吃掉 .legal-zebra-card 的 --spacing-sm、底部吃掉 --spacing-lg → 深色塊貼齊卡底。 */
   .legal-reg-table {
     display: flex;
     flex-direction: column;
@@ -571,13 +293,11 @@
     display: grid;
     grid-template-rows: repeat(var(--reg-rows, 1), auto);
     column-gap: var(--spacing-md);
-    row-gap: 0;   /* ref 式排列（user 2026-09-09f）：列間無 gap、間距改由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
+    row-gap: 0;   /* 列間無 gap：間距由 cell 上下 padding 提供 → hover 色帶與鄰列相接 */
     align-items: stretch;   /* 同列 name/unit 等高 → hover ref box 齊高 */
   }
-  /* 桌面 3 欄寬依內容（user 2026-10-03「縮小時優先不 marquee，真的太小才 marquee」；取代 09-10 的 2｜3｜1 固定比例）：
-     表＝3 欄 grid、各組 subgrid 共用欄軌 → 類別／承辦單位 minmax(0, max-content)、規章名 auto：放得下時三欄剛好容下
-     各自最長字、多的空間全給規章名；不夠時瀏覽器均分縮減＝短欄先滿足、最長的欄才 marquee。
-     cell min-width:0＝auto 欄可縮（否則 nowrap 字撐住 min-content 不縮、直接溢出）。手機直排見下方 max-767。 */
+  /* 桌面 3 欄寬依內容：各組 subgrid 共用欄軌 → 類別／承辦單位 minmax(0, max-content)、規章名 auto：放得下時三欄容下各自最長字、多的給規章名；
+     不夠時瀏覽器均分縮減＝短欄先滿足、最長欄才 marquee。cell min-width:0＝auto 欄可縮（否則 nowrap 撐住 min-content 直接溢出）。 */
   @media (min-width: 768px) {
     .legal-reg-table {
       display: grid;
@@ -593,11 +313,10 @@
     grid-row: 1 / -1;
     align-self: start;
     font-weight: var(--font-weight-bold);
-    padding-top: var(--spacing-sm);   /* 對齊首列文字（cell 上 padding 已改 --spacing-sm，跟著走） */
+    padding-top: var(--spacing-sm);   /* 對齊首列文字（同 cell 上 padding） */
   }
-  /* sticky 只在 list-content overflow:visible（開合動畫完）時生效（user 2026-09-09d bug1「類別會移動」）：
-     開/收動畫期間 content overflow:hidden＝content 變 scroll container → sticky 改對 content 定位、
-     類別被 top 值推離原位。gate 掉動畫窗（overflow:visible 由 list-accordion 展開 onComplete 設 inline）。 */
+  /* sticky 只在 list-content overflow:visible（開合動畫完）時生效：動畫期間 content overflow:hidden＝變 scroll container
+     → sticky 改對 content 定位、類別被推離原位。overflow:visible 由 list-accordion 展開 onComplete 設 inline。 */
   .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat {
     position: sticky;
     top: calc(var(--list-header-sticky-top, 0px) + var(--legal-reg-cat-top, 0px));   /* 標題列釘點（含頁面說明高）＋標題列高 */
@@ -621,8 +340,8 @@
   .legal-reg-cat > span:not(:last-child),
   .legal-reg-name > span:not(:last-child),
   .legal-reg-unit > span:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
-  /* reg 列英中各一行（user 2026-09-15）：過長不折行改 marquee——桌面 hover 才捲（bindMarqueeReturn 放開回彈）、
-     手機無 hover 自動循環；結構/keyframe 同 courses 卡（applyMarqueeOverflow dual-copy + --marquee-* vars）。 */
+  /* reg 列英中各一行：過長不折行改 marquee——桌面 hover 才捲（bindMarqueeReturn 放開回彈）、手機自動循環；
+     結構同 courses 卡（applyMarqueeOverflow dual-copy + --marquee-* vars）。 */
   .legal-reg-line {
     overflow: hidden;
     white-space: nowrap;
@@ -637,7 +356,7 @@
     padding-right: var(--marquee-copy-gap);
   }
   @media (hover: hover) and (min-width: 768px) {
-    /* hover 哪一欄只捲那一欄（user 2026-09-15；列變色仍整列）——hover 單元=cell 非 item */
+    /* hover 哪一欄只捲那一欄（列變色仍整列）——hover 單元＝cell 非 item */
     .legal-reg-name:hover .legal-reg-line.is-overflow .legal-reg-mq-inner,
     .legal-reg-unit:hover .legal-reg-line.is-overflow .legal-reg-mq-inner {
       animation: legal-reg-marquee var(--marquee-duration, 8s) linear infinite;
@@ -658,26 +377,22 @@
   .legal-reg-unit.legal-reg-link { color: inherit; font-weight: inherit; text-decoration: none; cursor: var(--cursor-pointer); }
   .legal-reg-name.legal-reg-link:hover,
   .legal-reg-unit.legal-reg-link:hover { text-decoration: none; }
-  /* 列＝完整 ref 設計（user 2026-09-10，取代 09-09e「hover 才 deep 色帶」）：
-     rest＝deep 底黑字（同 .list-ref-btn rest：--item-color-deep＝該 accordion accent 的深色）、
-     hover＝黑底白字（同 .list-ref-btn hover）。類別欄不變（展開 accent 底）。
-     ref 式排列（09-09f）：列間 row-gap 0、垂直間距全由 cell 上下 padding 提供（進色帶＝鄰列相接無縫）；
-     水平仍用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。
-     上下 padding＝--spacing-sm（16px）＝跟 activities .list-ref-btn 的 py-sm 對齊（user 2026-09-12「做跟 activities 一樣」）；左右仍 8px 基底。 */
+  /* 列＝完整 ref 設計：rest＝deep 底黑字（同 .list-ref-btn rest；--item-color-deep＝該 accordion accent 的深色）、hover＝黑底白字。類別欄不變。
+     列間 row-gap 0、垂直間距全由 cell 上下 padding（--spacing-sm，同 activities .list-ref-btn py-sm）→ 色帶鄰列相接無縫；
+     水平用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。 */
   .legal-reg-name,
   .legal-reg-unit {
     padding: var(--spacing-sm) 8px;
     margin: 0 -8px;
     background: var(--item-color-deep, transparent);
-    color: black;   /* hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
+    color: black;   /* hover 變色瞬切（不 transition） */
   }
-  /* 第二欄 box 右緣延伸吃掉整個 column-gap 與第三欄 box 相接＝一條連續色帶（user 2026-09-09e「整條過去」）：
-     name 右伸 gap−8（unit 左已伸 8）→ 24px gap 剛好補滿；負 margin 同值抵銷、track 佈局不變。 */
+  /* 第二欄 box 右緣吃掉 column-gap 與第三欄相接＝連續色帶：name 右伸 gap−8（unit 左已伸 8）；負 margin 同值抵銷、track 不變。 */
   .legal-reg-name {
     padding-right: calc(var(--spacing-md) - 8px);
     margin-right: calc(8px - var(--spacing-md));
   }
-  /* 末欄 box 右緣延伸到卡片右緣（user 2026-09-10「頂到最右邊」）：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
+  /* 末欄 box 右緣延伸到卡片右緣：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
   .legal-reg-unit {
     padding-right: var(--spacing-sm);
     margin-right: calc(-1 * var(--spacing-sm));
@@ -694,9 +409,8 @@
       color: white !important;
     }
   }
-  /* 手機按壓態（user 2026-09-11「長按黑底白字類似 hover」）：業界慣例＝按住當下的 :active pressed 態
-     （長按會撞系統行為：iOS 連結預覽／文字選取，沒人拿長按當 hover）→ 按住即黑底白字、放開恢復，
-     同 create 頁手機 :active 觸摸反饋慣例。inverse/color.css 有對應 mode 覆蓋（同 hover 那組）。 */
+  /* 手機按壓態：按住（:active）即黑底白字、放開恢復（長按會撞 iOS 連結預覽／文字選取，不拿長按當 hover）。
+     inverse/color.css 有對應 mode 覆蓋（同 hover 那組）。 */
   @media (max-width: 767px) {
     .legal-reg-item:active .legal-reg-name,
     .legal-reg-item:active .legal-reg-unit {
@@ -709,19 +423,15 @@
     }
   }
   @media (max-width: 767px) {
-    /* 手機照 ref 區的設定（user 2026-09-11「手機上你應該要看 ref 區是怎麼設定的」）：
-       ref 手機＝桌面 12-col 收成單文字欄直排（label 上、title 下，pair 內貼緊）→ 規章列同款：
-       規章名在上、承辦單位貼在下（pair 內 2px），列與列 16（8+8）。類別副標＝貼近自己內容
-       （下 0＋行上 8＝8）、類別彼此拉開（上 md＋行下 8＝32）（user 2026-09-10「title 更靠近內容、
-       title 彼此距離多一點」）。色帶／:active 按壓走 base。 */
+    /* 手機照 ref 區直排：規章名在上、承辦單位貼在下（pair 內 2px）。
+       類別副標貼近自己內容（下 0＋行上 8）、類別彼此拉開（上 md＋行下 8＝32）。色帶／:active 走 base。 */
     .legal-reg-group {
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: none;
       row-gap: 0;
     }
     .legal-reg-cat { grid-column: 1; grid-row: auto; position: static; padding: var(--spacing-md) 0 0; }
-    /* 首組頂距 16＝activities ref 色帶 py-sm（user 2026-09-15「上面 padding 不夠、以 activities 為主」；
-       撤「交給 overview margin」——deep 色帶頂原本貼死類別文字）。桌面另走 base padding-top:sm 不受影響 */
+    /* 首組頂距 16＝activities ref 色帶 py-sm（否則 deep 色帶頂貼死類別文字）。桌面走 base padding-top:sm */
     .legal-reg-group:first-child .legal-reg-cat { padding-top: var(--spacing-sm); }
     /* name/unit 同寬直排、右緣一致延伸到卡片右緣（:active 黑帶兩行才不會右緣錯位）；
        name 桌面的 gap 補滿負 margin 在單欄無 gap → 重設 */
@@ -734,19 +444,17 @@
     .legal-reg-unit { grid-column: 1; padding-top: 2px; }
   }
 
-  /* 手機 header blocker 左右外擴（user 2026-09-10「往上滑左右有縫隙」）：blocker 放 .legal-content-col 內
-     （margin-collapse 因素，見 donate.html）＝container 寬非滿版；真機 fractional DPR 合成下，捲動中的
-     展開 accent 層會在 blocker 左右緣漏出細直線（同 activities filter bar／nav col 前例，headless 整數
-     DPR 測不到）→ box-shadow 左右各外擴一個 container padding 蓋到 viewport 緣（鏡像 lists.css:880 做法）。 */
+  /* 手機 header blocker 左右外擴：blocker 在 .legal-content-col 內（margin-collapse 因素，見 donate.html）＝非滿版寬；
+     真機 fractional DPR 下展開 accent 層會在其左右緣漏細直線（headless 測不到）
+     → box-shadow 左右各外擴一個 container padding 蓋到 viewport 緣（同 lists.css 的 blocker 做法）。 */
   @media (max-width: 767px) {
     .legal-content-col > .list-mobile-header-blocker {
       box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
     }
   }
 
-  /* ── 網站導覽（user 2026-09-09d 改版）：聲明＝粗體純文字；地圖＝curriculum 卡片 2 欄 ── */
-  /* 無障礙聲明（非 accordion）：只留說明段、英中兩段、粗體 */
-  /* legal 三頁頂部說明段同款（Site Map 聲明＋Donate／Regulations 的 .legal-page-desc，user 2026-10-04；3/4 寬在 loader 的 grid） */
+  /* ── 網站導覽：說明＝粗體純文字；地圖＝編號卡片 grid ── */
+  /* legal 三頁頂部說明段同款（Site Map .legal-map-desc＋Donate／Regulations .legal-page-desc；3/4 寬在 loader 的 grid） */
   :is(.legal-map-desc, .legal-page-desc) { margin-bottom: var(--spacing-xl); }
   :is(.legal-map-desc, .legal-page-desc) p {
     font-weight: var(--font-weight-bold);
@@ -772,9 +480,9 @@
   }
   .legal-map-subs { align-self: stretch; }   /* 寬＝組寬 → 卡片 max-width:100% 有明確基準 */
   @media (min-width: 768px) {
-    /* user 2026-10-03：全體 4 等寬欄——col1＝主卡、後 3 欄＝其分頁卡；一組一列由上而下。
+    /* 全體 4 等寬欄：col1＝主卡、後 3 欄＝分頁卡；一組一列。
        pgroup display:contents → 主卡／subs 直接當 grid item，主卡鎖 col1＝沒分頁的組自動換列 */
-    /* 組間（頁面之間）距 2xl＝原 lg 的兩倍（user 2026-10-03）；column-gap 須＝.legal-map-subs 的＝欄線才對齊 */
+    /* 組間距 2xl；column-gap 須＝.legal-map-subs 的，欄線才對齊 */
     .legal-map-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: var(--spacing-2xl); }
     .legal-map-pgroup { display: contents; }
     .legal-map-pgroup > .legal-map-card { grid-column: 1; }
@@ -788,12 +496,9 @@
       justify-items: start;
     }
   }
-  /* 卡片＝首頁 news banner 同款（user 2026-10-03）：標題區黑底白字、編號 box 吃 --map-accent（JS 依頁面分組
-     粉/綠/藍輪）黑字；hover（JS .is-swap）兩區配色對調。不再借 .courses-grid-card（它三 mode 都有強制灰底
-     !important 規則），base 排版照搬：6/8/5 padding＝全站 nav btn、text-s、transform 過渡給 hover 抽角
-     （底/字色不過渡＝hover 變色瞬間）。mode2/mode3 見 inverse.css / color.css。
-     卡內兩欄（user 2026-09-10）：左＝編號、右＝英中標題直排。
-     max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬（超出就重折行） */
+  /* 卡片＝首頁 news banner 同款：標題區黑底白字、編號 box 吃 --map-accent（JS 依分組輪粉/綠/藍）黑字；hover（JS .is-swap）兩區對調。
+     不借 .courses-grid-card（它三 mode 都有強制灰底 !important）。6/8/5 padding＝全站 nav btn；transform 過渡給 hover 抽角（底/字色不過渡）。
+     mode2/3 見 inverse.css / color.css。max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬 */
   .legal-map-card {
     display: inline-flex;
     flex-direction: row;
@@ -802,12 +507,9 @@
     width: fit-content;
     max-width: 100%;
     padding: 6px 8px 5px;
-    /* 兩區各自純色塊、卡片本身無底（user 2026-10-03）：
-       ①舊＝卡片黑底上疊 accent 編號框 → 旋轉後編號框外緣跟底下黑底一起反鋸齒＝漏 1px 黑邊
-       ②一層 gradient 畫兩區 → 交界是 gradient 硬切換點、旋轉時無反鋸齒＝明顯鋸齒（user「鋸齒也太明顯」）
-       現行：黑區＝::before 從編號欄右緣 −1px 起（z-index:-1 墊在編號框下、只重疊 1px）→ 編號框外緣下面沒有黑、
-       交界由編號框的反鋸齒邊蓋在黑上（不鋸齒、不漏背景）。--map-num-w＝編號欄寬（JS equalizeMapNumWidth 寫在容器上）；
-       各 mode／hover 只換這兩個 var（inverse.css / color.css） */
+    /* 兩區各自純色塊、卡片本身無底：卡片黑底上疊編號框＝旋轉後外緣反鋸齒漏 1px 黑邊；單層 gradient 畫兩區＝交界硬切、旋轉明顯鋸齒。
+       → 黑區＝::before 從編號欄右緣 −1px 起（z-index:-1 墊在編號框下），交界由編號框的反鋸齒邊蓋在黑上。
+       --map-num-w＝編號欄寬（JS equalizeMapNumWidth 寫在容器上）；各 mode／hover 只換這兩個 var（inverse.css / color.css） */
     --map-num-bg: var(--map-accent);
     --map-body-bg: #000;
     position: relative;
@@ -828,17 +530,14 @@
     background: var(--map-body-bg);
   }
   .legal-map-card.is-swap { --map-num-bg: #000; --map-body-bg: var(--map-accent); color: #000; }
-  /* 編號（1 / 1-1 / 1-1-1…，user 2026-09-12 去掉尾點）。width 由 JS equalizeMapNumWidth 量最寬者回寫
-     （box-sizing:border-box → 等寬含 padding、標題左緣對齊）。
-     烟頭幾何（user 2026-09-12 三修）：box 貼齊卡片左緣並「直接到底」＝stretch 撐滿卡高（負 margin 吃掉
-     卡 6/8/5 padding）、自帶卡片同款 padding 6/8/5 → 數字行與右側 EN 標題行同高對齊；數字一律靠左。 */
+  /* 編號（1 / 1-1 / 1-1-1…）：width 由 JS equalizeMapNumWidth 量最寬者回寫（border-box 等寬含 padding、標題左緣對齊）。
+     box 貼齊卡片左緣並 stretch 撐滿卡高（負 margin 吃掉卡 6/8/5 padding）、自帶同款 padding → 數字行與 EN 標題行同高對齊。 */
   .legal-map-num {
     flex-shrink: 0;
     box-sizing: border-box;
     align-self: stretch;
     font-weight: var(--font-weight-bold);
-    /* 不用 tabular-nums：Inter 的等寬「1」帶底座、跟一般 Inter 字形不同（user 2026-10-02）；
-       格寬已由 equalizeMapNumWidth 統一，標題左緣照樣對齊 */
+    /* 不用 tabular-nums：Inter 等寬「1」帶底座、字形不同；格寬已由 equalizeMapNumWidth 統一 */
     background: var(--map-num-bg);
     color: #000;
     padding: 6px 8px 5px;
@@ -849,21 +548,18 @@
   .legal-map-txt {
     display: flex;
     flex-direction: column;
-    gap: var(--space-en-zh-s);   /* 英中距＝courses 卡原本的行距 token */
+    gap: var(--space-en-zh-s);   /* s 字級英中距 */
     min-width: 0;
   }
-  /* 標題 span 沿用 courses 卡的 -en/-zh class（字重/display），那邊 nowrap＋hover marquee；sitemap 無 marquee → 長標題（如 4-1 BFA 組名）改直接折行不裁字 */
+  /* 標題 span 沿用 courses 卡 -en/-zh class（字重/display）；那邊 nowrap＋marquee，sitemap 無 marquee → 長標題直接折行不裁字 */
   .legal-map-card .courses-grid-card-en,
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
 
-  /* ── 直放平板 768-1023（矮橫向除外）：stack flow 的平板專屬補丁 ──
-     上方「手機＋直放平板」區塊已給 static title / padding；這裡補手機版沒有、平板才需要的三件：
-     ① grid 欄佔滿：HTML 的 md:col-span-5/7 從 768 起跳，此區間要蓋回 12 欄滿版（(0,2,0) 贏 utility (0,1,0)）
-     ② 開啟的 list header sticky 釘 96px＝矮橫向拆 frame 慣例值——list-accordion.js getListStickyTop 偵測
-        box 不可捲自動回 96（:318 分支），兩處天然同步；0-92px 由 navigation.css 平板段 .mobile-header-bg
-        不透明白帶接住，不需手機 blocker（lists.css 桌面段 fallback 200px 太低故必須蓋）
-     ③ 規章表類別欄 sticky 取消：--legal-reg-cat-top 是「box 內偏移」語意，window flow 下釘點錯位；
-        表格本身照桌面 3 欄排（stack 後內容欄 ~700px 塞得下） */
+  /* ── 直放 768–1023（矮橫向除外）：stack flow 專屬補丁 ──
+     ① grid 欄佔滿：HTML md:col-span-5/7 從 768 起跳，此區間蓋回 12 欄（(0,2,0) 贏 utility (0,1,0)）
+     ② 展開 list header 釘 96px＝list-accordion.js getListStickyTop 在 box 不可捲時回 96，兩處同步；0–92px 由 navigation.css .mobile-header-bg 白帶接住
+     （lists.css 桌面段 fallback 200px 太低故必須蓋）
+     ③ 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
   @media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     .legal-page-section .legal-title-col,
     .legal-page-section .legal-content-col {

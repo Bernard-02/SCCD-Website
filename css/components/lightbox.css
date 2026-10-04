@@ -1,14 +1,6 @@
 /* ===== Lightbox Ref Button & Popover =====
- * 共用 component：PDF viewer / activities-lightbox 內的 ref 跳轉 UI
- * 結構：
- *   - .lightbox-ref-btn (button)：跟 back btn 同 pill 視覺，icon-arrow-right
- *   - .lightbox-ref-popover (absolute)：定位容器；進場 reveal 由 card 外層 tight clip wrapper 處理（setupClipReveal）
- *     └─ .lightbox-ref-stack (column flex)：垂直 chip 列
- *        └─ .lightbox-ref-chip (button, 沿用 .list-ref-btn 樣式)：白底 / hover 黑底白字
- *
- * Lightbox 內 ref chip 跟 activities list 內 ref chip 視覺一致（hover 行為由 .list-ref-btn 提供），
- * 唯一差別：chip 內欄位寬度比例不同（lightbox 更 compact）+ title 用 marquee 處理 overflow
- */
+   共用：PDF viewer / activities-lightbox 內的 ref 跳轉 UI（lightbox-ref-btn.js）
+   結構：.lightbox-ref-btn（pill）＋ .lightbox-ref-popover（absolute）> stack > card > chip */
 
 .lightbox-ref-btn {
   border: none;
@@ -17,15 +9,9 @@
   cursor: var(--cursor-pointer);
 }
 
-/* Popover 容器：absolute by lightbox-ref-btn.js（inline top/left），本身不做遮罩
- * 進場 = 仿 hero title clip-reveal：openPopover 用共用 setupClipReveal 給 .lightbox-ref-card 包一個 tight
- *   wrapper（overflow-y:clip 遮罩 / overflow-x:visible 讓旋轉角不被橫向裁）+ yPercent:100→0 原地滑入揭露。
- *   tight wrapper 是關鍵：card 只滑自身高度、遮罩貼最終位置 → 原地往上 reveal，不是從更低處長距離上移
- *   （2026-06-02 演進：yPercent 套整個 padded popover→上移太多像被切；clip-path→不夠像 hero；最後 tight wrapper yPercent）
- * max-width 對齊 pdf-title-pill `min(40vw, 360px)` 規格 — 短內容 popover 自然窄不會被撐到 360px；
- *   超長 title 才到上限由 chip-title marquee 處理（unitWidth > winWidth 時 dual-copy 滾動）
- * z-index 9999：超過 PDF modal 內部其他元素的 z-index:50（back btn / title / chevrons）+ modal 本身
- * padding 32px：card 旋轉跟隨 ref btn（預設 0deg）；給旋轉 card 角 breathing room（user 反饋切角再恢復不雅） */
+/* Popover 容器：位置由 lightbox-ref-btn.js inline top/left 設，本身不做遮罩；
+   進場 clip-reveal 由 setupClipReveal 包在 .lightbox-ref-card 的 tight wrapper（只滑卡片自身高度）
+   z-index 9999：壓過 PDF modal 內 z-index:50 的元素；padding 32px：旋轉 card 的角不被切 */
 .lightbox-ref-popover {
   pointer-events: auto;
   padding: 32px;
@@ -41,10 +27,7 @@
   gap: 20px;
 }
 
-/* Card：所有 ref 共用一張卡，整張 bg + 整張旋轉；
- * card 自身 0 padding — 所有 breathing 移到 row 上（padding-y 由 row 控）
- * → row hover 黑底白字整條從 card 左到右、上到下不漏 accent（仿 activities list-ref-btn 整條 hover）
- * row-gap 0：相鄰 row 緊貼（hover 反饋整條黑，gap 反而會切出 accent 條） */
+/* Card 0 padding、row-gap 0：breathing 全放在 row 上，row hover 黑底才會整條貼滿卡片、不漏出 accent 條 */
 .lightbox-ref-card {
   display: flex;
   flex-direction: column;
@@ -55,8 +38,8 @@
   min-width: 0;
 }
 
-/* Chip layout：上下兩區（column），label 一行 EN+ZH 併排在上、title EN/ZH 各自獨立 marquee row 在下
- * 故意不套 .list-ref-btn class 避免被 themes/color.css mode-color neutral-gray 規則波及 */
+/* Chip：label（EN+ZH 一行）在上、title EN/ZH 各自 marquee row 在下
+   故意不套 .list-ref-btn class，避免被 themes/color.css 的 mode-color 規則波及 */
 .lightbox-ref-chip {
   display: flex;
   flex-direction: column;
@@ -71,7 +54,7 @@
   text-align: left;
   cursor: var(--cursor-pointer);
   background: transparent;
-  color: #000;   /* hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
+  color: #000;   /* hover 變色一律瞬切，勿加 transition */
   /* card rotate 後相鄰 row sub-pixel rendering 漏 1px accent 縫；margin -1 讓 row 重疊補縫 */
   margin: -1px 0;
 }
@@ -88,8 +71,8 @@
   }
 }
 
-/* lightbox 內 pill 鈕（返回／分享／ref；media lightbox＋PDF viewer）hover＝黑底白 icon（user 2026-10-04，同上 ref chip）。
- * 底色/字色由 JS inline 寫（三原色、mode3 白）→ !important；icon 走 currentColor。真桌面才 hover（觸控 tap 會黏住） */
+/* lightbox 內 pill 鈕（返回／分享／ref）hover＝黑底白 icon（同 ref chip）
+   底色/字色由 JS inline 寫 → !important；真桌面才 hover（觸控 tap 會黏住） */
 @media (min-width: 1024px) and (min-height: 501px) {
   .alb-close:hover .alb-close-pill,
   .alb-share:hover .alb-share-pill,
@@ -129,10 +112,9 @@
 .lightbox-ref-chip-title-window {
   display: block;
   overflow: hidden;
-  /* width:100% 撐滿 row 寬；超寬 track 由本層 overflow:hidden 裁 + JS setupAllMarquees 觸發 dual-copy 滾動 */
+  /* 超寬 track 由本層裁切 + JS setupAllMarquees 觸發 dual-copy 滾動 */
   width: 100%;
 }
-
 
 .lightbox-ref-chip-title-track {
   display: inline-block;
@@ -145,21 +127,16 @@
   white-space: nowrap;
   vertical-align: top;
 }
-/* 標題 EN→ZH 英中距＝xs 字級 token（1px）；p + p 只在雙語兩行都有時生效（單語 no-op） */
+/* 英中距＝xs token；p + p 只在雙語兩行都有時生效 */
 .lightbox-ref-chip-title-unit p + p {
   margin-top: var(--space-en-zh-xs);
 }
 
-/* ===== 手機版媒體 Lightbox（iPhone Photos 風格，user 2026-06-10）=====
- * 共用 #activities-lightbox（activities 海報 + library 報導圖片）手機改版：
- *   - 拿掉左右 chevron + 縮放控制（改用左右 swipe 換圖，見 activities-lightbox.js）
- *   - 黑底「蓋滿整個畫面（含 header 區、無頂部白帶）」＝靠 header 透明，**仍維持 bg-black/90 半透明（與桌面一致）**
- *   - 返回/ref/標題 topbar 沉到畫面最底（縮圖列下方；user 2026-06-10 二改，原早版放頂部）
- * 桌面（≥768）完全不受影響。*/
-/* 縮圖列藏原生 scrollbar（user 2026-06-12「很醜」）：捲動靠觸控板 / 觸控 + active 自動置中，不需要視覺軌道 */
+/* ===== 媒體 Lightbox（#activities-lightbox：activities 海報 + library 圖片）=====
+   手機 <768：拿掉 chevron/縮放改 swipe（activities-lightbox.js）、header 透明讓 bg-black/90 蓋滿全畫面、topbar 沉到縮圖列下方 */
+/* 縮圖列藏原生 scrollbar：捲動靠觸控板/觸控 + active 自動置中 */
 #activities-lightbox .alb-thumbs {
-  /* 上下 6px 給 active outline (2px width + 2px offset) 預留空間（overflow-x:auto 隱式把 overflow-y 設 auto，
-     沒這 padding 上下 outline 會被裁）；左右 spacing-md（原本寫在 JS template inline，2026-06-15 移到此） */
+  /* 上下 6px 給 active outline（2px + 2px offset）留空間：overflow-x:auto 會隱式讓 overflow-y 也 auto，沒這 padding outline 會被裁 */
   padding: 6px var(--spacing-md);
   scrollbar-width: none;
 }
@@ -167,13 +144,9 @@
   display: none;
 }
 
-/* 拖曳移除（user 2026-06-15）：原 .is-dragging / grab cursor 全站 lightbox 一併拿掉；觸控板/觸控仍可原生捲動，
-   導航靠 chevron / 點縮圖 / swipe + active 自動置中。 */
-
-/* 桌面 album 縮圖列（user 2026-06-15；只套 .alb-album＝library album，activities 海報/gallery 維持原寬版）：
-   ① max-width = 扣掉左右 container-padding 後的 1/3 → 縮圖列佔畫面中央約 1/3 寬（!important 蓋 inline max-width）。
-   ② 兩端 ::before/::after pseudo runway（各 flex 50%）＋ JS centerActiveThumb → active 永遠置中、從中間往兩側排，
-      頭尾任一張也能捲到正中（無 runway 時頭尾貼邊無法置中）。 */
+/* 桌面 album 縮圖列（只套 .alb-album＝library album）：
+   ① max-width＝扣左右 container-padding 後的 1/3（!important 蓋 inline max-width）
+   ② 兩端 ::before/::after runway（各 50%）＋ JS centerActiveThumb → 頭尾那張也能捲到正中 */
 @media (min-width: 768px) {
   #activities-lightbox.alb-album .alb-thumbs {
     max-width: calc((100vw - 2 * var(--container-padding)) / 3) !important;
@@ -181,11 +154,10 @@
   #activities-lightbox.alb-album .alb-thumbs::before,
   #activities-lightbox.alb-album .alb-thumbs::after {
     content: "";
-    flex: 0 0 50%;   /* runway：約半個視窗，讓第一/最後一張也能捲到正中 */
+    flex: 0 0 50%;
   }
-  /* topbar（close+ref+title+share）限寬到「置中縮圖列左緣 − gap」，不疊到縮圖；title flex-shrink 自動縮 + marquee。
-     stripLeftEdge = 100vw/3 + container-padding/3；扣掉左 container-padding 與 20px gap 得本 max-width。
-     share btn 加入後長標題會再縮一截 → 自動 marquee（user 2026-06-15 已知取捨）。 */
+  /* topbar 限寬到「置中縮圖列左緣 − 20px gap」不疊縮圖，title 自動縮 + marquee
+     stripLeftEdge = 100vw/3 + container-padding/3；扣左 container-padding 與 20px gap 得本 max-width */
   #activities-lightbox.alb-album .alb-topbar {
     max-width: calc(100vw / 3 - var(--container-padding) * 2 / 3 - 20px);
   }
@@ -199,7 +171,7 @@
     min-width: 0;
   }
   #activities-lightbox.alb-album .alb-title-pill {
-    max-width: 100% !important;   /* 蓋掉 inline min(40vw,360px)，改吃 topbar 剩餘寬（縮到 0 也可 → marquee）*/
+    max-width: 100% !important;   /* 蓋掉 inline min(40vw,360px)，改吃 topbar 剩餘寬（縮到 0 → marquee） */
   }
 }
 
@@ -211,29 +183,24 @@
     display: none !important;
   }
 
-  /* 大圖區左右 padding 從 px-16(64px) 縮到 container-padding(24px)，box 往兩側擴大（user 2026-06-10）。
-     桌面 px-32 是為了讓 stage 邊停在 chevron 內側；手機無 chevron 不需要這留白 → 對齊全站邊距／返回鍵 left */
+  /* 大圖區左右 padding 縮到 container-padding：桌面留白是給 chevron 的，手機無 chevron */
   #activities-lightbox .alb-main-container {
     padding-left: var(--container-padding, 1.5rem) !important;
     padding-right: var(--container-padding, 1.5rem) !important;
   }
 
-  /* lightbox 開啟時 header 透明：library 手機給 header 加了 var(--theme-bg)（白）擋 sticky tab（library.css），
-     開 lightbox 要拿掉才不會在頂部露白帶 → 半透明黑就能均勻蓋滿整個畫面（含 header 區）。
-     ⚠️ 不改 lightbox 自身 bg：維持 class `bg-black/90` 半透明（user 要跟桌面一樣帶點透明，2026-06-10）。
-     desktop header 本就透明，此規則 no-op */
+  /* lightbox 開啟時 header 透明：library 手機 header 有 var(--theme-bg) 底（library.css），不拿掉頂部會露白帶
+     ⚠️ lightbox 自身維持 bg-black/90 半透明（同桌面）；桌面 header 本就透明，此規則 no-op */
   body.lightbox-open #site-header header {
     background: transparent !important;
   }
 
-  /* 縮圖再縮小（user 2026-06-10）；仍是橫向可點縮圖列（btn 高由 JS inline 48px 設，故 !important 蓋）。桌面 48px 不變 */
+  /* 縮圖縮小；btn 高由 JS inline 48px 設，故 !important */
   #activities-lightbox .alb-thumb {
     height: 36px !important;
   }
 
-  /* topbar（返回 + ref + 標題）沉到畫面最底（user 2026-06-10 二改）：
-     thumbs-wrap 改直向、topbar order 排在縮圖列之後 → 整組落在底部。
-     topbar 回 flow（position:static）並左對齊 container-padding（同返回鍵慣例）。 */
+  /* topbar（返回 + ref + 標題）沉到畫面最底：thumbs-wrap 改直向、topbar order 排在縮圖列後，回 flow 並左對齊 container-padding */
   #activities-lightbox .alb-thumbs-wrap {
     flex-direction: column;
     align-items: center;
@@ -247,16 +214,15 @@
     top: auto !important;
     bottom: auto !important;
     transform: none !important;
-    /* stretch + 左右各留 container-padding：topbar 橫跨整個可用寬度，title 才有空間長到右 padding */
+    /* stretch + 左右 container-padding：title 才有空間長到右 padding */
     align-self: stretch !important;
     margin-left: var(--container-padding, 1.5rem);
     margin-right: var(--container-padding, 1.5rem);
     align-items: center !important;
   }
 
-  /* title pill 延伸到畫面右 padding（user 2026-06-11）：title 吃掉 back/ref 之外的剩餘空間（flex:1），
-     pill 解除 40vw/360px 上限改 100% → 短標題仍 shrink-to-fit、長標題撐到右 padding 再 marquee。
-     用 flex 而非 hardcode calc：無 ref btn（該 media 無 references）時剩餘寬度自動補上。 */
+  /* title 吃掉 back/ref 外的剩餘寬（flex:1），pill 解除 40vw/360px 上限 → 長標題撐到右 padding 再 marquee
+     用 flex 不寫死 calc：無 ref btn 時剩餘寬自動補上 */
   #activities-lightbox .alb-title {
     flex: 1 1 auto;
     min-width: 0;
@@ -265,10 +231,8 @@
     max-width: 100% !important;
   }
 
-  /* ref 展開卡片：手機以「最寬文字」為寬（user 2026-09-10，撤 06-10「撐滿到右 padding」）：
-     popover width:max-content＝shrink 到最寬 row；stack stretch + card 100% 讓每張卡同寬（=最寬那張）。
-     max-width cap＝viewport − 2×container-padding（card 右緣不出右 padding；含 popover 自身 32px padding 恰好抵銷
-     left 的 −32 偏移），超過 cap 才觸發既有 row marquee。left 仍由 lightbox-ref-btn.js 對齊 ref btn。 */
+  /* ref 展開卡片寬＝最寬文字：popover max-content、stack stretch + card 100% 讓每張卡同寬
+     max-width cap＝viewport − 2×container-padding（popover 自身 32px padding 恰好抵銷 left 的 −32 偏移），超過才 row marquee；left 由 lightbox-ref-btn.js 對齊 ref btn */
   #activities-lightbox .lightbox-ref-popover {
     width: max-content !important;
     max-width: calc(100vw - 2 * var(--container-padding, 1.5rem)) !important;
@@ -276,30 +240,28 @@
   #activities-lightbox .lightbox-ref-stack { align-items: stretch; }
   #activities-lightbox .lightbox-ref-card { width: 100%; }
 
-  /* ── PDF viewer 手機版（user 2026-06-10 二改：一次一頁 + 上下滑換頁 + 雙指 pinch，控制列維持底部）──
-     桌面維持「單頁 + chevron + transform 縮放 + 底部控制列」完全不動；以下只 <768px 生效。
-     翻頁/縮放/平移全在 library-viewer.js 的 touch handler（沿用桌面 zoomAt / clampPan / turnPage），CSS 不碰渲染。 */
+  /* ── PDF viewer 手機版：一次一頁 + 上下滑換頁 + 雙指 pinch ──
+     翻頁/縮放/平移全在 library-viewer.js touch handler，CSS 不碰渲染 */
 
-  /* 拿掉左右翻頁 chevron 與縮放控制（手機改用上下 swipe 換頁 + 雙指 pinch）。!important 蓋 JS 設的 inline */
+  /* 拿掉翻頁 chevron 與縮放控制（!important 蓋 JS inline） */
   #pdf-viewer-modal #pdf-prev-btn,
   #pdf-viewer-modal #pdf-next-btn,
   #pdf-viewer-modal .pdf-zoom-controls {
     display: none !important;
   }
 
-  /* 大圖區左右 padding 縮到 container-padding（無 chevron 不需留白，單頁更寬）；上 padding 由 JS 推到手機 logo 下 */
+  /* 大圖區左右 padding 縮到 container-padding（無 chevron）；上 padding 由 JS 推到手機 logo 下 */
   #pdf-viewer-modal .pdf-main-row {
     padding-left: var(--container-padding, 1.5rem) !important;
     padding-right: var(--container-padding, 1.5rem) !important;
   }
 
-  /* 底部 bar 加高（桌面 108px）：頁碼錨 bar 頂、按鈕錨 bar 底 → bar 變高兩者 gap 變大，
-     頁碼不再貼按鈕（user 2026-06-11「數字太貼近 btn、再往上一點」） */
+  /* 底部 bar 加高（桌面 108px）：頁碼錨 bar 頂、按鈕錨 bar 底 → 加高拉開兩者間距 */
   #pdf-viewer-modal .pdf-bottom-bar {
     min-height: 140px !important;
   }
 
-  /* 頁碼移到「按鈕上方、畫面置中」（user 2026-06-11）：桌面是 flow 置中、手機改 absolute 貼底部 bar 頂端置中 */
+  /* 頁碼移到按鈕上方、畫面置中：absolute 貼底部 bar 頂端 */
   #pdf-viewer-modal #pdf-page-info {
     position: absolute !important;
     top: var(--spacing-sm) !important;
@@ -308,10 +270,9 @@
     transform: translateX(-50%) !important;
   }
 
-  /* back / ref / title / share 沉到底部 bar 底端（桌面是 top:50% 垂直置中）：頁碼在它們「上方」置中。
-     transform:none 清外層 translateY，pill 旋轉在內層（.pdf-back-pill / .pdf-title-pill）不受影響。
-     ⚠️ share btn 原漏在此清單外（user 2026-06-15 報手機 PDF viewer 沒 share）→ 它留在桌面 top:50%、
-     且 positionSharePdf 依桌面把 left 推到畫面外（量到 left:386px@390 viewport）= 看不到。補進來一起沉底。 */
+  /* back / ref / title / share 沉到底部 bar 底端（桌面 top:50%），頁碼在其上方
+     transform:none 清外層 translateY；pill 旋轉在內層不受影響
+     ⚠️ share 必須在此清單：否則留在桌面 top:50%，且 positionSharePdf 會把 left 推到畫面外 */
   #pdf-viewer-modal .pdf-back-btn,
   #pdf-viewer-modal .pdf-ref-btn,
   #pdf-viewer-modal .pdf-title,
@@ -327,14 +288,11 @@
     right: var(--container-padding, 1.5rem) !important;
   }
 
-  /* 標題 box 仍鋪到右 padding 當「可用寬」（left 由 JS 設）；pill 改 hug title 字寬（user 2026-09-10
-     「title 沒那麼長 box 就不要那麼長」，撤 06-11 width:100% 撐滿）：pill inline-block 縮到內容寬、
-     cap 100%＝box 可用寬，超過才由既有 setupTitleMarquee 跑馬燈。 */
+  /* 標題 box 鋪到右 padding 當可用寬（left 由 JS 設）；pill hug 字寬、cap 100%，超過才由 setupTitleMarquee 跑馬燈 */
   #pdf-viewer-modal .pdf-title {
     right: var(--container-padding, 1.5rem) !important;
   }
-  /* 有 share（data-share-url 存在＝caller 帶 shareUrl）時，title 右緣讓出 share 寬度(44)+gap(20)＝不疊到 share；
-     無 share 時維持上面撐到右 padding。:has 偵測 share btn 是否帶 data-share-url（renderSharePdf 設/刪）。 */
+  /* 有 share（data-share-url，由 renderSharePdf 設/刪）時，title 右緣讓出 share 寬 44 + gap 20 */
   #pdf-viewer-modal:has(.pdf-share-btn[data-share-url]) .pdf-title {
     right: calc(var(--container-padding, 1.5rem) + 64px) !important;
   }
@@ -342,8 +300,7 @@
     max-width: 100% !important;
   }
 
-  /* ref「展開卡片」手機以「最寬文字」為寬（鏡像圖片燈箱，user 2026-09-10 撤 06-10 撐滿版；只動展開卡，btn 仍小 pill）。
-     width:max-content hug 最寬 row＋stack stretch＝每張卡同寬；cap 同上、超過才 row marquee。 */
+  /* ref 展開卡片寬＝最寬文字（同上方圖片燈箱）；btn 仍是小 pill */
   #pdf-viewer-modal .lightbox-ref-popover {
     width: max-content !important;
     max-width: calc(100vw - 2 * var(--container-padding, 1.5rem)) !important;
@@ -352,9 +309,8 @@
   #pdf-viewer-modal .lightbox-ref-card { width: 100%; }
 }
 
-/* 真桌面：大圖區（PDF 頁面／album 大圖的 zoom stage）左右邊＝col-4 左緣（同 about 等內頁內容起點，user 2026-10-02）。
-   原 md:px-32（128px）在 Fit Width 滿寬時頁面左緣貼近 logo。對稱＝右邊停在 col-17 右緣、頁面維持畫面置中。
-   20 欄公式同 .site-container .grid-20：欄寬＝(100vw − 2×container-padding − 19×gutter) / 20 */
+/* 真桌面：大圖區左右邊＝col-4 左緣（同內頁內容起點），右邊對稱停 col-17 右緣
+   欄寬公式同 .site-container .grid-20：(100vw − 2×container-padding − 19×gutter) / 20 */
 @media (min-width: 1024px) and (min-height: 501px) {
   #pdf-viewer-modal .pdf-main-row,
   #activities-lightbox .alb-main-container {

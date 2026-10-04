@@ -1,18 +1,13 @@
-/**
- * Card Components
- * Faculty Cards、Library Cards、Degree Show 等卡片樣式
- */
+/* Card Components：faculty / alumni 卡片、degree show、首頁 WATCH 卡 */
 
 @layer components {
-  /* ===== Card Hover Overlay（共用元件）=====
-   * 適用：faculty-card
-   * 結構：card > image-wrapper > image
-   *   - card：hover 時底色變 var(--card-color)
-   *   - image-wrapper::after：screen blend 色塊，hover 時 opacity 1
-   */
+  /* ===== Card Hover Overlay（faculty-card）=====
+     結構：card > image-wrapper > image
+     - card：hover 底色變 var(--card-color)
+     - image-wrapper::after：screen blend 色塊，hover 時 opacity 1 */
   .faculty-card {
     background-color: transparent;
-    transition: opacity var(--dur-fast) var(--ease-standard);   /* 底色不過渡（hover 變色一律 instant，user 2026-10-02 全站） */
+    transition: opacity var(--dur-fast) var(--ease-standard);   /* 底色不過渡：hover 變色全站一律 instant */
   }
 
   .faculty-card-image-wrapper {
@@ -25,13 +20,10 @@
     overflow: hidden;
   }
 
-  /* Degree Show 列表縮圖（activities /degree-show panel）— user 2026-08-17：
-     固定高度讓一屏（search bar → 底部）剛好容納**兩張封面 + 兩個標題**；封面 object-contain 靠左、
-     右側留白（任何比例封面都 fit 同一高度）。手機不套（維持單欄自然高度）。
-     --dshow-thumb-h ＝ (可視高 − search bar 下緣(221 實測) − 兩卡固定量(244) − 底部呼吸(16)) / 2。
-       244 ＝ 兩卡 py-sm 上下(2×32) + 兩張「圖下標題塊」最高值(2×90＝兩行 EN+ZH 標題實測 90)。
-     ⚠️ 之前只扣一張標題塊 → 次卡標題掉出畫面；改成兩張都扣 = 每張圖各壓 ~26px 換第二個標題進畫面。
-       90 是目前最長標題（2 行）的實測值，日後出現 3 行標題要重新校準。值由 playwright 實測校準、隨 viewport 縮放。 */
+  /* Degree Show 列表縮圖：固定高讓一屏（search bar → 底部）剛好容納兩張封面＋兩個標題；封面 object-contain 靠左。手機不套。
+     --dshow-thumb-h ＝ (可視高 − search bar 下緣 221 − 兩卡固定量 244 − 底部呼吸 16) / 2；
+     244 ＝ 兩卡 py-sm 2×32 ＋ 兩張圖下標題塊 2×90（兩行 EN+ZH 標題實測）。
+     ⚠️ 兩張標題塊都要扣（只扣一張 → 次卡標題掉出畫面）；出現 3 行標題要重新校準 90。 */
   @media (min-width: 768px) {
     #degree-show-list {
       --dshow-thumb-h: calc((100svh - 221px - 244px - 16px) / 2);
@@ -43,7 +35,7 @@
     }
   }
 
-  /* Degree Show 列表縮圖：無 coverImage 時的灰底 placeholder（user 2026-08-17，後台未傳封面時卡片不空掉）。
+  /* Degree Show 列表縮圖：無 coverImage 時的灰底 placeholder（後台未傳封面時卡片不空掉）。
      桌面在 #degree-show-list 內用同 .degree-show-img 的固定 thumb 高；手機/預設用 4/3 比例撐高。 */
   .degree-show-img-placeholder {
     width: 100%;
@@ -57,11 +49,9 @@
     }
   }
 
-  /* Degree Show Detail — Events KV（畢展直式 poster，桌面左半；user 2026-08-17）
-     .dsd-events-kv 預設 display:none；JS 偵測到 data.poster 時加 .has-kv（僅桌面顯示）。
-     img 高度上限對齊左下返回鈕底部：section 貼齊捲動頂 → KV 頂＝內容 pt-6xl(192)，返回鈕 bottom:64
-     → 上限＝100vh − 192 − 64 ＝ 100vh − 256（實測 1440×900：192↓836，與返回鈕齊；--dsd-kv-max-h 微調）。
-     直式圖 height 綁上限、width:auto → 靠左、右側留白；不 render 時 list 仍靠右（col-13）。 */
+  /* Degree Show Detail — Events KV（直式 poster，僅桌面）：預設 display:none，JS 偵測到 data.poster 時加 .has-kv。
+     img 高度上限＝100vh − KV 頂 − 返回鈕 bottom(64)，讓海報底與左下返回鈕齊（--dsd-kv-max-h 微調）。
+     直式圖 height 綁上限、width:auto。 */
   .dsd-events-kv { display: none; }
   @media (min-width: 768px) {
     .dsd-events-kv.has-kv { display: block; }
@@ -73,30 +63,26 @@
       max-height: var(--dsd-kv-max-h, calc(100vh - 224px));
       object-fit: contain;
       object-position: right top;
-      /* 直式海報靠右上角（user 2026-08-18 二度翻案）：margin-left:auto 鎖右對齊＝海報右緣貼齊全站內容右緣（col 20）。
-         08-18 早前「靠左貼清單」的中間空白問題改由縮 KV 欄寬解決：KV 縮到 col 14-20（≈直式海報自然寬），
-         清單擴到 col 5-13 吃回空間＝「讓 events 區更寬」。 */
+      /* 直式海報靠右上：margin-left:auto ＝ 海報右緣貼齊全站內容右緣；KV 欄 col 14-20 ≈ 海報自然寬，清單 col 5-13。 */
       margin-left: auto;
     }
-    /* 活動清單桌面內捲：高度上限對齊 KV（100vh−256）→ 活動多時容器內捲；scrollbar 樣式吃共用
-       .list-scroll hook（細黑 thumb / 無 track / 無箭頭，同 faculty slide-in，見 lists.css）。少於一屏 overflow:auto 自動不顯示。
-       padding-right 用 --spacing-md（24px）＝對齊 slide-in 內捲容器慣例（timeline .tl-list-content / curriculum 仿 faculty 右欄皆 pr-md，user 2026-08-17）。 */
+    /* 活動清單桌面內捲：高度上限同 KV；scrollbar 樣式吃共用 .list-scroll hook（見 lists.css）。
+       padding-right --spacing-md ＝ slide-in 內捲容器慣例（timeline .tl-list-content / curriculum 右欄同）。 */
     .dsd-events-scroll {
       max-height: var(--dsd-kv-max-h, calc(100vh - 224px));
       overflow-y: auto;
       padding-right: var(--spacing-md);
     }
-    /* Events 區桌面：清單欄與直式海報欄各自 hug 內容並頂對齊（grid 預設 stretch 會把較矮欄拉高到 row 高）。user 2026-09-07 */
+    /* 清單欄與海報欄各自 hug 內容並頂對齊（grid 預設 stretch 會把較矮欄拉高到 row 高） */
     #events-section { align-items: start; }
-    /* Events 內容頂線對齊 sticky 年份 chip 頂（全站 nav line，variables.css --nav-line：160／≥1200 184），不跟隨較高的
-       title chip（#sticky-info-card top:nav line+40，年份 chip 疊其上 ~40）。覆蓋容器 pt-6xl(192)；ID 特異度(1-1-0)勝 pt-6xl utility(0-1-0)。user 2026-09-07 */
+    /* Events 內容頂線對齊 sticky 年份 chip 頂（--nav-line），不跟隨較高的 title chip。
+       覆蓋容器 pt-6xl(192)；ID 特異度(1-1-0)勝 pt-6xl utility。 */
     #dsd-desc-section > .site-container { padding-top: var(--nav-line); }
   }
-  /* 手機：直式海報顯示在活動清單下方（user 2026-09-10「先文字、再海報」）。清單與海報在 grid-20 都 col-span-full
-     → DOM 順序＝清單先、海報後自然堆疊。桌面維持右側 KV（min-width:768 那條）。 */
+  /* 手機：海報在活動清單下方（先文字、再海報）。兩者都 col-span-full → DOM 順序自然堆疊。 */
   @media (max-width: 767px) {
     .dsd-events-kv.has-kv { display: block; margin-top: var(--spacing-2xl); }
-    /* 海報 full-width 頂到右緣（user 2026-09-11）：site-container 已給左右 padding，width:100% 即填滿內容寬、右緣貼齊。 */
+    /* 海報 full-width：site-container 已給左右 padding，width:100% 即右緣貼齊。 */
     .dsd-events-kv-img {
       display: block;
       width: 100%;
@@ -105,10 +91,9 @@
     }
   }
 
-  /* Events 標題/地點行 marquee：過長不換行、溢出才捲。桌面＝hover 該 event row 才捲（靜止截斷可接受，對齊
-     atlas/courses/dshow 卡片行為）；手機＝無 hover → 偵測到即自動捲，否則長字永久截斷看不到（同 .dshow-title-line）。
+  /* Events 標題/地點行 marquee：過長不換行、溢出才捲。桌面＝hover 才捲；手機無 hover → 偵測到即自動捲（否則長字永久截斷）。
      結構＝<p.dsd-mq-line>（overflow window）> <span.dsd-mq-inner>；applyMarqueeOverflow 溢出時加 .is-overflow +
-     換兩份 .marquee-copy + 設 --marquee-distance/duration。keyframes 沿用 lists.css 的 dshow-title-marquee。 */
+     兩份 .marquee-copy + --marquee-distance/duration。keyframes 沿用 lists.css 的 dshow-title-marquee。 */
   .dsd-mq-line {
     display: block;
     overflow: hidden;
@@ -124,7 +109,7 @@
     padding-right: var(--marquee-copy-gap);
   }
   @media (min-width: 768px) {
-    /* col 為單位（.dsd-mq-col）而非整個 event row：只有 hover 到的那一欄捲，避免整列標題/地點/城市同時捲 */
+    /* 以 col（.dsd-mq-col）為單位而非整個 event row：只捲 hover 到的那一欄 */
     .dsd-mq-col:hover .dsd-mq-line.is-overflow .dsd-mq-inner {
       animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
     }
@@ -133,14 +118,12 @@
     .dsd-mq-line.is-overflow .dsd-mq-inner {
       animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
     }
-    /* 地點/城市欄手機改換行、不 marquee（user 2026-09-10「少一點 marquee」）：white-space:normal 讓文字 wrap →
-       applyMarqueeOverflow 量不到溢出＝不加 .is-overflow、不建 marquee copy（標題/日期欄不受影響仍可 marquee）。 */
+    /* 地點/城市欄手機改換行、不 marquee：white-space:normal → applyMarqueeOverflow 量不到溢出、不加 .is-overflow（標題/日期欄仍可 marquee）。 */
     .dsd-mq-col--loc .dsd-mq-line { white-space: normal; overflow: visible; }
     .dsd-mq-col--loc .dsd-mq-inner { white-space: normal; display: inline; }
   }
 
-  /* Events 每列欄位配置（三個 .dsd-mq-col＝日期/標題/地點）：
-     ≥1200 三欄 2:3:3；768–1199 空間不夠 → 收成 2 欄、日期移到標題上方（date/title 同左欄堆疊、地點獨占右欄跨兩列）；<768 單欄堆疊。
+  /* Events 每列欄位（三個 .dsd-mq-col＝日期/標題/地點）：≥1024 三欄 2:3:3；768–1023 兩欄（日期疊標題上、地點獨占右欄）；<768 單欄。
      grid-template-columns 全寫這裡不用 Tailwind grid-cols utility＝避開 @layer utilities 蓋過 components 斷點覆寫。 */
   .dsd-event-grid { grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 768px) and (max-width: 1023px) {
@@ -174,7 +157,7 @@
     pointer-events: none;
   }
 
-  /* Hover 效果（桌面版）*/
+  /* Hover（桌面） */
   @media (min-width: 768px) {
     .faculty-card:hover {
       background-color: var(--card-color, var(--color-blue));
@@ -183,25 +166,22 @@
 
   /* Faculty 特定：fulltime/admin/founder 可點擊開 slide-in */
   .faculty-card-image-wrapper { cursor: var(--cursor-pointer); }
-  /* 兼任（parttime）slide-in 暫未支援（user 2026-09-11）：卡片不可點 → 移除 pointer 手勢（蓋掉卡片 .cursor-pointer 與上面 image-wrapper 規則） */
+  /* 兼任（parttime）無 slide-in：卡片不可點 → 蓋掉卡片 .cursor-pointer 與上面 image-wrapper 規則 */
   .faculty-card[data-category="parttime"],
   .faculty-card[data-category="parttime"] .faculty-card-image-wrapper { cursor: var(--cursor-default); }
 
-  /* slide-in panel 桌面右緣補償：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，
-   * 視覺上 panel 直接接到 viewport 右邊緣。
-   * 手機不套：無 scrollbar gutter（custom scrollbar 已隱藏），right:-10px 會讓 panel 左邊溢出 10px。
-   * （原為 faculty.html inline <style>，2026-06-09 移進 source）*/
+  /* slide-in panel 桌面右緣補償：延伸 10px 蓋過 scrollbar-gutter:stable 保留的 10px gutter，panel 直接接到 viewport 右緣。
+     手機不套：無 scrollbar gutter，right:-10px 會讓 panel 左邊溢出 10px。 */
   @media (min-width: 768px) {
     #faculty-panel {
       right: -10px;
     }
   }
 
-  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0° 對齊下方文字。
-   * 2026-08-16 圖片進場改 clip-reveal：外層 .faculty-card-image-mask 當遮罩（overflow:clip），
-   * wrapper 整塊（灰底+照片+overlay）在內以 x/yPercent 滑入。旋轉/transition 套在 mask 而非 wrapper：
-   * ① clip 在旋轉後的 local box 生效 → 旋轉角不被遮罩裁掉（同 faculty filter nav chip 做法）
-   * ② wrapper 身上不留 CSS transition → GSAP 每幀寫 transform 不被 0.3s transition 追打（卡頓陷阱） */
+  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0°。圖片進場 clip-reveal：外層 mask 當遮罩（overflow:clip），
+     wrapper（灰底+照片+overlay）在內滑入。旋轉/transition 放 mask 不放 wrapper：
+     ① clip 在旋轉後的 local box 生效 → 旋轉角不被裁
+     ② wrapper 不留 CSS transition → GSAP 每幀寫 transform 不被 transition 追打（卡頓） */
   .faculty-card-image-mask {
     overflow: clip;
     transform: rotate(var(--init-deg, 0deg));
@@ -214,25 +194,21 @@
     }
   }
 
-  /* 卡片姓名 EN→ZH 疊放間距：名字＝h5=text-lg → 用「lg 字級」token --space-en-zh-lg（4px，以字體大小為主；
-     跟副標 text-s 的 --space-en-zh-s 2px 分開）。EN(首個 h5)加、ZH(末個 h5)不加。
+  /* 卡片姓名 EN→ZH 間距：名字＝h5=text-lg → 用 --space-en-zh-lg（副標 text-s 用 --space-en-zh-s）。
      faculty 三型 + alumni 會員卡（共用 .faculty-card-name）一起套。 */
   .faculty-card-name h5:not(:last-child) {
     margin-bottom: var(--space-en-zh-lg);
   }
 
-  /* ===== Faculty marquee：卡片職稱 + slide-in 詳情 row 共用（仿 courses pattern）=====
-   * 每段文字（職稱 en/zh、詳情 row 雙語格各語）包成一個 .faculty-marquee-line（block）+ 內層 .faculty-marquee-inner；
-   * 桌面單行超出寬度時，hover（卡片整張 / 詳情 row 的「單一欄 cell」）才水平 marquee。
-   * 詳情 row 用 `> span:hover` 而非 `.faculty-grid-row:hover`：只捲滑鼠所在那一欄，不是整 row 一起捲（user 2026-06-09）。
-   * applyMarqueeOverflow 偵測溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。
-   * 🔑 手機（無 hover）不套 nowrap/overflow：inner 維持 inline 自然換行保留多行可讀；JS 端也只在桌面跑偵測。*/
+  /* ===== Faculty marquee：卡片職稱 + slide-in 詳情 row 共用 =====
+     每段文字包成 .faculty-marquee-line（block）> .faculty-marquee-inner；桌面單行溢出時 hover（卡片整張 / 詳情 row 單一 cell）才捲。
+     applyMarqueeOverflow 溢出 → line 加 .is-overflow + inner 換兩份 .marquee-copy + 設 --marquee-distance/duration。
+     手機（無 hover）不套 nowrap/overflow：inner 維持 inline 自然換行；JS 也只在桌面偵測。 */
   .faculty-card-title-group + .faculty-card-title-group {
     margin-top: var(--spacing-xs);
   }
-  /* 雙語疊放 .faculty-marquee-line（EN 上 ZH 下）的 EN→ZH 間距＝text-s 2px（--space-en-zh-s）。
-     一條通用規則涵蓋兩處：卡片職稱副標（.faculty-card-title-group）＋ slide-in 詳情 row 雙語格（.faculty-grid-row > span）。
-     :not(:last-child)＝缺一語的單行不加尾距；line-height 已由 .text-s(卡副標)／.faculty-grid-row 的 --line-height-s(詳情 row) 帶。 */
+  /* 雙語疊放 .faculty-marquee-line 的 EN→ZH 間距＝--space-en-zh-s；涵蓋卡片職稱副標＋詳情 row 雙語格。
+     :not(:last-child)＝缺一語的單行不加尾距。 */
   .faculty-marquee-line:not(:last-child) {
     margin-bottom: var(--space-en-zh-s);
   }
@@ -254,58 +230,47 @@
       display: inline-block;
       white-space: nowrap;
     }
-    /* 卡片職稱 + slide-in 詳情 row 的 marquee 都改由 JS(GSAP) 驅動（2026-08-04 起，見
-       faculty-data-loader.js bindFacultyCardMarquee / faculty-slide-in.js bindFacultyMarqueeReturn）：
-       EN/ZH 多職稱/多行時各自獨立 CSS animation 久了會脫拍，改用共用 timeline 同步。
-       這裡刻意不寫 CSS animation 規則——避免 CSS 跟 GSAP 兩邊搶同一個 transform 打架。 */
+    /* marquee 由 JS(GSAP) 驅動（faculty-data-loader.js bindFacultyCardMarquee / faculty-slide-in.js bindFacultyMarqueeReturn）：
+       EN/ZH 多行各自 CSS animation 會脫拍，需共用 timeline。刻意不寫 CSS animation，免跟 GSAP 搶 transform。 */
   }
 
   /* ===== Faculty / Alumni 卡片牆：首張貼左、末張貼右，水平 gap 自動均分 =====
-   * user 2026-06-02：要 auto-distributed gap（卡片有上限寬、剩餘空間吃進 gap），不是固定 gutter，也不是 grid-20。
-   * grid + justify-content:space-between → 首 track 貼左、末 track 貼右，多餘空間均分到 track 之間。
-   * 用 minmax(0, MAX) 不用固定寬：窄螢幕卡片自動縮、永不 overflow；寬螢幕卡片封頂後 gap 自動加大。
-   * 不用 flex：flex space-between 末行不滿會被撐到兩端；grid 不滿一行靠左填 track（視覺一致）。
-   * column-gap = 最小水平間距（窄螢幕保底）；row-gap = 固定垂直行距（不 auto，維持留白韻律）。
-   * 兩個可調旋鈕：① 卡片上限寬（桌面 300 / 手機 200px）② 最小 column-gap。
-   * faculty 3 個 list + alumni 會員牆共用此 class（user：兩頁一起改）。*/
+     grid + justify-content:space-between；minmax(0, MAX) → 窄螢幕卡片自動縮、寬螢幕封頂後 gap 加大。
+     不用 flex：flex space-between 末行不滿會被撐到兩端；grid 不滿一行靠左填 track。
+     column-gap＝最小水平間距；row-gap＝固定行距。faculty 3 個 list + alumni 會員牆共用。 */
   .faculty-card-wall {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 200px));
-    column-gap: var(--spacing-md);   /* 手機最小水平間距 24px */
-    row-gap: var(--spacing-xl);      /* 手機行距 32px */
+    column-gap: var(--spacing-md);
+    row-gap: var(--spacing-xl);
     justify-content: space-between;
   }
 
   @media (min-width: 768px) {
     .faculty-card-wall {
-      grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding）；user 2026-06-03 縮小 */
-      /* 最小 column-gap 隨視窗放大：2rem(32) 保底 → 3.5vw → 5rem(80) 上限。原本死釘 32px，害中寬度區間
-         （vw~1280–1600：圖片已隨容器放大到接近 250 上限、但 space-between surplus 還沒啟動）gap 卡在 32＝
-         圖大 gap 小視覺擁擠（user 2026-09-02）。改 clamp 讓 gap 跟著圖一起長（gap:圖 比值穩定 ~0.23，對齊窄螢幕手感），
-         >~1700px 圖片封頂後照舊由 space-between surplus 主導把 gap 撐更大。floor 2rem = 原 --spacing-lg，窄桌面不變。 */
+      grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding） */
+      /* 最小 column-gap 隨視窗放大（32 → 3.5vw → 80）：中寬度（~1280–1600）圖已近 250 上限、space-between 餘量還沒啟動，
+         死釘 32 會圖大 gap 小；>~1700 圖封頂後由 space-between 撐大。 */
       column-gap: clamp(2rem, 3.5vw, 5rem);
-      row-gap: var(--spacing-4xl);   /* 桌面行距 128px */
+      row-gap: var(--spacing-4xl);
     }
 
-    /* faculty 桌面：同一列卡片的 圖／名字／副標 各抓同一條線（user 2026-10-01「副標對齊，抓同一行」）。
-       卡片 subgrid 跨牆的 3 條 row track（圖、名字、副標），每條高＝該列最高那張 → 名字折兩行、照片比例不同時
-       鄰卡副標不再高低不齊。.text-left 用 display:contents 讓 name/title（含進場包上的 .clip-reveal-wrapper）直接當卡片的 grid item。
-       ⚠️ 行距不能留在牆的 row-gap：gap 會插進卡片自己的 3 條 track 之間（subgrid 設 gap:0 也只是把格子撐進 gutter、名字與副標間多出空隙）
-       → 牆 row-gap 歸零、行距改掛卡片 margin-top（＝左右間距 ×1.5），首列（桌面固定 4 欄 → 前 4 張）不加。改欄數要同步這個 4。
-       只套 faculty：alumni 會員牆共用 class 但沒要求。 */
+    /* faculty 桌面：同一列卡片的 圖／名字／副標 各抓同一條線。卡片 subgrid 跨牆的 3 條 row track，每條高＝該列最高那張。
+       .text-left 用 display:contents 讓 name/title（含進場 .clip-reveal-wrapper）直接當卡片 grid item。
+       ⚠️ 行距不能用牆的 row-gap（gap 會插進卡片自己 3 條 track 之間）→ 牆 row-gap 歸零、行距改掛卡片 margin-top，
+       首列（固定 4 欄 → 前 4 張）不加，改欄數要同步這個 4。只套 faculty（alumni 共用 class 但不套）。 */
     #faculty-cards .faculty-card-wall {
       row-gap: 0;
       container-type: inline-size;   /* 讓卡片 margin-top 讀得到牆寬（100cqw），見下 */
     }
     #faculty-cards .faculty-card {
       display: grid;
-      /* 欄寬必鎖 minmax(0,1fr)：預設 auto 欄會被職稱 marquee 的 nowrap 長字（Associate Professor Rank Specialist）
-         min-content 撐到 ~270 > 卡寬 208 → 照片／文字溢出 hover 色底、名字也不折行 */
+      /* 欄寬必鎖 minmax(0,1fr)：auto 欄會被職稱 marquee 的 nowrap 長字 min-content 撐爆卡寬 → 照片／文字溢出 hover 色底 */
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: subgrid;
       grid-row: span 3;
-      /* 行距＝左右實際間距 ×1.5（user 2026-10-02 先 ×2 再改 1.5，documents 書本同規則；量卡片框、不含 6px padding）。實際左右間距＝column-gap 下限，或卡片封頂 250
-         後被 space-between 撐大的 (牆寬 − 4×250)/3，取大者（1440→76、1920→173）。改欄數／卡寬上限要同步這裡 */
+      /* 行距＝左右實際間距 ×1.5（documents 書本同規則；量卡片框、不含 6px padding）。實際左右間距＝column-gap 下限，
+         或卡片封頂 250 後被 space-between 撐大的 (牆寬 − 4×250)/3，取大者。改欄數／卡寬上限要同步這裡 */
       margin-top: calc(1.5 * max(clamp(2rem, 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
     }
     #faculty-cards .faculty-card:nth-child(-n+4) {
@@ -314,10 +279,8 @@
     #faculty-cards .faculty-card > .text-left {
       display: contents;
     }
-    /* 不 stretch：mask 被拉高會讓旋轉軸心下移、圖片滑入的遮罩窗也跟著變大。
-       文字同理：進場 setupClipReveal 包的 .clip-reveal-wrapper（overflow-y:clip 遮罩窗）就是這裡的 grid item，
-       stretch 到整列最高那張的 track 高 → 短名字／短職稱的窗比字高，字推下 110% 仍在窗內＝輪到前就露出、
-       再從錯位處往上滑（user 2026-10-01「進場動畫錯了」）。> * 也涵蓋 wrap 之前的 name/title 本身 */
+    /* 不 stretch：mask 被拉高會讓旋轉軸心下移、滑入遮罩窗變大。文字同理：進場 .clip-reveal-wrapper 是這裡的 grid item，
+       stretch 後短字的窗比字高 → 推下 110% 仍在窗內＝提早露出。> * 也涵蓋 wrap 之前的 name/title 本身 */
     #faculty-cards .faculty-card-image-mask,
     #faculty-cards .faculty-card > .text-left > * {
       align-self: start;
@@ -325,14 +288,13 @@
   }
 
   /* ===== Faculty Slide-in Grid Rows =====
-     學歷/經歷統一 4 col grid `1fr 4fr 2fr 2fr` 對齊：
-     - col1 (1fr): year / country
-     - col2 (4fr): school / name
-     - col3 (2fr): major
-     - col4 (2fr): degree / category / role
-     - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3 (4fr+2fr) 撐單位描述
-     獲獎用 .faculty-grid-row-award 變體：year(1fr) | country(1fr) | name(4fr) | category(2fr)
-   */
+     學歷/經歷統一 4 col grid `1fr 4fr 2fr 2fr`：
+     - col1: year / country
+     - col2: school / name
+     - col3: major
+     - col4: degree / category / role
+     - 經歷的 organization 用 .faculty-grid-span2 跨 col2+col3
+     獲獎用 .faculty-grid-row-award 變體（見下） */
   .faculty-grid-row {
     display: grid;
     /* minmax(0, *fr) 不用純 *fr：marquee 雙語格內層 nowrap 會把 cell min-content 撐爆 track 破版；
@@ -343,9 +305,8 @@
     padding-right: 2rem;
     font-size: var(--font-size-s);
   }
-  /* row 與 row 間距統一由父層 .faculty-rows 的 gap 控制（取代每 row 自身 padding-bottom）→ 最後一個 row
-     無 trailing 空白、section 底不會看起來過長（user 2026-06-09，桌機手機一致）。桌面 sm 16、手機 lg 32（mobile query 覆蓋）。
-     桌面移除 row padding-bottom 後，sticky title col 的 md:pb-4 也一併拿掉（兩者皆無 trailing → 標題與最後 row 在 content 底對齊）。*/
+  /* row 間距統一由父層 .faculty-rows 的 gap 控制（不用 row padding-bottom）→ 最後一個 row 無 trailing 空白。
+     桌面 sm 16、手機 lg 32（mobile query 覆蓋）。 */
   .faculty-rows {
     display: flex;
     flex-direction: column;
@@ -355,11 +316,9 @@
   .faculty-grid-row > span {
     min-width: 0;
   }
-  /* 首欄（年份／學歷的國家）sticky（桌面）：scroll 詳情時當前最上 entry 的年份釘在頂端，
-     對齊左側 section title 的 md:sticky md:top-0（同一個 .list-scroll 容器）。手機不 sticky 維持上下堆疊滑動。
-     sticky 容器 = 該 grid row（短）→ scroll 時逐 entry 接力把當前年份釘住。
-     align-self:start：grid 預設 align-items:baseline 會把首欄擺到 baseline，sticky 要從 row 頂開始才接力順。
-     background：釘住時遮住同欄下方捲動經過的內容（值 = panel 卡片色，與 section title col 同 var）。 */
+  /* 首欄（年份）sticky（桌面）：捲詳情時當前最上 entry 的年份釘在頂端，sticky 容器＝該 row → 逐 entry 接力。
+     align-self:start：align-items:baseline 會把首欄擺到 baseline，sticky 要從 row 頂開始才接力順。
+     background：釘住時遮住下方捲過的內容（值＝panel 卡片色，與 section title col 同 var）。 */
   @media (min-width: 768px) {
     .faculty-grid-row > span:first-child {
       position: sticky;
@@ -367,38 +326,28 @@
       align-self: start;
       background: var(--faculty-panel-bg, transparent);
     }
-    /* 蓋 utility md:top-0：#id 抬特異度（同 .flex-1 案手法）。
-       lead（職級/職稱）已移出 scroll 容器當非捲動 header（faculty.html #faculty-detail-lead）→
-       section title/年份直接釘 scroll 頂 top:0，不再需要 --faculty-lead-h offset；lead 內 rank↔occupation
-       間距吃 .faculty-rows gap（16px），lead↔Education 1rem 走 #faculty-detail-lead 的 md:mb-sm。 */
+    /* 蓋 utility md:top-0：#id 抬特異度。lead（#faculty-detail-lead）在 scroll 容器外 → title/年份直接釘 scroll 頂 top:0。 */
     #faculty-panel .faculty-section-title-col {
       top: 0;
     }
   }
-  /* 獲獎 row：year(1fr) | country(1fr) | name(5fr) | category(2fr)；2026-06-04 user 移除獎別欄、改放國家
-     刻意總和 = 9fr 與學歷/經歷的 `1fr 4fr 2fr 2fr` 一致 → fr 單位相同：
-     col1 同寬故 country(col2) 左緣對齊上方 organization；col4 同起點(1+1+5 = 1+4+2 = 7fr)故 category 對齊上方 role */
+  /* 獲獎 row：year | country | name(5fr) | category；總和刻意 9fr 同學歷/經歷 `1fr 4fr 2fr 2fr` → fr 單位相同：
+     country 左緣對齊 organization；category 起點同為 7fr → 對齊 role */
   .faculty-grid-row-award {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 5fr) minmax(0, 2fr);
   }
-  /* 學歷 row（2026-08-03 user：country 併入學校名稱字串，不再獨立佔欄，視覺剩 3 格）：
-     不開自訂 grid-template——沿用預設 `1fr 4fr 2fr 2fr`，學校欄用既有 `.faculty-grid-span2` 跨 col1+col2，
-     major 落 col3、degree 落 col4。目的＝與 Journey/Experience row（year|org(span2)|role）track 數/gap 數完全相同，
-     degree 才會跟 role 像 award 的 category 對 role 一樣 pixel 對齊；若改回自訂 3 欄 fr（少 1 個 gap）會跟 4 欄 row 差幾 px（曾踩雷）。 */
-  /* 手機：字級放大到 p1 易讀（窄 viewport 內 p2 太小） */
+  /* 學歷 row（country 併入學校名稱、視覺 3 格）刻意不開自訂 grid-template：沿用 `1fr 4fr 2fr 2fr`，學校欄用 .faculty-grid-span2。
+     與 Journey/Experience row track 數/gap 數相同，degree 才會跟 role pixel 對齊；改自訂 3 欄（少 1 gap）會差幾 px。 */
   @media (max-width: 767px) {
     .faculty-grid-row {
       font-size: var(--font-size-s);
     }
-    /* Section 標題（Journey/Education/Experience/Awards）跟内文同大小：桌面 h3 是 text-base(16)＝row 16px 一致；
-       手機 row 降到 --font-size-s(14)、但 h3 仍 text-base(16)＝標題比内文大 → 手機把標題也對齊 --font-size-s（user 2026-09-06）。
-       #faculty-panel 抬 id 特異度蓋 text-base utility。 */
+    /* Section 標題（Journey/Education/Experience/Awards）手機跟 row 同字級 --font-size-s；#faculty-panel 抬 id 特異度蓋 text-base utility。 */
     #faculty-panel .faculty-section-title-col h3 {
       font-size: var(--font-size-s);
     }
-    /* Contact 內文跟詳情 row 同步升 p1（user 2026-07-04「admin 的比較小」——row 手機升 p1 時漏了它；
-       桌面不動：row/contact 本就同 p2 對齊）。矮橫向同款規則在 landscape.css。
-       雙 class 抬特異度：.text-s utility 在 components 之後、同特異度會後出勝（repo 慣例雷）。 */
+    /* Contact 內文跟詳情 row 同字級；矮橫向同款規則在 landscape.css。
+       雙 class 抬特異度：.text-s utility 在 components 之後、同特異度會後出勝。 */
     .faculty-contact-text.text-s {
       font-size: var(--font-size-s);
     }
@@ -409,22 +358,15 @@
 
   .faculty-grid-row span {
     word-break: break-word;
-    line-height: var(--line-height-s);   /* 詳情 row 是 text-s → 吃 s 字級行距（1.3），不用 base（user 08-13：照字級） */
+    line-height: var(--line-height-s);   /* 詳情 row 是 text-s → 吃 s 字級行距 */
   }
 
-  /* 手機 2 欄（2026-06-10 user，取代 2026-05-26 的縱向單欄 stack）：
-       左欄 col1 = 第一格（年份；學歷則是國家）；右欄 col2 = 其餘內容（機構/職位…）逐列堆疊。
-     做法：第一格 grid-column:1、其餘全 grid-column:2 → auto-flow 把右欄各格依序排到 col2 的 row1/2/3，
-       col1 只佔 row1 → 視覺上「年份左上、內容右側 stack」。align-items:baseline（base 規則）讓年份 baseline
-       對齊右欄第一格首行。
-     左欄**固定寬 4rem**（不用 auto）→ 所有 row 的右欄 col2 左緣一致（user 要對齊、含學歷）；年份較長（區間如
-       2000-2022）超過 4rem 時在欄內自然 wrap 往下排（手機 inner 是 display:inline + word-break:break-word、
-       桌面才 nowrap），不會把欄撐寬害內容跑掉。column-gap 1.5rem（user 要年份→內容間距大一點）。 */
+  /* 手機 2 欄：左欄＝首格（年份）固定寬 4rem → 所有 row 右欄左緣一致（長年份區間在欄內 wrap、不撐寬）；
+     右欄＝其餘格逐列堆疊。 */
   @media (max-width: 767px) {
-    /* 左欄（年份/國家）sticky（user 2026-07-13）：grid cell 的 sticky containing block 只有
-       自己那一格（首欄格高＝第一列高、無捲程）→ 整 row 改 float 版（同 award row pattern），
-       首欄 containing block = 整個 row，長 row 捲過時左欄釘在 section title 下緣、逐 row 接力。
-       top = profile 高 + title 高（皆 JS 量測寫入 var，faculty-slide-in.js measureProfile）。 */
+    /* 左欄 sticky：grid cell 的 sticky containing block 只有自己那格（無捲程）→ 整 row 改 float 版，
+       首欄 containing block＝整個 row，長 row 捲過時左欄釘在 section title 下緣、逐 row 接力。
+       top = profile + lead + title 高（JS 量測寫入 var，faculty-slide-in.js）。 */
     .faculty-grid-row {
       display: flow-root;
       padding-right: 0;
@@ -440,25 +382,22 @@
     }
     .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) {
       display: block;
-      margin-left: 5.5rem; /* 左欄 4rem + 原 column-gap 1.5rem */
+      margin-left: 5.5rem; /* 左欄 4rem + 間距 1.5rem */
     }
     .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) + span {
-      margin-top: 0.25rem; /* 原 row-gap */
+      margin-top: 0.25rem;
     }
-    /* 手機 row 間距比桌面大一點（窄 viewport 易讀），覆蓋 .faculty-rows 基準 sm → lg */
+    /* 手機 row 間距比桌面大（覆蓋 .faculty-rows 基準 sm → lg） */
     .faculty-rows {
       gap: var(--spacing-lg);
     }
-    /* lead（系所+多個職級/職稱）例外：手機不吃上面的 lg——各職稱間距要與 dept→職稱(deptHtml mb-sm 16) 一致、
-       不讓最後一個（如「學系主任」）被 32px 大 gap 孤立（user 2026-09-06「跟上面兩個一起的 gap、不單獨」）。 */
+    /* lead（系所+多個職級/職稱）例外：維持 sm，各職稱間距與 dept→職稱（mb-sm 16）一致，最後一個不被 lg gap 孤立。 */
     .faculty-lead-rows {
       gap: var(--spacing-sm);
     }
 
-    /* 獲獎 row：左右兩欄「各自獨立 flow」（user 2026-07-09：country 緊貼 year 下、
-       category 也要緊貼 name 下——grid 共用 row 高度必耦合其一，改 float 版兩欄互不影響）：
-       year/country 浮動進左欄軌（clear 直排、寬 4rem），name/category 一般 block 用
-       margin-left 讓位右欄；flow-root 讓 row 高度包含 float（下一 row 不上疊） */
+    /* 獲獎 row：左右兩欄各自獨立 flow（country 緊貼 year 下、category 緊貼 name 下；grid 共用 row 高必耦合其一）：
+       year/country float 進左欄（clear 直排、寬 4rem），name/category 用 margin-left 讓位；flow-root 讓 row 包住 float。 */
     .faculty-grid-row-award {
       display: flow-root;
     }
@@ -477,16 +416,15 @@
     }
     .faculty-grid-row-award > span:nth-child(n+3) {
       display: block;
-      margin-left: 5.5rem; /* 左欄 4rem + 原 column-gap 1.5rem */
+      margin-left: 5.5rem; /* 左欄 4rem + 間距 1.5rem */
     }
     .faculty-grid-row-award > span:nth-child(2),
     .faculty-grid-row-award > span:nth-child(4) {
-      margin-top: 0.25rem; /* 原 row-gap */
+      margin-top: 0.25rem;
     }
 
-    /* 學歷 row 手機版拿掉左欄窄浮動 pin（2026-08-03）：country 併進學校名稱字串後首欄變長字，
-       塞進原本給短年份/國碼用的 4rem 浮動欄會擠成多行——改回單欄直向堆疊（不 float 不 sticky）。
-       selector 疊兩個 class 抬 specificity 蓋過上面泛用的 :first-child / :not(:first-child) 規則。 */
+    /* 學歷 row 手機拿掉左欄浮動 pin：首格是長字（country 併入學校名），塞進 4rem 欄會擠成多行 → 單欄直向堆疊。
+       疊兩個 class 抬 specificity 蓋過上面 :first-child / :not(:first-child) 規則。 */
     .faculty-grid-row.faculty-grid-row-education > span:first-child {
       float: none;
       clear: none;
@@ -498,46 +436,38 @@
       margin-top: 0.25rem;
     }
 
-    /* sticky 參考容器要有真實內容高：flex-1 + min-h-0 會把它夾成一屏高（內容 overflow 出去），
-       sticky 範圍剩一屏、捲一屏後 profile 被容器底拖走（Playwright 實測）→ 手機改自然高度。
-       桌面（右欄獨立 scroll）不動。#faculty-panel 抬特異度蓋 .flex-1 utility（utilities 後出同特異度會贏）。
-       gap 歸零：profile↔sections 的間距移進 profile pb（見下）——間距要被 profile bg 蓋住，
-       否則 title 釘在 profile 底時，中間縫隙會露出捲過的內容 */
+    /* sticky 參考容器要有真實內容高：flex-1 + min-h-0 會夾成一屏高 → 捲一屏後 profile 被容器底拖走 → 手機改自然高度。
+       #faculty-panel 抬特異度蓋 .flex-1 utility。gap 歸零：間距移進 profile pb，被 profile bg 蓋住，免 title 釘住時縫隙露出捲過的內容 */
     #faculty-panel .faculty-detail-layout {
       flex: none;
       min-height: auto;
       gap: 0;
     }
 
-    /* Profile（圖＋姓名＋職稱）：橫排（小圖左、字右）＋ sticky 釘 header 遮擋帶下緣；
-       bg = panel 卡片色 → 蓋住捲動經過的詳情內容；高度由 JS 量測寫入 --faculty-profile-h
-       供 section title 的 sticky top 接力（faculty-slide-in.js）。
-       top 0（2026-07-09）：容器 pt = header 高（原 +4rem 已拆）→ 開場 scrollTop=0 時
-       profile 自然位置＝釘住位置，直接貼 header 下緣、不用捲動後才貼上去 */
+    /* Profile（圖＋姓名）：橫排 ＋ sticky 釘 header 下緣；bg = panel 卡片色蓋住捲過的內容。
+       高度由 JS 量測寫入 --faculty-profile-h 供 lead / section title 的 sticky top 接力（faculty-slide-in.js）。
+       top 0：容器 pt = header 高 → 開場自然位置＝釘住位置。 */
     #faculty-profile-block {
       position: sticky;
       top: 0;
       z-index: 5;
       background: var(--faculty-panel-bg, transparent);
       flex-direction: row;
-      align-items: flex-start;   /* 圖頂對齊名字頂（user 2026-07-13；原 center 圖偏中） */
+      align-items: flex-start;   /* 圖頂對齊名字頂 */
       gap: 2rem;
-      /* pt 1rem（user 2026-09-06 由 2.5rem 收小；圖片區塊上方留白過多）；仍夠 rotate(-4deg) 頂角 ~5px 不被 header 帶蓋 */
+      /* pt 1rem：仍夠 rotate(-4deg) 頂角不被 header 帶蓋 */
       padding-top: 1rem;
-      /* pb：Education 在開場時距 profile 的空間，也是之後每個 title 釘住時距 profile 的空間
-         （同一個值＝結構上保證一致，user 2026-07-09）；放 pb 而非 gap → 這段空間有 profile bg，
-         捲過的內容不會從縫隙露出。4rem 對半分後剩 2rem（另一半在 pt） */
+      /* pb：開場 Education 距 profile 的空間＝之後每個 title 釘住時的空間（同一值→結構上一致）；
+         放 pb 而非 gap → 這段有 profile bg，捲過的內容不從縫隙露出 */
       padding-bottom: 2rem;
-      /* 自身一層 compositing layer：pinned sticky 沒有 layer 時每幀重繪，
-         捲動一卡就看得出抖（user 2026-07-09 回報 title 抖動，title col 同款） */
+      /* 自身一層 compositing layer：pinned sticky 沒有 layer 時每幀重繪 → 捲動抖（title col 同款） */
       transform: translateZ(0);
-      /* 底邊往下多畫 1px 同色：profile 高度帶小數（如 212.8px），與 title layer 各自光柵化
-         對齊實體像素會差半像素，捲動中交界處閃 1px 縫露出底下內容（user 2026-07-09）；
-         shadow 屬於自己這層、蓋住交界，不動 sticky 定位數學 */
+      /* 底邊多畫 1px 同色：profile 高度帶小數，與 title layer 各自光柵化差半像素 → 捲動中交界閃 1px 縫；
+         shadow 蓋住交界、不動 sticky 定位數學 */
       box-shadow: 0 1px 0 var(--faculty-panel-bg, transparent);
     }
     #faculty-profile-block > div:first-child {
-      /* 圖 33%（user 2026-09-06 二輪 +10%：30→33）；flex:none 固定寬、名字欄吃剩餘 */
+      /* 圖 33%；flex:none 固定寬、名字欄吃剩餘 */
       width: 33%;
       flex: none;
       margin: 0;
@@ -548,10 +478,8 @@
       min-width: 0;
     }
 
-    /* 系所全名 + 職級/職稱（lead）＝手機也比照桌面：不旋轉、單獨一塊、sticky 釘在 profile 下緣、Education 上方
-       （user 2026-09-06；原本塞在 profile 名字下方且旋轉）。JS 把 dept+rank 渲染進 #faculty-detail-lead（桌機手機同款）。
-       top = profile 實高（JS 量測 --faculty-profile-h）；bg 蓋住捲過的 section 內容；translateZ(0) 免 pinned 重繪抖。
-       pb 讓 Education 捲過時不貼 rank 字；box-shadow 1px 補底邊 sub-pixel 縫（同 profile/title）。 */
+    /* 系所 + 職級/職稱（lead）：不旋轉、單獨一塊、sticky 釘在 profile 下緣（JS 渲染進 #faculty-detail-lead，桌機手機同款）。
+       top = profile 實高（--faculty-profile-h）；translateZ(0) 免 pinned 重繪抖；box-shadow 1px 補 sub-pixel 縫（同 profile/title）。 */
     #faculty-detail-lead {
       position: sticky;
       top: var(--faculty-profile-h, 0px);
@@ -562,34 +490,29 @@
       box-shadow: 0 1px 0 var(--faculty-panel-bg, transparent);
     }
 
-    /* Section 標題（Education 學歷…）sticky 接在 profile 下緣（box 底含 pb 4rem 間距帶）；
-       section 結束時被下一個 section 自然推走（sticky 容器 = 各 section wrapper）。
-       mb 改 pb → bg 蓋住標題下方間隙。top = profile 實高（offsetHeight 含 padding，JS 量測）：
-       layout gap 已歸零，開場時 Education 自然位置＝釘住位置＝之後每個 title 的釘住位置 */
+    /* Section 標題 sticky 接在 profile + lead 下緣；被下一個 section 自然推走（sticky 容器 = 各 section wrapper）。
+       用 pb 不用 mb → bg 蓋住標題下方間隙；layout gap 已歸零 → 開場自然位置＝釘住位置 */
     #faculty-panel .faculty-section-title-col {
       position: sticky;
       top: calc(var(--faculty-profile-h, 0px) + var(--faculty-lead-h, 0px));
       z-index: 2;
       margin-bottom: 0;
-      /* 上下 padding 加大（user 2026-07-09）：釘住時下方捲過的內容不貼標題字；
-         pt 讓標題字跟 profile 底也留口氣（bg 蓋住 padding 區、無縫） */
+      /* 上下 padding：釘住時捲過的內容不貼標題字（bg 蓋住 padding 區、無縫） */
       padding-top: 0.75rem;
       padding-bottom: 1rem;
       transform: translateZ(0); /* 同 profile block：釘住時走 compositor 不逐幀重繪 */
     }
   }
 
-  /* Sticky section title col — 蓋住右欄 scroll 經過時下方 row 文字
-     bg = panel 卡片色（faculty-slide-in.js click 時 setProperty 寫入 panel inline）
-     inherit 在 CSS bg 拿不到 painted color 所以走 CSS var pattern */
+  /* Sticky section title col：bg = panel 卡片色，蓋住右欄捲過的 row 文字。
+     bg 由 faculty-slide-in.js setProperty 寫入 panel（inherit 拿不到 painted color，所以走 CSS var） */
   .faculty-section-title-col {
     background: var(--faculty-panel-bg, transparent);
   }
 
-  /* 手機返回鍵：釘在 header 右側 menu 鈕位置（panel 本身不捲、absolute 即視覺固定）；
-     高度 = header 高 + 置中 → 垂直對齊 menu 鈕，右緣對齊 site-container padding。
-     不包 max-width media：矮橫向（landscape gate）用 #id 規則 display:block 重新顯示這顆鈕，
-     定位要一起生效；desktop 由 md:hidden 收掉。align-content 給 landscape 蓋成 block 時仍垂直置中 */
+  /* 手機返回鍵：釘在 header 右側 menu 鈕位置（panel 不捲、absolute 即固定）；高度 = header 高 + 置中 → 對齊 menu 鈕。
+     不包 max-width media：矮橫向用 #id 規則 display:block 重新顯示，定位要一起生效；desktop 由 md:hidden 收掉。
+     align-content 給 landscape 蓋成 block 時仍垂直置中 */
   .faculty-back-header {
     position: absolute;
     top: 0;
@@ -601,24 +524,10 @@
     z-index: 20;
   }
 
-  /* 桌面 slide-in 返回鍵：釘 panel 左上角 header 列、左緣對齊 container padding。
-     顯隱純由 HTML 的 hidden/md:flex 控制（此處不設 display，免跟 utility 打架）；
-     矮橫向 gate 走手機右側返回鍵、此顆隱藏 → 規則在 landscape.css（unlayered #id 才蓋得掉 md:flex）。 */
-  .faculty-close-header {
-    position: absolute;
-    top: 0;
-    left: var(--container-padding);
-    height: var(--header-height, 80px);
-    align-items: center;
-    z-index: 20;
-  }
-
-  /* 桌面 slide-in 黑方塊返回鍵（faculty / curriculum 共用）：騎在 panel 左邊緣上（方塊中線＝panel 左緣 → 半凸出到左側剩餘空白），
-     貼畫面底部，隨機旋轉（角度由 JS 套 transform）。尺寸 3rem＝全站黑方塊 icon 鈕標準（見 lists.css .tl-icon-btn-inner 48px）。
-     panel 左緣距 viewport 左 = 100% - panel 寬（各頁用 --slide-panel-w 設）；margin-left 拉回半個方塊寬讓中線落在該緣。
-     ⚠️外層＝遮罩（overflow:clip + rotate），內層 -inner 平移做 hero clip-reveal（比照 header bars ensureBarMask：
-        rotate 放外層、child 相對無旋轉 → 剪裁邊貼齊 inner，滑動剪裁乾淨；見 header.js §footerHideBars）。
-     手機/矮橫向用各自右上返回鍵，此顆桌面限定（display 全由本 class 控、不掛 Tailwind hidden/md:flex，免跟 utility layer 打架）。 */
+  /* 桌面 slide-in 黑方塊返回鍵（faculty / curriculum 共用）：方塊中線＝panel 左緣、貼畫面底、隨機旋轉（JS 套 transform）。
+     尺寸 3rem＝全站黑方塊 icon 鈕標準（lists.css .tl-icon-btn-inner）。panel 左緣＝100% − --slide-panel-w；margin-left 拉回半個方塊寬。
+     ⚠️ 外層＝遮罩（overflow:clip + rotate），內層 -inner 平移做 clip-reveal（同 header bars ensureBarMask：rotate 在外層 → 剪裁邊貼齊 inner）。
+     桌面限定；display 全由本 class 控、不掛 Tailwind hidden/md:flex，免跟 utility layer 打架。 */
   .slide-in-back-square {
     position: absolute;
     bottom: var(--container-padding, 2rem);
@@ -641,11 +550,11 @@
     height: 100%;
     background: #000;
   }
-  /* hover 隨機三原色（user 2026-09-28，全站黑方塊 icon 鈕同款，見 lists.css .tl-icon-btn-inner 段）：faculty-slide-in.js／courses-map.js
-     呼 bindNavBtnHover 掛 data-nav-hover + --nav-hover。返回鍵無開合態、不做 active。mode3 翻反色。 */
+  /* hover 隨機三原色（全站黑方塊 icon 鈕同款，見 lists.css .tl-icon-btn-inner）：faculty-slide-in.js／courses-map.js
+     呼 bindNavBtnHover 掛 data-nav-hover + --nav-hover。無 active 態。mode3 翻反色。 */
   @media (hover: hover) and (min-width: 768px) {
     body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--nav-hover, var(--color-pink)); }
-    /* icon 帶 text-white utility（faculty/curriculum.html）→ 要指名 .icon 才蓋得掉；hover＝三原色底黑 icon（user 2026-09-28「icon 不要變白」） */
+    /* icon 帶 text-white utility → 要指名 .icon 才蓋得掉；hover＝三原色底黑 icon */
     body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: #000; }
     body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--theme-fg-inverse); }
     body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: var(--theme-fg); }
@@ -658,7 +567,7 @@
     .slide-in-back-square { display: none; }
   }
 
-  /* ===== Degree Show Image ===== */
+  /* ===== About Works 圖片容器 ===== */
 
   .works-container {
     height: auto;
@@ -666,38 +575,34 @@
     min-height: var(--works-container-height, 320px);
   }
 
-  /* ===== Mobile Responsive for Works Container ===== */
+  /* 手機：改橫向捲動 + snap */
   @media (max-width: 767px) {
     .works-container {
       height: auto !important;
-      display: flex !important; /* 改為 Flex 佈局以支援橫向排列 */
-      overflow-x: auto;         /* 開啟橫向捲動 */
-      gap: 1rem;                /* 圖片間距 */
-      scroll-snap-type: x mandatory; /* 滑動吸附效果 */
-      padding-bottom: 1rem;     /* 預留空間 */
-      justify-content: flex-start !important; /* 確保靠左開始 */
-      scrollbar-width: none;    /* Firefox 隱藏捲軸 */
+      display: flex !important;
+      overflow-x: auto;
+      gap: 1rem;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 1rem;
+      justify-content: flex-start !important;
+      scrollbar-width: none;
     }
-    .works-container::-webkit-scrollbar { display: none; } /* Chrome/Safari 隱藏捲軸 */
+    .works-container::-webkit-scrollbar { display: none; }
 
     .works-container img.absolute, .works-container > div.absolute {
       position: relative !important;
       top: auto !important;
       left: auto !important;
-      width: 85% !important;    /* 讓圖片佔據 85% 寬度，暗示可滑動 */
-      transform: none !important; /* 移除旋轉 */
+      width: 85% !important;    /* 85% 寬露出下一張＝暗示可滑動 */
+      transform: none !important;
       margin-bottom: 0 !important;
-      flex-shrink: 0;           /* 防止圖片被壓縮 */
-      scroll-snap-align: center; /* 吸附對齊 */
+      flex-shrink: 0;
+      scroll-snap-align: center;
     }
   }
 
-  /* ===== 首頁 WATCH! 圓形卡片（#homepage-yt-card.homepage-card） =====
-   * 桌面 160×160，手機 96×96。
-   * 尺寸由 CSS 而非 inline style 控制，方便 RWD 切換；
-   * inline style 仍保留 position/border-radius/background/z-index 等 layout 屬性。
-   * 內部 WATCH 字母在 index-yt-card.js 依 W/160 ratio 自動縮放，所以圓圈尺寸對了字母自動 fit。
-   */
+  /* ===== 首頁 WATCH! 圓形卡片（#homepage-yt-card.homepage-card）=====
+     尺寸由 CSS 控（RWD）；inline style 只留 layout 屬性。WATCH 字母由 index-yt-card.js 依 W/160 ratio 自動縮放。 */
   .homepage-card {
     width: 160px;
     height: 160px;

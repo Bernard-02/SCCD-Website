@@ -1,15 +1,9 @@
-/**
- * Button Components
- * 各種按鈕樣式（Filter、Toggle、Division 等）
- */
+/* Button Components */
 
 @layer components {
 
   /* ===== Theme Toggle Button =====
-   * 2026-05-19 改用 .icon mode_1/2/3 SVG（舊的 .theme-toggle-circle 圓點+圓邊框拿掉）
-   * icon 顏色走 currentColor → btn 用 var(--theme-fg) 自動跟 mode 切換；
-   * slide-in / lightbox 開時改白色由 CSS 覆蓋（取代舊 gsap inline 動畫）
-   */
+     icon 走 currentColor → btn 用 var(--theme-fg) 自動跟 mode */
   .theme-toggle-btn {
     width: 24px;
     height: 24px;
@@ -26,31 +20,24 @@
     transition: color var(--transition-fast);
   }
 
-  /* slide-in（faculty / courses）或 lightbox 開啟時，header overlay 變黑底 → icon 統一白色。
-     只掛 body.lightbox-open（slide-in 也走 enterLightboxMode 必有此 class）：lightbox-open 在「關閉當下」
-     就移除、has-slide-in 要等收場 timeline 跑完（~0.8s）才移除——若也掛 has-slide-in，關閉時
-     animateHeaderShow 已開始 reveal mode btn，icon 仍白 + 圓底白 = 看到「空白鈕、icon 之後才浮現」
-     （user 2026-06-12 手機報；桌面同理）。 */
+  /* slide-in / lightbox 開時 header overlay 黑底 → icon 白。只掛 body.lightbox-open（slide-in 也會掛）：
+     它在關閉當下就移除；has-slide-in 要等收場（~0.8s）才移除，掛它會讓 animateHeaderShow reveal 時 icon 仍白＝空白鈕 */
   body.lightbox-open .theme-toggle-btn {
     color: #fff;
   }
 
   /* atlas 渲染/intro 完成前擋 mode 切換（atlas.js 掛/移 body class）：header 是 async fetch，
-     JS 只設按鈕 disabled 會漏掉「initAtlas 跑完 disable 後按鈕才進 DOM」的 race → body class 讓晚到的按鈕也吃到 */
+     只設 disabled 會漏掉「disable 後按鈕才進 DOM」的 race → body class 讓晚到的按鈕也吃到 */
   body.atlas-mode-gate .theme-toggle-btn {
     pointer-events: none;
   }
 
-  /* slide-in / lightbox 開啟時手機只保留 logo，mode-btn + menu-btn 收起 — 動畫由 lightbox-shell.js
-     `animateHeaderHide(getHeaderTargets())` 統一管：手機兩顆 .mobile-header-btn 走 clip-reveal（遮罩＋本體上滑，
-     委派 header.js footerHideBars，比照 footer-near hide）；桌面 #mode-btn / [data-bar] 才走 GSAP clip-path。
-     這裡不額外寫 CSS clip-path / transform 動畫，避免跟 GSAP 撞 transition */
+  /* slide-in / lightbox 開時 header 鈕收起由 lightbox-shell.js animateHeaderHide 統一管（GSAP）；
+     這裡不寫 CSS clip-path / transform 動畫，免跟 GSAP 撞 transition */
 
-  /* ===== Mode btn 圓底 + 漢堡方底（桌面版 header）=====
-   * 2026-09-27 起底色＝反色：theme-fg 底 + fg-inverse icon（mode1 黑底白 / mode2 白底黑 / mode3 跟 fg）。
-   * #site-header 提特異度＋!important 蓋 themes/inverse.css + color.css 的 [data-bar="mode"] page-bg 規則。
-   * size 48×48、icon 32＝對齊頁內黑方塊 icon 鈕（library next / about 時間軸 .tl-icon-btn-inner、atlas 切換鈕；user 2026-09-27）；
-   * width 寫死 48 是因為 header.js animateHeaderModeBtnShow fromTo width:0→48 需要對齊 */
+  /* ===== Mode btn 圓底 + 漢堡方底（桌面 header）=====
+     反色：theme-fg 底 + fg-inverse icon；#site-header 提特異度＋!important 蓋 inverse.css / color.css 的 [data-bar="mode"] page-bg 規則。
+     48×48、icon 32 對齊頁內黑方塊 icon 鈕；width 48 須與 header.js animateHeaderModeBtnShow 的 width:0→48 對齊 */
   #mode-btn,
   #menu-btn {
     width: 48px;
@@ -67,11 +54,9 @@
     color: var(--theme-fg-inverse) !important;
     font-size: 32px; /* .icon 1em → 32px */
   }
-  /* 漢堡鈕 hover／menu 開著（user 2026-09-28）：mode1/2＝三原色底黑 icon（--menu-btn-accent 由 mobile-menu.js mouseenter 抽，
-     開著不重抽＝維持點下去那色）；mode3＝黑白互換（全站 mode3 hover/active 無 rgb 慣例）。
-     .is-open 由 mobile-menu.js setIcons 掛；:hover 限 (hover:hover)，≥1200 觸控平板不留 sticky hover。
-     hover/開關一律 instant（同 menu 選項，user 2026-09-28）：#menu-btn 不掛 transition（header.html 已拿掉 inline 那條）；
-     mode 切換 fade 照走 typography.css .mode-switching 白名單的 [data-bar] */
+  /* 漢堡鈕 hover／menu 開著：mode1/2＝三原色底黑 icon（--menu-btn-accent 由 mobile-menu.js mouseenter 抽，開著不重抽）；
+     mode3＝黑白互換。.is-open 由 mobile-menu.js setIcons 掛；:hover 限 (hover:hover) 免觸控殘留。
+     #menu-btn 不掛 transition（hover/開關 instant）；mode 切換 fade 走 typography.css 白名單的 [data-bar] */
   #site-header #menu-btn.is-open {
     background: var(--menu-btn-accent, var(--color-pink)) !important;
   }
@@ -104,9 +89,8 @@
     height: 100%;
     transition: none;   /* hover instant（同漢堡 icon）；mode 切換的 fade 由 typography.css 白名單接手 */
   }
-  /* mode 圓鈕 hover（user 2026-09-29，同漢堡鈕）：mode1/2＝三原色底黑 icon（--mode-btn-accent 由 header.js mouseenter 抽）、
-     mode3＝黑白互換；instant（header.html inline transition 只留 transform）。無 active 態。
-     atlas 還沒開放切 mode（body.atlas-mode-gate，按鈕 pe:none）時不上色，免得看起來可點。 */
+  /* mode 圓鈕 hover（同漢堡鈕）：mode1/2＝三原色底黑 icon（--mode-btn-accent 由 header.js mouseenter 抽）、mode3＝黑白互換；
+     instant（header.html inline transition 只留 transform）；無 active 態。atlas-mode-gate 時不上色，免得看起來可點 */
   @media (hover: hover) {
     body:not(.atlas-mode-gate) #site-header #mode-btn:hover {
       background: var(--mode-btn-accent, var(--color-pink)) !important;
@@ -121,31 +105,24 @@
       color: var(--theme-fg) !important;
     }
   }
-  /* 進退場動畫中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）＝「還沒渲染完」：
-     不吃 hover/click（游標不變 pointer、點不到看不見的鈕）。各動畫 onComplete 都會清 inline
-     clip-path → 自動恢復可互動（user 2026-07-16） */
+  /* 進退場中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）不吃 hover/click；
+     各動畫 onComplete 清 inline clip-path → 自動恢復 */
   #mode-btn[style*="clip-path"] {
     pointer-events: none;
   }
 
-  /* ===== Mobile Header Buttons（mode-btn + menu-btn 圓底）=====
-   * 跟桌面 #mode-btn 同 bg 邏輯：圓底 + bg = page bg（融入頁面）
-   * 44×44 滿足觸控規範；icon 色走 currentColor 自動跟 mode 切換
-   * mode-aware bg 由 themes/inverse.css + color.css 覆寫（同 #mode-btn pattern）*/
+  /* ===== Mobile Header Buttons =====
+     44×44 觸控規範；icon 走 currentColor；mode-aware bg 由 themes/inverse.css + color.css 覆寫 */
   .mobile-header-btn {
     width: 44px;
     height: 44px;
     background: #fff;
     color: #000;
-    /* transition 含 transform：mobile-menu.js 對 btn 外殼套 random rotation，每次點擊新角度需平滑切換
-       clip-path 動畫由 lightbox-shell GSAP 控（slide-in/lightbox 開時），不在 CSS transition 處理 */
+    /* transform transition：mobile-menu.js 對外殼套隨機旋轉，換角需平滑；clip-path 由 lightbox-shell GSAP 控，不進 transition */
     transition: background var(--transition-fast), color var(--transition-fast), transform var(--dur-base) ease;
   }
-  /* ===== Section Nav Buttons（共用基底樣式）=====
-   * 包含：faculty-filter / activities-section / courses-program /
-   *      activities-filter / courses-filter / section-nav-btn
-   * 新的 instance 可直接加 .section-nav-btn class 使用
-   */
+  /* ===== Section Nav Buttons（共用基底）=====
+     新 instance 加 .section-nav-btn 即可 */
   .section-nav-btn,
   .faculty-filter-btn,
   .activities-section-btn,
@@ -161,7 +138,6 @@
   }
 
   /* 直式堆疊（sticky 垂直導覽）*/
-  .section-nav-btn--stack,
   .faculty-filter-btn,
   .activities-section-btn,
   .courses-program-btn {
@@ -170,10 +146,9 @@
     align-items: flex-start;
   }
 
-  /* Inactive 狀態：白底黑字直接吃 navigation.css .anchor-nav-inner 基底（hover 隨機三原色見 navigation.css「nav btn hover」段）；
-     inverse 在 themes/inverse.css 翻成黑底白字 */
+  /* Inactive：直接吃 navigation.css .anchor-nav-inner 基底（hover 見其「nav btn hover」段；inverse 在 themes/inverse.css 翻） */
 
-  /* Active 狀態（背景/旋轉由 JS 設定）*/
+  /* Active（背景/旋轉由 JS 設） */
   .section-nav-btn.active .anchor-nav-inner,
   .faculty-filter-btn.active .anchor-nav-inner,
   .activities-section-btn.active .anchor-nav-inner,
@@ -183,45 +158,34 @@
     color: black;
   }
 
-  /* faculty 分類 filter：2026-08-24 曾移到內容區上方橫向 bar（與 DCD 系所鈕對調），2026-09-29 撤 DCD、回左直欄
-   * （同其他三頁 nav；色塊貼文字寬＝faculty-filter.js bindNavBtnFit）。 */
-
-  /* ===== Activities Section Bar（手機水平 scroll；桌面 sticky vertical stack） =====
-   * 手機：force row + overflow-x:auto + 兩側負 margin 延伸到 viewport 邊（courses-program-bar 同 pattern）
-   *      - flex-direction:row + flex-wrap:nowrap !important 覆蓋 HTML 的 flex-row + flex-wrap (HTML 預設 flex-row)
-   *      - overflow-y:clip 與 x:auto 並存（CSS spec：另一軸非 visible 時視同 auto；用 clip 才真不裁切）
-   *      - gap-xs 給 btn 之間留呼吸感；btn flex-shrink:0 避免擠壓變窄
-   * 桌面：直接走 HTML md:flex-col + sticky，這段不介入 */
+  /* ===== Activities Section Bar =====
+     手機：水平 scroll，兩側負 margin 延伸到 viewport 邊（同 courses-program-bar）；!important 蓋 HTML 的 flex-row/flex-wrap。
+     桌面走 HTML md:flex-col + sticky，這段不介入 */
   @media (max-width: 767px) {
     .activities-section-bar {
       flex-direction: row !important;
       flex-wrap: nowrap !important;
       overflow-x: auto;
-      /* overflow-y:clip 讓 active btn rotation 投影 y 軸不被裁切（spec：另一軸非 visible 視同 auto，clip 才真不切）
-         x 軸 scroll 為 host section 之外的隔離 container，rotation 投影在 padding-y buffer 內可見 */
+      /* y 用 clip 不留 visible：x:auto 時另一軸 visible 會被算成 auto（spec）；旋轉投影靠下方 padding-y buffer 留在可見區 */
       overflow-y: clip;
       margin-left: calc(-1 * var(--container-padding));
       margin-right: calc(-1 * var(--container-padding));
       padding-left: var(--container-padding);
       padding-right: var(--container-padding);
-      /* padding-y 給 rotation buffer：active btn 旋轉後 chip 上下凸出 layout box；
-         沒有 buffer 投影會被 overflow-y:clip 切掉 */
+      /* padding-y＝旋轉 buffer：active btn 旋轉後上下凸出 layout box，沒 buffer 會被 overflow-y:clip 切掉 */
       padding-top: var(--spacing-sm);
       padding-bottom: var(--spacing-sm);
     }
     .activities-section-bar::-webkit-scrollbar { display: none; }
     .activities-section-bar > .activities-section-btn {
       flex-shrink: 0;
-      /* 單行不折（本 block 既定意圖的補完）：br 換成空格後 EN 仍會在空格處 wrap——
-         Industry Partnerships 實測折兩行，把整條 bar stretch 高 24px（2026-07-13 查間距時發現）*/
+      /* 單行不折：EN 會在空格處 wrap（Industry Partnerships 折兩行會把整條 bar 撐高 24px） */
       white-space: nowrap;
     }
   }
 
-  /* Industry Partnerships：桌面直欄 EN 兩行（Industry / Partnerships）。原本 HTML hardcode <br> +
-     手機 br→空格 hack——但 br 的斷行是 UA 行為、display:inline 蓋不掉，手機實際仍兩行把整條
-     strip 撐高 24px（2026-07-13 發現）。改法：HTML 用真空格，桌面（含矮橫向，維持原兩行現況）
-     以 min-content 讓 EN 在空格處折行；手機 <768 不套＝單行。 */
+  /* Industry Partnerships：桌面直欄 EN 以 min-content 在空格處折兩行；手機 <768 不套＝單行。
+     HTML 用真空格不用 <br>：br 斷行是 UA 行為、display:inline 蓋不掉 */
   @media (min-width: 768px) {
     .activities-section-btn[data-section="industry"] .anchor-nav-inner > span:first-child {
       width: min-content;
@@ -245,13 +209,12 @@
     }
   }
 
-  /* ===== Class Group Label (BFA Class 學士班)：旋轉由 JS 設定 ===== */
-  /* bg/color 用 var(--theme-fg)/var(--theme-bg) 跟 mode 走（standard=黑底白字 / inverse=白底黑字） */
+  /* ===== Class Group Label（BFA 學士班）：旋轉由 JS 設定 ===== */
   .class-group-label {
     display: inline-block;
     width: fit-content;
     cursor: var(--cursor-pointer); /* label 可點＝轉發給隔壁 division btn（bfa-division-toggle.js） */
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準（原 4/6/3 → 統一，user 2026-09-09；之後再逐一微調）*/
+    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 padding */
     position: absolute;
     bottom: calc(100% + var(--spacing-xs));
     left: -12px;
@@ -261,8 +224,7 @@
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
 
-  /* group 標籤 En/Zh 兩行：ui_labels 把 group（來源 group.bfa）拆成兩個子 span，各自成行。
-     只 scope curriculum .courses-bfa-label 與 about 兩處 nav，避免影響其他借用 .class-group-label 的頁面。 */
+  /* group 標籤 En/Zh 兩行（ui_labels 拆成兩個子 span）。只 scope 這三處，免影響其他借用 .class-group-label 的頁面 */
   .courses-bfa-label > span,
   #class-buttons-sticky .class-group-label > span,
   #mobile-division-nav .class-group-label > span {
@@ -270,7 +232,6 @@
   }
 
   /* ===== Class Division Toggle Buttons ===== */
-  /* 同上：跟 mode 對比 pill */
   .class-division-btn {
     background: var(--theme-fg);
     color: var(--theme-bg);
@@ -281,42 +242,36 @@
     text-align: left;
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
-  /* 疊放雙語 EN/ZH（兩個 <div>，非 anchor-nav-inner）的英中距：以字級為主。
-     用 EN div 的 margin-bottom 補，不改 button display——該 btn 有旋轉/sticky/clip 一堆動畫，不碰 layout model 最安全。
-     alumni 城市 tab／degree-show 分支 tab 首行是 text-s → -s(2px)（下面 base 規則） */
+  /* 雙語 EN/ZH 兩個 <div> 的英中距：用 EN div 的 margin-bottom，不改 button display（btn 有旋轉/sticky/clip 動畫，不碰 layout model 最安全） */
   .class-division-btn > div:first-child {
     margin-bottom: var(--space-en-zh-s);
   }
-  /* about BFA/MDES 切換首行 div 帶 .text-md → 吃 md 字級 gap（無 md 專屬 token，用 -s 2px；specificity 0,3,0 贏過上面 div:first-child 的 0,2,1） */
+  /* about BFA/MDES 首行 .text-md：無 md 專屬 token，用 -s；特異度 0,3,0 贏過上面 0,2,1 */
   .class-division-btn > .text-md:first-child {
     margin-bottom: var(--space-en-zh-s);
   }
-  /* 分類 btn 斷行＝max-width 自然換行（非強制 \n）。各 btn 為 flex 內 block、會撐到自身 max-width，
-     故 max-width 卡在「line-1 剛好、下一字溢出」的窗口 → Animation 於 & 後、Creative 於 Creative 後自然折行。
-     短的 bfa/mdes 免 cap（單行 hug）。 */
-  /* 創作基礎短、恆單行（也免 flex 在臨界寬把它擠成兩行）；長 label 才靠 max-width 折。 */
+  /* 分類 btn 斷行＝max-width 自然換行（非強制換行）；短的 bfa/mdes 免 cap（單行 hug） */
+  /* 創作基礎短、恆單行（免 flex 在臨界寬擠成兩行） */
   #class-buttons-sticky .class-division-btn[data-division="bfa"] .text-md {
     white-space: nowrap;
   }
-  /* max-width 卡在「md 首行剛好容、下一字溢出」＝斷點正確＋盒寬貼文字（不留右側空白）。md 20px 量、box-sizing:border-box（值＝首行 px＋16 padding＋餘裕）。 */
+  /* max-width 卡在「md 首行剛好容、下一字溢出」：flex 內 block 會撐到自身 max-width，
+     故值＝首行 px＋16 padding＋餘裕（md 20px 量、border-box），盒寬才貼文字 */
   #class-buttons-sticky .class-division-btn[data-division="animation"] {
     max-width: 247px;   /* 首行 "Division of Animation &"(md 227)＝於 & 後折 */
   }
   #class-buttons-sticky .class-division-btn[data-division="creative-media"] {
     max-width: 211px;   /* 首行 "Division of Creative"(md 191)＝於 Creative 後折 */
   }
-  /* ≥1200 不 shrink、整排往右延伸出欄（user 2026-09-29）：works 模式多展開 Design Fundamental，1440 擠不下 →
-     flex shrink 把各鈕壓到 max-width 以下多折 1~2 行，鈕高超過固定列高（--about-pill-row-h）被 sticky 的 clip-path 裁底。
-     平板 768-1199 維持 shrink（全排加總 ~1010 會出畫面）。program/works 共用 gap（gutter+sm＝36）＝gap 一致（user）。 */
+  /* 桌面不 shrink、整排往右延伸出欄：works 模式多展開 Design Fundamental 時 shrink 會把鈕壓到 max-width 以下多折行，
+     鈕高超過固定列高（--about-pill-row-h）被 sticky 的 clip-path 裁底。768–1023 維持 shrink（全排 ~1010 會出畫面） */
   @media (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .grid-20 > div > * { flex-shrink: 0; }
   }
-  /* MDES（沒有 BFA 小標題）對齊左邊兩組「小標題＋btn」整組的中線（user 2026-09-28 二輪：要含小 tab 高度，不是只對主鈕）：
-     整排 items-end＝btn 底對齊；小標題 absolute 不佔 flow → 排高＝最高那顆 btn → self-center 只會對到 btn 中線。
-     再用負 margin-top 把中心往上推：self-center 置中的是 margin box，負 margin X ＝ 盒子上移 X/2 →
-     X＝小標題塊高（padding 6+5 + text-s 兩行）＋ 與 btn 的 8px 間距（.class-group-label bottom: 100%+xs）＝上移剛好一半＝整組中線。
-     矮橫向直排（landscape.css）align-self 會變成水平置中、小標題也 display:none → min-height 501 排除。
-     works 模式才展開的 Design Fundamental（.class-division-bfa-wrap＝flex item 是 wrapper 不是 btn）同樣沒小標題 → 同規則（user 三輪） */
+  /* MDES（無 BFA 小標題）對齊左邊「小標題＋btn」整組的中線：整排 items-end、小標題 absolute 不佔 flow → self-center 只對到 btn 中線；
+     負 margin-top X 讓 margin box 上移 X/2，X＝小標題塊高（padding 6+5 + text-s 兩行）＋ xs 間距（.class-group-label bottom:100%+xs）
+     ＝同 scroll-snap.css --about-pill-label 公式。works 模式的 .class-division-bfa-wrap 同樣沒小標題 → 同規則。
+     矮橫向直排（landscape.css）不適用 → min-height 501 排除 */
   @media (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .class-division-btn[data-division="mdes"],
     #class-buttons-sticky .class-division-bfa-wrap {
@@ -326,25 +281,21 @@
   }
 
   /* ===== Class Buttons Sticky Container =====
-     完全透明；不加貼頂白底，避免遮擋/裁掉經過的封鎖綫 */
+     透明、不加貼頂白底，免遮擋/裁掉經過的封鎖綫 */
   #class-buttons-sticky {
     padding-bottom: var(--spacing-md);
     background: transparent;
   }
 
-  /* BFA btn wrapper
-     - 展開（is-works-context）：clip-path 從左→右揭露
-     - 四邊都留 -40px 給 btn 旋轉 clearance（避免裁切到旋轉角）
-     - BFA btn 在 class 模式強制 0°，確保不超出 clip 範圍（JS 控制） */
+  /* BFA btn wrapper：is-works-context 時 clip-path 左→右揭露；四邊留 -40px 旋轉 clearance；
+     BFA btn 在 class 模式由 JS 強制 0° 免超出 clip */
   .class-division-bfa-wrap {
     max-width: 0;
     overflow: visible;
     pointer-events: none;
-    /* 抵消 flex gap（容器 gutter+sm＝36，同 works 文字↔影片 gap，user 2026-09-29；about.html #class-buttons-sticky row）；
-       ⚠️gap 改動要同步這裡，否則收起時淨差＝整排左/右偏（2026-09-10：gap xl→lg 沒同步、整排左偏 16 修正） */
+    /* 抵消 flex gap（容器 gutter+sm，見 about.html #class-buttons-sticky row）。⚠️ gap 改動要同步這裡，否則收起時整排左/右偏 */
     margin-right: calc(-1 * (var(--spacing-gutter) + var(--spacing-sm)));
-    /* right 用 calc(100% + 40px) 確保左側 -40px 的 clearance 也被裁掉
-       避免 max-width:0 時左邊殘留一條可見區 */
+    /* right calc(100% + 40px)：連左側 -40px clearance 也裁掉，免 max-width:0 時殘留一條可見區 */
     clip-path: inset(-40px calc(100% + 40px) -40px -40px);
     transition: max-width var(--dur-medium) var(--ease-standard),
                 margin-right var(--dur-medium) var(--ease-standard),

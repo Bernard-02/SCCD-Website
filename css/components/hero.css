@@ -1,7 +1,4 @@
-/**
- * Hero Section Components
- * Hero 標題文字旋轉效果（手機版較小角度，桌面版較大角度）
- */
+/* Hero Section Components */
 
 @layer components {
   /* 動畫初始隱藏：在 GSAP 接管前避免文字閃現 */
@@ -12,9 +9,7 @@
     visibility: hidden;
   }
 
-  /* Hero Section 旋轉 + clip reveal wrapper（rotation 套在 JS 動態生成的 wrapper 上）
-     wrapper 同時處理：1. rotate 角度 2. overflow:hidden 形成 yPercent slide-in 的遮罩 */
-  /* 手機版較小角度 */
+  /* wrapper（JS 動態生成）負責旋轉＋overflow:hidden 作 yPercent slide-in 遮罩；預設＝手機較小角度 */
   .hero-title-wrapper,
   .hero-title-cn-wrapper,
   .hero-text-en-wrapper,
@@ -35,7 +30,6 @@
     overflow: hidden;
   }
 
-  /* 副標 font-size（rotation 已移到 wrapper） */
   .hero-text-en,
   .hero-text-cn {
     font-size: var(--font-size-s);
@@ -49,27 +43,22 @@
     .hero-text-cn-wrapper { transform: rotate(-2deg); }
   }
 
-  /* 全站對比規範：accent 底色（綠/粉/藍）文字一律黑（不分 standard / inverse）；
-     mode-color 暫不適用（用 contrast text 跟著走）。
-     hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent bg；inverse 預設白字會跟 accent 衝突，這裡 force 回黑。
-     specificity 註：inverse 有 `body.mode-inverse .text-black:not(.timeline-year-item)` (0,3,1)，
-     必須用 `[data-hero-hl][data-hero-hl]` 重複屬性提升到 0,3,1 + 後出順序才贏 */
+  /* accent 底一律黑字（mode-color 除外）：hero-animation.js 對 [data-hero-hl] inline 設隨機 accent bg，inverse 白字會撞色。
+     [data-hero-hl] 寫兩次＝特異度追平 inverse 的 body.mode-inverse .text-black:not(.timeline-year-item) (0,3,1)，靠後出才贏 */
   body:not(.mode-color) [data-hero-hl][data-hero-hl],
   body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
     color: #000 !important;
   }
 
-  /* Hero random layout（faculty / courses / activities / admission 共用）
-     桌面：所有元素 position:absolute，JS 用 getBoundingClientRect 量測旋轉後 bbox 並隨機派 (top, left)，
-           bounds 避開 header（viewport top 140px buffer）；元素可彼此重疊（特別是文字疊在 banner 上）
-     手機：flex stack 維持原本由上至下版面，random 不適用（RWD 互不影響原則） */
+  /* Hero random layout（faculty / curriculum / activities / admission 共用；手機改走下方 .hero-mobile）
+     桌面子元素 absolute，JS 量旋轉後 bbox 隨機派 top/left（避開 header），可彼此重疊 */
   .hero-rand-grid {
     position: relative;
     width: 100%;
     height: 100%;
   }
 
-  /* 桌面：所有直系子（title-wrapper / banner / EN-wrapper / CN-wrapper）一律 absolute；JS 設 top/left */
+  /* 桌面：直系子（title / banner / EN / CN wrapper）一律 absolute，JS 設 top/left */
   @media (min-width: 768px) {
     .hero-rand-grid > * {
       position: absolute;
@@ -78,7 +67,7 @@
     }
   }
 
-  /* wrappers 預設 block；改 inline-block 讓 intrinsic 寬決定大小，不被 absolute 撐到 100vw */
+  /* inline-block：intrinsic 寬決定大小，不被 absolute 撐到 100vw */
   .hero-rand-grid .hero-title-wrapper,
   .hero-rand-grid .hero-title-cn-wrapper,
   .hero-rand-grid .hero-text-en-wrapper,
@@ -86,17 +75,13 @@
     display: inline-block;
   }
 
-  /* 段落 max-width，限制 wrap 寬度 */
   .hero-rand-grid .hero-text-en,
   .hero-rand-grid .hero-text-cn {
     max-width: clamp(220px, 28vw, 420px);
   }
 
-  /* Banner：88vw 16:9（桌面 ≥1024 寬改由 JS inline 設＝hero 四邊 padding 內可用區最大，見 hero-animation.js randomizeHeroLayout）；
-     JS 設 transform: rotate(N deg) 隨機；transform-origin 用 center 旋轉視覺平衡
-     文字可疊在 banner 上 → 文字 z-index 高於 banner
-     width min() cap：在 viewport 高度有限時自動縮小（多項式 1.6 = 旋轉 ±3° 下 bbH/bannerWidth 反比近似），
-     確保旋轉後 bbox 完整落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 範圍內，不被下一 section 切 */
+  /* Banner 寬：桌面 ≥1024 由 JS inline 覆寫（hero-animation.js randomizeHeroLayout）；旋轉角由 JS 隨機設。
+     min() cap：1.6 ≈ 旋轉 ±3° 下 bbH/寬 反比近似，確保旋轉後 bbox 落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 內 */
   .hero-banner {
     width: min(88vw, calc((100vh - 120px) * 1.6));
     aspect-ratio: 16 / 9;
@@ -111,7 +96,7 @@
     display: block;
   }
 
-  /* 文字疊在 banner 上：z-index 拉高 */
+  /* 文字疊在 banner 之上 */
   .hero-rand-grid .hero-title-wrapper,
   .hero-rand-grid .hero-title-cn-wrapper,
   .hero-rand-grid .hero-text-en-wrapper,
@@ -122,20 +107,9 @@
     z-index: 1;
   }
 
-  /* ─────────────────────────────────────────────────────────────────
-     手機 hero（4 頁共用：faculty / courses / activities / admission）
-
-     架構決策（2026-05-26 user 拍板）：
-     - 桌面 .hero-rand-grid 跟手機 .hero-mobile 兩套獨立 DOM 並存
-     - CSS 用 display:none 切換而非 override（從 root 切割，避免 layer override hack）
-     - 內容單一來源：桌面 DOM 是 source，手機 DOM 由 hero-mobile-sync.js init 時 cloneNode
-     - 4 頁同視覺：圖墊底滿屏 + title/desc 從上往下 stack 疊在圖上
-
-     視覺規格：
-     - 圖鋪滿 hero 區當背景（top:0 z-index:0）
-     - 4 個文字 chip 自上而下：title-en → title-cn → desc-en → desc-cn (z-index:1)
-     - chip 沿用 [data-hero-hl] accent 底色（綠/粉/藍隨機 by hero-animation.js）
-     ───────────────────────────────────────────────────────────────── */
+  /* ── 手機 hero（4 頁共用）──
+     桌面 .hero-rand-grid 與手機 .hero-mobile 兩套 DOM 並存、display:none 切換（不靠 override，避免 layer hack）；
+     手機 DOM 由 hero-mobile-sync.js 從桌面 DOM cloneNode（內容單一來源）。圖墊底，4 chip 由上而下疊在圖上 */
 
   /* 預設手機顯示 mobile、隱藏桌面 grid */
   .hero-rand-grid { display: none; }
@@ -156,7 +130,7 @@
     .hero-mobile { display: none; }
   }
 
-  /* Banner 背景：絕對定位墊底，鋪滿 hero 視覺區，旋轉製造張力（兩側溢出由父層 overflow-x:clip 兜） */
+  /* 圖墊底旋轉；兩側溢出由父層 overflow-x:clip 兜 */
   .hero-mobile-bg {
     position: absolute;
     top: 180px;
@@ -175,8 +149,7 @@
     display: block;
   }
 
-  /* 文字 stack：自上而下，z-index 浮在 bg 上
-     gap：chip 之間預設 1rem；段落區跟標題區用 margin-top 拉開更大 breathing room */
+  /* 文字 stack 浮在 bg 上；段落區與標題區另用 margin-top 拉開 */
   .hero-mobile-text {
     position: relative;
     z-index: 1;
@@ -188,43 +161,35 @@
   .hero-mobile-text > * {
     width: fit-content;
     max-width: 100%;
-    /* 隨機旋轉：JS 在 hero-mobile-sync.js init 時注入 --hero-mobile-rot
-       transform-origin: left center 對齊 chip 左緣（跟桌面 hero-title-wrapper 同 pattern） */
+    /* --hero-mobile-rot 由 hero-mobile-sync.js 注入；origin 對齊 chip 左緣（同桌面 wrapper） */
     transform: rotate(var(--hero-mobile-rot, 0deg));
     transform-origin: left center;
   }
-  /* 段落跟標題之間拉大 gap（標題區 → 段落區之間視覺斷點） */
+  /* 標題區 → 段落區視覺斷點 */
   .hero-mobile-text-en { margin-top: 1.5rem; }
-  /* 中英段落之間額外加 gap：±5° 旋轉後長段落 chip bbox 視覺底邊比 layout bbox 低 ~width×sin(5°)，
-     1rem (gap) 不夠避免英文 chip 底邊撞到中文 chip 頂邊；補到 2rem */
+  /* 中英段落額外 +1rem（合計 2rem）：旋轉後長 chip 視覺底邊低於 layout bbox ~width×sin(角度)，只靠 1rem gap 會撞 */
   .hero-mobile-text-cn { margin-top: 1rem; }
 
-  /* 段落字體 p1（跟桌面 .hero-text-en/cn 一致） */
+  /* 字級同桌面 .hero-text-en/cn */
   .hero-mobile-text-en,
   .hero-mobile-text-cn {
     font-size: var(--font-size-s);
   }
 
-  /* 隨機版面（hero-mobile-sync.js 對 4 頁共用 hero 加 .hero-mobile-rand；degree-show-detail 不參與）：
-     - stack 撐滿一屏 + space-between：chip 直向散開，順序固定 TTDD（title 恆在頂）
-     - 中英 desc 限高 + 內捲（50svh-220px = 一屏扣 padding 228/雙 title ~126/gaps 後均分兩盒；6rem floor 保底可讀）
-       內捲發生在 .hero-mobile-text-scroll（sync JS 包的 inner）：chip 的 padding 留在外框當固定邊框，
-       捲動時上下 padding 不消失（overflow 直接放 chip 會在 padding edge 裁字）
-     - bg 高度收斂到一屏內（原 4/5.5 aspect 在窄高機身底緣會戳進下一 section）
-     portrait 限定：橫向手機走 landscape.css「自然增高、window 往下捲」路線，不套一屏預算 */
+  /* 隨機版面（hero-mobile-sync.js 對 4 頁 hero 加 .hero-mobile-rand；degree-show-detail 不參與）：
+     chip 直向 space-between 散開（順序固定 TTDD）；desc 限高內捲在 .hero-mobile-text-scroll——padding 留外框，捲動不在 padding edge 裁字
+     （50svh-220px＝一屏扣 padding 228/雙 title ~126/gaps 後均分兩盒；6rem floor）；bg 收在一屏內免戳進下一 section。
+     portrait 限定：橫向走 landscape.css 自然增高路線 */
   @media (max-width: 767px) and (orientation: portrait) {
     .hero-mobile-rand .hero-mobile-text {
-      /* 75svh 收密（原 100svh-180-3rem 滿屏 space-between，user 2026-07-13「分佈太平均」）：
-         stack 只佔上段、chip 間距縮 ~1/3，下段留純圖 */
+      /* 75svh：stack 只佔上段、下段留純圖（滿屏 space-between 分佈太平均） */
       min-height: calc(75svh - 180px);
       justify-content: space-between;
     }
     .hero-mobile-rand .hero-mobile-text-en {
       margin-top: 0;
     }
-    /* 中文段落 chip 補 gap floor：兩寬盒（~330px）繞 left-center ±3° 旋轉，遠端各擺 ~w·sin3°≈17px，
-       反向時合計吃 ~30px；base gap 1rem 不夠 → 多加 1rem（合計 2rem spacing）兜住中英段落 chip 不重疊
-       （rotation 已從 ±5° 收窄到 ±3°，見 hero-mobile-sync.js） */
+    /* ±3° 寬盒（~330px）遠端各擺 ~w·sin3°≈17px，反向合計 ~30px > 1rem gap → 補 1rem */
     .hero-mobile-rand .hero-mobile-text-cn {
       margin-top: 1rem;
     }
@@ -239,27 +204,21 @@
     }
   }
 
-  /* chip padding：跟桌面 [data-hero-hl] 一致；手機段落較長收窄 padding 視覺節制 */
+  /* 手機 chip padding 收窄；!important 蓋 hero-animation.js 的 inline padding */
   @media (max-width: 767px) {
     [data-hero-hl] {
       padding: 0.3rem 0.45rem !important;
     }
   }
 
-
-  /* DSD hero 年份 chip padding 收窄（user 2026-07-10「年份 box padding 再小一點」）：
-     hero-animation.js 給全站 [data-hero-hl] 統一 inline 0.5rem 0.6rem → 只縮這頁的年份、
-     !important 蓋 inline；值沿用手機段落收窄慣例 0.3/0.45。 */
+  /* DSD hero 年份 chip padding 收窄；!important 蓋 hero-animation.js inline 0.5rem 0.6rem */
   #text-year {
     padding: 0.3rem 0.45rem !important;
   }
 
-  /* Degree show detail sticky info card chip — 沿用 anchor-nav-inner pattern
-     外 .sticky-chip：transparent wrapper，吃 clip-reveal（滑動＋遮罩）+ rotation；中性 transform-origin: left center
-     內 .sticky-chip-inner：inline-flex column，吃 padding + accent bg + text color
-     reveal 動畫：hero 式 clip-reveal＝translate 滑入（獨立屬性，與 inline rotate 共存）＋同步 clip-path 遮罩
-       （同全站 nav chip navChipHidden，2026-07-16 起）；四邊留 -12px buffer（仿 atlas .atlas-layout-inner）讓
-       ref btn hover rotate 角不被切，wiped（hidden）邊用 calc(100% + 12px) 同帶 buffer。JS 值見 setupStickyAndHeroChips */
+  /* DSD detail sticky chip（沿用 anchor-nav-inner 結構）
+     外 .sticky-chip：clip-reveal（translate 滑入＋同步 clip-path 遮罩，同 navChipHidden）＋旋轉；內 .sticky-chip-inner：padding / accent bg
+     clip-path 四邊 -12px buffer 免切 hover 旋轉角，hidden 邊用 calc(100% + 12px)；JS 值見 setupStickyAndHeroChips */
   .sticky-chip {
     display: inline-block;
     transform-origin: left center;
@@ -274,23 +233,18 @@
     color: #000;
     line-height: 1.15;
   }
-  /* events nav chip（text-s 雙語）行距對齊 anchor-nav-inner base 行距（同原 branch chip）；英中距吃 s 字級 token（2px）；
-     active/inactive／hover 換色瞬切（hover 變色一律 instant，user 2026-10-02 全站） */
+  /* events nav chip：行距同 anchor-nav-inner；英中距用 s 字級 token */
   .sticky-event-chip .sticky-chip-inner {
     line-height: var(--line-height-base);
     gap: var(--space-en-zh-s);
   }
-  /* inactive/active/hover 換色不在這裡寫：chip 掛 .anchor-nav-btn/.anchor-nav-inner 直接吃 about nav btn
-     整組三 mode 規則（navigation.css #sticky-events-nav scope 白底 / inverse.css 黑底 / color.css bg=theme-bg 跟 hue）；
-     active 仍由 JS inline 設 accent 底（mode3 被 color.css strict B/W !important 蓋掉＝同 about 行為，user 2026-08-18） */
-  /* 每顆 chip wrapper：沿用 .sticky-chip-inner 撐 padding/雙語，wrapper 負責旋轉(hover 補間) + 可點 +
-     ⭐自己的 clip-reveal 進出場（2026-08-18：原本 reveal 套在整個 window→最後一顆單獨可見時會走整條 track 全高
-     才滑入=「從父容器飛進來」；改成每顆用自己的尺寸各自 clip-path+translate 滑入/滑出，同 about nav btn）。
-     clip-path 預設 SHOWN(-12px buffer 免切旋轉角)；transform 走 fast(hover 旋轉)、clip-path/translate 走 medium wipe。 */
+  /* 換色不寫在這：chip 掛 .anchor-nav-btn/.anchor-nav-inner 吃 about nav btn 三 mode 規則（navigation.css / inverse.css / color.css）；
+     active accent 底由 JS inline 設（mode3 被 color.css !important 蓋成 B/W） */
+  /* 每顆 chip 用自身尺寸各自 clip-reveal——整個 window 一起 reveal 時，最後一顆會走整條 track 全高滑入。
+     clip-path 預設 SHOWN（-12px buffer 免切旋轉角）；transform＝hover 旋轉(fast)，clip-path/translate＝wipe(medium) */
   .sticky-event-chip {
     display: inline-block;
-    /* hover 旋轉繞卡片中心（比照 about .anchor-nav-inner 的預設 center origin；user 2026-08-19）——
-       translate(reveal 滑入) origin-invariant、clip-path origin-independent，改 center 只影響 rotate */
+    /* 旋轉繞中心；translate / clip-path 不受 origin 影響 */
     transform-origin: center;
     clip-path: inset(-12px -12px -12px -12px);
     pointer-events: auto;
@@ -299,40 +253,32 @@
                 clip-path var(--dur-medium) var(--ease-wipe),
                 translate var(--dur-medium) var(--ease-wipe);
   }
-  /* window：reveal 用 clip-path + translate 滑入（同原 branch chip）。裁掉「往上收起的舊 chip」靠 clip-path 的
-     SHOWN buffer（inset(-12px) = 12px outset）＝旋轉角能凸出 12px 不被切；不再用 overflow:hidden（0 buffer 會把
-     current chip 旋轉角在窗頂切掉，見 user 2026-08-18 回報）。overflow:clip + 同 12px margin 當保險（clip-path 若失效仍裁）。
-     ⚠️ 舊 chip 要被裁在 12px buffer 之外 → track gap 必須 > buffer + 旋轉下擺量（見下 gap 1.5rem） */
+  /* window：舊 chip 靠 clip-path SHOWN buffer（inset(-12px)＝12px outset）裁掉；不用 overflow:hidden（0 buffer 會切掉 current chip 旋轉角）。
+     overflow:clip＋同 12px margin 當保險。⚠️ track gap 必須 > buffer + 旋轉下擺量 */
   #sticky-events-nav {
     overflow: clip;
     overflow-clip-margin: 0.75rem;
     transition: clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe);
   }
-  /* track：flex-col chip 列，translateY 把 current 推到窗頂（0.4s wipe），上面已看過的滑出被 12px clip buffer 裁掉。
-     gap 1.5rem（原 0.6rem）：前一顆 chip 底緣要落在 12px buffer 之外才裁得掉，同時容納自身旋轉下擺（~10px）→ 24px 才夠。 */
+  /* track：translateY 把 current 推到窗頂。gap 1.5rem＝前一顆底緣要落在 12px buffer 外＋自身旋轉下擺 ~10px */
   #sticky-events-track {
     gap: 1.5rem;
     transition: transform var(--dur-medium) var(--ease-wipe);
   }
-  /* title chip 是 text-lg → 英中距吃 lg 字級 token（4px，user 2026-08-13） */
+  /* title chip 是 text-lg → 英中距用 lg 字級 token */
   #sticky-title-chip .sticky-chip-inner {
     gap: var(--space-en-zh-lg);
   }
-  /* sticky 標題 / 分支 chip 寬度 = grid-20 的 cols 1-3 = col-span-3（內容在 col-5）。
-     chip 是 fixed 在 col-1 起，max-width 設成 col-span-3 寬 → 長名 wrap，chip 右緣停在 col-3 末、
-     與 col-5 間留出 col-4 一整欄當呼吸空間（user 2026-08-18「不要太靠近 col-5、留點空間」；原 col-span-4 只留 1 gutter 太擠）。
-     col-span-3 寬 = 3×欄寬 + 2×gutter；欄寬 = (內容區 100vw−2padding − 19 gutter)/20 → = (…)×3/20 + 2 gutter。桌面 only。 */
+  /* chip max-width＝grid-20 col-span-3（留 col-4 當呼吸空間）；長名 wrap。桌面 only。
+     col-span-3 = 3×欄寬 + 2×gutter，欄寬 = (100vw − 2padding − 19 gutter)/20 */
   #sticky-title-chip .sticky-chip-inner,
   .sticky-event-chip .sticky-chip-inner {
-    /* width:max-content → chip 撐到「最長一行」自然寬（不會被 inline-flex column 縮成 min-content=逐字斷行）；
-       max-width 才把上限鎖在 col-span-3，超過才 wrap。少了 max-content 會逐字換行（Degree/Show/Forum…）。 */
+    /* max-content：撐到最長一行；否則 inline-flex column 縮成 min-content 逐字斷行 */
     width: max-content;
     max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) * 3 / 20 + 2 * var(--spacing-gutter));
   }
 
-  /* Degree show detail 返回按鈕 — 沿用 .sticky-chip 結構（clip-path reveal 由上往下，與 sticky title chip 同節奏）
-     left 對齊 var(--container-padding)（與 hero 標題 / sticky-info-card / logo 左緣同列）
-     bottom 64px（atlas-layout-btn 32px 的雙倍，貼底但不擠著畫面底邊） */
+  /* DSD detail 返回鈕（沿用 .sticky-chip）：left 對齊 container-padding（同 hero 標題 / logo 左緣）；bottom 64＝atlas-layout-btn 32 的兩倍 */
   #degree-show-back-btn {
     position: fixed;
     left: var(--container-padding, 60px);
@@ -340,16 +286,11 @@
     z-index: 50;
     pointer-events: auto;
     cursor: var(--cursor-pointer);
-    /* .sticky-chip 預設 transform-origin: left center + clip-path inset(0 0 100% 0) hidden；
-       reveal 由 JS 在 setupStickyAndHeroChips 切到 inset(0 0 0 0) */
   }
 
   #degree-show-back-btn .sticky-chip-inner,
   #degree-show-ref-btn .sticky-chip-inner {
-    /* sticky title 是 accent 底黑字，back btn / ref btn 用 strict B/W（依 page bg 對比翻黑底白字/白底黑字，同 atlas-layout-inner pattern）
-       fg/fg-inverse 對 mode1/2/3 都 strict B/W（mode3 不會跟 hue 飄）
-       size 對齊 atlas layout btn 48×48 + icon 32px
-       hover 不變色、只旋轉 inner（仿 atlas #atlas-layout-btn:hover .atlas-layout-inner）→ transition 套 transform */
+    /* strict B/W（fg/fg-inverse 三 mode 都不跟 hue 飄，同 atlas-layout-inner）；48×48＋icon 32 對齊 atlas layout btn；hover 只旋轉 inner */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -362,9 +303,7 @@
     transition: transform var(--dur-fast) var(--ease-standard);
   }
 
-  /* Ref btn：back btn 右邊，bottom 同高
-     left = container-padding + back btn 寬 (48px) + gap (16px) = container-padding + 64px
-     位置算式跟 back btn 同節奏 clip-reveal（由 JS 在 setupStickyAndHeroChips 加入 titleChips 陣列同步控） */
+  /* Ref btn：left = container-padding + back btn 48 + gap 16；clip-reveal 由 JS（setupStickyAndHeroChips titleChips）與 back btn 同步 */
   #degree-show-ref-btn {
     position: fixed;
     left: calc(var(--container-padding, 60px) + 64px);
@@ -377,19 +316,15 @@
     background: transparent;
   }
 
-  /* Ref popover：fixed（跟 ref-btn 同 fixed 定位，scroll 時自動跟 btn 一起移動）
-     沿用 .lightbox-ref-popover 既有規則（padding 32 + clip-reveal overflow 動態切）
-     hidden 預設由 inline display:none 控；JS open 時切 block + clip-reveal */
+  /* Ref popover：fixed 跟 ref-btn 同步；沿用 .lightbox-ref-popover 規則；JS open 時切 display＋clip-reveal */
   #degree-show-ref-popover {
     position: fixed;
     display: none;
     z-index: 9999;
   }
 
-  /* Back / Ref btn hover：不變色、只旋轉 inner +15°（仿 atlas list view 按鈕 #atlas-layout-btn:hover .atlas-layout-inner）
-     旋轉套 inner 不套外 .sticky-chip：外層被 JS inline transform（隨機 base 角度）佔用、CSS :hover 蓋不過 inline
-     →視覺上 = base 隨機角度 + hover 再 +15°，兩顆 btn 行為一致；旋轉角靠 .sticky-chip 的 -12px clip buffer 不被切
-     desktop guard：避免手機 tap 後殘留 sticky hover */
+  /* hover 旋轉套 inner：外 .sticky-chip 的 transform 被 JS inline（隨機 base 角）佔用、:hover 蓋不過；
+     旋轉角靠 -12px clip buffer 不被切。桌面限定免手機 tap 殘留 hover */
   @media (min-width: 768px) {
     #degree-show-back-btn:hover .sticky-chip-inner,
     #degree-show-ref-btn:hover .sticky-chip-inner {
@@ -397,10 +332,8 @@
     }
   }
 
-  /* Ref popover strict B/W（user 2026-06-02：黑底白字/白底黑字依 mode，不用三原色）
-     bg 放 chip 不放 card（card 透明）：default ink 底（var(--theme-fg)）+ paper 字，hover 翻 paper 底 + ink 字。
-     chip 全寬 + 既有 margin:-1px 0 垂直重疊 → 無下層 card bg 可從旋轉邊漏 1px 細縫（user 反映 hover 左右細線）
-     mode3 同樣依 hue luminance 翻黑白 */
+  /* Ref popover chip strict B/W：bg 放 chip 不放 card（card 透明）——chip 靠 margin:-1px 0 垂直重疊，旋轉邊才不漏下層 card bg 1px 細縫；
+     mode3 依 hue luminance 翻黑白 */
   #degree-show-ref-popover .lightbox-ref-chip {
     background: var(--theme-fg);
   }
@@ -418,9 +351,8 @@
     }
   }
 
-  /* mode1 / mode2 hover 改隨機三原色（--ref-accent 由 JS 每 chip 設一次；user 2026-08-19），字一律黑（accent 都夠亮，同 .sticky-chip-inner 慣例 hero.css:273）。
-     mode3 走 :not(.mode-color) 排除 → 落回上面 strict B/W 規則（hue luminance 翻黑白）不變。
-     特異度 (1,3,1) > 上面 (1,2,0)，mode1/2 這條贏；fallback var(--theme-fg-inverse) 保 JS 未設時仍是原 B/W。 */
+  /* mode1/2 hover 改隨機三原色（--ref-accent 由 JS 每 chip 設）、字黑；mode3 由 :not(.mode-color) 排除，維持上方 B/W。
+     特異度 (1,3,1) > 上方 (1,2,0)；fallback theme-fg-inverse 保 JS 未設時仍 B/W */
   @media (min-width: 768px) {
     body:not(.mode-color) #degree-show-ref-popover .lightbox-ref-chip:hover {
       background: var(--ref-accent, var(--theme-fg-inverse));
@@ -432,22 +364,16 @@
   }
 }
 
-/* sub-event tab btn 已遷移到 about .class-division-btn / .class-group-label（重用全站樣式 + JS 套色旋轉），
-   原 .event-extra-tab-btn 規則已刪除 */
-
-/* ===== Coming Soon 區（activities / admission 暫用，2026-09-13）=====
-   user 拍板：原 hero 保留、原內容區換成 COMING SOON / 即將上線 標題屏。
-   標題字級走全域 h1（text-3xl bold）；accent 底色由 hero-animation initHeroAnimation 的
-   [data-hero-hl] document 級掃描統一上色（跟 hero 同一顆隨機三原色）。
-   散佈＝靜態對角＋小旋轉仿 hero 語彙——engine 只認單一 .hero-rand-grid，此區不掛第二個。 */
+/* ===== Coming Soon 區（activities / admission 暫用）=====
+   原 hero 保留、內容區換成 COMING SOON 標題屏；accent 底由 hero-animation 的 [data-hero-hl] document 級掃描上色。
+   靜態對角散佈：engine 只認單一 .hero-rand-grid，此區不掛第二個 */
 .coming-soon-section {
   min-height: 100svh;
   position: relative;
   /* 旋轉標題貼邊出血不撐出橫向捲軸 */
   overflow: hidden;
 }
-/* wrapper＝定位＋旋轉＋overflow clip 遮罩（同 .hero-title-wrapper 職責分工）；
-   h1 由 hero-animation.js 從 wrapper 外 4 方向滑入，進場前 visibility:hidden 防閃現 */
+/* wrapper＝定位＋旋轉＋overflow 遮罩（同 .hero-title-wrapper）；h1 由 hero-animation.js 從 wrapper 外 4 方向滑入，進場前 visibility:hidden 防閃現 */
 .coming-soon-title-wrapper,
 .coming-soon-title-cn-wrapper {
   position: absolute;

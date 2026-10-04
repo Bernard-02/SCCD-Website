@@ -1,7 +1,4 @@
-/**
- * Typography Styles
- * 字體、標題、段落等基礎樣式
- */
+/* Typography：字體、標題、段落等基礎樣式 */
 
 @layer base {
   html {
@@ -16,7 +13,7 @@
     word-break: normal;
   }
 
-  /* 行距不再寫 leading-*：字級行距綁在 fontSize tuple 上，@apply text-* 就帶對應 line-height（size-based）*/
+  /* 行距不寫 leading-*：字級行距綁在 fontSize tuple，@apply text-* 就帶對應 line-height */
   h1 {
     @apply text-3xl font-bold;
   }
@@ -46,14 +43,10 @@
   }
 }
 
-/* ===== 中文獨立行距系統（2026-08-12，size-based）=====
- * 只命中「明確標了 lang="zh-Hant"」的元素——用屬性選擇器 [lang="zh-Hant"] 而非 :lang()，
- * 因為 <html lang="zh-Hant"> 會讓 :lang(zh-Hant) 命中全站（含未標的英文）。
- * 按「字級」對齊英文（英文 line-height 綁在 fontSize tuple 的 .text-*）：這裡用 .text-*[lang] 選字級，
- * 再加標籤 fallback（h1..h6[lang]）給「靠 tag @apply 決定字級、沒寫 .text-* class」的元素。
- * 起始值＝英文各階值＝零視覺差；要單獨調中文只改 variables.css 的 --line-height-zh-*。
- * unlayered（在 @layer 外）→ 蓋得過 Tailwind utility layer 的 text-* tuple 行距。
- * 標記方式：雙語元素中「中文那一個」element 加 lang="zh-Hant"（JS builder 的中文模板同理）。 */
+/* ===== 中文獨立行距系統（size-based）=====
+   只命中明確標 lang="zh-Hant" 的元素——用 [lang] 不用 :lang()：<html lang="zh-Hant"> 會讓 :lang() 命中全站。
+   .text-*[lang] 依字級對齊英文 tuple；h1..h6[lang] 給靠 tag @apply 決定字級、沒寫 .text-* 的元素。單調中文改 variables.css --line-height-zh-*。
+   unlayered → 蓋得過 Tailwind utility layer 的 text-* tuple 行距。雙語元素的中文那個加 lang="zh-Hant"（JS 模板同理）。 */
 [lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
 .text-3xl[lang="zh-Hant"], h1[lang="zh-Hant"] { line-height: var(--line-height-zh-3xl); }
 .text-2xl[lang="zh-Hant"], h2[lang="zh-Hant"] { line-height: var(--line-height-zh-2xl); }
@@ -63,32 +56,22 @@
 .text-s[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
 .text-xs[lang="zh-Hant"] { line-height: var(--line-height-zh-xs); }
 
-/* hero 中文用舊的 -cn class 命名、且沒標 lang 屬性（hero text 靜態＋mobile clone），
- * 在這補進 zh 行距系統：.hero-text-cn 是副標 s 段落（會換行、之前吃英文 --line-height-s），
- * .hero-title-cn 是大標 3xl。桌面 + 手機 class 都列（class 選擇器 0,1,0 蓋得過 <p>/<h1> tag 的 tuple 行距）。 */
+/* hero 中文用 -cn class 且沒標 lang（靜態＋mobile clone）→ 在此補進 zh 行距；桌面＋手機 class 都列，class (0,1,0) 蓋得過 tag 的 tuple 行距 */
 .hero-title-cn, .hero-mobile-title-cn { line-height: var(--line-height-zh-3xl); }
 .hero-text-cn, .hero-mobile-text-cn { line-height: var(--line-height-zh-s); }
 
-/* sitemap（網站導覽）卡片沿用 curriculum 的 .courses-grid-card 排版；curriculum 的中文 span 沒標 lang＝吃
- * --line-height-s(1.3)，sitemap 的中文 span 標了 lang="zh-Hant"（保 a11y/字型）＝被上面 [lang] 拉成 zh-s(1.4)、
- * 卡片變高與 curriculum 不一致。拉回 1.3 對齊 curriculum；放這裡 unlayered 才蓋得過 [lang="zh-Hant"]。 */
+/* sitemap 卡中文 span 標了 lang＝被上面 [lang] 拉成 zh-s(1.4)、卡變高；拉回 --line-height-s 對齊 curriculum 卡。unlayered 才蓋得過 [lang="zh-Hant"] */
 .legal-map-card .courses-grid-card-zh { line-height: var(--line-height-s); }
 
-/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching 0.4s 後移除
- * - 速度 0.4s ease：對齊 theme-toggle.js MODE_FADE_MS
- * - 早期版本用 `*` broad cover 讓所有 ::before/::after/border/fill 一起 fade，但 about 頁元素密度過高
- *   （5 .bg-white section + N chips + N anchor + timeline + accordion）造成同時上百個 paint → frame drop = 抖動
- * - 改 whitelist：只 fade 真會在 mode 之間變色的元件（依 themes/color.css 與 themes/inverse.css 實際 override list）
- *   非 mode-aware 元素直接 instant snap，本來就不變色看不出差別，大幅降低同時 paint 區
- * - 用 .mode-switching.mode-switching (0,3,N) 蓋過 color.css 的 `transition: color, transform !important` (0,2,1)
- *   保留 body/html fade 給整片 bg 過渡 */
+/* Mode 切換 fade window：theme-toggle.js applyMode() 加 .mode-switching，MODE_FADE_MS（＝--dur-base）後移除。
+   只淡 whitelist（依 themes/color.css／inverse.css 實際 override）：`*` 全淡在高密度頁同時上百個 paint → 掉幀；不在 list＝snap。
+   .mode-switching.mode-switching (0,3,N) 蓋過 color.css 的 `transition: color, transform !important` (0,2,1) */
 html.mode-switching.mode-switching,
 body.mode-switching.mode-switching {
   transition: background-color var(--dur-base) ease, background var(--dur-base) ease, color var(--dur-base) ease !important;
 }
 
 html.mode-switching.mode-switching header,
-html.mode-switching.mode-switching .nav-link,
 html.mode-switching.mode-switching .mobile-nav-link,
 html.mode-switching.mode-switching .page-indicator-card,
 html.mode-switching.mode-switching .nav-more-btn,
@@ -100,11 +83,9 @@ html.mode-switching.mode-switching #mode-btn .theme-toggle-btn,
 html.mode-switching.mode-switching .mobile-header-btn,
 html.mode-switching.mode-switching .bg-white,
 html.mode-switching.mode-switching .bg-black,
-html.mode-switching.mode-switching .bg-gray-9,
 html.mode-switching.mode-switching .text-black,
 html.mode-switching.mode-switching .text-white,
 html.mode-switching.mode-switching .border-black,
-html.mode-switching.mode-switching .border-gray-9,
 html.mode-switching.mode-switching [data-overview-hl],
 html.mode-switching.mode-switching [data-class-hl],
 html.mode-switching.mode-switching [data-works-hl],
@@ -145,7 +126,7 @@ html.mode-switching.mode-switching .alumni-city-btn,
 /* courses 頁 */
 html.mode-switching.mode-switching .courses-grid-card,
 html.mode-switching.mode-switching .courses-program-btn,
-/* sitemap 卡（legal 頁；10-03 起不再掛 .courses-grid-card） */
+/* sitemap 卡（legal 頁；不掛 .courses-grid-card） */
 html.mode-switching.mode-switching .legal-map-card,
 html.mode-switching.mode-switching .legal-map-num,
 html.mode-switching.mode-switching .legal-map-card::before,
@@ -160,8 +141,8 @@ html.mode-switching.mode-switching .color-rect-title,
 html.mode-switching.mode-switching .lib-panel-title,
 html.mode-switching.mode-switching .press-item,
 html.mode-switching.mode-switching .files-item,
-/* 卡內 --lib-bg 底色的 bar（四 panel 年份標＋awards ticker）：不加就 snap，跟灰卡 0.4s fade 不同步
- * （user 2026-08-11：年份 bar 速度跟灰卡不一致）。灰卡自己走 library-card.js inline TRANSITION 的 background-color 0.4s。 */
+/* 卡內 --lib-bg 底色的 bar（四 panel 年份標＋awards ticker）：不加就 snap、跟灰卡 fade 不同步。
+   灰卡自己走 library-card.js TRANSITION_GRAY 的 background-color（同 --dur-base）。 */
 html.mode-switching.mode-switching .press-year-label,
 html.mode-switching.mode-switching #library-awards-ticker,
 html.mode-switching.mode-switching .lib-toolbar,
@@ -170,17 +151,16 @@ html.mode-switching.mode-switching .library-card-content {
   transition: background-color var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease !important;
 }
 
-/* library 三原色卡：mode 切換不要 fade（user 2026-08-11）——mode3 三原色↔B/W（color.css 蓋 var(--theme-fg)）直接 snap。
- * 卡的 background-color transition 由 library-card.js inline TRANSITION 設；.mode-switching 期間 !important 壓成 none。
- * [style*="--lib-bg"] = 當前灰卡（setAsGray 標記），排除以保留其 0.4s 底色 fade（跟大背景同步）。 */
+/* library 三原色卡 mode 切換直接 snap（mode3 三原色↔B/W）：.mode-switching 期間壓掉 library-card.js inline transition。
+   [style*="--lib-bg"]＝當前灰卡（setAsGray 標記），排除以保留其底色 fade（跟大背景同步）。 */
 html.mode-switching.mode-switching #library-card-stack > div:not([style*="--lib-bg"]),
 html.mode-switching.mode-switching #library-card-main:not([style*="--lib-bg"]) {
   transition: none !important;
 }
 
-/* ── mode 切換 View Transition（user 2026-10-01 plan B；theme-toggle.js runModeViewTransition）──
- * 支援 VT 的瀏覽器（atlas／create 除外）不再走上方 .mode-switching 逐元素 transition：整頁新舊快照在合成器交叉淡入
- * --dur-base。VT 期間殺全部 transition＝新快照直接是終態（不再疊一層自己的 fade；09-28 實測 kill-all 優於逐項）。 */
+/* ── mode 切換 View Transition（theme-toggle.js runModeViewTransition）──
+   支援 VT 的瀏覽器（atlas／create 除外）不走上方 .mode-switching：整頁新舊快照在合成器交叉淡入。
+   VT 期間殺全部 transition＝新快照直接是終態（實測 kill-all 優於逐項）。 */
 ::view-transition-group(*) {
   animation-duration: var(--dur-base);
   animation-timing-function: ease;
@@ -189,13 +169,12 @@ html.mode-vt *,
 html.mode-vt *::before,
 html.mode-vt *::after {
   transition: none !important;
-  /* 舊快照是靜態圖、新畫面即時：過渡中還在動的東西兩張圖位置不同＝殘影（user 2026-10-03）→ 期間凍住 CSS 動畫
-     （跑馬燈等）；GSAP／rAF 迴圈由 theme-toggle.js runModeViewTransition 與各迴圈看 html.mode-vt 自凍 */
+  /* 舊快照靜態、新畫面即時：還在動的東西兩圖位置不同＝殘影 → 凍住 CSS 動畫；
+     GSAP／rAF 迴圈由 theme-toggle.js 與各迴圈看 html.mode-vt 自凍 */
   animation-play-state: paused !important;
 }
-/* 例外＝會動的層（theme-toggle.js MODE_VT_LIVE_LAYERS，清單兩邊同步）：整層抽出快照、只顯示即時畫面
-   ＝照動不凍也不殘影（user 2026-10-03）。層內變色沒有快照可淡 → 自己 transition，時長同大背景。
-   只收一直在動的東西（不動的留快照照常淡，見 theme-toggle.js 註解）。
+/* 例外＝會動的層：⚠️清單與 theme-toggle.js MODE_VT_LIVE_LAYERS 兩邊同步。整層抽出快照只顯示即時畫面＝照動不殘影；
+   層內變色無快照可淡 → 自己 transition。只收一直在動的（不動的留快照照常淡）。
    逐條寫不用 :is()＝祖先 id/class 能被 bloom filter 快篩（library 4 萬節點） */
 ::view-transition-old(.vt-live) { display: none; }
 ::view-transition-new(.vt-live) { animation: none; }
@@ -218,9 +197,8 @@ html.mode-vt .lib-title-box {
 }
 /* library 三原色卡本來就只顯示即時畫面：卡上的跑馬燈不必凍（灰卡那張的字條是 visibility:hidden） */
 html.mode-vt .color-rect-title-inner { animation-play-state: running !important; }
-/* 只顯示即時新畫面（舊圖直接消失、新圖不淡）：library 三原色卡 snap（同上 08-11 定案）；
-   header logo 過渡中照轉、換檔不消失，鉛筆（#mode-color-panel）照常滑進滑出（user 2026-10-01）；
-   mode 鈕 icon 直接切不淡（user 2026-10-02） */
+/* 只顯示即時新畫面（舊圖消失、新圖不淡）：library 三原色卡 snap；header logo 過渡中照轉不消失；
+   鉛筆（#mode-color-panel）照常滑進滑出；mode 鈕 icon 直接切不淡 */
 ::view-transition-old(lib-snap-1),
 ::view-transition-old(lib-snap-2),
 ::view-transition-old(lib-snap-3),
@@ -236,10 +214,8 @@ html.mode-vt .color-rect-title-inner { animation-play-state: running !important;
 ::view-transition-new(mode-icon-0),
 ::view-transition-new(mode-icon-1) { animation: none; }
 
-/* curriculum / activities / admission：sticky 遮罩 + pseudo-element 遮罩。
- * 這些用 `background`/`background-color: var(--theme-bg|fg)` 上色，不在上方 whitelist → mode 切換時 snap，
- * 但大背景 fade 0.4s ＝兩者不同步（user 2026-06-08 報「nav btn 底色、遮罩 timing 跟大背景不同步」）。
- * 補進 whitelist；含 ::before/::after 與 shorthand `background`（遮罩多用 shorthand 寫）。 */
+/* curriculum / activities / admission 的 sticky 遮罩＋pseudo 遮罩：用 background(-color) var(--theme-*) 上色，
+   不加會 snap、跟大背景 fade 不同步。含 ::before/::after 與 shorthand `background`。 */
 html.mode-switching.mode-switching .courses-program-bar,
 html.mode-switching.mode-switching .inner-scroll-nav-col,
 html.mode-switching.mode-switching .inner-scroll-nav-col > div,
@@ -248,8 +224,8 @@ html.mode-switching.mode-switching .mobile-header-bg,
 html.mode-switching.mode-switching .mobile-anchor-strip-wrap,
 html.mode-switching.mode-switching .mobile-anchor-strip-wrap::before,
 html.mode-switching.mode-switching .mobile-division-wrap,
-/* 09-10 全站掃描補漏（headless audit：mode 切換變色但無 transition＝snap 的 var(--theme-*) 底元件）。
-   刻意不加：#library-card-main（三原色卡 snap 定案）、#atlas-detail（滑入期 transition 會見中間色、有明文註解）、
+/* headless audit 補漏（變色但無 transition 的 var(--theme-*) 底元件）。
+   刻意不加：#library-card-main（三原色卡 snap）、#atlas-detail（滑入期 transition 會見中間色）、
    .seam-guard::before（background:inherit 跟宿主同步 fade） */
 html.mode-switching.mode-switching .skip-link,
 html.mode-switching.mode-switching .library-mobile-tabs,
@@ -268,25 +244,21 @@ html.mode-switching.mode-switching .activities-filter-bar::before,
 html.mode-switching.mode-switching .admission-scroll-mask,
 html.mode-switching.mode-switching .list-header.is-pinned::before,
 html.mode-switching.mode-switching .list-mobile-header-blocker,
-html.mode-switching.mode-switching .legal-sitemap .legal-map-desc,
-html.mode-switching.mode-switching .support-acc-header {
+html.mode-switching.mode-switching .legal-sitemap .legal-map-desc {
   /* box-shadow 也列入：activities/admission sticky 遮罩用平移 shadow 左右外擴（消真機合成器邊緣漏色），
      shadow 色 = var(--theme-bg)，不 transition 會在 mode 切換時 gutter 外擴帶 snap、與大背景脫節 */
   transition: background var(--dur-base) ease, background-color var(--dur-base) ease, color var(--dur-base) ease, box-shadow var(--dur-base) ease !important;
 }
 
-/* /create 頁：#create-app 的 background-color 不在上方 whitelist，mode 切換時 snap 而 header 有 0.4s fade，
- * 造成兩者不同時轉換。加入 whitelist 讓 #create-app 背景跟 header 同節奏（class 從 wireframe-mode ↔ standard/inverse-mode）。
- * canvas containers 也一起加入，避免容器內部 snap 而 #create-app 外框還在 fade 造成色差 */
+/* /create：#create-app 與 canvas 容器底色不在 whitelist → snap 而 header 在 fade；加入讓 wireframe ↔ standard/inverse 同節奏 */
 html.mode-switching.mode-switching #create-app,
 html.mode-switching.mode-switching #desktop-canvas-container,
 html.mode-switching.mode-switching #canvas-container {
   transition: background-color var(--dur-base) ease !important;
 }
 
-/* ── 無障礙 Phase 1（2026-06-24）：鍵盤焦點指示器 ──
- * :focus-visible 只在鍵盤聚焦時觸發（滑鼠點擊不顯示），全站 Tab 導航時看得到目前焦點。
- * var(--theme-fg) 三 mode 都有對比（standard 黑 / inverse 白 / color 對比色）。 */
+/* ── 無障礙：鍵盤焦點指示器 ──
+   :focus-visible 只在鍵盤聚焦時觸發；var(--theme-fg) 三 mode 都有對比。 */
 :focus-visible {
   outline: 2px solid var(--theme-fg);
   outline-offset: 2px;
@@ -315,11 +287,9 @@ html.mode-switching.mode-switching #canvas-container {
   transform: translateY(0);
 }
 
-/* ── 無障礙 Phase 2（2026-06-24）：尊重「減少動態效果」系統偏好 ──
- * 使用者在 OS 開啟後，把所有 CSS 動畫/過場壓到近 0（mode 切換 fade、hover、clip-path 等都即時）。
- * GSAP / rAF 驅動的動畫（hero / 退場 / footer 洗牌 / atlas 漂浮 / marquee）另在各 JS 模組以
- * prefersReducedMotion() gate（inline transform，CSS blanket 管不到）。
- * WCAG 2.3.3 Animation from Interactions / 2.2.2 Pause, Stop, Hide。 */
+/* ── 無障礙：尊重 prefers-reduced-motion ──
+   CSS 動畫/過場壓到近 0；GSAP／rAF 動畫（inline transform，這裡管不到）另在各 JS 以 prefersReducedMotion() gate。
+   WCAG 2.3.3 / 2.2.2。 */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;

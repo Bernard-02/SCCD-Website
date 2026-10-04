@@ -1,21 +1,10 @@
-/* ============================================================
- * Create Page Styles (Phase 4b)
- * generate-app 從 iframe 整合進 site 後的 namespace 版本。
- * 來源：generate-app/style.css + generate-app/css/mobile.css 合併。
- * 主要差異：
- *   - @font-face url 改絕對路徑（從 site 根 /generate-app/）
- *   - `body, #create-app` 規則拆成只剩 `#create-app`（不汙染 site body）
- *   - mobile @media 內的 `body { ... }` 同樣改 `#create-app`
- *   - `* { box-sizing }` 改 `#create-app *`（限縮 scope）
- * ============================================================ */
+/* Create 頁（/create 的 generate-app inline 版）：由 generate-app/style.css＋mobile.css 合併，
+   規則一律 scope 在 #create-app（不汙染 site body） */
 
-/* 隱藏手機 header mode-btn（桌面 #mode-btn 已由 animateHeaderModeBtnHide clip-reveal 退場，
-   但手機 #mode-btn-mobile 沒對應動畫；create 頁 mode 由頁內 colormode-button 控制，
-   header mode-btn 留著只會誤點 — 桌面已 disabled 視覺也 hide，手機直接 display:none） */
+/* 手機 header mode 鈕隱藏：create 頁 mode 由頁內 colormode 鈕控制（桌面 #mode-btn 另由 animateHeaderModeBtnHide 退場） */
 #mode-btn-mobile {
   display: none !important;
 }
-
 
 @font-face {
   font-family: "Inter-Medium";
@@ -28,47 +17,40 @@
   box-sizing: border-box;
 }
 
-/* --- 橫向模式提示（由 JavaScript 控制顯示/隱藏） --- */
+/* --- 橫向旋轉提示（JS 控制顯隱）--- */
 #landscape-overlay {
-  display: none; /* 由 JS 控制 */
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  flex-direction: row; /* icon 左，文字右 */
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1rem; /* 減少 icon 和文字之間的距離，從 2rem 改為 1rem */
+  gap: 1rem;
   z-index: 99999;
   font-family: var(--font-family);
-  /* 使用 CSS 變數控制背景和文字顏色 */
   background: var(--current-wireframe-bg);
   color: var(--current-wireframe-text);
-  /* 添加 transition 讓顏色變化平滑 */
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
 #landscape-overlay-icon {
-  width: 60px; /* 減小 icon 尺寸，從 80px 改為 60px */
+  width: 60px;
   height: 60px;
   flex-shrink: 0;
 }
 
 #landscape-overlay-text {
   font-size: 1.2rem;
-  line-height: 1.4; /* 減少文字行距，從 1.8 改為 1.4 */
+  line-height: 1.4;
   white-space: pre-wrap;
   text-align: left;
 }
 
-/* 矮橫向硬 gate（2026-09-16 user：橫向手機只留 header＋旋轉提示）：
-   顯隱原本全靠 handleOrientationChange 的 inline display——iOS rotate 的 resize/orientationchange
-   時序不穩、首次載入就橫向等 race 會漏（實機截圖：提示跟手機控制面板疊在一起）。
-   這裡用 CSS 把狀態釘死、JS 只負責 bg/text 變數與 portrait 還原；
-   !important 蓋 JS inline display（inline 非 important 輸 stylesheet important）。
-   z-index 壓 40＝低於 header 的 z-50 → header 照常可見可點（app UI 已整塊 display:none、
-   不需要 99999 去蓋）；gate 外（平板橫向等）維持 JS 原行為不受影響。 */
+/* 矮橫向硬 gate：只留 header＋旋轉提示。iOS 轉向時 JS inline display 時序不穩會漏 → CSS 釘死（!important 蓋 JS inline）。
+   z-index 40 < header z-50＝header 照常可點；gate 外維持 JS 行為。 */
 @media (orientation: landscape) and (max-height: 500px) {
   #create-app .main-container {
     display: none !important;
@@ -79,55 +61,44 @@
   }
 }
 
-/* generate-app 專屬變數 scope 到 #create-app（之前注入 :root 會洩漏到全站，
-   --font-family 跟 variables.css 的 --font-default/--font-en 命名空間衝突；
-   --r-color/--g-color/--b-color/--disabled-color 也是 generate-app 內部術語，
-   不該污染 site theme system）。landscape-overlay 改用 #create-app 後代規則覆蓋。 */
+/* generate-app 專屬變數 scope 在 #create-app：放 :root 會洩漏全站（--font-family 等跟 site 命名衝突） */
 #create-app {
   --font-family: "Inter-Medium", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, sans-serif;
   --standard-text: black;
   --inverse-text: white;
-  /* Wireframe 模式變數接 site theme-toggle 同步寫的 --theme-bg / --theme-fg（:root 在 variables.css always defined），
-     跟 site theme 一致 */
+  /* mode3（wireframe）接 site theme-toggle 寫的 --theme-fg／--theme-bg */
   --wireframe-border: var(--theme-fg);
-  --wireframe-opacity: 0.5; /* Wireframe 模式的透明度（原本 light hue 走 0.25 / dark hue 走 0.5，現在統一 0.5；
-    user 抱怨「沒對比色」= 之前 placeholder/slider 走錯色 + 0.5 opacity 雙重壞，改色之後 0.5 = 更清楚） */
-  --current-wireframe-bg: var(--theme-bg); /* Landscape overlay 的背景色（跟 site theme 同步） */
-  --current-wireframe-text: var(--theme-fg); /* Landscape overlay 的文字色（跟 site theme 同步） */
-  --disabled-color: rgba(0, 0, 0, 0.25); /* 統一使用黑色25%不透明度 */
+  --wireframe-opacity: 0.5;
+  --current-wireframe-bg: var(--theme-bg); /* landscape overlay 底色 */
+  --current-wireframe-text: var(--theme-fg); /* landscape overlay 字色 */
+  --disabled-color: rgba(0, 0, 0, 0.25);
   --r-color: rgb(255, 68, 138);
   --g-color: rgb(0, 255, 128);
   --b-color: rgb(38, 188, 255);
 
-  /* 縮放系統 */
-  --scale: 1; /* 整體縮放比例 */
-  --border-radius: calc(20px * var(--scale)); /* 按鈕的圓角 */
+  --scale: 1; /* 桌面整組縮放（utils.js updateDesktopScale 寫入） */
+  --border-radius: calc(20px * var(--scale));
 
-  /* 按鈕尺寸基準值 */
   --button-font-size: calc(1rem * var(--scale));
   --button-rotate-height: calc(70px * var(--scale));
 
-  /* 控制面板間距 */
   --control-box-padding: calc(18px * var(--scale));
   --control-gap: calc(4px * var(--scale));
   --panel-gap: calc(30px * var(--scale));
 
-  /* Custom 區域的內部 padding（比 control-box-padding 小） */
-  --custom-area-padding-vertical: calc(10px * var(--scale)); /* 上下 padding */
-  --custom-area-padding-horizontal: calc(22px * var(--scale)); /* 左右 padding */
+  --custom-area-padding-vertical: calc(10px * var(--scale));
+  --custom-area-padding-horizontal: calc(22px * var(--scale));
 
-  /* Rotation control box 的固定高度（以 Custom 展開時為準） */
+  /* 控制盒共用高度（rotation box 以 Custom 展開為準；mode／save 盒同用） */
   --rotation-box-min-height: calc(120px * var(--scale));
 
-  /* 圖標尺寸 */
-  --icon-size: calc(32px * var(--scale)); /* Random/Reset 等 icon 按鈕（容器 32px 補償 SVG 內容只佔 viewBox ~65%，視覺內容 ≈ L tier 24px） */
+  --icon-size: calc(32px * var(--scale)); /* 容器 32 補償 SVG 內容只佔 viewBox ~65%（視覺 ≈ 24） */
   --button-icon-size: calc(48px * var(--scale)); /* Custom/Auto/Standard/Inverse 按鈕內的 icon */
 
-  /* 滑桿尺寸 */
-  --slider-width: calc(315px * var(--scale)); /* 縮短 10% */
+  --slider-width: calc(315px * var(--scale));
   --slider-height: calc(3px * var(--scale));
-  --slider-thumb-size: calc(13px * var(--scale)); /* 從 15px 調整為 12px */
+  --slider-thumb-size: calc(13px * var(--scale));
   --slider-gap: calc(8px * var(--scale));
   --slider-label-font-size: calc(0.8rem * var(--scale));
 }
@@ -136,56 +107,42 @@
   font-family: var(--font-family);
   margin: 0;
   padding: 0;
-  overflow: hidden; /* 防止 wrapper 內部滾動 */
-  transition: background-color var(--dur-base) ease, color var(--dur-base) ease; /* 對齊全域 mode 切換 fade duration */
-  /* 填滿父層 <main>（pages/create.html 設 height:100vh + padding-top:header-height，content area = 100vh-header）*/
+  overflow: hidden;
+  transition: background-color var(--dur-base) ease, color var(--dur-base) ease;
+  /* 填滿父層 <main>（create.html：100vh − header） */
   width: 100%;
   height: 100%;
 }
 
-/* 根據 body class 切換顏色 */
-/* bg 不自己畫（user 2026-06-24）：standard/inverse 原本各自畫 solid white/black bg，切到/離開 mode3 時這層 solid
-   要 cross-fade 成透明、疊在 site body 的 hue 之上 → 跟 header 的「直接 fade」走不同色路 + 慢一幀（class 在 draw loop 才換）
-   → header 與 canvas 區底色不同步（只 mode3 因兩層異色才看得出；mode1↔2 兩層同色故無感）。
-   解法＝三 mode 都不自畫 bg、全靠 site body 單一 paint 透過來（body：standard white / inverse black / color hue，
-   且跟 header 走同一條 .mode-switching fade）→ header 與 canvas 區同源同步，跟其他頁一致。值同 --standard/inverse-bg 故穩態不變色。 */
+/* 三 mode 都不自畫 bg：底色全由 site body 單一 paint 透過來（跟 header 同一條 .mode-switching fade）。
+   自畫 solid bg 在進出 mode3 時會 cross-fade 疊 body hue、跟 header 不同步。 */
 #create-app.standard-mode {
   color: var(--standard-text);
 }
 #create-app.inverse-mode {
   color: var(--inverse-text);
 }
-/* user 2026-05-27 拍板：mode-color 邏輯整套靠 site body.mode-color 處理
-   site css 已寫 body.mode-color { background-color: var(--theme-bg); color: var(--theme-fg); }
-   #create-app.wireframe-mode 不再自己設 bg/color → 透明 → 透出 body bg；
-   header / main 也透明 → 整片視覺全來自 body 同一條 paint，不再有色差；
-   color 用 inherit 從 body 繼承 --theme-fg */
+/* mode3：透明透出 body.mode-color 底，color 繼承 --theme-fg（同上） */
 #create-app.wireframe-mode {
   background-color: transparent;
   color: inherit;
 }
 
-/* landscape-overlay-icon（手機直立旋轉提示）覆蓋層底＝頁面底，跟「頁面」對比白色化，沿用舊 page-bg 條件
-   （inverse mode 一律白；wireframe 看 stroke 亮度的 .white-icons）。box icon 另走下方規則。 */
+/* 旋轉提示 icon 跟「頁面底」對比：inverse 一律反白；mode3 看 .white-icons（JS toggle） */
 #create-app.inverse-mode #landscape-overlay-icon,
 #create-app.white-icons #landscape-overlay-icon {
   filter: invert(1);
 }
 
-/* 控制盒 button icon（website-icons 單色黑版）跟「盒底」反色 —— 盒底已從灰改高對比純黑/白
-   （見下方 .control-box --lib-bg override，user 2026-06-10）：
-     黑底（mode1 標準 / mode3 線框且頁亮 .dark-icons）→ icon 反白 invert(1)
-     白底（mode2 反相 / mode3 線框且頁暗）→ icon 維持黑版不反
-   （取代舊 .white-icons 條件；.white-icons class JS 仍 toggle 但已不驅動 box icon 反色） */
+/* 按鈕 icon（單色黑版）跟盒底反色：黑底（standard／mode3 .dark-icons）→ invert 反白；白底 → 不反。
+   桌面 .control-box、手機 bottom bar 盒近透明，下方各自再翻轉成對比頁面底。 */
 #create-app.standard-mode button img,
 #create-app.wireframe-mode.dark-icons button img {
   filter: invert(1);
 }
 
-/* user 2026-06-22：桌面控制盒底色改成「頁面前景色淡疊」（不透明度 5%/10%，跟 list zebra 同邏輯，見下方 .control-box）
-   → 盒近乎透明、icon 改與「頁面底」對比（非盒底）→ invert 條件相對上面全域規則整個翻轉：
-     頁亮（standard / wireframe.dark-icons）→ 黑 icon 不反；頁暗（inverse / wireframe 非 dark-icons）→ 反白。
-   只 scope .control-box（桌面）→ 手機 bottom bar 不受影響。特異度 (1,2,2) > 全域 (1,1,2) → 蓋過。 */
+/* 桌面 .control-box 盒底＝頁面前景淡疊（近透明）→ icon 改對比「頁面底」，invert 條件與上條整個翻轉。
+   特異度 (1,2,2) > 上條 (1,1,2)；只 scope 桌面。 */
 #create-app.standard-mode .control-box button img,
 #create-app.wireframe-mode.dark-icons .control-box button img {
   filter: none;
@@ -198,22 +155,19 @@
 /* --- 主佈局 (上下結構) --- */
 .main-container {
   display: flex;
-  flex-direction: column; /* 改為上下結構 */
+  flex-direction: column;
   align-items: center;
-  justify-content: center; /* 垂直置中 */
-  /* 填滿父層 #create-app（site 整合後 #create-app 已扣掉 header 高度由 <main> padding 控制）*/
+  justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 7rem 2rem; /* 上下較大的留白 */
+  padding: 7rem 2rem;
   box-sizing: border-box;
-  gap: 1rem; /* 上下兩區的間距 */
+  gap: 1rem;
 }
 
-/* 真桌面（user 2026-10-03）：UI bar（控制列）底貼底部 padding 48（＝header SCCD／鈕頂 48、左下頁卡底 48，上下對稱）；
-   輸入框＋canvas（display-area）置中於「SCCD 頂 48 → UI bar 頂」。
-   #create-app 往上延伸到 48（原本從 header 下緣 96 起）＝置中範圍頂直接是 48；display-area 上下 auto margin 吃掉剩餘高＝置中、
-   UI bar 落在底。header 是 fixed z-50 照樣蓋在上面；48–96 這段只有 display-area 的空白邊。gap 歸 0：否則範圍底會在 UI bar 頂上方 1rem。
-   放不下（< 756 高）時 auto margin 歸 0、justify-content:center 讓溢出上下平分（同原行為） */
+/* 真桌面：UI bar 底貼 48（＝header 鈕頂 48、左下頁卡底 48，上下對稱）；display-area 置中於「頂 48 → UI bar 頂」。
+   #create-app 上延到 48（原從 header 下緣 96 起），display-area margin-block:auto 吃剩餘高；gap 0 否則範圍底差 1rem。
+   放不下（< 756 高）時 auto 歸 0、justify-content:center 平分溢出。 */
 @media (min-width: 1024px) and (min-height: 501px) {
   #create-app {
     margin-top: calc(48px - var(--header-height, 96px));
@@ -227,8 +181,8 @@
   .main-container > .display-area { margin-block: auto; }
 }
 
-/* iPad 螢幕鍵盤模式（user 2026-10-04；sketch.js _handleDesktopKeyboard 切 .create-kb-open、寫 --create-vv-h＝鍵盤上方可視高）：
-   控制盒＋header 暫藏，#create-app 拉到頁頂、高＝可視區，顯示區（--scale 已依可視高重算）在其中置中。gate 同桌面排版 */
+/* iPad 螢幕鍵盤模式：sketch.js _handleDesktopKeyboard 切 .create-kb-open、寫 --create-vv-h（鍵盤上方可視高）。
+   控制盒＋header 暫藏、顯示區（--scale 已依可視高重算）置中。gate 同桌面排版 */
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   #create-app.create-kb-open {
     margin-top: calc(-1 * var(--header-height, 96px));
@@ -242,41 +196,36 @@ body.create-kb-open #site-header {
   pointer-events: none;
 }
 
-/* 上方顯示區 (左右結構) */
+/* 上方顯示區（canvas＋輸入框左右並排） */
 .display-area {
-  flex: 0 1 auto; /* 不要擴展，根據內容調整大小 */
+  flex: 0 1 auto;
   display: flex;
-  flex-direction: row; /* 內部為左右結構 */
-  align-items: center; /* 垂直置中對齊 */
-  justify-content: center; /* 水平置中 */
-  gap: calc(var(--panel-gap) * 4); /* var(--panel-gap) 的 2 倍，即 60px */
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--panel-gap) * 4);
   width: 100%;
-  max-width: calc(1250px * var(--scale)); /* 從 1200px 增加到 1250px，容納新的 3:2 比例；×--scale＝桌面整組縮放 */
+  max-width: calc(1250px * var(--scale));
 }
 
 /* 下方控制區 */
 .control-panel {
   flex-shrink: 0;
   display: flex;
-  flex-direction: row; /* 控制項改為水平排列 */
+  flex-direction: row;
   align-items: center;
-  justify-content: center; /* 水平置中 */
+  justify-content: center;
   gap: var(--panel-gap);
   width: 100%;
-  max-width: calc(1250px * var(--scale)); /* 從 1200px 增加到 1250px，與上方對齊 */
+  max-width: calc(1250px * var(--scale)); /* 同 .display-area */
 }
 
-/* 為 control-panel 的直接子元素添加平滑位置過渡 */
 .control-panel > * {
   transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
-/* 進場 fade-in 初始態（opacity:0）─ 這些元素的 opacity 由 sketch.js draw() 的「頁面載入動畫」
-   逐幀驅動（inputBoxOpacity / logoOpacity / controlPanelOpacity 從 0 淡入 1，桌面 control-panel +
-   canvas 還要等打字機 1600ms 才開始）。CSS 預設若是 1，SPA 換頁 swap 進來後會先以 opacity:1 把整個
-   UI 畫出來，p5 第一幀 draw() 才 snap 到 0 再淡入 = 「先閃出完整畫面再從頭跑動畫」（user 2026-06-07 反饋）。
-   設 0 安全：p5 一定會跑 draw 把它們帶回 1，且 draw 用 inline style 特異性高於此規則、第一幀後完全接管。
-   六個元素各自只在自己斷點顯示（另一斷點 display:none），互不干擾。 */
+/* 進場初始 opacity:0：實際 opacity 由 sketch.js draw() 載入動畫逐幀 inline 寫入（0→1）。
+   預設若是 1，SPA swap 後會先閃出完整 UI、第一幀才 snap 0 重跑。各元素只在自己斷點顯示，互不干擾。 */
 .input-container,
 #desktop-canvas-container,
 #canvas-container,
@@ -287,44 +236,40 @@ body.create-kb-open #site-header {
 }
 
 /* --- Canvas & 輸入框 --- */
-/* 共用的背景顏色規則 */
-/* Canvas container 背景色（桌面版和手機版共用） */
-/* 三 mode 全透明（user 2026-05-27 wireframe + 2026-06-24 推及 standard/inverse）：canvas 區底色全交給 site body
-   單一 paint 透過來。理由同上方 #create-app bg 註解——避免自畫 solid bg 在 mode3 切換時 cross-fade 疊 body hue
-   造成跟 header 不同步；也避免 mode-color hue 高頻變化時 separate paint context 的色差。 */
+/* 三 mode 全透明：canvas 區底色交給 site body（理由同 #create-app bg） */
 #create-app #canvas-container,
 #create-app #desktop-canvas-container {
   background-color: transparent;
 }
 
-/* 桌面版 desktop-canvas-container 規則
-   ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放平板 768-1023 走手機版（見檔尾手機區塊，JS utils.js checkMobileMode 同式） */
+/* 桌面 canvas 容器
+   ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放 768–1023 走手機版（JS utils.js checkMobileMode 同式） */
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   #desktop-canvas-container {
-    /* 桌面版 432x540 × --scale（整組等比縮放，user 2026-10-04；JS utils.js updateDesktopScale 寫值、getCanvasSize 同乘） */
+    /* 432×540 × --scale（utils.js updateDesktopScale 寫值、getCanvasSize 同乘） */
     width: calc(432px * var(--scale));
     height: calc(540px * var(--scale));
     min-height: calc(540px * var(--scale));
     max-height: calc(540px * var(--scale));
-    flex-shrink: 0; /* 防止縮小 */
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background-color var(--dur-base) ease; /* 對齊 #create-app */
+    transition: background-color var(--dur-base) ease;
   }
 }
 
 .input-container {
-  width: calc(540px * var(--scale)); /* 1:1 比例（×--scale＝桌面整組縮放） */
-  height: calc(540px * var(--scale)); /* 與 logo 一樣高，讓 flexbox 對齊 */
-  flex-shrink: 0; /* 防止縮小 */
+  width: calc(540px * var(--scale));
+  height: calc(540px * var(--scale)); /* 同 canvas 高 */
+  flex-shrink: 0;
   display: flex;
-  align-items: center; /* textarea 垂直置中，與 logo 對齊 */
-  justify-content: flex-start; /* 水平靠左 */
+  align-items: center;
+  justify-content: flex-start;
   position: relative; /* 假游標／鏡像的定位框 */
 }
-/* 桌面假游標（user 2026-10-04）：滑鼠鍵盤裝置輸入框設 readonly 讓輸入法不接管（input-handling.js initDesktopKeyMap），
-   Chrome／Safari 不在 readonly 畫原生游標 → 字尾補一條；色＝currentColor（跟輸入字同繼承 #create-app），只在輸入框 focus 時顯示 */
+/* 桌面假游標：滑鼠鍵盤裝置輸入框設 readonly（input-handling.js initDesktopKeyMap，免輸入法接管），
+   readonly 不畫原生游標 → 補一條（currentColor）；只在輸入框 focus 時顯示 */
 .create-fake-caret {
   position: absolute;
   width: 1.5px;
@@ -346,54 +291,43 @@ body.create-kb-open #site-header {
 
 #input-box {
   width: 100%;
-  height: calc(400px * var(--scale)); /* 固定高度（×--scale） */
-  font-size: calc(120px * var(--scale)); /* 初始 120px（×--scale；打字後 JS 依字數改 inline，同乘 deskScale） */
-  font-family: inherit; /* 從 body 繼承 Inter-Medium */
+  height: calc(400px * var(--scale));
+  font-size: calc(120px * var(--scale)); /* 打字後 JS 依字數改 inline（同乘 deskScale） */
+  font-family: inherit;
   resize: none;
-  overflow: hidden; /* 隱藏滾動條 */
+  overflow: hidden;
   white-space: pre-wrap;
   word-wrap: break-word;
   border: none;
   outline: none;
   background-color: transparent;
   color: inherit;
-  text-align: left; /* 靠左對齊 */
+  text-align: left;
   box-sizing: border-box;
   line-height: 1.1;
-  caret-color: inherit; /* 游標顏色跟隨文字顏色 */
-  transition: font-size var(--dur-micro) ease-out, padding-top var(--dur-micro) ease-out, line-height var(--dur-micro) ease-out; /* 平滑過渡，同步動畫 */
+  caret-color: inherit;
+  transition: font-size var(--dur-micro) ease-out, padding-top var(--dur-micro) ease-out, line-height var(--dur-micro) ease-out;
 }
 
-/* Standard 模式下的 placeholder 顏色：黑色 + 25% 透明度 */
 #create-app.standard-mode #input-box::placeholder {
   color: black;
   opacity: 0.25;
-  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
+  font-size: calc(120px * var(--scale));
 }
 
-/* Inverse 模式下的 placeholder 顏色：白色 + 50% 透明度 */
 #create-app.inverse-mode #input-box::placeholder {
   color: white;
   opacity: 0.5;
-  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
+  font-size: calc(120px * var(--scale));
 }
 
-/* Wireframe 模式下的 placeholder */
 #create-app.wireframe-mode #input-box::placeholder {
   color: var(--wireframe-border);
   opacity: var(--wireframe-opacity);
-  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
-}
-
-#hidden-measurer {
-  visibility: hidden;
-  position: absolute;
-  top: -9999px;
-  left: -9999px;
+  font-size: calc(120px * var(--scale));
 }
 
 /* --- 控制項佈局 --- */
-/* 控制盒：實心對比底 + 無邊框 + 無 radius；icon 用 opacity 半透明（user 要求 2026-05-20） */
 .control-box {
   border: none;
   border-radius: 0;
@@ -405,18 +339,17 @@ body.create-kb-open #site-header {
   transition: background-color var(--dur-base) ease, opacity 0s ease;
 }
 
-/* 讓 colormode-box 和 save-box 整個區域都可以點擊 */
+/* 整盒可點 */
 #colormode-box,
 #save-box {
   cursor: var(--cursor-pointer);
 }
 
-/* rotation-box 父容器使用 default cursor，因為點擊的是裡面的按鈕 */
+/* 只有盒內按鈕可點 */
 #rotation-box {
   cursor: var(--cursor-default);
 }
 
-/* Disabled 狀態下覆蓋 cursor */
 #colormode-box.disabled,
 #rotation-box.disabled,
 #save-box.disabled {
@@ -424,38 +357,27 @@ body.create-kb-open #site-header {
 }
 
 .control-box {
-  /* user 2026-06-22：拿掉 bottom-line，改成「頁面前景色淡疊」整格填滿（跟 list zebra 同邏輯）。
-     白底→黑 5% / 黑底→白 10%（下方 inverse-mode 覆寫）/ mode3 用 list-strip（body.mode-color 覆寫）。
-     盒近乎透明、盒內容（icon/slider/label）＝頁面前景色（--lib-fg 由 .control-panel scope remap，見下方）。
-     active/inactive 只靠盒內 icon opacity（見上方 .control-box img 規則）溝通，盒底永遠同一淡疊。 */
+  /* 盒底＝頁面前景色淡疊（同 list zebra）：白底→黑 5%／黑底→白 10%／mode3 用 list-strip。
+     盒內容色＝頁面前景（--lib-fg 由 .control-panel remap，見下）；active/inactive 只靠 icon opacity。 */
   background-color: rgba(var(--theme-fg-rgb), 0.05);
   color: var(--lib-fg);
 }
 #create-app.inverse-mode .control-box {
-  background-color: rgba(var(--theme-fg-rgb), 0.1); /* 黑底→白 10%（theme-fg-rgb 已是白） */
+  background-color: rgba(var(--theme-fg-rgb), 0.1);
 }
 body.mode-color .control-box {
-  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); /* mode3 同 list strip（白疊色、alpha 依 hue 由 theme-toggle 設） */
+  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); /* alpha 依 hue 由 theme-toggle 設 */
 }
-/* mode3（user 2026-06-23 定案）：mode-btn 保持「完整 120 方形」（同 mode1/2、icon 置中 36/36，不再縮成 84）；
-   wheel 是它「右邊延伸出的一塊」＝colorpicker 盒貼齊在 mode-btn 右側、wheel 靠左放（left padding 0）。
-   兩盒同色淡疊 + negative margin 抵銷 panel gap → 視覺一整塊連續底。
-   視覺間距：[36 mode-btn 左pad][icon48][36 mode-btn 右pad][wheel72][36 colorpicker 右pad] = 對稱 36。
-   ＊colormode 不再覆寫（沿用 base 120 方形）→ 也順帶消除 84↔120 寬度變化（無 width-transition 抖動）。
-   ＊wheel 靠左(padding-left 0) → play 鈕已移進 container 故跟著 wheel 置中（非 box 置中），不會偏。 */
+/* mode3 膠囊右半（colorpicker 盒 108）：wheel 靠左、右 pad 36
+   → [36][icon48][36][wheel72][36] 兩端對稱 36。 */
 #create-app.wireframe-mode #colorpicker-box {
-  padding-left: 0;                           /* wheel 靠左、緊接 mode-btn 的右 padding */
-  padding-right: calc(36px * var(--scale));  /* block 右端 36（與左端對稱）*/
-  /* width 已移到 base #colorpicker-box（恆 108）→ 退場時不會因 .wireframe-mode 移除而 width:108→auto 瞬塌（見下）。
-     top/bottom 維持 base 24 → content 72×72，wheel/canvas 尺寸不變 */
+  padding-left: 0;
+  padding-right: calc(36px * var(--scale));
 }
 
-/* 控制盒底色從灰改高對比純黑/白（user 2026-06-10）：
-   mode1 標準＝黑底白 icon／mode2 反相＝白底黑 icon（與 mode1 顛倒）／
-   mode3 線框依 page bg 對比兩階切（.dark-icons＝頁亮→黑底；無→頁暗→白底）。
-   只覆寫 #create-app scope 的 --lib vars，不動 library/atlas 共用的全域 lib vars。
-   盒內 slider/label/文字/icon 對比皆對齊 --lib-fg → 跟著盒底自動反色（icon 由上方 invert 規則處理）。
-   特異度 #create-app.x(1,1,0) > body.mode-color(0,1,1) → 蓋過 color.css 的 --lib-fg:var(--theme-fg)。 */
+/* #create-app scope 的盒對比色（不動 library/atlas 共用的全域 --lib-*）：
+   mode1／mode3 頁亮(.dark-icons)＝黑底白字；mode2／mode3 頁暗＝白底黑字。
+   特異度 (1,1,0) > body.mode-color (0,1,1)，蓋過 color.css 的 --lib-fg。 */
 #create-app.standard-mode,
 #create-app.wireframe-mode.dark-icons {
   --lib-bg: #000000;
@@ -469,9 +391,8 @@ body.mode-color .control-box {
   --lib-fg-rgb: 0, 0, 0;
 }
 
-/* user 2026-06-22：盒底改頁面前景色淡疊（近乎透明）後，盒內容（slider/label/.angle-input/active 文字）對比「頁面底」非盒底
-   → 在 .control-panel scope 把 --lib-fg remap 成頁面前景色（相對上面盒對比版反相），既有 var(--lib-fg) 消費者自動轉對。
-   只 scope .control-panel（桌面）→ 手機 .mobile-bottom-bar（sibling）不受影響。 */
+/* 桌面盒近透明 → 盒內容（slider/label/.angle-input/active 文字）改對比頁面底：
+   在 .control-panel scope 把 --lib-fg remap 成頁面前景色（與上條反相）。手機 .mobile-bottom-bar 不受影響。 */
 #create-app.standard-mode .control-panel,
 #create-app.wireframe-mode.dark-icons .control-panel {
   --lib-fg: #000000;
@@ -483,9 +404,8 @@ body.mode-color .control-box {
   --lib-fg-rgb: 255, 255, 255;
 }
 
-/* 盒內 icon 三階灰度＝同 library 年份／分類鈕（user 2026-10-01）：active 100%／未選 50%／disabled 20%
-   disabled = box 整個 disabled 或個別 button:disabled；未選 = rotate/custom 可點但非 active
-   colormode 不在 selector 內（它沒有 active/inactive 概念，永遠 100%） */
+/* 盒內 icon 三階＝同 library 年份／分類鈕：active 100%／未選 50%／disabled 20%。
+   colormode 不在 selector 內（無 active 概念，恆 100%） */
 .control-box button img {
   opacity: 1;
 }
@@ -499,28 +419,23 @@ body.mode-color .control-box {
   opacity: 0.5;
 }
 
-/* 當 control-box 處於 disabled 狀態時 — box bg 維持 100% 對比實心，
-   inactive 視覺由內部 icon/slider/label 自己半透明溝通（user 2026-05-20） */
+/* disabled：盒底不變，由盒內 icon/slider/label 自己降淡度 */
 #create-app .control-box.disabled {
   cursor: var(--cursor-not-allowed);
   transition: background-color var(--dur-base) ease;
 }
 
-/* 顏色模式控制盒：讓它延伸填滿高度 */
+/* mode 鈕盒 */
 #colormode-box {
-  align-self: stretch; /* 延伸以填滿交叉軸（高度），與 rotation-box 對齊 */
-  min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
-  /* 顯式寬度（取代 aspect-ratio:1/1）：mode1/2 = 120 方形。用「顯式長度」而非 auto/aspect，
-     才能讓 mode3↔mode1 的寬度變化(84↔120)走 transition（auto/aspect 寬度無法 interpolate → 之前是瞬間 snap、
-     造成 panel 抖動）。height 仍由 align-self:stretch + min-height 給 120。user 2026-06-23 */
+  align-self: stretch;
+  min-height: var(--rotation-box-min-height);
+  /* 顯式寬度（非 auto／aspect-ratio）：mode3 膠囊寬度變化才能走 transition（auto 無法 interpolate → snap 抖動） */
   width: var(--rotation-box-min-height);
-  /* mode-btn 疊在 wheel 盒之上（user 2026-06-24）：colorpicker-box 是 position:relative（預設疊在 static 的 colormode-box 上方），
-     wheel translateX 滑出時會「蓋過」mode-btn → 看起來像 mode-btn 從 wheel 上方移動。把 mode-btn 提到上層 → wheel 從它「下方」滑出。 */
+  /* position＋z 1：colorpicker 盒（z 2）疊在膠囊右半之上 */
   position: relative;
   z-index: 1;
-  /* 圓鈕；mode3 由「這顆圓本身」往右長成膠囊（user 2026-10-01，同 mode3 鉛筆）：寬 120→120+108、半徑固定＝自然膠囊。
-     icon 釘左 36（＝120 盒置中位）：膠囊變寬時 icon 不跟著跑去中間。
-     收合 delay dur-micro＝色環先滑出膠囊、膠囊才縮（展開的反序，展開那條見下方 .wireframe-mode 無 delay） */
+  /* 圓鈕；mode3 由這顆圓往右長成膠囊（寬 120→120+108、半徑固定）。icon 釘左 36（＝120 圓置中位），變寬時不跑。
+     收合 delay dur-micro＝色環先收、膠囊再縮（展開無 delay，見下條） */
   border-radius: calc(var(--rotation-box-min-height) / 2);
   align-items: flex-start;
   padding-left: calc((var(--rotation-box-min-height) - var(--button-icon-size)) / 2);
@@ -530,27 +445,24 @@ body.mode-color .control-box {
   width: calc(var(--rotation-box-min-height) + 108px * var(--scale));
   transition: width var(--dur-medium) var(--ease-standard), background-color var(--dur-base) ease;
 }
-/* mode3 穩態盒底不過渡：--list-zebra-strip 隨 hue 每幀變，bg transition 每幀重追＝色環 tap 掃色時盒子拖在 body 後面
-   （實測差到 168/255）。同 color.css nav btn／header bar 做法；.mode-switching 窗口不匹配＝進出 mode3 照常淡。width 照抄上面 */
+/* mode3 穩態盒底不過渡：--list-zebra-strip 隨 hue 每幀變，bg transition 會拖在 body 後面。
+   同 color.css nav btn／header bar 做法；.mode-switching 期間照常淡。width transition 照抄上面 */
 html:not(.mode-switching) body.mode-color #create-app .control-box { transition: opacity 0s; }
 html:not(.mode-switching) body.mode-color #create-app #colormode-box { transition: width var(--dur-medium) var(--ease-standard) var(--dur-micro); }
 html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-box { transition: width var(--dur-medium) var(--ease-standard); }
 
-/* 色彩選擇器控制盒：預設隱藏。高度由 align-self:stretch + min-height(120) 給，不用 aspect-ratio。
-   ⚠️不可加 aspect-ratio:1/1：mode3 盒寬已是 144（顯式），離開 mode3 時 class 一掉、aspect-ratio 會用「當下 144 寬」反推
-   高度＝144 一個 frame（寬還沒被 max-width 收掉）→ control-panel 高度 120→144→120 跳一下 → main-container 垂直
-   重置 → 連帶 type-and-enter 輸入框上下抖（user 2026-06-23 實測 panel h 在 +16ms 變 144）。 */
+/* 色環盒：預設隱藏（JS 控制顯隱）；高由 align-self:stretch＋min-height 給。
+   ⚠️ 不可加 aspect-ratio:1/1：離開 mode3 那一幀會用當下寬反推高 → panel 高跳一下、輸入框上下抖。 */
 #colorpicker-box {
-  align-self: stretch; /* 延伸以填滿交叉軸（高度） */
-  min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
-  display: none; /* 由 JavaScript 控制顯示/隱藏 */
+  align-self: stretch;
+  min-height: var(--rotation-box-min-height);
+  display: none;
   position: relative;
   z-index: 2; /* 疊在 mode 鈕膠囊（z 1）右半之上 */
-  padding: calc(24px * var(--scale)); /* user 2026-05-20 五次調整：padding 8→16；2026-06-11 16→24 讓色環整體再小一點
-     （wheel canvas = container = box120 - 2*padding，加 padding 縮容器→縮環；box 仍 120 故共用線 240px/版面不動）*/
+  padding: calc(24px * var(--scale)); /* 色環 72 = 盒 120 − 2×24（#colorpicker-container 的 72／top 24 同步） */
   overflow: hidden; /* 色環 clip-reveal 遮罩 */
-  /* user 2026-10-01：本盒不再有底、不再自己長寬——膠囊由 #colormode-box 長出來，本盒只是疊在膠囊右半 108 的透明遮罩。
-     負 margin＝自身寬＋panel gap → 佔位淨 0、不推擠右側盒；右圓角＝膠囊右端，色環升起時沿膠囊形裁 */
+  /* 本盒無底：膠囊由 #colormode-box 長出，本盒＝疊在膠囊右半 108 的透明遮罩。
+     負 margin＝自身寬＋panel gap → 佔位淨 0；右圓角＝膠囊右端，色環升起時沿膠囊形裁 */
   margin-left: calc(-1 * (108px * var(--scale) + var(--panel-gap)));
   border-radius: 0 calc(var(--rotation-box-min-height) / 2) calc(var(--rotation-box-min-height) / 2) 0;
   /* width 恆 108（不隨 mode 變）：離開 mode3 時 class 一掉也不會瞬塌 */
@@ -560,12 +472,11 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   background-color: transparent; /* 蓋掉 .control-box 各 mode 淡疊底（特異度 2 id） */
 }
 
-/* 色彩選擇器 reveal（user 2026-10-01 改，比照 mode3 鉛筆）：膠囊（box max-width）先長完，wheel container 才由上/下
-   clip-reveal 升起，遮罩＝色環自己的圓（#colorpicker-container 圓角＋動畫期間 overflow:clip）。位移由 ui-state.js GSAP 驅動、這裡不掛 transition
-   （CSS transition 會跟 GSAP 逐幀寫的 transform 互搶）。play 鈕在 container 內，跟著升起。 */
+/* 色環 reveal：膠囊先長完，色環才由上/下 clip-reveal 升起（遮罩＝色環自己的圓，動畫期間 overflow:clip）。
+   位移由 ui-state.js GSAP 驅動，勿掛 CSS transition（會跟 GSAP inline transform 互搶）。 */
 
-/* 色環 reveal 位移層（create.html #colorpicker-reveal，canvas＋play 鈕都在裡面；ui-state.js GSAP 只動這層）：幾何同 container（填滿＋canvas 置中、play 鈕 absolute 對它）。
-   不直接動 play 鈕：它靠 CSS transform 置中（.is-play 另有 3px 偏移），GSAP 寫 inline transform 會蓋掉 */
+/* reveal 位移層（create.html #colorpicker-reveal；GSAP 只動這層），幾何同 container。
+   不直接動 play 鈕：它靠 CSS transform 置中（.is-play 另偏移），GSAP inline transform 會蓋掉 */
 #colorpicker-container > .wheel-reveal {
   position: absolute;
   inset: 0;
@@ -574,20 +485,17 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   justify-content: center;
 }
 
-/* 色彩選擇器容器 */
-/* user 2026-06-23：改 absolute + 固定 72×72（取代 width/height:100%）。原因：要讓 wheel slide 與底色盒 max-width 展開「同時」跑，
-   canvas 必須能在 box 還沒展開時就以正確尺寸預建；container 固定尺寸 + 位置（left:0 top:24=padding）→ clientWidth 恆 72、
-   且 box 展開/收合時 container 不被 flex 置中或 shrink 干擾，只靠下方 translateX 滑、由 #colorpicker-box overflow:hidden 在左緣裁。 */
+/* absolute＋固定 72×72：canvas 要在盒展開前就以正確尺寸預建（clientWidth 恆 72），且不受 flex 置中／shrink 干擾 */
 #colorpicker-container {
   position: absolute;
   left: 0;                          /* 貼盒內容左緣（colorpicker padding-left:0）*/
   top: calc(24px * var(--scale));   /* = box padding-top → 垂直置中於 120 盒（24 上 + 72 + 24 下）*/
   width: calc(72px * var(--scale));
   height: calc(72px * var(--scale));
-  border-radius: 50%; /* 圓形 */
-  overflow: visible; /* 改為 visible 避免裁切甜甜圈 */
+  border-radius: 50%;
+  overflow: visible; /* visible：免裁到色環 */
   cursor: crosshair;
-  display: flex; /* canvas 縮小到 container × 0.7 後在 container 內置中（JS margin:auto 只置中水平不夠） */
+  display: flex; /* canvas（container × 0.7）在 container 內置中（JS margin:auto 只管水平） */
   align-items: center;
   justify-content: center;
 }
@@ -595,21 +503,20 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 /* 旋轉控制盒：Custom(左) + Slider(中) + Auto(右) */
 #rotation-box {
   flex-direction: row;
-  align-items: stretch; /* 改為 stretch 讓按鈕填滿高度 */
-  gap: var(--control-box-padding); /* 使用統一的 padding 值 */
-  position: relative; /* 為偽元素提供定位參考 */
-  height: var(--rotation-box-min-height); /* 設定固定高度，不會因內容而變化 */
-  overflow: visible; /* 確保內容不會被裁切 */
+  align-items: stretch;
+  gap: var(--control-box-padding);
+  position: relative;
+  height: var(--rotation-box-min-height);
+  overflow: visible;
   transition: gap var(--dur-fast) ease;
 }
 
-/* Slider 展開時 (.custom-area-wrapper 帶 .custom-mode) 拿掉 wrapper 與 play btn 間 gap，
-   保留收起時的 gap（user 2026-05-20）*/
+/* Slider 展開時（.custom-mode）拿掉 wrapper 與 play btn 間的 gap */
 #rotation-box:has(.custom-area-wrapper.custom-mode) {
   gap: 0;
 }
 
-/* Custom 區域包裝容器（user 要求 border 拿掉） */
+/* Custom 區域包裝容器 */
 .custom-area-wrapper {
   display: flex;
   flex-direction: row;
@@ -621,62 +528,53 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   overflow: visible;
 }
 
-/* 當 Custom 模式啟用時，只保留 padding + gap，不再加 border */
 .custom-area-wrapper.custom-mode {
   padding: var(--custom-area-padding-vertical) calc(var(--custom-area-padding-horizontal) + 2px) var(--custom-area-padding-vertical) var(--custom-area-padding-horizontal);
   gap: 22px;
 }
 
-/* rotation-box 內的按鈕需要填滿父容器高度，並保持正方形 */
+/* 填滿盒高的正方形鈕 */
 #rotation-box > .custom-button {
-  height: auto; /* 自動填滿高度 */
-  min-height: var(--button-rotate-height); /* 設定最小高度 */
-  aspect-ratio: 1 / 1; /* 寬度 = 高度，形成正方形 */
+  height: auto;
+  min-height: var(--button-rotate-height);
+  aspect-ratio: 1 / 1;
 }
 
-/* custom-area-wrapper 內的 Custom 按鈕也是正方形 */
 .custom-area-wrapper > .custom-button {
   aspect-ratio: 1 / 1;
 }
 
-/* 當 custom-area-wrapper 展開時（有 custom-mode class），移除 Custom 按鈕的 padding 和 aspect-ratio */
 .custom-area-wrapper.custom-mode > .custom-button {
   padding: 0;
-  aspect-ratio: auto; /* 移除 1:1 比例限制 */
+  aspect-ratio: auto;
 }
 
-
-/* Save 控制盒：方形（user 2026-10-01 與 mode 鈕對調：mode 圓、download 方），寬度與高度一致 */
+/* Save 盒：方形（mode 鈕圓、download 方） */
 #save-box {
-  flex: 0 0 auto; /* 不擴展寬度，保持內容寬度 */
+  flex: 0 0 auto;
   justify-content: center;
   align-items: center;
-  align-self: stretch; /* 延伸以填滿交叉軸（高度） */
-  min-height: var(--rotation-box-min-height); /* 確保最小高度與 rotation-box 一致 */
-  /* 使用 aspect-ratio 確保寬度 = 高度，形成正方形 */
+  align-self: stretch;
+  min-height: var(--rotation-box-min-height);
   aspect-ratio: 1 / 1;
 }
 
-/* 新增：單個 colormode 按鈕樣式 */
-/* 比照 #save-button：colormode button = 固定 icon 大小、由盒置中（不撐滿盒、不靠 padding）。
-   盒固定 120 + icon 48 置中 → 每邊 (120−48)/2 = 36，跟 save 同機制（user 2026-06-23）。
-   #create-app scope 提特異度蓋過 .custom-button 的 padding:10（同特異度後者勝，否則殘留 10px ring）。 */
+/* colormode 鈕＝固定 icon 大小、由盒置中（同 #save-button）。
+   #create-app scope 提特異度蓋 .custom-button 的 padding（否則殘留 10px ring） */
 #create-app .custom-button-colormode {
   width: var(--button-icon-size);
   height: var(--button-icon-size);
   padding: 0;
-  border: none !important; /* 移除邊框 */
-  transition: none; /* 移除過渡效果 */
+  border: none !important;
+  transition: none;
 }
 
-/* 移除 colormode 按鈕的 hover 效果 */
 .custom-button-colormode:hover {
   color: inherit !important;
   border-color: transparent !important;
 }
 
-/* colormode icon 填滿 button（icon 大小完全由 button 控制，比照 #save-button img）。
-   #create-app scope 蓋過 .custom-button img 的 --button-icon-size，否則 mode3 button 縮 32 時 img 還停在 48 會溢出。 */
+/* icon 大小由 button 控制（同 #save-button img）；#create-app scope 蓋 .custom-button img 的 --button-icon-size */
 #create-app .custom-button-colormode img {
   width: 100%;
   height: 100%;
@@ -686,35 +584,34 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 0; /* 移除上邊距，因為現在是左右佈局 */
-  overflow: hidden; /* 隱藏溢出內容，配合動畫 */
-  max-width: 0; /* 預設寬度為 0（隱藏狀態）*/
-  padding: 0; /* 預設無 padding */
-  opacity: 0; /* 預設透明 */
-  transition: max-width var(--dur-fast) ease, padding var(--dur-fast) ease, opacity var(--dur-fast) ease; /* 添加平滑過渡 */
+  margin-top: 0;
+  overflow: hidden;
+  max-width: 0;
+  padding: 0;
+  opacity: 0;
+  transition: max-width var(--dur-fast) ease, padding var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 
-/* 當 control-group 顯示時 */
 .control-group.show {
-  max-width: 500px; /* 設定足夠大的值讓內容完全顯示 */
-  padding: 10px; /* 展開時添加 padding */
-  opacity: 1; /* 完全不透明 */
-  overflow: visible; /* 顯示時允許溢出（例如 tooltip）*/
+  max-width: 500px;
+  padding: 10px;
+  opacity: 1;
+  overflow: visible;
 }
 
 .sliders-wrapper {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  gap: calc(4px * var(--scale)); /* 增加滑桿間距 */
-  width: var(--slider-width); /* 限制滑桿寬度 */
+  gap: calc(4px * var(--scale));
+  width: var(--slider-width);
 }
 
 .icon-buttons-wrapper {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: visible; /* 確保 icon 不會被裁切 */
+  overflow: visible;
 }
 
 /* --- 按鈕通用樣式 --- */
@@ -733,17 +630,15 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   transition: opacity var(--dur-fast) ease;
 }
 
-/* 確保按鈕內的圖片不會阻擋點擊事件 */
+/* img 不吃點擊（事件 target 一律是按鈕） */
 .image-button img {
   pointer-events: none;
 }
 
-/* 確保 custom-button 內的圖片不會阻擋點擊事件 */
 .custom-button img {
   pointer-events: none;
 }
 
-/* Random/Reset 按鈕 */
 #random-button,
 #reset-button {
   width: var(--icon-size);
@@ -757,7 +652,6 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   object-fit: contain;
 }
 
-/* Save 按鈕 */
 #save-button {
   width: var(--button-icon-size);
   height: var(--button-icon-size);
@@ -767,10 +661,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   width: 100%;
   height: 100%;
   object-fit: contain;
-  /* 確保不會繼承任何旋轉效果 */
   transform-origin: center center;
   will-change: transform, opacity;
-  /* 隔離 transform 上下文，防止繼承父元素的 transform */
   isolation: isolate;
 }
 
@@ -789,7 +681,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   align-items: center;
   justify-content: center;
   color: var(--disabled-color);
-  transition: opacity var(--dur-fast) ease;   /* 字/邊框色不過渡：hover 變色一律 instant（user 2026-10-02 全站） */
+  transition: opacity var(--dur-fast) ease;   /* 色不過渡：hover 變色一律 instant（全站定案） */
   position: relative;
   z-index: 1;
   gap: 2px;
@@ -802,8 +694,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   flex-shrink: 0;
 }
 
-/* Rotate 按鈕的 icon 視覺修正：play_pause_create.svg 內三角形光學中心偏左，整體向右 3px 對齊 box 視覺中心
-   （play/pause 合在同一 SVG，不用再切 .play-icon class） */
+/* play_pause_create.svg 三角形光學中心偏左 → 右移 3px 對齊盒視覺中心 */
 .custom-button-rotate img {
   position: relative;
   left: 3px;
@@ -812,64 +703,50 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 /* --- 個別按鈕尺寸 --- */
 .custom-button-rotate,
 .custom-button-custom {
-  /* 不設定固定寬高，由父容器的 aspect-ratio 控制 */
   border: 2px solid transparent;
 }
 
-/* Rotate 按鈕有過渡效果（色不過渡，同上） */
 .custom-button-rotate {
   transition: opacity var(--dur-fast) ease;
 }
 
-/* Custom 按鈕的過渡效果 */
 .custom-button-custom {
-  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;   /* 色不過渡，同上 */
+  transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
   transform: scale(1.07);
 }
 
-/* rotation 按鈕 active 狀態不再加 border（user 2026-05-20）：
-   active/inactive 視覺差別由 icon opacity 處理（.control-box img inactive 0.5 / active 1，見上方 .control-box img 規則） */
-
-/* Custom 按鈕選中時：按鈕本身不要邊框，保持透明 */
 .custom-button-custom.active {
   border-color: transparent;
   transition: opacity var(--dur-fast) ease, transform var(--dur-fast) ease;
 }
-/* wireframe模式下Custom按鈕的邊框顏色也保持透明 */
 
 .custom-button:disabled {
   cursor: var(--cursor-not-allowed);
   color: var(--disabled-color);
 }
 
-/* custom-button:disabled / image-button:disabled img 的舊 per-mode 0.25/0.5/wireframe-opacity
-   已被上面統一 .control-box ... img 三階規則取代（disabled 0.2，user 2026-10-01） */
-
-/* active 狀態的按鈕（只改變文字顏色，邊框由指示器處理）
-   盒底改高對比黑/白後文字吃 --lib-fg 與盒底對比（mode1 黑底→白字 / mode2 白底→黑字，wireframe 另走下方 stroke 色） */
+/* active 文字＝--lib-fg（勿寫死黑／白；桌面 .control-panel 已 remap 成頁面前景） */
 .custom-button.active {
   color: var(--lib-fg);
 }
 #create-app.wireframe-mode .custom-button.active {
-  color: var(--wireframe-border); /* Wireframe 模式下使用動態邊框顏色 */
+  color: var(--wireframe-border);
 }
 
-/* 增加 :not(:disabled) 伪类，确保非 active 按钮在 hover 时有反馈 */
-/* hover 只在桌面版（gate 同 desktop-canvas-container），手機/直放平板 tap 後不殘留 hover 變色 */
+/* hover 只在桌面（gate 同 desktop-canvas-container），免觸控殘留 hover 色 */
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   .custom-button:not(.active):not(:disabled):hover {
-    color: #888; /* 一個比灰色稍深的顏色 */
+    color: #888;
   }
   #create-app.inverse-mode .custom-button:not(.active):not(:disabled):hover {
     color: #ccc;
   }
   #create-app.wireframe-mode .custom-button:not(.active):not(:disabled):hover {
-    color: #888; /* Wireframe 模式下的 hover 顏色 */
+    color: #888;
   }
 }
 
-/* Rotate / Custom 按鈕未選中：border 透明，icon 透明度由上面 .control-box img 規則處理
-   hover 時 icon 回到 100%（border 不再顯示，因為盒底已是高對比實心） */
+/* 未選中鈕：hover 時 icon 回 100% */
 .custom-button-rotate:not(.active):not(:disabled),
 .custom-button-custom:not(.active):not(:disabled) {
   border-color: transparent;
@@ -881,25 +758,18 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   }
 }
 
-/* mode2 反相：盒底白 → active 文字黑（var(--lib-fg)，由 .custom-button.active 統一處理已涵蓋，保留註解避免再回退寫死白字） */
-
 .image-button:disabled {
   cursor: var(--cursor-not-allowed);
 }
 
-/* image-button:disabled img 的舊 per-mode rules 也已統一到上面（user 2026-05-20） */
-
-/* --- 分隔線 --- */
-/* 移除桌面版分隔線 */
-
 /* --- 滑桿 --- */
 .slider-container {
   display: flex;
-  justify-content: center; /* 水平置中 */
-  align-items: center; /* 垂直置中 */
-  gap: var(--slider-gap); /* 滑桿與標籤的間距 */
+  justify-content: center;
+  align-items: center;
+  gap: var(--slider-gap);
   width: 100%;
-  margin: calc(2px * var(--scale)) 0; /* 為滑桿容器增加垂直 margin */
+  margin: calc(2px * var(--scale)) 0;
 }
 
 .custom-slider {
@@ -908,55 +778,53 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   width: var(--slider-width);
   height: var(--slider-height);
   border-radius: var(--slider-height);
-  background: #e6e6e6; /* 軌道顏色 */
+  background: #e6e6e6;
   outline: none;
-  transition: none; /* 移除 transition 避免延遲 */
-  margin: 0; /* 移除預設 margin */
+  transition: none; /* 不過渡：免切換時顏色延遲 */
+  margin: 0;
 }
 
 .custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: var(--slider-thumb-size); /* 滑塊寬度 */
-  height: var(--slider-thumb-size); /* 滑塊高度 */
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
   border-radius: 50%;
   cursor: var(--cursor-pointer);
-  border: none; /* 移除邊框 */
-  background: #e6e6e6; /* 滑塊顏色 */
-  transition: none; /* 移除 transition 避免顏色切換延遲 */
+  border: none;
+  background: #e6e6e6;
+  transition: none;
 }
 
 .custom-slider::-moz-range-thumb {
-  width: var(--slider-thumb-size); /* 滑塊寬度 */
-  height: var(--slider-thumb-size); /* 滑塊高度 */
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
   border-radius: 50%;
   cursor: var(--cursor-pointer);
-  border: none; /* 移除邊框 */
-  background: #e6e6e6; /* 滑塊顏色 */
-  transition: none; /* 移除 transition 避免顏色切換延遲 */
+  border: none;
+  background: #e6e6e6;
+  transition: none;
 }
 
-/* 當啟用時，根據變數改變顏色 */
+/* enabled：色由 ui-state.js 寫 --track-color／--thumb-color */
 .custom-slider.enabled {
   background-color: var(--track-color);
-  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease; /* 添加 transition 讓切換更平滑 */
+  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 .custom-slider.enabled::-webkit-slider-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; /* 添加 transition */
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 .custom-slider.enabled::-moz-range-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; /* 添加 transition */
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
-/* Inactive slider track + thumb 用「box-internal fg」色 = var(--lib-fg)（盒內 fg：mode1 黑 / mode2 白）。
-   ⚠️必須拆 3 條（track / ::-webkit-slider-thumb / ::-moz-range-thumb）各自一條 selector list：
-   早版把 6 個 selector（含 Chromium 不認的 ::-moz-range-thumb）grouped 成一條 → 整條 selector list 無效被丟棄
-   → inactive slider 沒吃到 var(--lib-fg)、fallback 回預設 #e6e6e6 淺灰（比 icon 0.5 黑淺很多，user 2026-06-11 報「slider 比 icon 淺」）。
-   拆開後各瀏覽器各留 track + 自家 thumb，inactive slider 才正確 = var(--lib-fg) @ opacity 0.5（跟 icon 同階）。 */
+/* inactive slider＝var(--lib-fg)（opacity 另設，跟 icon 同階）。
+   ⚠️ track／::-webkit-slider-thumb／::-moz-range-thumb 必須各自一條：Chromium 不認 ::-moz-range-thumb，
+   混在同一 selector list 會整條被丟棄（退回 #e6e6e6）。 */
 #create-app.standard-mode .custom-slider:not(.enabled),
 #create-app.inverse-mode .custom-slider:not(.enabled) {
   background: var(--lib-fg);
@@ -974,13 +842,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   box-shadow: none;
 }
 
-/* Wireframe mode (mode3) inactive slider 統一交給下面 wireframe-mode 整段 (.enabled / :not(.enabled) 同色)
-   差別只在 opacity，由 line ~862 .custom-slider:not(.enabled) { opacity: 0.5 } 處理 */
-
-/* Wireframe (= site mode3) slider/thumb 顏色 = box 內 --lib-fg（盒底改高對比黑/白後直接吃 --lib-fg：
-   .dark-icons＝頁亮→黑底→白 slider；無＝頁暗→白底→黑 slider，由 --lib-fg override 自動切，不需再分 .dark-icons）。
-   active/inactive 差別只在 opacity（user 2026-05-20 規格）。
-   用 !important 蓋 .custom-slider.enabled 的 var(--track-color) — 該 var 在 wireframe mode 沒設值會 fallback 到 initial */
+/* mode3 slider／thumb＝--lib-fg（active/inactive 同色，差別只在 opacity）。
+   !important 蓋 .enabled 的 var(--track-color)（mode3 未設值） */
 #create-app.wireframe-mode .custom-slider,
 #create-app.wireframe-mode .custom-slider.enabled {
   background-color: var(--lib-fg) !important;
@@ -994,21 +857,12 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   background-color: var(--lib-fg) !important;
 }
 
-/* Slider hover 效果 */
-/* 當 hover 在某個 slider 上時，其他 slider 變成 50% 透明 */
-/* .slider-container.dimmed .custom-slider {
-  opacity: 0.5;
-  transition: opacity var(--dur-micro) ease;
-} */
-
-/* Disabled slider 也要保持 50% 透明度（所有模式） */
 .custom-slider:not(.enabled) {
   opacity: 0.5;
-  pointer-events: none; /* 禁用所有滑鼠互動 */
-  cursor: var(--cursor-not-allowed); /* 顯示禁用游標 */
+  pointer-events: none;
+  cursor: var(--cursor-not-allowed);
 }
 
-/* 確保 disabled slider 的 thumb 也不會有任何互動反應 */
 .custom-slider:not(.enabled)::-webkit-slider-thumb {
   pointer-events: none;
 }
@@ -1021,10 +875,10 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 .angle-input {
   font-family: var(--font-family);
   font-size: var(--slider-label-font-size);
-  min-width: calc(40px * var(--scale)); /* 增加寬度以容納輸入 */
+  min-width: calc(40px * var(--scale));
   width: calc(40px * var(--scale));
   text-align: center;
-  color: #999; /* 預設顏色 */
+  color: #999;
   transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease;
   background: none;
   border: none;
@@ -1033,7 +887,6 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   cursor: var(--cursor-text);
 }
 
-/* Enabled label 顏色 = 三原色（user 2026-05-20：mode1/2 active 看三原色） */
 #r-angle-label.enabled,
 .mobile-r-angle-label.enabled {
   color: var(--r-color);
@@ -1047,41 +900,36 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   color: var(--b-color);
 }
 
-/* Wireframe (= site mode3) angle label 對齊 slider 邏輯（= 對齊 --lib-fg）：
-   盒底改高對比黑/白後直接吃 --lib-fg（頁亮黑底→白 label / 頁暗白底→黑 label），不需再分 .dark-icons */
+/* mode3 label＝--lib-fg（同 slider） */
 #create-app.wireframe-mode .angle-input {
   color: var(--lib-fg) !important;
 }
 
-/* Inactive label 用 box-internal fg 色（= --lib-fg）+ 0.5 opacity（user 2026-05-20）；
-   盒底改高對比黑/白後直接吃 --lib-fg：黑底→白 label / 白底→黑 label（mode1/2 同條規則自動反）；
-   enabled label 已在上面 R/G/B color rule 走三原色，wireframe 不另 override */
+/* inactive label：--lib-fg＋0.5（enabled 走上面三原色） */
 #create-app.standard-mode .angle-input:not(.enabled),
 #create-app.inverse-mode .angle-input:not(.enabled) {
   color: var(--lib-fg) !important;
   opacity: 0.5;
 }
-/* Wireframe inactive angle-input：color 已在上面 .angle-input 整段統一處理（active/inactive 同色寫死黑/白）；
-   inactive 的 opacity:0.5 仍要在此 declare，覆蓋 .enabled 的預設 opacity:1 */
+/* mode3 inactive 仍要宣告 0.5（color 已在上面統一） */
 #create-app.wireframe-mode .angle-input:not(.enabled) {
   opacity: 0.5;
 }
-/* 桌面 slider＋角度 label 未 enabled＝disabled（字數不足）→ 同 icon disabled 階 0.2（user 2026-10-01）；
-   手機 bottom bar 仍走上面 0.5（手機 icon 尚未改三階） */
+/* 桌面 slider＋角度 label 未 enabled＝disabled（字數不足）→ 同 icon disabled 階 0.2；手機 bottom bar 仍走 0.5 */
 #create-app .control-box .custom-slider:not(.enabled),
 #create-app .control-box .angle-input:not(.enabled) {
   opacity: 0.2;
 }
-/* 桌面 disabled slider hover 要看到 not-allowed（user 2026-10-01）：上面通用規則的 pointer-events:none 會讓游標穿透、
-   永遠顯示不出來 → 桌面開回 pe；input 本身已是 disabled 屬性，拖不動。thumb 另設（-moz 拆條，見上方 slider 註解） */
+/* 桌面 disabled slider 開回 pointer-events，not-allowed 游標才顯示得出來（input 本身 disabled、拖不動）。
+   thumb 另設（-moz 須拆條，見上方 slider 註解） */
 #create-app .control-box .custom-slider:not(.enabled) {
   pointer-events: auto;
 }
-/* 桌面 enabled slider 一律 hover 游標（user 2026-10-01）：range input 的 UA 預設 cursor:default＝系統原生游標、不是站內自製圖 */
+/* range input UA 預設 cursor:default＝系統游標 → 明寫站內游標 */
 #create-app .control-box .custom-slider.enabled {
   cursor: var(--cursor-pointer);
 }
-/* disabled 角度數字：不能輸入（ui-state.js 設 disabled），游標同 slider（user 2026-10-01） */
+/* disabled 角度數字（ui-state.js 設 disabled）：游標同 slider */
 #create-app .control-box .angle-input:not(.enabled) {
   cursor: var(--cursor-not-allowed);
 }
@@ -1093,8 +941,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 }
 
 /* --- 通用 Class --- */
-/* scope 到 #create-app：site header 用 Tailwind `class="hidden md:flex"` 切換桌面/手機 nav，
-   未 scope 的 `.hidden { display:none !important }` 會壓過 md:flex 讓整個 header 桌面 nav 塌掉 */
+/* scope 到 #create-app：未 scope 的 .hidden { display:none !important } 會壓過 site header 的 md:flex、桌面 nav 塌掉 */
 #create-app .hidden {
   display: none !important;
 }
@@ -1105,15 +952,13 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   display: none !important;
 }
 
-/* --- 響應式設計（手機版規則）已移至 css/mobile.css --- */
-
 /* --- Color Wheel Play/Pause 按鈕樣式 --- */
 .colorwheel-play-button {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 30px; /* 2026-06-11 40→30：色環內洞縮小（環帶變寬 inner 0.62→0.50），play 鈕跟著縮才放得進洞 */
+  width: 30px; /* 30：放得進色環中央洞（inner 0.50） */
   height: 30px;
   border-radius: 50%;
   background-color: transparent;
@@ -1124,19 +969,16 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   justify-content: center;
   padding: 0;
   z-index: 10;
-  transition: opacity var(--dur-micro) ease; /* 只保留 opacity transition，移除 transform transition 避免抖動 */
+  transition: opacity var(--dur-micro) ease; /* 不過渡 transform（會抖） */
 }
 
-/* Play 狀態時向右移動 3px — 三角形 icon 光學中心偏左，幾何 center 視覺看起來左偏（user 2026-05-20 從 1px 加到 3px） */
+/* 三角形 icon 光學中心偏左 → 右移 3px */
 .colorwheel-play-button.is-play {
   transform: translate(calc(-50% + 3px), -50%);
   transition: opacity var(--dur-micro) ease;
 }
 
-/* 2026-09-15 user：hover 不變透明度（原 :hover opacity 0.7 已刪） */
-
-/* 滑鼠點擊/active 不顯 outline；鍵盤聚焦（:focus-visible）顯可見外框（無障礙 Phase 1，2026-06-24）。
- * :focus-visible 規則排在 :focus 之後、同特異度由源順序勝出 → 鍵盤才顯、滑鼠不顯。 */
+/* :focus-visible 排在 :focus 之後、同特異度由源順序勝 → 鍵盤聚焦才顯外框、滑鼠點擊不顯 */
 .colorwheel-play-button:focus,
 .colorwheel-play-button:active {
   outline: none;
@@ -1148,62 +990,49 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 }
 
 .colorwheel-play-button img {
-  width: calc(16px * var(--scale)); /* 2026-06-11 24→16：play/pause icon 縮小，配合環帶變寬、中央洞縮小 */
+  width: calc(16px * var(--scale));
   height: calc(16px * var(--scale));
   display: block;
 }
 
-/* 非 Wireframe 時隱藏，但用 opacity 不用 display:none（user 2026-06-24）：退場時 #create-app 在 updateUI 開頭就移除 .wireframe-mode，
-   display:none 會讓 play 鈕在 wheel 還在滑出時「瞬間自己不見」。改 opacity:0（本鈕已有 opacity transition）→ 跟著 container 一起 fade/slide 出。
-   穩態 mode1/2 整個盒 display:none、play 鈕不會殘留可見。pointer-events:none 防 fade 中誤點。 */
+/* 非 mode3 用 opacity 隱藏（非 display:none）：退場時 .wireframe-mode 先被移除，display:none 會讓 play 鈕
+   在色環收合中瞬間消失。pointer-events:none 防淡出中誤點 */
 #create-app:not(.wireframe-mode) .colorwheel-play-button {
   opacity: 0;
   pointer-events: none;
 }
-/* ========================================
-   手機版樣式（手機 <768 ＋ 直放平板 768-1023）
-   從 style.css 拆分出來以便維護
-   ========================================
-   含：mobile container / logo / control panels / sliders /
-       color picker bar / input / bottom bar / bento / 動畫
-   ======================================== */
+/* ===== 手機版（<768 ＋ 直放平板 768–1023）===== */
 
-/* --- 響應式設計 (RWD) ---
-   手機 gate 含直放平板 768-1023（桌面版在此區間左右出血、且 768 剛好曾踩 JS/CSS 差 1px 全白坑）；
-   ⚠️ 與 utils.js checkMobileMode 第一條 matchMedia 必須一字不差。矮橫向另走上方 max-height:500 區塊。 */
+/* ⚠️ 手機 gate 須與 utils.js checkMobileMode 第一條 matchMedia 一字不差（768 曾踩 JS/CSS 差 1px 全白坑）。
+   直放平板走手機版（桌面版在此區間左右出血）；矮橫向另走上方 max-height:500 區塊。 */
 @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
-  /* 取消所有手機版的 hover 效果（但保留 :active 效果以提供觸摸反饋）*/
-  /* 排除 save button icon，避免干擾動畫 */
   #create-app {
-    overflow: hidden; /* 手機版固定，不允許滾動 */
-    position: fixed; /* 確保完全固定 */
-    /* top = site header 高度，避免被 header (position:fixed top:0 z:9999) 蓋住 */
+    overflow: hidden;
+    position: fixed;
+    /* top＝site header 高（header fixed 會蓋住） */
     top: var(--header-height, 80px);
     left: 0;
     width: 100vw;
-    /* 高度也要扣掉 header，否則底部按鈕被截掉 */
+    /* 高也扣 header，否則底部按鈕被截掉 */
     height: calc(100vh - var(--header-height, 80px));
     height: calc(100dvh - var(--header-height, 80px));
   }
 
-  /* === 手機版主容器：Flexbox 垂直佈局，統一 gap === */
+  /* === 手機主容器 === */
   .main-container {
     display: flex !important;
     flex-direction: column;
     width: 100%;
-    /* 父層 #create-app 已扣掉 header 高度，這裡填 100% 即可 */
     height: 100%;
-    padding: 2rem 1.5rem 2rem; /* 上 2rem（從 3rem 減少），左右 1.5rem，下 2rem */
-    gap: 1rem; /* logo 和 content section 之間的間距 */
+    padding: 2rem 1.5rem 2rem;
+    gap: 1rem;
     overflow: hidden;
     box-sizing: border-box;
-    /* 定義 CSS 變數：按鈕列和內容區塊的 gap */
     --mobile-content-gap: 1rem; /* Custom 區塊和 Color Picker 的 gap */
-    --mobile-btn-gap: 1.5rem; /* 底部按鈕列的 gap */
+    --mobile-btn-gap: 1.5rem;
     --mobile-btn-size: calc((100vw - 3rem - 3 * var(--mobile-btn-gap)) / 4);
   }
 
-  /* 手機版：強制顯示手機版元素 */
   .mobile-content-section {
     display: flex !important;
   }
@@ -1214,83 +1043,76 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   /* === 隱藏桌面版元素 === */
   .display-area.desktop-only {
-    display: none !important; /* 隱藏桌面版的 display-area */
+    display: none !important;
   }
 
   .input-container {
-    display: none; /* 隱藏桌面版的輸入框 */
+    display: none;
   }
 
   .control-panel {
-    display: none; /* 隱藏桌面版的 control-panel */
+    display: none;
   }
 
-  /* === 手機版 Logo 容器：在 mobile-content-section 內 === */
+  /* === 手機 Logo（canvas）容器 === */
   .mobile-logo-container {
-    flex: 1 1 auto; /* 允許伸縮 */
-    width: 100%; /* 初始狀態：100% 寬度 */
-    min-height: 0; /* 允許縮小 */
-    /* 移除 aspect-ratio，讓 JS 根據可用空間動態計算 canvas 尺寸 */
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    /* 不設 aspect-ratio：canvas 尺寸由 JS 依可用空間算 */
     display: flex;
-    justify-content: center; /* 水平置中 */
-    align-items: center; /* 垂直置中 */
+    justify-content: center;
+    align-items: center;
     padding: 0;
     box-sizing: border-box;
-    /* 添加平滑過渡效果 */
     transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
   }
 
-  /* Logo 大小等級：直接控制寬度 */
-  /* 1. 初始狀態（standard/inverse，無 panel）：100% - 已在上方設定 */
+  /* Logo 寬度等級（.has-custom 由 JS 切） */
 
-  /* 2. Standard/Inverse 模式下有 custom 出現：縮小至 70% */
   #create-app.standard-mode .mobile-logo-container.has-custom,
   #create-app.inverse-mode .mobile-logo-container.has-custom {
     width: 70%;
   }
 
-  /* 3. Wireframe 模式下無 custom：保持 100%（color picker 一定存在但不縮小）*/
+  /* mode3 無 custom：色條常駐但 logo 不縮 */
   #create-app.wireframe-mode .mobile-logo-container {
     width: 100%;
   }
 
-  /* 4. Wireframe 模式下有 custom：縮小至 65%（與 Standard/Inverse 一致）*/
   #create-app.wireframe-mode .mobile-logo-container.has-custom {
     width: 65%;
   }
 
   #canvas-container {
-    /* 手機版 Canvas Container：自動尺寸，包裹 canvas 內容 */
     width: auto;
     height: auto;
-    /* 移除 aspect-ratio，讓 canvas 決定容器大小 */
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background-color var(--dur-base) ease; /* 對齊 #create-app */
+    transition: background-color var(--dur-base) ease;
     box-sizing: border-box;
   }
 
-  /* p5.js canvas 完全填滿 container，保持正方形 */
+  /* !important 蓋 p5 寫在 canvas 上的 inline 寬高 */
   #canvas-container canvas {
     width: 100% !important;
     height: 100% !important;
     max-width: 100%;
     max-height: 100%;
     display: block;
-    object-fit: contain; /* 確保 canvas 內容等比例縮放 */
+    object-fit: contain;
   }
 
-  /* === 手機版 Custom 展開區域：在 section 內部 === */
+  /* === 手機 Custom 展開區 === */
   .mobile-custom-angle-controls {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    width: 100%; /* 填滿父容器寬度 */
+    width: 100%;
     background: transparent;
     box-sizing: border-box;
-    flex-shrink: 0; /* 不縮小 */
-    /* 預設收起 */
+    flex-shrink: 0;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
@@ -1298,39 +1120,36 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
                 opacity var(--dur-base) var(--ease-standard);
   }
 
-  /* 隱藏狀態 */
   .mobile-custom-angle-controls.hidden {
     max-height: 0 !important;
     opacity: 0 !important;
   }
 
-  /* 顯示時展開 */
   .mobile-custom-angle-controls:not(.hidden) {
-    max-height: 120px; /* 更精確的高度值 */
+    max-height: 120px;
     opacity: 1;
   }
 
-  /* 內層容器（user 2026-07-03 拿掉底綫、改桌面淡疊盒：bg 統一在下方「手機盒底淡疊」區塊） */
+  /* 內層；盒底色統一在檔尾「手機盒底淡疊」區塊 */
   .mobile-custom-angle-controls .controls-inner {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
-    padding: 1.2rem; /* 盒有底色後內容不貼盒邊（原底綫時代左右歸零對齊輸入框） */
+    padding: 1.2rem;
     border: none;
     border-radius: 0;
     box-sizing: border-box;
     gap: 0.8rem;
-    overflow: hidden; /* 內容物不能超出 */
+    overflow: hidden;
   }
 
-  /* Sliders box - 左側區域 */
   .mobile-custom-angle-controls .sliders-box {
-    flex: 1 1 auto; /* 可伸縮，但不超過最大寬度 */
+    flex: 1 1 auto;
     display: flex;
     box-sizing: border-box;
-    min-width: 0; /* 允許縮小 */
-    overflow: hidden; /* 防止內容溢出 */
+    min-width: 0;
+    overflow: hidden;
   }
 
   .mobile-custom-angle-controls .sliders-wrapper {
@@ -1338,64 +1157,60 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.7rem; /* slider 之間的間距 */
-    min-width: 0; /* 允許縮小 */
+    gap: 0.7rem;
+    min-width: 0;
   }
 
   .mobile-custom-angle-controls .slider-container {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    gap: 0.2rem; /* 縮小 slider 和 label 之間的間距 */
+    gap: 0.2rem;
     width: 100%;
     margin: 0;
-    min-width: 0; /* 允許縮小 */
+    min-width: 0;
   }
 
   .mobile-custom-angle-controls .custom-slider {
-    flex: 1 1 auto; /* 可伸縮 */
-    min-width: 0; /* 允許縮小 */
-    max-width: 100%; /* 不超過容器 */
-    height: 3px; /* 手機版 slider 高度 */
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    height: 3px;
   }
 
-  /* 手機版 slider thumb 尺寸 */
   .mobile-custom-angle-controls .custom-slider::-webkit-slider-thumb {
     width: 14px;
     height: 14px;
-    box-shadow: none; /* 移除任何陰影 */
+    box-shadow: none;
   }
 
   .mobile-custom-angle-controls .custom-slider::-moz-range-thumb {
     width: 14px;
     height: 14px;
-    box-shadow: none; /* 移除任何陰影 */
+    box-shadow: none;
   }
 
-  /* 手機版 angle label 樣式 */
   .mobile-custom-angle-controls .angle-input {
-    width: 38px; /* 縮小寬度 */
-    flex-shrink: 0; /* 不縮小 */
+    width: 38px;
+    flex-shrink: 0;
     text-align: center;
     font-size: 14px;
-    pointer-events: none; /* 不可編輯 */
-    user-select: none; /* 不可選取 */
+    pointer-events: none;
+    user-select: none;
   }
 
-  /* 右側按鈕區域 */
   .mobile-custom-angle-controls .icon-buttons-wrapper {
     display: flex;
     flex-direction: column;
     justify-content: space-around;
     align-items: center;
     gap: 0.8rem;
-    flex-shrink: 0; /* 不縮小，保持固定寬度 */
-    flex-grow: 0; /* 不放大 */
+    flex-shrink: 0;
+    flex-grow: 0;
     width: calc(var(--mobile-btn-size) * 0.7); /* 容納 44×44 touch target */
   }
 
-  /* Random / Reset 按鈕：純 icon 樣式繼承桌面 .image-button base（padding/border/background/cursor/display 全免重寫）
-     button 容器 ≥44×44 滿足 a11y touch target，icon 視覺尺寸繼續用 var 縮放 */
+  /* 繼承桌面 .image-button base；button ≥44×44 觸控標準，icon 尺寸另走 var */
   .mobile-custom-angle-controls .icon-buttons-wrapper .image-button {
     width: 44px;
     height: 44px;
@@ -1403,13 +1218,13 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-random-img {
     width: calc(var(--mobile-btn-size) * 0.5);
-    height: calc(var(--mobile-btn-size) * 0.4); /* Random icon 扁一點 */
+    height: calc(var(--mobile-btn-size) * 0.4);
     object-fit: contain;
   }
 
   .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-reset-img {
     width: calc(var(--mobile-btn-size) * 0.44);
-    height: calc(var(--mobile-btn-size) * 0.44); /* Reset icon 正方形 */
+    height: calc(var(--mobile-btn-size) * 0.44);
     object-fit: contain;
   }
 
@@ -1417,15 +1232,14 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.6;
   }
 
-  /* === 手機版 Color Picker Bar：在 section 內部 === */
+  /* === 手機色條（Color Picker Bar）=== */
   .mobile-colorpicker-bar {
     display: flex;
     align-items: stretch;
-    width: 100%; /* 填滿父容器寬度 */
+    width: 100%;
     background: transparent;
     box-sizing: border-box;
-    flex-shrink: 0; /* 不縮小 */
-    /* 預設收起 */
+    flex-shrink: 0;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
@@ -1433,43 +1247,39 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
                 opacity var(--dur-base) var(--ease-standard);
   }
 
-  /* 隱藏狀態 */
   .mobile-colorpicker-bar.hidden {
     max-height: 0 !important;
     opacity: 0 !important;
   }
 
-  /* 顯示時展開 */
   .mobile-colorpicker-bar:not(.hidden) {
-    max-height: 80px; /* 更精確的高度值 */
+    max-height: 80px;
     opacity: 1;
   }
 
-  /* 內層容器：bar 形狀（user 2026-07-03 拿掉底綫、改桌面淡疊盒：bg 統一在下方「手機盒底淡疊」區塊） */
   .mobile-colorpicker-bar .colorpicker-bar-inner {
     display: flex;
     flex-direction: row;
-    align-items: center; /* 垂直置中 */
+    align-items: center;
     width: 100%;
-    gap: 1rem; /* 與其他元素統一的 gap */
-    padding: 1rem; /* 盒有底色後 track 不貼盒邊（原底綫時代左右歸零對齊輸入框） */
+    gap: 1rem;
+    padding: 1rem;
     border: none;
     border-radius: 0;
     box-sizing: border-box;
   }
 
-  /* Color Picker 容器：bar 形狀，9:1 比例的 9 */
+  /* 色條容器：bar : play 鈕 = 9 : 1 */
   #mobile-colorpicker-container {
-    flex: 9; /* bar : play = 9:1 */
+    flex: 9;
     position: relative;
-    height: 25px; /* 固定高度 */
-    border: 2px solid; /* 加上邊框 */
-    border-radius: 24px; /* 與 btn bar 相同 */
-    overflow: hidden; /* 隱藏超出邊框的部分 */
+    height: 25px;
+    border: 2px solid;
+    border-radius: 24px;
+    overflow: hidden;
     box-sizing: border-box;
   }
 
-  /* 根據模式設定 container 邊框顏色 */
   #create-app.standard-mode #mobile-colorpicker-container {
     border-color: black;
   }
@@ -1482,11 +1292,10 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     border-color: var(--wireframe-border);
   }
 
-  /* Play 按鈕：9:1 比例的 1，無外框 */
   .mobile-colorwheel-play-btn {
-    flex: 1; /* bar : play = 9:1 */
-    height: 30px; /* 加大到 30px */
-    border: none; /* 移除外框 */
+    flex: 1;
+    height: 30px;
+    border: none;
     background: none;
     cursor: var(--cursor-pointer);
     display: flex;
@@ -1507,182 +1316,75 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.6;
   }
 
-
-  /* 各個面板：直接顯示，不需要額外包裹 */
-  .mobile-panel {
-    width: 100%;
-    height: 100%;
-    display: none; /* 預設隱藏 */
-    opacity: 0;
-    transform: translateY(-20px); /* 輕微向上偏移 */
-    transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;
-    pointer-events: auto; /* 面板本身可互動 */
-  }
-
-  .mobile-panel.active {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    opacity: 1;
-    transform: translateY(0); /* 滑入 */
-  }
-
-  /* Input 面板：只有輸入框，圓角矩形 */
-
-
-  /* Rotate Bento 面板 - 填滿整個面板高度（扣除 wrapper 的上下 1rem padding） */
-  .mobile-bento-container {
-    display: flex;
-    gap: 1rem;
-    background-color: transparent;
-    height: 100%; /* 填滿面板高度 */
-  }
-
-  .mobile-bento-left {
-    flex: 7; /* 7:3 比例的 7 */
-    display: flex;
-    gap: 1rem;
-    border: 2px solid; /* 左側區域有自己的框 */
-    border-radius: 18px;
-    padding: 1rem;
-  }
-
-  .mobile-bento-left .sliders-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-    justify-content: center;
-  }
-
-  .mobile-bento-left .slider-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .mobile-bento-left .custom-slider {
-    flex: 1;
-  }
-
-  .mobile-bento-left .icon-buttons-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    justify-content: center;
-  }
-
-  .mobile-bento-left .icon-buttons-wrapper .image-button {
-    width: 32px;
-    height: 32px;
-    padding: 4px;
-  }
-
-  .mobile-bento-left .icon-buttons-wrapper .image-button img {
-    width: 100%;
-    height: 100%;
-  }
-
-  .mobile-bento-button {
-    flex: 1; /* 上下按鈕平均分配空間 */
-    border: 2px solid; /* 每個按鈕有自己的框 */
-    border-radius: 12px;
-    background: none;
-    cursor: var(--cursor-pointer);
-    padding: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .mobile-bento-button img {
-    width: 24px;
-    height: 24px;
-  }
-
-  /* === 手機版內容區域：統一容器，包含輸入框、Custom 區塊、Color Picker Bar === */
+  /* === 手機內容區：輸入框＋Custom＋色條 === */
   .mobile-content-section {
-    /* 改為參與 flex 佈局 */
-    flex: 1 1 auto; /* 佔用剩餘空間 */
-    width: 100%; /* 填滿 parent 寬度（受 parent padding 限制）*/
-    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
     flex-direction: column;
-    justify-content: flex-end; /* Custom 和 Color Picker 對齊底部 */
-    align-items: center; /* 所有子元素水平置中 */
-    gap: var(--mobile-content-gap); /* 使用 1rem 的內容 gap */
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--mobile-content-gap);
     box-sizing: border-box;
-    min-height: 0; /* 允許縮小 */
+    min-height: 0;
     z-index: 50;
   }
 
-  /* 輸入框區域：使用剩餘空間，內部垂直居中 */
   .mobile-input-area {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 auto; /* 不佔用剩餘空間 */
-    width: 100%; /* 填滿父容器寬度 */
-    /* 使用固定高度而不是 min-height，確保字體大小變化時容器高度不變 */
-    height: calc(2rem * 1.2 * 3); /* 固定高度：3行文字（基於 2rem 字體）*/
-    margin-bottom: var(--mobile-content-gap); /* 畫面最大時，下方增加 gap */
-    transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease; /* 平滑過渡 */
-    overflow: visible; /* 允許內容溢出但不影響容器高度 */
+    flex: 0 0 auto;
+    width: 100%;
+    /* 固定 height（非 min-height）：字級變化時容器高不變 */
+    height: calc(2rem * 1.2 * 3); /* 3 行 × 2rem × 1.2 */
+    margin-bottom: var(--mobile-content-gap);
+    transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease;
+    overflow: visible;
   }
 
-  /* ========================================
-     手機版輸入框高度規範（根據模式、文字數量、Custom 狀態）
-     ======================================== */
+  /* --- 手機輸入框高度規範（依 mode／字數／Custom 狀態）--- */
 
-  /* 預設：3 行高度（適用於所有情況，包括 <6 字和 >6 字）*/
-  /* 已在上方定義：height: calc(2rem * 1.2 * 3); */
-  /* <6 字時，通過 padding-top 讓大字在 3 行容器中垂直置中 */
+  /* <6 字的大字靠 JS 調 padding-top 在 3 行容器內置中 */
 
-  /* --- 1. 預設模式（不開啟 Custom）--- */
+  /* --- 1. 無 Custom --- */
 
-  /* 1.1 Standard/Inverse 模式：維持 3 行高度（無論字數）*/
-  /* 使用預設高度，不需要額外規則 */
+  /* 1.1 Standard/Inverse：沿用預設 3 行 */
 
-  /* 1.2 Wireframe 模式：永遠是小字單行 + padding（無論字數）*/
+  /* 1.2 mode3：恆為小字單行＋上下 padding */
   #create-app.wireframe-mode .mobile-input-area:not(.has-custom) {
-    height: calc(2rem * 1.2 + 2rem * 0.8 * 2); /* 小字單行 + 上下 padding */
+    height: calc(2rem * 1.2 + 2rem * 0.8 * 2);
     padding-top: calc(2rem * 0.8);
     padding-bottom: calc(2rem * 0.8);
   }
 
-  /* --- 2. 開啟 Custom 模式 --- */
+  /* --- 2. 開啟 Custom --- */
 
-  /* 2.1 Standard/Inverse + Custom：維持 3 行高度（無論字數）*/
+  /* 2.1 Standard/Inverse＋Custom：3 行 */
   #create-app.standard-mode .mobile-input-area.has-custom,
   #create-app.inverse-mode .mobile-input-area.has-custom {
-    height: calc(2rem * 1.2 * 3); /* 維持 3 行高度 */
+    height: calc(2rem * 1.2 * 3);
     margin-bottom: 0;
     padding: 0;
   }
 
-  /* 2.2 Wireframe + Custom：max 狀態，小字單行 + gap 高度（無論字數）*/
+  /* 2.2 mode3＋Custom：小字單行＋gap */
   #create-app.wireframe-mode .mobile-input-area.has-custom {
-    height: calc(2rem * 1.2 + var(--mobile-content-gap)); /* 小字單行 + 1rem gap */
-    margin-top: calc(-1 * var(--mobile-content-gap)); /* 負 margin 抵消 logo 和輸入框之間的 gap */
+    height: calc(2rem * 1.2 + var(--mobile-content-gap));
+    margin-top: calc(-1 * var(--mobile-content-gap)); /* 負 margin 抵消 logo↔輸入框 gap */
     margin-bottom: 0;
     padding: 0;
     display: flex;
-    align-items: center; /* 輸入框在容器內垂直置中 */
+    align-items: center;
   }
 
-  /* 2.3 當有 ColorPicker 但沒有 Custom 時，移除下方 gap */
+  /* 2.3 有色條無 Custom：去下方 gap */
   .mobile-input-area.has-colorpicker:not(.has-custom) {
     margin-bottom: 0;
   }
 
-  /* --- 3. 彩蛋模式 --- */
+  /* --- 3. 彩蛋：沿用上面規則（3 行容器＋JS padding-top 置中；mode3 小字單行），無額外 CSS --- */
 
-  /* 彩蛋模式統一使用 3 行高度（與一般模式相同）*/
-  /* SCCD（單行）和全稱（兩行）都通過 padding-top 在 3 行容器中垂直置中 */
-  /* Wireframe 模式下的彩蛋遵循 Wireframe 的 layout 規則（小字單行 + padding）*/
-  /* 不需要額外的 CSS 規則 */
-
-  /* 鍵盤激活狀態：輸入框強制單行顯示 */
+  /* 鍵盤開啟（JS .keyboard-active）：輸入框強制單行 */
   .mobile-input-area.keyboard-active {
     flex: none !important;
     min-height: auto !important;
@@ -1692,23 +1394,22 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   .mobile-input-area.keyboard-active #mobile-input-box {
     min-height: auto !important;
-    height: 100% !important; /* 填滿父容器高度 */
+    height: 100% !important;
     max-height: none !important;
-    overflow: hidden; /* 隱藏多餘內容 */
-    white-space: nowrap; /* 強制單行 */
-    text-align: center; /* 文字水平置中 */
-    font-size: 2rem !important; /* 鍵盤模式下統一使用小字體，不區分字數 */
-    padding-top: 0 !important; /* 移除 padding */
+    overflow: hidden;
+    white-space: nowrap;
+    text-align: center;
+    font-size: 2rem !important;
+    padding-top: 0 !important;
     padding-bottom: 0 !important;
-    line-height: 40px !important; /* 用 line-height 垂直居中，與 inputHeight 一致 */
+    line-height: 40px !important; /* line-height 垂直置中，須與 mobile.js inputHeight（40）一致 */
   }
 
   #mobile-input-box {
     width: 100%;
     height: auto;
-    /* 固定顯示 3 行，以 2rem 字體大小為基準 */
-    min-height: calc(2rem * 1.2 * 3); /* 3 行的固定高度 */
-    font-size: 2rem; /* 預設 2rem（placeholder 和小字體模式） */
+    min-height: calc(2rem * 1.2 * 3);
+    font-size: 2rem;
     font-family: inherit;
     font-weight: 500;
     text-align: center;
@@ -1717,160 +1418,144 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     outline: none;
     color: inherit;
     resize: none;
-    overflow-y: hidden; /* 不顯示垂直滾動條 */
-    overflow-x: hidden; /* 不顯示水平滾動條 */
+    overflow-y: hidden;
+    overflow-x: hidden;
     line-height: 1.2;
     box-sizing: border-box;
-    /* 防止鍵盤彈出時自動滾動 */
+    /* 防鍵盤彈出時自動捲動 */
     scroll-margin: 0;
-    /* padding 會在 JavaScript 中動態調整以實現垂直置中 */
+    /* padding 由 JS 動態調整以垂直置中 */
     padding-top: 0;
     padding-bottom: 0;
-    /* 同步 font-size 和 padding-top 的過渡動畫，與桌面版一致 */
     transition: font-size var(--dur-micro) ease, padding-top var(--dur-micro) ease;
   }
 
-  /* 當有輸入且不超過 6 個字時，使用較大字體 */
+  /* ≤6 字用大字；>6 字 JS 加 .small-text 縮回 2rem */
   #mobile-input-box:not(:placeholder-shown):not(.small-text) {
     font-size: 3.5rem;
   }
 
-  /* 當輸入超過 6 個字時，縮小字體到 2rem */
   #mobile-input-box.small-text {
     font-size: 2rem;
   }
 
-  /* 最滿狀態（Wireframe + Custom + Color Picker 同時出現）：單行、最小字體 */
+  /* 最滿狀態（mode3＋Custom＋色條）：單行最小字、可橫捲 */
   #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box {
-    font-size: 2rem !important; /* 強制使用最小字體 */
-    height: calc(2rem * 1.2); /* 強制單行高度 */
-    min-height: calc(2rem * 1.2); /* 單行高度 */
-    max-height: calc(2rem * 1.2); /* 限制最大高度為單行 */
-    white-space: nowrap; /* 不換行 */
-    overflow-x: auto; /* 允許水平滾動 */
-    overflow-y: hidden; /* 隱藏垂直滾動 */
-    text-align: center; /* 預設置中 */
-    padding-top: 0 !important; /* 強制移除上下 padding */
-    padding-bottom: 0 !important;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    /* 隱藏滾動條但保留滾動功能 */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-  }
-
-  /* 最滿狀態下文字溢出時：左對齊，方便滑動查看 */
-  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box.overflowing {
-    text-align: left;
-  }
-
-  /* 最滿狀態下隱藏 WebKit 瀏覽器的滾動條 */
-  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Standard 模式下的輸入框顏色 */
-  #create-app.standard-mode #mobile-input-box {
-    color: black;
-    /* 強制使用相同的文字渲染設定，避免切換模式時位置偏移 */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Standard 模式下的 placeholder */
-  #create-app.standard-mode #mobile-input-box::placeholder {
-    color: black;
-    opacity: 0.25;
-  }
-
-  /* Inverse 模式下的輸入框顏色 */
-  #create-app.inverse-mode #mobile-input-box {
-    color: white;
-    /* 強制使用相同的文字渲染設定，避免切換模式時位置偏移 */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Inverse 模式下的 placeholder */
-  #create-app.inverse-mode #mobile-input-box::placeholder {
-    color: white;
-    opacity: 0.5;
-  }
-
-  /* Wireframe 模式下的輸入框：永遠單行 */
-  #create-app.wireframe-mode #mobile-input-box {
-    color: var(--wireframe-border);
-    font-size: 2rem !important; /* 使用較小字體 */
-    height: calc(2rem * 1.2); /* 單行高度 */
+    font-size: 2rem !important;
+    height: calc(2rem * 1.2);
     min-height: calc(2rem * 1.2);
-    max-height: calc(2rem * 1.2); /* 限制為單行 */
-    white-space: nowrap; /* 不換行 */
-    overflow-x: auto; /* 允許水平滾動 */
-    overflow-y: hidden; /* 隱藏垂直滾動 */
+    max-height: calc(2rem * 1.2);
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
     text-align: center;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    /* 隱藏滾動條 */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
+    /* 隱藏捲軸但保留捲動 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  /* Wireframe 模式隱藏 WebKit 瀏覽器的滾動條 */
+  /* 溢出（JS .overflowing）時靠左，方便滑看 */
+  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box.overflowing {
+    text-align: left;
+  }
+
+  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box::-webkit-scrollbar {
+    display: none;
+  }
+
+  #create-app.standard-mode #mobile-input-box {
+    color: black;
+    /* 固定字體渲染：免切換 mode 時文字位移 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #create-app.standard-mode #mobile-input-box::placeholder {
+    color: black;
+    opacity: 0.25;
+  }
+
+  #create-app.inverse-mode #mobile-input-box {
+    color: white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #create-app.inverse-mode #mobile-input-box::placeholder {
+    color: white;
+    opacity: 0.5;
+  }
+
+  #create-app.wireframe-mode #mobile-input-box {
+    color: var(--wireframe-border);
+    font-size: 2rem !important;
+    height: calc(2rem * 1.2);
+    min-height: calc(2rem * 1.2);
+    max-height: calc(2rem * 1.2);
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
   #create-app.wireframe-mode #mobile-input-box::-webkit-scrollbar {
     display: none;
   }
 
-  /* Wireframe 模式下的 placeholder */
   #create-app.wireframe-mode #mobile-input-box::placeholder {
     color: var(--wireframe-border);
     opacity: var(--wireframe-opacity);
   }
 
-  /* === 新版手機介面：底部按鈕列，參與 flex 佈局 === */
+  /* === 手機底部按鈕列 === */
   .mobile-bottom-bar {
-    /* 改為參與 flex 佈局 */
-    flex: 0 0 auto; /* 不縮小不擴展 */
-    width: 100%; /* 與 mobile-content-section 一致 */
-    display: flex;
-    /* 高度：等於按鈕的高度 */
+    flex: 0 0 auto;
+    width: 100%;
     height: var(--mobile-btn-size);
-    justify-content: space-between; /* user 2026-06-11 還原：按鈕均分、首尾貼齊容器邊＝與輸入框同寬對齊 */
+    justify-content: space-between; /* 按鈕均分、首尾貼齊容器＝與輸入框同寬 */
     align-items: center;
-    gap: var(--mobile-btn-gap); /* 使用統一的 gap */
-    padding: 0; /* 不需要內部 padding */
+    gap: var(--mobile-btn-gap);
+    padding: 0;
     box-sizing: border-box;
     background-color: transparent;
     z-index: 200;
   }
 
-  /* 彩蛋狀態：只顯示 mode 和 save 按鈕，靠攏到中間 */
+  /* 彩蛋：只剩 mode＋save 鈕，靠中 */
   .mobile-bottom-bar.easter-egg-active {
-    justify-content: center; /* 靠攏到中間 */
+    justify-content: center;
   }
 
-  /* Custom + Rotate 按鈕組容器（user 2026-07-03 拿掉底綫、改桌面淡疊盒：兩鈕共用一塊底＝對齊桌面 rotation-box） */
+  /* Custom＋Rotate 鈕組：兩鈕共用一塊底（對齊桌面 rotation-box） */
   .mobile-rotation-group {
     display: flex;
     flex-shrink: 0;
-    flex-grow: 0; /* 不擴展容器寬度 */
-    gap: 0.5rem; /* 內部兩個按鈕之間的間距 */
+    flex-grow: 0;
+    gap: 0.5rem;
     height: var(--mobile-btn-size);
     border: none;
     border-radius: 0;
     box-sizing: border-box;
-    padding: 0 0.25rem; /* 左右內邊距讓按鈕不貼邊 */
+    padding: 0 0.25rem;
   }
 
   .mobile-bottom-btn {
-    /* 按鈕尺寸使用 CSS 變數，1:1 正方形 */
     width: var(--mobile-btn-size);
     height: var(--mobile-btn-size);
-    flex-shrink: 0; /* 不縮小 */
-    flex-grow: 0; /* 不放大 */
+    flex-shrink: 0;
+    flex-grow: 0;
     border: none;
-    background-color: transparent; /* user 2026-06-11 手機改底綫：拿掉實心灰底 */
+    background-color: transparent;
     cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
@@ -1881,34 +1566,31 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     position: relative;
   }
 
-  /* rotation-group 內的按鈕：底色已由外層容器提供，內部透明避免雙層疊色 */
+  /* 底色由外層 group 提供，內部透明免雙層疊色 */
   .mobile-rotation-group .mobile-bottom-btn {
     background-color: transparent;
-    height: var(--mobile-btn-size); /* 容器無 border 後不需 -4px 補償 */
+    height: var(--mobile-btn-size);
   }
 
-
   .mobile-bottom-btn img {
-    width: 40%; /* icon 大小為按鈕的 40% */
+    width: 40%;
     height: 40%;
     object-fit: contain;
   }
 
-  /* Save 按鈕圖標：clip-reveal 動畫（升起/沉入 + 自轉），由 sketch.js animateSaveButton 用 GSAP 驅動 */
+  /* Save icon clip-reveal（升起／沉入＋自轉）由 sketch.js animateSaveButton GSAP 驅動 */
   #save-img-mobile,
   #save-img {
     transform-origin: center center;
     will-change: transform;
   }
 
-  /* 前三個按鈕：直角矩形（對齊桌面 .control-box border-radius: 0） */
   .mobile-mode-btn,
   .mobile-custom-btn,
   .mobile-rotate-btn {
     border-radius: 0;
   }
 
-  /* Save 按鈕：圓形（對齊桌面 #save-box border-radius: 50%） */
   .mobile-save-btn {
     border-radius: 50%;
   }
@@ -1917,8 +1599,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.6;
   }
 
-  /* Disabled 狀態：對齊桌面 .control-box.disabled（user 2026-05-20，create.css:354-358）
-     box bg 維持 100% 對比實心（var(--lib-bg) 不動），inactive 視覺只靠內部 icon opacity 表達 */
+  /* disabled：盒底不變，只靠 icon opacity 表達 */
   .mobile-bottom-btn:disabled {
     cursor: var(--cursor-not-allowed);
   }
@@ -1928,16 +1609,13 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.5;
   }
 
-
-  /* 手機版 Rotate 按鈕：當顯示 Play icon 時，向右調整 1px */
+  /* Play icon（JS .play-icon）光學置中右移 */
   .mobile-rotate-btn.play-icon #mobile-rotate-icon {
     position: relative;
     left: 2px;
   }
 
-  /* mode-aware 底色 / 文字色（對齊桌面 .control-box）
-     底色 var(--lib-bg) 已隨 mode 切換（mode1 淺灰 / mode2 深灰 / mode3 依對比度），不需再依 mode 寫 override；
-     icon 顏色由 page-level invert filter rule 處理（updateIconsForMode），這裡只設 color 給文字 icon */
+  /* 文字 icon 色＝--lib-fg（下方 scope remap 成頁面前景）；img 色由 invert filter 處理 */
   #create-app.standard-mode .mobile-bottom-btn,
   #create-app.standard-mode .mobile-rotation-group {
     color: var(--lib-fg);
@@ -1953,38 +1631,17 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     color: var(--lib-fg);
   }
 
-  /* Rotation group 內的按鈕 opacity 邏輯 */
-  /* Active 狀態：100% opacity */
+  /* Rotation group 鈕：active 1／inactive 0.4 */
   .mobile-rotation-group .mobile-bottom-btn.active {
     opacity: 1 !important;
   }
 
-  /* Inactive 狀態：40% opacity */
   .mobile-rotation-group .mobile-bottom-btn.inactive {
     opacity: 0.4 !important;
   }
 
-  /* 移除面板的邊框樣式（各元件有自己的邊框）*/
-
-  /* Bento 按鈕邊框顏色 */
-  #create-app.standard-mode .mobile-bento-container,
-  #create-app.standard-mode .mobile-bento-button {
-    border-color: black;
-  }
-
-  #create-app.inverse-mode .mobile-bento-container,
-  #create-app.inverse-mode .mobile-bento-button {
-    border-color: white;
-  }
-
-  #create-app.wireframe-mode .mobile-bento-container,
-  #create-app.wireframe-mode .mobile-bento-button {
-    border-color: var(--wireframe-border);
-  }
-
-  /* ===== 手機 control bar 底綫化（user 2026-06-11：拿掉實心盒，改桌面那套透明盒 + 底綫）=====
-     盒透明後，line / slider / angle-input 改吃「頁面前景」色 → 在 .mobile-bottom-bar / .mobile-content-section
-     scope 把 --lib-fg override 成頁面 fg（對齊桌面 .control-panel 做法）。 */
+  /* 手機盒近透明 → 盒內容（slider/label/icon）改對比頁面底：
+     在 .mobile-bottom-bar／.mobile-content-section scope remap --lib-fg（同桌面 .control-panel） */
   #create-app.standard-mode .mobile-bottom-bar,
   #create-app.standard-mode .mobile-content-section,
   #create-app.wireframe-mode.dark-icons .mobile-bottom-bar,
@@ -2000,8 +1657,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     --lib-fg-rgb: 255, 255, 255;
   }
 
-  /* 盒透明後 icon 改與「頁面底」對比（對齊桌面 .control-box img filter flip）：
-     頁亮（standard / wireframe.dark-icons）→ 黑 icon 不反；頁暗（inverse / wireframe 非 dark-icons）→ 反白。 */
+  /* icon 對比頁面底（同桌面 .control-box img 的 invert 翻轉） */
   #create-app.standard-mode .mobile-bottom-btn img,
   #create-app.standard-mode .mobile-colorwheel-play-btn img,
   #create-app.standard-mode .mobile-custom-angle-controls .image-button img,
@@ -2019,8 +1675,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     filter: invert(1);
   }
 
-  /* 手機盒底淡疊（user 2026-07-03 拿掉底綫，改回桌面 .control-box 那套 2026-06-22 定案）：
-     白底→黑 5% / 黑底→白 10% / mode3 用 list-strip；active/inactive 只靠 icon opacity 溝通，盒底永遠同一淡疊。 */
+  /* 手機盒底淡疊（同桌面 .control-box）：白底→黑 5%／黑底→白 10%／mode3 用 list-strip */
   .mobile-mode-btn,
   .mobile-save-btn,
   .mobile-rotation-group,
@@ -2033,13 +1688,13 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   #create-app.inverse-mode .mobile-rotation-group,
   #create-app.inverse-mode .mobile-custom-angle-controls .controls-inner,
   #create-app.inverse-mode .mobile-colorpicker-bar .colorpicker-bar-inner {
-    background-color: rgba(var(--theme-fg-rgb), 0.1); /* 黑底→白 10%（theme-fg-rgb 已是白） */
+    background-color: rgba(var(--theme-fg-rgb), 0.1);
   }
   body.mode-color .mobile-mode-btn,
   body.mode-color .mobile-save-btn,
   body.mode-color .mobile-rotation-group,
   body.mode-color .mobile-custom-angle-controls .controls-inner,
   body.mode-color .mobile-colorpicker-bar .colorpicker-bar-inner {
-    background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); /* mode3 同 list strip */
+    background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
   }
 }
