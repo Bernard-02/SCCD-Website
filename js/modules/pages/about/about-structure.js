@@ -550,13 +550,17 @@ export async function initProgramStructure() {
   // ── 桌面：斜綫以角度為主（user 2026-10-03「三排卡片間距加高、斜率別太扁」，取代同日「跟隨連結橫綫長度／砍半」）：
   //    四條斜綫同角 LINE_ANGLE；layoutFanSpacing 已讓兩層 dx 相同 → 層距由角度反推（可見長＝hypot(dx, dy) − 2×GAP，
   //    dy 跟層距 1:1、從當下狀態量一次就能解）＝綫長也相同，SCCD↔AI 連結橫綫寫同長。樹形狀不隨視窗寬變。
-  //    上限＝生長範圍（樹高不超出框＝底到 Degree 卡底）：放不下就二分縮短（角度變平）。下限＝層距 2xl。──
+  //    上限＝生長範圍（樹高不超出框＝底到 Degree 卡底）：放不下就二分縮短（角度變平）。下限＝層距 2xl。
+  //    綫的可見長另計＝最高 box 高 × LINE_LEN_K（user 2026-10-04）：上面只決定層距（box 位置、斜率不變），
+  //    綫在兩卡中心連綫上置中、省下的長度變兩端留白（cacheEndpoints）；連結橫綫同長。──
   const MIN_LEVEL_GAP = 64;   // --spacing-2xl 桌面值
   const LINE_ANGLE = 35 * Math.PI / 180;   // 斜綫與水平夾角（調斜率改這裡）
+  const LINE_LEN_K = 1.2;     // 綫長＝最高 box 高 × 此倍數（調綫長改這裡）
   function layoutLineLengths() {
     const levelBoxes = [...root.querySelectorAll('.prog-children')];
     if (!links[0] || !legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
       levelBoxes.forEach((c) => { c.style.marginTop = ''; });
+      lineLen = 0;
       return;
     }
     const lv = [1, 2].map((level) => {
@@ -588,7 +592,9 @@ export async function initProgramStructure() {
     // 下限＝各層在最小層距時的最長那層（太矮的螢幕寧可樹長高往下捲，也不讓層距小於 2xl）
     const minLen = Math.max(...lv.map((v) => Math.hypot(v.dx, v.dy + MIN_LEVEL_GAP - v.g0) - 2 * GAP));
     L = Math.max(L, minLen);
-    links[0].style.width = `${Math.max(L, linkBaseW).toFixed(2)}px`;
+    // 不超過 L：層距被框壓扁時兩端留白不小於 GAP
+    lineLen = Math.min(L, LINE_LEN_K * Math.max(...[...root.querySelectorAll('.prog-box')].map((b) => b.offsetHeight)));
+    links[0].style.width = `${Math.max(lineLen, linkBaseW).toFixed(2)}px`;
     gapsFor(L).forEach((g, i) => lv[i].boxes.forEach((b) => { b.style.marginTop = `${g.toFixed(2)}px`; }));
     reserveHeights();   // 子列 margin 變了 → 重量父節點佔位高
   }
@@ -596,6 +602,7 @@ export async function initProgramStructure() {
   // ── 連綫：綁 parentBox/childBox，端點快取在 rest 位置（減掉 reveal translate）＋draw 進度 ──
   let lines = [];   // { el, parentBox, childBox, level, draw, sx, sy, ex, ey }
   let GAP = 14;
+  let lineLen = 0;   // 桌面斜綫可見長（layoutLineLengths 設；0＝端點照 GAP 內縮）
   function readGap() { GAP = parseFloat(getComputedStyle(root).getPropertyValue('--prog-line-gap')) || 14; }
   function buildLines() {
     if (!roots || !svg) return;
@@ -634,7 +641,7 @@ export async function initProgramStructure() {
       const x2 = cr.left + cr.width / 2 - base.left, y2 = cr.top - base.top;
       const len = Math.hypot(x2 - x1, y2 - y1) || 1;
       const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
-      const g = len > GAP * 2 + 2 ? GAP : 0;
+      const g = lineLen ? Math.max(0, (len - lineLen) / 2) : (len > GAP * 2 + 2 ? GAP : 0);
       le.sx = x1 + ux * g; le.sy = y1 + uy * g; le.ex = x2 - ux * g; le.ey = y2 - uy * g;
     });
   }
