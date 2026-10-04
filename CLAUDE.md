@@ -137,7 +137,7 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 2. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求
 3. 圖片欄位 = Directus 檔案 → `cdnUrl()` 組 URL；**沒圖＝不顯示／灰底（`var(--lib-bg)`），不放本地佔位圖**
 - **尚未上 Directus**：alumni 整頁（`data/alumni*.json`）、網站地圖（`data/accessibility.json`）；其餘頁面已全接（atlas workshops/industry 已改讀 atlas_workshops / atlas_industry）
-- **legal 三頁後台**（2026-10-04 整理，`scripts/migrate-legal-cms.cjs`）：`regulations`（規章與政策＝頁面說明＋① 學系規章表格＋② 政策列）、`donate`（捐贈＝頁面說明＋捐贈項目；route 名仍叫 support）、`accessibility_statement`（網站地圖的聲明）。可展開的列共用 標題／最後更新／內文（富文本），文字列另有小節、規章列另有分類表格；後台介面預設繁中。⚠️ 舊 `support`／`policy_and_statements` 與 regulations 舊欄位只是藏起來：新版前台上 GitHub Pages＋S3 後跑 `--cleanup` 才刪
+- **legal 三頁後台**（2026-10-04 整理，`scripts/migrate-legal-cms.cjs`）：`regulations`（規章與政策＝頁面說明＋① 學系規章表格＋② 政策列）、`donate`（捐贈＝頁面說明＋捐贈項目；route 名仍叫 support）、`accessibility_statement`（網站地圖的聲明）。可展開的列共用 標題／最後更新／內文（富文本），文字列另有小節、規章列另有分類表格；後台介面預設繁中。舊 `support`／`policy_and_statements` 與 regulations 舊欄位已刪（2026-10-04 `--cleanup`）
 - activities 的 `'/data/xxx.json'` 字串只剩 section 識別字（檔案已刪、不會被 fetch），見 activities-data-loader.js 檔頭
 - **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
 
