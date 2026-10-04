@@ -1,7 +1,7 @@
 // program_nodes 加「獨立樹名 nameEn/nameZh」＋「期程 termEn/termZh」，並解開 tree ↔ ui_labels 耦合（user 2026-09-11）。
 //  - 需求1：tree 文字改吃 program_nodes.nameEn/nameZh（不再與下方 division nav 共用 ui_labels）；
 //           seed = 各節點「當下 ui_labels 值」＝老師想要的樹名（含刻意打成 "BFA, DCD" 等）；
-//           然後把被污染的 ui_labels（about.group.bfa / about.program.mdes，餵下方 nav）還原成 data/ui-labels.json 正本。
+//           然後把被污染的 ui_labels（about.group.bfa / about.program.mdes，餵下方 nav）還原成 data-source/ui-labels.json 正本。
 //  - 需求2：SCAIDC（bpaidc）拿掉 wordmarkFile（原本借 SCCD 占位）→ 前台無 logo 檔＝整塊不畫（見 about-structure acronymHtml）。
 //  - 需求3：期程 termEn/termZh 掛在 degree 節點（bfa 4 年、mdes 2 年；bpaidc 籌備中先留空、老師可補）。
 //
@@ -24,7 +24,7 @@ async function req(method, path, body) {
   return out;
 }
 
-// ui_labels 正本（餵下方 division nav 的兩個被污染 key）＝data/ui-labels.json
+// ui_labels 正本（餵下方 division nav 的兩個被污染 key）＝data-source/ui-labels.json
 const UI_CANON = {
   'about.group.bfa':    { en: 'Bachelor of Fine Art (BFA)', zh: '學士班' },
   'about.program.mdes': { en: 'Master of Design (MDES)',    zh: '碩士班' },
@@ -82,7 +82,7 @@ const TERM = {
   if (bpaidc && bpaidc.wordmarkFile) { console.log(`   ${bpaidc.labelKey}：wordmarkFile ${bpaidc.wordmarkFile} → null`); await req('PATCH', `/items/${COL}/${bpaidc.id}`, { wordmarkFile: null }); }
   else console.log('   （bpaidc 無 wordmarkFile，略過）');
 
-  // 7) 還原被污染的 ui_labels（餵下方 nav 的 bfa/mdes）→ data/ui-labels.json 正本
+  // 7) 還原被污染的 ui_labels（餵下方 nav 的 bfa/mdes）→ data-source/ui-labels.json 正本
   console.log('\n5) 還原 ui_labels（下方 nav 用）bfa/mdes → 正本...');
   for (const [key, v] of Object.entries(UI_CANON)) {
     const row = uiByKey[key];

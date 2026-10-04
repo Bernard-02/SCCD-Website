@@ -1,13 +1,13 @@
 // 匯入 about 沿革 → Directus about_history（era items + entries repeater）與
 // about_history_images（上傳本地佔位圖檔 → file uuid rows，sort 依 fallback 順序）。
-// 來源 data/about-history.json（2026-08-11 新 shape：{ images:[], eras:[{eraEn,eraZh,entries:[{year,division,en,zh}]}] }）。
+// 來源 data-source/about-history.json（2026-08-11 新 shape：{ images:[], eras:[{eraEn,eraZh,entries:[{year,division,en,zh}]}] }）。
 // 跑：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/import-about-history.cjs [--dry] [--force]
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const path = require('path');
 
 const BASE = 'https://sccdtest.usc.edu.tw';
-const SRC = 'data/about-history.json';
+const SRC = 'data-source/about-history.json';
 const DRY = process.argv.includes('--dry');
 const FORCE = process.argv.includes('--force');
 

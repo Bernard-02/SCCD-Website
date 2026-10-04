@@ -2,7 +2,6 @@
 // 兩個扁平 collection（只給 atlas 用），把 data-source/partnership.xlsx 的暫時名單 key 進去。
 // 前台 atlas-source.js 改讀這兩個 collection（原 activities_workshops/industry 來源退場＝原資料先隱藏）。
 // 欄位：nameZh（中文名，可空）/ nameEn（英文名）/ country（ISO 國碼，連 atlas D 國家節點）/ sort（拖曳排序）。
-// 同時輸出本地 fallback 快照 data/atlas-partnership-workshops.json / -industry.json（mapped shape）。
 // idempotent：collection/欄位/權限已存在會略過；已有 rows 不重複匯入。
 //
 // 跑（repo 根目錄）：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/build-atlas-partnership.cjs [--dry]
@@ -110,12 +109,6 @@ async function buildCollection(col, labelZh, note) {
   };
   await seed('atlas_workshops', workshops);
   await seed('atlas_industry', industry);
-
-  // 本地 fallback 快照（mapped shape＝atlas-source withFallback 讀進來直接用）
-  const outDir = path.join(__dirname, '..', 'data');
-  fs.writeFileSync(path.join(outDir, 'atlas-partnership-workshops.json'), JSON.stringify(workshops, null, 2));
-  fs.writeFileSync(path.join(outDir, 'atlas-partnership-industry.json'), JSON.stringify(industry, null, 2));
-  console.log('fallback 快照已寫 data/atlas-partnership-{workshops,industry}.json');
 
   console.log(`\n✅ atlas partnership 完成${DRY ? '（DRY，未寫入後台）' : ''}`);
 })().catch(e => { console.error('❌', e.message); process.exit(1); });

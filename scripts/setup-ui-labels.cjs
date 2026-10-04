@@ -5,7 +5,7 @@
 // token：本機讀 scripts/.directus-token（gitignore）或環境變數 DIRECTUS_TOKEN。
 //
 // 建完後：老師在 Directus 後台開 ui_labels，改 en / zh / group 欄即可，前台 refresh 生效。
-// 前台已在跑（斷線 / 尚未建時吃 data/ui-labels.json fallback），此步驟只是把來源切到後台。
+// 前台已在跑，此步驟只是把來源切到後台。
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // *.usc.edu.tw 萬用憑證對不上裸連線，比照 generate-library-covers.cjs
 const fs = require('fs');
@@ -70,7 +70,7 @@ async function main() {
   }
 
   // 3) 灌 / 更新資料（依 key upsert）
-  const rows = JSON.parse(fs.readFileSync('data/ui-labels.json', 'utf8')).data;
+  const rows = JSON.parse(fs.readFileSync('data-source/ui-labels.json', 'utf8')).data;
   const cur = await api(`/items/${COLLECTION}?limit=-1&fields=id,key`);
   const idByKey = Object.fromEntries((cur.json?.data || []).map(r => [r.key, r.id]));
 
@@ -85,7 +85,7 @@ async function main() {
     id ? updated++ : created++;
   }
   console.log(`✓ 資料：新增 ${created}、更新 ${updated}（共 ${rows.length}）`);
-  console.log('完成。前台會優先讀後台 ui_labels，斷線退 data/ui-labels.json。');
+  console.log('完成。前台會優先讀後台 ui_labels（斷線＝保留 HTML 原文字）。');
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

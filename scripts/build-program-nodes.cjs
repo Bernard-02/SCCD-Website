@@ -3,7 +3,7 @@
 // （tree 文字與 ui_labels 完全重複，見 memory project_about_programs_structure_tree）。
 //
 // 跑（repo 根目錄）：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/build-program-nodes.cjs [--dry]
-// 前置：需先跑 setup-ui-labels.cjs 灌入 about.program.dcd / about.program.bpaidc 兩 key（data/ui-labels.json 已加）。
+// 前置：需先跑 setup-ui-labels.cjs 灌入 about.program.dcd / about.program.bpaidc 兩 key（data-source/ui-labels.json 已加）。
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();

@@ -4,7 +4,6 @@
 // 步驟：①建 singleton＋欄位（照 policy_and_statements 同構，去掉 sort）②Public read
 //       ③把無障礙 row 內容搬進 singleton（singleton 空才 seed）④刪 policy_and_statements 的無障礙 row
 //       ⑤更新 policy_and_statements note。
-// ⚠️ 本地 fallback data/policy-and-statements.json 刻意保留無障礙段——CMS 掛掉時前台舊 filter 路徑還能撈到。
 //
 // 跑（repo 根目錄）：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/setup-accessibility-statement.cjs [--dry]
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';

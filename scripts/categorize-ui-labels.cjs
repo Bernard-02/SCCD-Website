@@ -1,5 +1,5 @@
 // 給 ui_labels 加一個「分類（category）」欄＋把每筆 row 標上所屬資料夾，方便後台分組瀏覽。
-// category 純後台整理用，前台不吃（前台只認 key）→ 不進 data/ui-labels.json，重跑 setup 也不會清掉。
+// category 純後台整理用，前台不吃（前台只認 key）→ 不進 data-source/ui-labels.json，重跑 setup 也不會清掉。
 // 冪等，可重跑。跑：node scripts/categorize-ui-labels.cjs
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');

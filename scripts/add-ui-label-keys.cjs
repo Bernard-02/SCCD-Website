@@ -1,6 +1,6 @@
 // 把指定的 ui_labels key 補進 Directus（新 nav btn / 新標籤用）。安全版：只 POST 缺的 key、已存在跳過，
 // 絕不 PATCH 其他 row（setup-ui-labels.cjs 是全量重推、會蓋掉老師的線上編輯，加新 key 別用它）。
-// en/zh 取自 data/ui-labels.json（單一來源，先把 key 加進那份）；group 依 categorize-ui-labels.cjs 同規則。
+// en/zh 取自 data-source/ui-labels.json（單一來源，先把 key 加進那份）；group 依 categorize-ui-labels.cjs 同規則。
 //
 // 跑（repo 根目錄）：node scripts/add-ui-label-keys.cjs about.structure [more.keys ...]
 // token：scripts/.directus-token（gitignore）或環境變數 DIRECTUS_TOKEN。
@@ -31,10 +31,10 @@ function groupOf(k) {
 
 async function main() {
   if (!TARGET_KEYS.length) { console.error('用法：node scripts/add-ui-label-keys.cjs <key> [key ...]'); process.exit(1); }
-  const all = JSON.parse(fs.readFileSync('data/ui-labels.json', 'utf8')).data;
+  const all = JSON.parse(fs.readFileSync('data-source/ui-labels.json', 'utf8')).data;
   const rows = TARGET_KEYS.map(k => all.find(r => r.key === k));
   const missing = TARGET_KEYS.filter((k, i) => !rows[i]);
-  if (missing.length) { console.error('✗ data/ui-labels.json 缺少目標 key，先加進那份：', missing); process.exit(1); }
+  if (missing.length) { console.error('✗ data-source/ui-labels.json 缺少目標 key，先加進那份：', missing); process.exit(1); }
 
   const cur = await api(`/items/${COLLECTION}?limit=-1&fields=key`);
   if (!cur.ok) { console.error('✗ 讀取現有 ui_labels 失敗', cur.status, cur.json); process.exit(1); }

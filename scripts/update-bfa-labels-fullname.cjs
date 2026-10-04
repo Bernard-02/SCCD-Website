@@ -28,7 +28,7 @@ const api = async (method, path, body) => {
 };
 
 (async () => {
-  // 本地 data/ui-labels.json 由 Edit 直接改（保留對齊格式）；此腳本只同步 Directus。
+  // 本地 data-source/ui-labels.json 由 Edit 直接改（保留對齊格式）；此腳本只同步 Directus。
   console.log('【Directus ui_labels】（依 key 找 id 再 PATCH en）');
   const rows = (await api('GET', '/items/ui_labels?limit=-1&fields=id,key,en')).data || [];
   for (const [key, en] of Object.entries(TARGETS)) {

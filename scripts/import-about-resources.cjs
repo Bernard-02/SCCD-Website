@@ -1,5 +1,5 @@
 // 匯入 about Resources（教學空間/圖書館/工廠…）→ Directus about_resources。
-// 來源 data/about-resources.json（已把電腦教室/複合媒體圖書館拆成 8 項）。
+// 來源 data-source/about-resources.json（已把電腦教室/複合媒體圖書館拆成 8 項）。
 // 跑：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/import-about-resources.cjs [--dry] [--force]
 // 轉換：title「English 中文」→ 在第一個中日韓字切成 titleEn/titleZh；text→description；image 不帶（之後上傳）。
 // 特例：複合媒體圖書館(Media Library) 只 key title、description 留空（user 指定，內容之後補）。
@@ -8,7 +8,7 @@ const fs = require('fs');
 
 const BASE = 'https://54.116.86.165';
 const COLLECTION = 'about_resources';
-const SRC = 'data/about-resources.json';
+const SRC = 'data-source/about-resources.json';
 const FORCE = process.argv.includes('--force');
 const DRY = process.argv.includes('--dry');
 
