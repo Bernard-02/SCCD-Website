@@ -97,8 +97,11 @@ function performDownload() {
     pg.push();
     pg.scale(scaleFactor); // 將整個內容放大2倍
 
-    // 繪製logo（使用原本的參數）
+    // 繪製logo（使用原本的參數）：桌面整組縮放只影響螢幕顯示 → 輸出時暫設 1，PNG 尺寸／比例與螢幕大小無關
+    const _deskScale = deskScale;
+    deskScale = 1;
     drawLogo(pg, 255);
+    deskScale = _deskScale;
 
     pg.pop();
 

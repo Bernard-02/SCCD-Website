@@ -23,6 +23,7 @@ function syncInputBoxes(sourceValue) {
     if (mobileInputBoxBottom) {
         mobileInputBoxBottom.value(sourceValue);
     }
+    updateFakeCaret();   // 程式改值（過濾／彩蛋清空）後假游標跟到字尾
 }
 
 // --- 更新 letters 陣列的函數 (重新命名為 handleInput) ---
@@ -241,4 +242,95 @@ function handleInput(event) {
 
     // 在函數結尾呼叫 UI 更新
     updateUI();
+}
+
+// --- 桌面：輸入法開著（中文等）也能直接打英文（user 2026-10-04）---
+// 網頁關不掉作業系統輸入法，但輸入法只接管「可編輯」欄位 → 滑鼠鍵盤裝置把桌面輸入框設 readonly（輸入法不啟動），
+// 字母依實體鍵位 e.code（KeyA–KeyZ，與輸入法／鍵盤配置無關）自己填；Backspace／Delete／貼上／剪下同理自處理，
+// 再發 input 事件走原本 handleInput（大寫／過濾／40 字／彩蛋）。Chrome／Safari 不在 readonly 畫游標 → 補假游標。
+// ponytail: 游標固定字尾（方向鍵不動、點字中間不插入；反白選取可整段取代）——這欄只會往後打，要中間編輯再做游標位置模型
+// 觸控（iPad）不套：readonly 叫不出螢幕鍵盤，維持原生輸入框。彩蛋結束還原屬性時要保留 readonly（easter-eggs.js 看 desktopKeyMap）
+let desktopKeyMap = false;
+let fakeCaret = null, caretMirror = null;
+
+function initDesktopKeyMap() {
+    desktopKeyMap = false;
+    fakeCaret = caretMirror = null;
+    if (!inputBox || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const ta = inputBox.elt;
+    ta.readOnly = true;
+    desktopKeyMap = true;
+    fakeCaret = document.createElement('span');
+    fakeCaret.className = 'create-fake-caret';
+    caretMirror = document.createElement('div');
+    caretMirror.className = 'create-caret-mirror';
+    fakeCaret.setAttribute('aria-hidden', 'true');
+    caretMirror.setAttribute('aria-hidden', 'true');
+    ta.parentElement.append(fakeCaret, caretMirror);
+
+    const commit = (next) => {
+        ta.value = next;
+        ta.setSelectionRange(next.length, next.length);
+        ta.dispatchEvent(new Event('input', { bubbles: true }));   // → handleInput
+        // 打字當下游標實心、停手才閃（同原生）：重播 blink
+        fakeCaret.style.animation = 'none';
+        void fakeCaret.offsetWidth;
+        fakeCaret.style.animation = '';
+    };
+    // 有反白選取＝取代該段；否則一律在字尾（游標固定字尾）
+    const edit = (insert, delBack) => {
+        const { selectionStart: a, selectionEnd: b, value: v } = ta;
+        if (a !== b) return v.slice(0, a) + insert + v.slice(b);
+        return delBack ? v.slice(0, -1) : v + insert;
+    };
+    ta.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;   // 全選／複製等快捷鍵交給瀏覽器
+        let next;
+        if (/^Key[A-Z]$/.test(e.code)) next = edit(e.code[3], false);
+        else if (e.code === 'Backspace') next = edit('', true);
+        else if (e.code === 'Delete' && ta.selectionStart !== ta.selectionEnd) next = edit('', false);
+        else return;
+        e.preventDefault();
+        commit(next);
+    });
+    ta.addEventListener('paste', (e) => {
+        e.preventDefault();
+        commit(edit(e.clipboardData?.getData('text') || '', false));   // handleInput 會濾成 A–Z、截 40 字
+    });
+    ta.addEventListener('cut', (e) => {
+        if (ta.selectionStart === ta.selectionEnd) return;
+        e.preventDefault();
+        e.clipboardData?.setData('text/plain', ta.value.slice(ta.selectionStart, ta.selectionEnd));
+        commit(edit('', false));
+    });
+    // 字級（1–3 字 180 ↔ 120…）／上方留白有 0.2s 過渡：過渡期間逐幀對位，游標跟著字一路縮放（原生游標行為）；
+    // 只在 transitionend 對位＝過渡中停在大字位置、結束才跳回（user 2026-10-04）。getAnimations 空＝全部過渡跑完才停
+    let caretRaf = 0;
+    const followCaret = () => {
+        updateFakeCaret();
+        caretRaf = (fakeCaret?.isConnected && ta.getAnimations().length) ? requestAnimationFrame(followCaret) : 0;
+    };
+    ta.addEventListener('transitionrun', () => { if (!caretRaf) caretRaf = requestAnimationFrame(followCaret); });
+    updateFakeCaret();
+}
+
+// 假游標＝字尾位置：同樣式的隱形鏡像 div 放同一份文字＋尾端標記，量標記位置
+function updateFakeCaret() {
+    if (!fakeCaret || !inputBox || !fakeCaret.isConnected) return;
+    const ta = inputBox.elt;
+    const cs = getComputedStyle(ta);
+    const m = caretMirror;
+    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight']) {
+        m.style[k] = cs[k];
+    }
+    m.style.width = `${ta.clientWidth}px`;
+    m.style.left = `${ta.offsetLeft}px`;
+    m.style.top = `${ta.offsetTop}px`;
+    m.textContent = ta.value;
+    const mark = document.createElement('span');
+    mark.textContent = '​';
+    m.appendChild(mark);
+    fakeCaret.style.left = `${ta.offsetLeft + mark.offsetLeft}px`;
+    fakeCaret.style.top = `${ta.offsetTop + mark.offsetTop}px`;
+    fakeCaret.style.height = `${mark.offsetHeight}px`;
 }

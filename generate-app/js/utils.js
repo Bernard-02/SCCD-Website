@@ -124,12 +124,37 @@ function getCanvasSize() {
       height: Math.floor(availableWidth * LOGO_ASPECT_RATIO)
     };
   } else {
-    // 桌面版：固定尺寸 432x540，與 canvas-container 一致
+    // 桌面版：432x540 × deskScale，與 #desktop-canvas-container（CSS 同乘 --scale）一致
     return {
-      width: 432,
-      height: 540
+      width: Math.round(432 * deskScale),
+      height: Math.round(540 * deskScale)
     };
   }
+}
+
+// 桌面整組等比縮放（user 2026-10-04「熒幕小時怎麼處理」）：構圖（s=1）＝左輸入框 540＋gap 120＋右畫布 432（寬 1092）、
+// 顯示區高 540＋下方控制盒 120；s＝min(1, 可用寬/1092, 可用高/構圖高)，寫進 #create-app --scale（控制盒 token 早已全吃
+// --scale；輸入框／畫布 CSS 同乘）。上限 1＝大螢幕維持原設計不放大。
+// ponytail: 太小不切手機排版——create 的矮橫向手機判斷是「請旋轉裝置」覆蓋層、不是排版，桌面短視窗套它＝叫人轉手機；
+//   最小桌面情境（~1280×600）s≈0.64、按鈕仍 >44px，滑鼠操作夠用
+function updateDesktopScale() {
+  const app = document.getElementById('create-app');
+  if (!app) return;
+  if (isMobileMode) { deskScale = 1; app.style.removeProperty('--scale'); return; }
+  const W = window.innerWidth;
+  let s = Math.min(1, (W - 2 * 60) / 1092);   // 左右 container padding 60
+  if (createKbOpen && window.visualViewport) {
+    // 鍵盤模式：控制盒＋header 暫藏，顯示區塞進鍵盤上方可視高（上下各留 24）
+    s = Math.min(s, (window.visualViewport.height - 48) / 540);
+  } else {
+    const H = window.innerHeight;
+    s = Math.min(s, (H - 96) / 660);   // app 頂 48＋底 48 之間塞顯示區 540＋控制盒 120
+    // 輸入字（輸入框頂＝顯示區頂＋70s）跟左上 SCCD 字標（可見字右 265／底 110，＋間距 24）水平重疊時，
+    // 置中後的字頂要落在 134 以下：48 + (H−96−660s)/2 + 70s ≥ 134 → s ≤ (H−268)/520
+    if ((W - 1092 * s) / 2 < 265 + 24) s = Math.min(s, (H - 268) / 520);
+  }
+  deskScale = Math.max(0.3, s);
+  app.style.setProperty('--scale', deskScale.toFixed(3));
 }
 
 // 更新旋轉圖標（根據當前狀態）

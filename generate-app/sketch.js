@@ -22,6 +22,38 @@ function _handleVisualViewportResize() {
     resetLayoutAfterKeyboard();
   }
 }
+// iPad 等觸控裝置走桌面排版、沒外接鍵盤＝螢幕鍵盤吃掉近半屏（user 2026-10-04）：可視高比 layout 少 >150px
+// （外接鍵盤只出 ~55px 快捷列不觸發；scale>1＝雙指縮放不算）→ 鍵盤模式：控制盒＋header 暫藏、構圖依可視高重算縮放
+// （create.css .create-kb-open）。不看 focus：桌面輸入框失焦會被立刻搶回 focus（見 setup），收鍵盤只能靠高度恢復判斷。
+// 手機排版有自己那套（mobile.js / _handleVisualViewportResize），這裡只管桌面排版。
+function _handleDesktopKeyboard() {
+  if (!_p5 || isMobileMode || !window.visualViewport) return;
+  const vv = window.visualViewport;
+  const open = vv.scale < 1.05 && window.innerHeight - vv.height > 150;
+  if (!open && !createKbOpen) return;
+  const app = document.getElementById('create-app');
+  app?.style.setProperty('--create-vv-h', `${Math.round(vv.height)}px`);
+  createKbOpen = open;
+  app?.classList.toggle('create-kb-open', open);
+  document.body.classList.toggle('create-kb-open', open);
+  applyDesktopScale();
+}
+// 鍵盤模式比照手機版（mobile.js visualViewport scroll）擋 Safari 把整頁往上推：構圖已縮進可視區，捲回頂
+function _handleDesktopKbScroll() {
+  if (createKbOpen && _p5 && !isMobileMode) window.scrollTo(0, 0);
+}
+// 桌面縮放套用（windowResized 桌面分支＋鍵盤模式切換共用）：重算 s → 畫布／logo 字級／輸入框字級跟著
+function applyDesktopScale() {
+  const prev = deskScale;
+  updateDesktopScale();
+  const canvasSize = getCanvasSize();
+  _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
+  _p5.textSize(367.5 * deskScale);
+  adjustInputFontSize(); // 內部會調用 adjustTextareaHeight()
+  // 色環 graphics 依建立當下容器尺寸畫、不會跟著縮 → 尺寸變了就丟掉，draw() 下一幀依新容器重建
+  if (prev !== deskScale && colorPickerCanvas) { colorPickerCanvas.remove(); colorPickerCanvas = null; }
+}
+
 // setup() 的手機斷點 matchMedia listener 同理（2026-10-01 補）：漏解綁＝離開 /create 後視窗跨 768（平板轉向／拖視窗）
 // 照樣觸發 → updateUI 讀已清成 null 的 _p5 → TypeError。延遲 10ms 期間剛好離頁也擋掉
 let _mobileMediaQuery = null;
@@ -79,6 +111,7 @@ function loadPlaceholderImages() {
 function setup() {
   // 初始檢測手機模式
   checkMobileMode();
+  updateDesktopScale();   // 桌面整組縮放比例（getCanvasSize／字級都依它）
 
   // 根據設備選擇正確的 Canvas 容器
   // 桌面版使用 desktop-canvas-container，手機版使用 canvas-container
@@ -128,7 +161,7 @@ function setup() {
   // 桌面版基準：432x540 canvas，textSize = 367.5
   // 手機版：按相同比例縮放，再放大 10% 作為安全邊距
   // 計算方式：(canvas寬度 / 432) × 367.5 × 1.1
-  let baseTextSize = isMobileMode ? (canvasSize.width / 432) * 367.5 * 1.1 : 367.5;
+  let baseTextSize = isMobileMode ? (canvasSize.width / 432) * 367.5 * 1.1 : 367.5 * deskScale;
   _p5.textSize(baseTextSize);
   _p5.textAlign(_p5.CENTER, _p5.CENTER);
   _p5.imageMode(_p5.CENTER); // <-- 新增：將圖片的繪製模式設定為中心對齊
@@ -216,8 +249,12 @@ function setup() {
   });
 
   // --- 讓輸入框永遠保持 focus 狀態（桌面版）---
-  // 頁面載入時自動 focus
+  // 頁面載入時自動 focus（iOS 不允許程式叫出鍵盤：iPad 要點「TYPE AND ENTER」才彈）
   inputBox.elt.focus();
+  initDesktopKeyMap();   // 滑鼠鍵盤裝置：輸入法開著也直接打英文（input-handling.js）
+  // iPad 螢幕鍵盤 → 鍵盤模式（見 _handleDesktopKeyboard）；named ref 給 cleanupCreateApp 解綁
+  window.visualViewport?.addEventListener('resize', _handleDesktopKeyboard);
+  window.visualViewport?.addEventListener('scroll', _handleDesktopKbScroll);
 
   // 當輸入框失去 focus 時，檢查新焦點是否為角度 label，如果不是則重新 focus
   inputBox.elt.addEventListener('blur', function() {
@@ -1325,7 +1362,7 @@ function draw() {
     // 動態計算彩蛋圖片大小，根據 canvas 尺寸縮放
     // 桌面版基準：432x540 canvas，圖片大小 378 (300 * 1.26)
     // 手機版和鍵盤模式：按照 canvas 寬度等比例縮放，並縮小 5% 避免裁切
-    let easterEggSize = isMobileMode ? (_p5.width / 432) * 378 * 0.95 : 378 * 0.95;
+    let easterEggSize = isMobileMode ? (_p5.width / 432) * 378 * 0.95 : 378 * 0.95 * deskScale;
     _p5.image(imgToShow, _p5.width / 2, _p5.height / 2, easterEggSize, easterEggSize);
     _p5.pop();
   }
@@ -1362,6 +1399,9 @@ function adjustInputFontSize() {
         targetFontSize = smallFontSize; // 31-40 字：68px
     }
 
+    // 桌面整組縮放：字級基準 × deskScale（CSS placeholder 同乘 --scale）
+    targetFontSize = `${(parseFloat(targetFontSize) * deskScale).toFixed(1)}px`;
+
     // 更新字體大小
     inputBox.style("font-size", targetFontSize);
 
@@ -1385,6 +1425,7 @@ function adjustTextareaHeight(fontSize) {
     // 如果沒有內容，padding-top 設為 0
     if (!content || content.length === 0) {
         inputBox.style('padding-top', '0px');
+        updateFakeCaret();
         return;
     }
 
@@ -1458,13 +1499,14 @@ function adjustTextareaHeight(fontSize) {
 
     // 計算總高度（行數 * 行高）
     let contentHeight = totalLines * (fontSizeNum * lineHeight);
-    let containerHeight = 400;
+    let containerHeight = 400 * deskScale;   // 輸入框高（CSS 400px × --scale；寫死 400＝縮放後字往下偏，user 2026-10-04 1103×647）
 
     // 計算 padding-top（垂直置中）
     let paddingTop = Math.max(0, (containerHeight - contentHeight) / 2);
 
     // 設定 padding
     inputBox.style('padding-top', paddingTop + 'px');
+    updateFakeCaret();
 }
 
 
@@ -1709,6 +1751,7 @@ function windowResized() {
 
         // 根據新的模式重新計算並調整Canvas尺寸
         if (isMobileMode) {
+            updateDesktopScale();   // 跨到手機排版：縮放歸 1、清 --scale
             // 手機版：使用統一的 resize 機制（如果有的話）
             if (typeof requestCanvasResize === 'function') {
                 requestCanvasResize(true); // 傳入 immediate=true，因為 window resize 沒有 CSS transition
@@ -1720,11 +1763,8 @@ function windowResized() {
                 _p5.textSize(baseTextSize);
             }
         } else {
-            // 桌面版：直接執行 resize
-            let canvasSize = getCanvasSize();
-            _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true
-            _p5.textSize(367.5);
-            adjustInputFontSize(); // 這個函數內部會調用 adjustTextareaHeight()
+            // 桌面版：重算整組縮放 → 畫布／logo 字級／輸入框字級跟著
+            applyDesktopScale();
         }
 
         // 如果模式切換了（桌面 <-> 手機），需要重新初始化 UI 狀態
@@ -1880,6 +1920,10 @@ function cleanupCreateApp() {
   window.removeEventListener('orientationchange', handleOrientationChange);
   window.removeEventListener('resize', handleOrientationChange);
   window.visualViewport?.removeEventListener('resize', _handleVisualViewportResize);
+  window.visualViewport?.removeEventListener('resize', _handleDesktopKeyboard);
+  window.visualViewport?.removeEventListener('scroll', _handleDesktopKbScroll);
+  createKbOpen = false;
+  document.body.classList.remove('create-kb-open');   // header 暫藏 class 掛在 body，離頁必拔
   _mobileMediaQuery?.removeListener(_handleMobileMediaChange);
   // color picker 拖曳追蹤：sketch.js:1247-1249 + ui-state.js:93-95 兩處都會綁同 fn ref，
   // addEventListener 同 ref 只註冊一次，這裡移除一次即清乾淨；user 沒進過 Wireframe 也安全（no-op）

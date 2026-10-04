@@ -52,7 +52,7 @@ function triggerSpecialEasterEgg() {
     // 恢復輸入框（移除所有限制屬性）
     if (inputBox) {
       inputBox.removeAttribute('disabled');
-      inputBox.removeAttribute('readonly');
+      if (!desktopKeyMap) inputBox.removeAttribute('readonly');   // 桌面鍵位對映模式的 readonly 要留（input-handling.js）
     }
     if (inputBoxMobile) {
       inputBoxMobile.removeAttribute('disabled');

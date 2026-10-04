@@ -227,6 +227,21 @@
   .main-container > .display-area { margin-block: auto; }
 }
 
+/* iPad 螢幕鍵盤模式（user 2026-10-04；sketch.js _handleDesktopKeyboard 切 .create-kb-open、寫 --create-vv-h＝鍵盤上方可視高）：
+   控制盒＋header 暫藏，#create-app 拉到頁頂、高＝可視區，顯示區（--scale 已依可視高重算）在其中置中。gate 同桌面排版 */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  #create-app.create-kb-open {
+    margin-top: calc(-1 * var(--header-height, 96px));
+    height: var(--create-vv-h, 100svh);
+  }
+  #create-app.create-kb-open .main-container { padding-block: 24px; }
+  #create-app.create-kb-open .control-panel { display: none; }
+}
+body.create-kb-open #site-header {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 上方顯示區 (左右結構) */
 .display-area {
   flex: 0 1 auto; /* 不要擴展，根據內容調整大小 */
@@ -236,7 +251,7 @@
   justify-content: center; /* 水平置中 */
   gap: calc(var(--panel-gap) * 4); /* var(--panel-gap) 的 2 倍，即 60px */
   width: 100%;
-  max-width: 1250px; /* 從 1200px 增加到 1250px，容納新的 3:2 比例 */
+  max-width: calc(1250px * var(--scale)); /* 從 1200px 增加到 1250px，容納新的 3:2 比例；×--scale＝桌面整組縮放 */
 }
 
 /* 下方控制區 */
@@ -248,7 +263,7 @@
   justify-content: center; /* 水平置中 */
   gap: var(--panel-gap);
   width: 100%;
-  max-width: 1250px; /* 從 1200px 增加到 1250px，與上方對齊 */
+  max-width: calc(1250px * var(--scale)); /* 從 1200px 增加到 1250px，與上方對齊 */
 }
 
 /* 為 control-panel 的直接子元素添加平滑位置過渡 */
@@ -286,11 +301,11 @@
    ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放平板 768-1023 走手機版（見檔尾手機區塊，JS utils.js checkMobileMode 同式） */
 @media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
   #desktop-canvas-container {
-    /* 桌面版固定尺寸 - 432x540 */
-    width: 432px;
-    height: 540px;
-    min-height: 540px;
-    max-height: 540px;
+    /* 桌面版 432x540 × --scale（整組等比縮放，user 2026-10-04；JS utils.js updateDesktopScale 寫值、getCanvasSize 同乘） */
+    width: calc(432px * var(--scale));
+    height: calc(540px * var(--scale));
+    min-height: calc(540px * var(--scale));
+    max-height: calc(540px * var(--scale));
     flex-shrink: 0; /* 防止縮小 */
     display: flex;
     justify-content: center;
@@ -300,18 +315,39 @@
 }
 
 .input-container {
-  width: 540px; /* 1:1 比例 */
-  height: 540px; /* 與 logo 一樣高，讓 flexbox 對齊 */
+  width: calc(540px * var(--scale)); /* 1:1 比例（×--scale＝桌面整組縮放） */
+  height: calc(540px * var(--scale)); /* 與 logo 一樣高，讓 flexbox 對齊 */
   flex-shrink: 0; /* 防止縮小 */
   display: flex;
   align-items: center; /* textarea 垂直置中，與 logo 對齊 */
   justify-content: flex-start; /* 水平靠左 */
+  position: relative; /* 假游標／鏡像的定位框 */
+}
+/* 桌面假游標（user 2026-10-04）：滑鼠鍵盤裝置輸入框設 readonly 讓輸入法不接管（input-handling.js initDesktopKeyMap），
+   Chrome／Safari 不在 readonly 畫原生游標 → 字尾補一條；色＝currentColor（跟輸入字同繼承 #create-app），只在輸入框 focus 時顯示 */
+.create-fake-caret {
+  position: absolute;
+  width: 1.5px;
+  background: currentColor;
+  pointer-events: none;
+  display: none;
+  animation: create-caret-blink 1s steps(1) infinite;
+}
+#input-box:focus ~ .create-fake-caret { display: block; }
+@keyframes create-caret-blink { 50% { opacity: 0; } }
+.create-caret-mirror {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  box-sizing: border-box;
 }
 
 #input-box {
   width: 100%;
-  height: 400px; /* 固定高度 */
-  font-size: 120px; /* 初始字體大小設為 120px */
+  height: calc(400px * var(--scale)); /* 固定高度（×--scale） */
+  font-size: calc(120px * var(--scale)); /* 初始 120px（×--scale；打字後 JS 依字數改 inline，同乘 deskScale） */
   font-family: inherit; /* 從 body 繼承 Inter-Medium */
   resize: none;
   overflow: hidden; /* 隱藏滾動條 */
@@ -332,21 +368,21 @@
 #create-app.standard-mode #input-box::placeholder {
   color: black;
   opacity: 0.25;
-  font-size: 120px; /* 固定 placeholder 字體大小 */
+  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
 }
 
 /* Inverse 模式下的 placeholder 顏色：白色 + 50% 透明度 */
 #create-app.inverse-mode #input-box::placeholder {
   color: white;
   opacity: 0.5;
-  font-size: 120px; /* 固定 placeholder 字體大小 */
+  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
 }
 
 /* Wireframe 模式下的 placeholder */
 #create-app.wireframe-mode #input-box::placeholder {
   color: var(--wireframe-border);
   opacity: var(--wireframe-opacity);
-  font-size: 120px; /* 固定 placeholder 字體大小 */
+  font-size: calc(120px * var(--scale)); /* placeholder 字體大小（×--scale） */
 }
 
 #hidden-measurer {
@@ -1112,8 +1148,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 }
 
 .colorwheel-play-button img {
-  width: 16px; /* 2026-06-11 24→16：play/pause icon 縮小，配合環帶變寬、中央洞縮小 */
-  height: 16px;
+  width: calc(16px * var(--scale)); /* 2026-06-11 24→16：play/pause icon 縮小，配合環帶變寬、中央洞縮小 */
+  height: calc(16px * var(--scale));
   display: block;
 }
 

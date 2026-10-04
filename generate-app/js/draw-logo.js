@@ -47,7 +47,7 @@ function drawPlaceholder(pg) {
   // 繪製尺寸：根據 canvas 大小動態調整
   // 桌面版基準：432x540 canvas，svgSize = 485.1
   // 手機版：按相同比例縮放，縮小到 95% 讓 placeholder 更小
-  let svgSize = isMobileMode ? (_p5.width / 432) * 485.1 * 0.95 : 485.1 * 0.95;
+  let svgSize = isMobileMode ? (_p5.width / 432) * 485.1 * 0.95 : 485.1 * 0.95 * deskScale;
 
   // 根據 isWhiteVersion 選擇正確的 SVG 檔案
   let rImg = isWhiteVersion ? placeholderR_white : placeholderR;
@@ -85,7 +85,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
 
   // 確保 textSize 正確設定（避免 resizeCanvas 重置後遺失）
   // 桌面版固定 367.5，手機版根據 canvas 大小縮放
-  let currentTextSize = isMobileMode ? (_p5.width / 432) * 367.5 * 1.1 : 367.5;
+  let currentTextSize = isMobileMode ? (_p5.width / 432) * 367.5 * 1.1 : 367.5 * deskScale;   // 桌面 × 整組縮放
   pg.textSize(currentTextSize);
 
   // 計算每個字母應佔的角度
@@ -283,7 +283,7 @@ function drawLogo(pg, alphaMultiplier = 255) {
         strokeWeightValue = 4; // Custom 打開時使用較細的描邊
       }
 
-      pg.strokeWeight(strokeWeightValue);
+      pg.strokeWeight(strokeWeightValue * (isMobileMode ? 1 : deskScale));   // 桌面縮放時線框粗細同比
       pg.text(letter, 0, -offsetY);
 
       // 第二次：繪製填充顏色（來自色彩選擇器）；Ctrl+Save 下載無填色版時跳過

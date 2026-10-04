@@ -8,6 +8,11 @@ let font;
 
 // --- Canvas 相關 ---
 let canvasContainer;
+// 桌面整組等比縮放（user 2026-10-04；utils.js updateDesktopScale 算、寫進 #create-app --scale）：桌面尺寸一律 ×deskScale
+// （畫布 432×540、logo 字級 367.5、輸入框字級…）；手機恆 1。下載 PNG 時暫設回 1（save-download.js），輸出不受螢幕大小影響
+let deskScale = 1;
+// iPad 等觸控裝置桌面排版、螢幕鍵盤開著（sketch.js _handleDesktopKeyboard）：控制盒／header 暫藏，構圖縮到鍵盤上方
+let createKbOpen = false;
 
 // --- 旋轉相關變數 ---
 let autoRotate = false;
