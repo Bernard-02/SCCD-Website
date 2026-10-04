@@ -9,11 +9,11 @@
 - **架構**：自製 SPA router（`js/router.js`）+ 模組化頁面初始化
 - **CSS 工具**：Tailwind CSS（`css/output.css` 為編譯產物）
 - **設計系統**：CSS Variables（`css/variables.css`）
-- **動畫**：GSAP 3.14（含 ScrollTrigger / Draggable / InertiaPlugin）
+- **動畫**：GSAP 3.14（含 ScrollTrigger / ScrollToPlugin / CustomEase；Draggable / InertiaPlugin 未使用、2026-10-04 已移除）
 - **p5.js**：/create 頁的 generator app inline 跑 p5 instance（已從 iframe 拆除）
-- **Lottie**：header / footer logo 動畫
-- **字體**：Inter (EN) + Noto Sans TC (ZH)
-- **圖示**：Font Awesome 6.5.1
+- **Lottie**：header / footer logo 動畫（`lottie_light.min.js`＝只含 svg renderer；全站 JSON 無 expressions，要用 canvas/expressions 才換回完整版）
+- **字體**：Inter (EN) + Noto Sans TC (ZH)（＋ JP/SC fallback）：各頁 head 直接 link（不走 CSS @import）；Bitter + Noto Serif 只 library 用（library.html head ＋ SPA 進頁由 library-panels.js `ensureSerifFonts` 補）
+- **圖示**：`.icon` mask 系統（css/components/icon.css，後台 site_icons 覆蓋）；Font Awesome 已不用
 
 ## 專案結構
 
@@ -23,7 +23,7 @@
 │   ├── about / faculty / courses / works / activities / admission / awards
 │   ├── degree-show / degree-show-detail
 │   ├── alumni / library / atlas / create
-│   ├── support / privacy-policy / sitemap / 404
+│   ├── donate(route: support) / regulations / sitemap / 404（舊 /policy-and-statements 網址 router 直接落 regulations）
 │   ├── header.html             # async fetch 載入到 #site-header
 │   └── footer.html             # async fetch 載入到 #site-footer（SPA 容器）
 ├── css/
@@ -37,7 +37,7 @@
 │   │                             intro-animation
 │   └── themes/                 # color (mode-color) / inverse (mode-inverse)
 ├── js/
-│   ├── main-modular.js         # DOMContentLoaded 入口、initPageModules dispatch、cleanupPageModules
+│   ├── main-modular.js         # DOMContentLoaded 入口、initPageModules dispatch（頁面模組一律動態 import）、cleanupPageModules
 │   ├── router.js               # SPA router（fetch + innerHTML swap + nav state）
 │   ├── header.js / footer.js   # 全域 header/footer 初始化（DOMContentLoaded 跑一次）
 │   └── modules/
@@ -54,10 +54,11 @@
 │   ├── js/                     # classic scripts（variables / utils / mobile / color-picker / ...）
 │   ├── p5.min.js               # local p5 build
 │   └── Panel Icon/ Easter Egg/ # 資源
-├── data/                       # 本地 JSON（Directus 掛掉時的 fallback 快照 + 少數尚未上 CMS 的資料）
-├── scripts/                    # 內容批量匯入管線（generate-*-sheet → parse-* → import-*.cjs 進 Directus）
+├── data/                       # 前台還在讀的本地 JSON：Lottie logo、alumni*（尚未上 CMS）、accessibility.json（網站地圖）。fallback 快照 2026-10-04 全退場
+├── data-source/                # 匯入管線的來源檔（xlsx、ui-labels.json 新增 key 預設值、about-* 匯入源）；前台不讀
+├── scripts/                    # 內容批量匯入管線（generate-*-sheet → parse-* → import-*.cjs 進 Directus）＋ 部署（make-upload-package.ps1 → minify-package.cjs）
 ├── images/  assets/            # 圖片與其他資源
-├── js/config/api.js            # Directus API base 唯一注入點（CMS_API_BASE / CMS_ASSETS_BASE）
+├── js/config/api.js            # Directus API base 唯一注入點（CMS_API_BASE / CMS_ASSETS_BASE / CMS_CDN_BASE）＋ 共用 cdnUrl / cdnUrls / fetchCmsJson / saveLKG / readLKG
 ├── docs/                       # 深度參考文件（CLAUDE.md 只當索引、細節看這裡）
 │   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台架構權威文件（⚠️前台部署部分過時，以「前台上線流程」為準）
 │   ├── 前台上線流程-S3-CloudFront.md          # 前台正式上線（S3+CloudFront）權威文件
@@ -80,7 +81,7 @@
    - footer display:none toggle（generate/library/atlas 隱藏）+ broken-init recovery（無 `.footer-anchor` 則重 init）
    - `body.classList.toggle('overflow-hidden')` for generate/atlas（鎖頁 scroll）
    - `body.style.overflowX = 'hidden'` for about/alumni（section-title-strip overflow viewport 右側）
-   - `initPageModules(page, searchParams)` 跑頁面專屬 init
+   - `initPageModules(page, searchParams)` 跑頁面專屬 init——**頁面模組一律 `import()` 動態載入**（2026-10-04；原 52 個靜態 import＝每頁載全站 ~2MB）。開頭取 `const seq = lazySeq` + `alive()`，import 完 init 前比對（換頁 cleanup 會 `lazySeq++`）→ 下載中連點換頁不 stale/double-init；同頁多支模組共用同一 seq。**新頁面照這個寫法，別加回頂部靜態 import**（全站常駐的 header/theme/hero/cleanup 類才靜態）。⚠️ 動態 import＝init 晚於換頁後第一次繪製：HTML 裡「init 才藏起來再進場」的元素，隱藏態要直接寫在 HTML（例：首頁 WATCH 卡出生 `clip-path:circle(0%)`，否則先在預設位置閃一下）
    - `setTimeout scrollToTop` + `ScrollTrigger.refresh` 收尾
 
 ### 路由表特殊規則
@@ -94,7 +95,7 @@
 2. body / html overflow reset + slide-in/lightbox class 清除
 3. `resetLightboxMode()` openCount 歸零
 4. `cleanupCreateApp()`（p5 instance + 全 listener + special-easter-egg DOM）
-5. `cleanupAtlas()` / `cleanup404()`
+5. `cleanupAtlas()` / `cleanup404()`（動態載入過才有 module ref 可呼叫）
 6. ScrollTrigger.getAll 只 kill trigger 在 `#page-content` 內的（保留 trigger 是 body/document/header 的）
 7. `gsap.killTweensOf(main.querySelectorAll('*'))`
 8. 動態 import 補 `restoreHeaderLogo`（generate 頁可能改 logo）
@@ -127,20 +128,22 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 - **鐵則**：SPA 100% 保留（Directus 只給 JSON）；schema 在後台 GUI 建（不寫 code）；Public role 必須開 Read（沒開 = 前台 fetch 全 401）；collection 名 = endpoint 名
 
 ### 前端資料載入 pattern（`*-source.js` / `*-data-loader.js`）
-兩套失敗策略，新 collection 優先用 A：
-- **A. Directus-only + last-known-good**（activities 全系列 / summer-camp / degree-show，2026-09 起）：本地假資料 fallback 全退場；失敗（逾時 abort / 5xx / **200 但空也要 throw**）→ 讀 sessionStorage 上次成功真資料 → 都沒有才顯示錯誤態。快取進頁不清＋背景 revalidate（latest-wins），後台編輯「硬重整即生效」不變。範本：`activities-source.js`
-- **B. fallback JSON**（faculty / library / footer / ui-labels 等舊 collection）：失敗 → 讀本地 `/data/*.json` 快照，CMS 掛掉照常渲染；大改後台內容時同步更新快照
+**後台是唯一來源（2026-10-04 user 定案）**：本地 fallback JSON 快照、HTML 寫死的佔位圖全數退場（舊資料＝錯誤資訊、反而誤導）。失敗策略：
+- **A. Directus-only + last-known-good**（activities 全系列 / summer-camp / degree-show / hero）：失敗（逾時 abort / 5xx / **200 但空也要 throw**）→ 讀 sessionStorage 上次成功真資料（`saveLKG/readLKG`）→ 都沒有才顯示錯誤態。快取進頁不清＋背景 revalidate（latest-wins），後台編輯「硬重整即生效」不變。範本：`activities-source.js`
+- **其餘 collection**：失敗 → 空資料（清單空、文字保留 HTML 靜態字、圖不顯示），且不快取失敗結果＝下次重抓
+- **新增 loader 一律用 `js/config/api.js` 的共用 helper**：`cdnUrl(file)` / `cdnUrls(m2m)` 組 CloudFront 圖片網址、`fetchCmsJson(url)`（逾時涵蓋到 body 讀完——只保護 headers 的版本會 hang）、`saveLKG/readLKG`。別在 loader 裡再寫一份
 共通：
 1. fetch Directus（`?limit=-1&sort=sort`，排序吃後台 sort 欄、前台不重排；例外＝activities 同年內強制月/日新→舊）
 2. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求
-3. 圖片欄位 = Directus 檔案 UUID → 經 `CMS_CDN_BASE` 組 URL；null 用 placeholder
-- **尚未上 Directus**：alumni 整頁、atlas workshops/industry——暫讀本地 JSON，各 `*-source.js` 檔頭有註明；其餘頁面已全接
+3. 圖片欄位 = Directus 檔案 → `cdnUrl()` 組 URL；**沒圖＝不顯示／灰底（`var(--lib-bg)`），不放本地佔位圖**
+- **尚未上 Directus**：alumni 整頁（`data/alumni*.json`）、網站地圖（`data/accessibility.json`）；其餘頁面已全接（atlas workshops/industry 已改讀 atlas_workshops / atlas_industry）
+- activities 的 `'/data/xxx.json'` 字串只剩 section 識別字（檔案已刪、不會被 fetch），見 activities-data-loader.js 檔頭
 - **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
 
 ### 內容更新方式（給後台編輯者）
 - **日常編輯**：Directus 後台 GUI（老師登入改文案／傳圖／拖 sort 欄排序），前台重新整理即生效；後台 label 全繁中、雙語欄位英上中下
-- **批量匯入**：`scripts/` 管線——`generate-*-sheet.js` 產 Excel 給編輯者填 → `parse-*-sheet.js` 解析 → `import-*.cjs` 寫入 Directus
-- `data/*.json` 是 fallback 快照：內容以後台為準；大改後台內容時建議同步更新對應 fallback
+- **批量匯入**：`scripts/` 管線——`generate-*-sheet.js` 產 Excel 給編輯者填 → `parse-*-sheet.js` 解析 → `import-*.cjs` 寫入 Directus；匯入來源檔放 `data-source/`（新增 ui_labels key 的預設值＝`data-source/ui-labels.json`）
+- 前台沒有本地快照要同步：後台改完硬重整即生效
 
 ## 設計系統
 
@@ -259,7 +262,8 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - 時長/曲線走 token：GSAP 用 `motion.js` 的 `DUR.*`／`EASE.*`，CSS（含 JS inline transition 字串）用 `var(--dur-*)`／`var(--ease-*)`。⚠️ 勿傳 `'cubic-bezier(...)'` 字串給 GSAP（core 不認、靜默退回 power1.out）；要 bezier 曲線＝helpers.js 用 CustomEase 具名註冊（現有 `EASE.wipe`＝`--ease-wipe`）
 
 ### 圖片
-- 縮圖 `decoding="async"`；⚠️ poster/strip **勿** `loading="lazy"`（會破 reveal gate）；縮圖不寫 >1600px
+- 縮圖 `decoding="async"`；縮圖不寫 >1600px
+- **收合列的媒體點開才載**（2026-10-04 user 定案）：可收合列的縮圖／海報出生只帶 `data-src`、自架影片 tile 帶 `data-hls-thumb`，點開那列才由 `list-accordion.js loadDeferredMedia` 換上（deep-link 目標捲過去前先載）；載入中＝佔位色塊（收合時 `[inert]` 暫停循環）。⚠️ 別改回出生就 `src`：大清單背景會建滿，沒打開的列也會把整份相簿抓完（展演曾 25 秒抓 ~1100 張／95MB）；也別改用原生 `loading="lazy"`（巢狀捲動框內偶爾不觸發）
 - 交付走 CloudFront（`CMS_CDN_BASE`）；新上傳大圖跑 `scripts/convert-images-to-webp.cjs`（每日 Action 已掛）
 - 弱機不能 on-the-fly transform——不要用 Directus `?width=` 參數（冷生成 504）
 
@@ -275,13 +279,17 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 
 | 模組 | 用途 |
 |---|---|
-| `js/modules/ui/scroll-animate.js` | clip-reveal entrance helpers |
+| `js/config/api.js` | Directus base ＋ `cdnUrl`／`cdnUrls`（檔案→CloudFront URL）、`fetchCmsJson`（含 body 的逾時）、`saveLKG`／`readLKG`（sessionStorage last-known-good） |
+| `js/modules/ui/scroll-animate.js` | clip-reveal entrance helpers；四向滑入共用 `REVEAL_DIRS` / `randomRevealDir()` / `revealHidden(dir?)`（±110；每次回新物件——GSAP 會把預設值寫回傳入的物件） |
+| `js/modules/ui/escape-html.js` | HTML 字串組裝的跳脫（`& < > " '`，null→''）；各 loader 別再自寫 esc |
+| `SCCDHelpers.shuffle(arr)` | Fisher–Yates 原地洗牌（helpers.js；凍結陣列如 ACCENT_COLORS 先複製） |
+| `js/modules/ui/pdf-cover.js` | pdf.js 版本（`PDFJS_VER`）與 `ensurePdfjsLoaded` 唯一來源（library-viewer 共用） |
 | `js/modules/ui/page-exit.js` | 註冊頁面退場動畫 |
 | `js/modules/ui/page-cleanup.js` | 註冊離頁要解綁的 listener / observer |
 | `js/modules/ui/theme-toggle.js` | mode 切換 + color hue loop + 全域 dispatch `theme:changed` |
 | `js/modules/ui/custom-scrollbar.js` | 全站隱藏原生 scrollbar + 自製 fixed thumb div + drag + footer 區換色 |
 | `js/modules/ui/marquee-overflow.js` | 文字 overflow → marquee：`applyMarqueeOverflow`（量寬+dual-copy+`--marquee-distance`）；`buildSyncedMarqueeTimeline`（中英同步 GSAP timeline）；`bindMarqueeReturn`（桌面 hover 放開平滑回彈，見下規範） |
-| `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel` + `bindNavBtnFit` + `bindFrameScrollSplit`（4 個 inner-scroll 頁共用；2026-09-27 起 ≥1200 nav 佔 cols 1-3、內容 col 4-18＝看得見的內容左貼 col-4 左緣、右貼 col-18 右緣（about 同；平板 768-1199 與舊版＝col 4 留白、內容 5-20）；bindNavBtnFit＝nav btn 貼文字寬；bindFrameScrollSplit＝滾輪分區——col 1-3 捲 window 去 footer/hero、col 4 起一律內部捲，box 邊界不外溢靠 lists.css `overscroll-behavior: contain`，短 panel 放行 window） |
+| `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel` + `bindNavBtnFit` + `bindFrameScrollSplit`（4 個 inner-scroll 頁共用；2026-09-27 起 ≥1200 nav 佔 cols 1-3、內容 col 4-18＝看得見的內容左貼 col-4 左緣、右貼 col-18 右緣（about 同；平板 768-1199 與舊版＝col 4 留白、內容 5-20）；bindNavBtnFit＝nav btn 貼文字寬；bindFrameScrollSplit＝滾輪分區——col 1-3 捲 window 去 footer/hero、col 4 起一律內部捲，box 邊界不外溢靠 lists.css `overscroll-behavior: contain`，短 panel 放行 window）；＋ `bindLandscapeNavGate`（矮橫向 nav chip 過 hero 才現、到 footer 收，4 頁共用）、`getScrollableScrollCol`／`waitForItemRevealed`（activities／admission 共用） |
 | `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
 | `js/modules/ui/list-row-reveal.js` | 清單 rows 進退場引擎（CSS transition 取代 GSAP yPercent，見「效能最佳實踐」；activities/admission 清單用） |
 | `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |
@@ -339,6 +347,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 ### 部署
 - **開發預覽**＝GitHub Pages：push main 自動上線（bernard-02.github.io/SCCD-Website）。⚠️「線上是舊版」通常＝改動沒 commit；CSS 改了要先 `npm run build:css` 再 commit
 - **正式前台**＝S3 + CloudFront（sccd.usc.edu.tw，尚未切換，流程見《docs/前台上線流程-S3-CloudFront.md》）；**後台** Directus 在 Lightsail `/cms`（reverse proxy → Node :8055）
+- **上傳包**＝`scripts/make-upload-package.ps1`：build:css → 鏡像前台檔（排除本機 mp4）→ `minify-package.cjs` 壓縮包內 JS/CSS/JSON（esbuild 逐檔 transform、不 bundle、不改頂層名稱；只動上傳包拷貝，repo 原始碼與 GitHub Pages 預覽保持未壓縮）。壓縮後約 4.0MB → 1.5MB
 - user 不熟 devops，部署話題先建心智模型再給步驟
 
 ### Git
@@ -352,7 +361,8 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 - **矮橫向**（844×390、667×375）：nav 進 header 帶 / hero 前藏 nav / 不吃桌面 md: 樣式 / 轉向 reload 自癒
 - **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行（gate 判準跟 CSS 同式）
 - **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
-- **資料層**：Directus 斷線時降級正常（A 類走 sessionStorage LKG／B 類走 fallback JSON）/ 後台改內容前台硬重整生效
+- **資料層**：Directus 斷線時降級正常（A 類走 sessionStorage LKG／其餘＝空清單、不報錯不卡頁）/ 後台改內容前台硬重整生效
+- **上傳包**：改了 JS 結構後用 minify-package.cjs 對一份暫存拷貝跑一次 headless（各頁零錯誤＋SPA 換頁）再交付
 
 ## 偏好設定
 - 繁體中文溝通
@@ -383,7 +393,10 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 |---|---|---|
 | `hero-animation.js randomizeHeroLayout` → 用 `awaitLayoutReady` | 小 | 動到 hero animation 時 |
 | `error-404.js randomizeAllPlacements` → 用 `awaitLayoutReady` | 小 | 動到 404 頁時 |
-| `faculty-data-loader.js` / `records-data-loader.js` / `legal-data-loader.js` / `degree-show-data-loader.js` 的 fetch + try/catch 樣板重複，如有需要可抽共用（先前的 `loadAndRender` 薄殼從未被採用、已刪） | 小（每檔約 -10 行） | 動到該 loader 時 |
+| 其餘 `*-source.js` 的「fetch → !ok throw → 空 throw → catch」樣板改走 `fetchCmsJson`（api.js；目前只有 activities / degree-show / summer-camp 用） | 小（每檔約 -5 行） | 動到該 loader 時 |
+| 清單縮圖產「小尺寸版本」（每日 webp Action 順便產 ~480px 寬變體，前台縮圖吃它）：strip 縮圖都是 1600×1200 原圖（中位 74KB、最大 ~430KB）只顯示 ~160×120；抽樣縮到 2× 顯示寬重壓 -82% | 中（轉檔腳本＋S3 key 規則＋前台組網址＋fallback） | user 決定做時 |
+| 首頁 floating-items 改 `fields=` 只抓 poster/id（現抓整包活動 ~1MB；代價＝不再與 activities 頁共用記憶體快取） | 小 | user 2026-10-04：先不做 |
+| atlas.css 同時編進 output.css 又被 router 動態載一份 raw：移除 PAGE_CSS 那份可省 atlas 頁 ~5KB gz，但 raw 那份目前在 cascade 贏了 color/inverse/landscape 的同特異度規則，拿掉要 3 mode＋矮橫向視覺回歸 | 小（驗證成本為主） | 動 atlas 樣式時 |
 | `inverse.css` / `color.css` 同 selector 規則合併（用 `body:is(.mode-inverse, .mode-color)` + `var(--theme-fg)`）| 中（需 audit 每對語義 + 視覺回歸） | 動該頁 theme 規則時順手 |
 | `themes/inverse.css` 內 `/* 不再 / 不再列入 */` 等 dead 註解殘留清理 | 極小 | 動到該檔時 |
 
@@ -399,6 +412,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 | 項目 | 位置 | 影響 |
 |---|---|---|
 | `library-viewer.js` PDF listeners 無 remove | js/modules/pages/library-viewer.js | modal 是單例 guard，目前不重綁不出問題；極端情境若 modal 被某 race 重建會疊 listener |
+| `library-panels.js` 7 個 `window._xxxMarqueeInit` 等全域函式只在本檔用、離頁不刪（持有舊閉包） | js/modules/pages/library-panels.js | 改 module 層 hooks 物件即可；目前無症狀 |
 | `library-panels.js` Press/Files/Album 內 helper listener cleanup | js/modules/pages/library-panels.js | 跨 SPA accumulate 可能；需 audit 每個 binding helper |
 
 ### D. TIER 3 大架構（明確不做，列出做為設計決策記錄）
@@ -406,7 +420,6 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 - ❌ **section-switch 3 個 caller 抽 helper**：admission/activities/courses 各有 quirks（lazy load / sub-filter / 頭部動畫 / BFA-MDES toggle），抽出 helper hook 後複雜度跟原本 3 份差不多，違反「不過度工程化」
 - ❌ **`renderCard()` 通用 card builder**：5 種 card 結構差異 > 共用因子（faculty / library / courses-grid / alumni-sponsor / activities list-item），各面板各自建卡、不抽共用 builder
 - ❌ **Web Components / Custom Elements**：原生 JS SPA 是技術選擇，不引入新範式
-- ❌ **header bars `[data-bar]` selector 完全集中化**：about / library / atlas / generate / alumni 各有客製互動，header.js 內保留多處 selector 比集中後配 hook 簡單
 
 ### E. Component-first 長期方向（user 目標，分階段累積）
 
