@@ -57,7 +57,6 @@ import { revealHidden } from '../ui/scroll-animate.js';
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
 let facultyUiLabels = null;
 const DEPT_FALLBACK = {
-  dcd:    { en: 'Department of Communications Design (DCD)', zh: '媒體傳達設計學系' },
   bpaidc: { en: 'Bachelor Program of AI Design Craftsmentship (BPAIDC)', zh: 'AI 設計職人學位學程' },
 };
 
@@ -377,8 +376,9 @@ export function initFacultySlideIn() {
       // 有值才渲染、空值不顯示；每次 open 靠 innerHTML 重寫＝冪等、換老師不殘留。
       // data.department 由 mapRow 的 {...r} 帶入（fallback JSON 無此欄→undefined→不顯示）。
       // 顯示文字＝ui_labels `faculty.department.<key>`（後台可改）；無 row 退 DEPT_FALLBACK。
+      // DCD＝本系、整站就是它 → 不顯示（user 2026-10-19）；只有 BPAIDC 等外系/學程才標
       const deptKey = (data.department || '').trim().toLowerCase();
-      const deptRow = facultyUiLabels?.[`faculty.department.${deptKey}`];
+      const deptRow = deptKey === 'dcd' ? null : facultyUiLabels?.[`faculty.department.${deptKey}`];
       const deptInfo = deptRow ? { en: deptRow.en, zh: deptRow.zh } : DEPT_FALLBACK[deptKey];
       const deptHtml = deptInfo
         ? `<div class="mb-sm"><p class="text-s font-bold text-black mb-en-zh-s">${deptInfo.en}</p>` +
@@ -511,6 +511,10 @@ export function initFacultySlideIn() {
             // 舊 onComplete 會把剛開的 panel 蓋回 invisible——同 lightbox openSeq race 三件套）
             ++slideSeq;
             loadFacultyData(facultyId);
+            // 開著的這張維持 hover 樣（底色＋圖轉正，cards.css .is-active）：overlay 蓋上卡片＝:hover 失效、底色會先掉
+            //（user 2026-10-19）。關完（closeSlideIn onComplete）才拿掉；關到一半又開別張 → 先清舊的
+            document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
+            card.classList.add('is-active');
 
             const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
             slideInPanel.style.backgroundColor = cardColor;
@@ -573,6 +577,7 @@ export function initFacultySlideIn() {
         slideIn.classList.add('invisible', 'pointer-events-none');
         slideIn.classList.remove('pointer-events-auto');
         slideInPanel.style.backgroundColor = '';
+        document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
         if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
       },
     });

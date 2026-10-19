@@ -8,7 +8,7 @@
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { playClipPathExit } from '../ui/scroll-animate.js';
+import { playClipPathExit, navChipHidden, NAV_CHIP_SHOWN, randomRevealDir } from '../ui/scroll-animate.js';
 
 let accordionWrappers = [];
 
@@ -153,28 +153,29 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // 記下每張卡片的進場方向 offset，離頁退場時飛回同方向（見下方 registerPageExit）
-    const entryOffsets = [];
     items.forEach((item, i) => {
       // 起始位置必須在 viewport 外（以 vw/vh 為基準，random 微調距離）
       const offsetX = directions[i] === 'right' ? vw * 0.8 + Math.random() * 200 : 0;
       const offsetY = directions[i] === 'bottom' ? vh * 0.9 + Math.random() * 200 : 0;
-      entryOffsets[i] = { x: offsetX, y: offsetY };
       gsap.set(item, { x: offsetX, y: offsetY });
     });
 
-    // 離頁退場：所有卡片「一次過」飛回各自進場方向（不 stagger，與進場逐張相反）。
-    // 只在 resources 區在視窗內才跑（看不到就略過）；卡片帶 rotate，gsap x/y 疊在 rotate 上不影響角度。
+    // 離頁退場：clip-reveal（user 2026-10-19，取代「飛回進場方向」）。卡片帶旋轉、沒有外層遮罩 →
+    // 走 navChipHidden 模擬版：整張卡（含本體底色）沿自身旋轉軸滑出＋clip-path 把可見窗釘在原位＝遮罩是卡片自己的形狀；
+    // 方向每張四向隨機、全部同時出場（user 2026-10-19：不要依序，手機版同）。只在 resources 區在視窗內才跑（看不到就略過）。
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined') { resolve(); return; }
       const r = wrapper.getBoundingClientRect();
       if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
       gsap.killTweensOf(items);
-      let done = 0;
-      const onOne = () => { if (++done >= items.length) resolve(); };
-      items.forEach((item, i) => {
-        const off = entryOffsets[i] || { x: 0, y: window.innerHeight };
-        gsap.to(item, { x: off.x, y: off.y, duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: onOne });
+      const hid = items.map(item => navChipHidden(item, randomRevealDir()));
+      gsap.fromTo(items, { ...NAV_CHIP_SHOWN }, {
+        clipPath: (i) => hid[i].clipPath,
+        translate: (i) => hid[i].translate,
+        duration: DUR.base,
+        ease: EASE.exit,
+        overwrite: true,
+        onComplete: resolve,
       });
     }));
 

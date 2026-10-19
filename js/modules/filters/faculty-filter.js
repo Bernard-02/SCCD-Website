@@ -158,6 +158,10 @@ function playFacultyCardsSerial(cards) {
 //   - 之所以不用 batch：batch 每批 onEnter 啟動獨立 t=0 cursor，scroll 時第二批會跟第一批並行
 let lastFacultyTrigger = null;
 
+// ±1–3°（同 library documents）：hover 粉底瞬間出現、圖 0.3s 才轉正——角度大於 ~3° 時斜角凸出超過卡片 6px padding、
+// 轉正途中圖角壓出粉框（原 ±3–6°，user 2026-10-19）。faculty-data-loader／alumni 初始角同範圍
+const facultyImgDeg = () => `${((Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2)).toFixed(2)}deg`;
+
 function animateFacultyCards(cards) {
   if (typeof gsap === 'undefined') return;
   const items = Array.from(cards);
@@ -196,7 +200,7 @@ function animateFacultyCards(cards) {
     // 修＝關 transition → 改 var → 強制 reflow 讓新角度無過場落地 → 還原（hover 仍需要那條 transition）。
     const mask = /** @type {HTMLElement|null} */ (card.querySelector('.faculty-card-image-mask'));
     if (mask) mask.style.transition = 'none';
-    card.style.setProperty('--init-deg', `${((Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3)).toFixed(2)}deg`);
+    card.style.setProperty('--init-deg', facultyImgDeg());
     setupFacultyCardAnim(card);
     if (mask) { void mask.offsetWidth; mask.style.transition = ''; }
   });
@@ -286,6 +290,14 @@ export function initFacultyFilter(initialSection = null, unlock) {
   const facultyCards = document.querySelectorAll('.faculty-card');
 
   if (filterButtons.length === 0 || facultyCards.length === 0) { unlock(); return; }  // 沒卡片＝deep-link 無從呈現
+
+  // hover 卡片圖轉正（cards.css :hover）、離開換新角（user 2026-10-19；mask 的 transition 負責補間）
+  if (window.matchMedia('(hover: hover)').matches) {
+    facultyCards.forEach(el => {
+      const card = /** @type {HTMLElement} */ (el);
+      card.addEventListener('mouseleave', () => card.style.setProperty('--init-deg', SCCDHelpers.rerollAngle(facultyImgDeg, card.style.getPropertyValue('--init-deg'))));
+    });
+  }
 
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(document.getElementById('faculty-cards'));

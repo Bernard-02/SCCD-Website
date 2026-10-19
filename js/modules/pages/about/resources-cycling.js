@@ -23,6 +23,10 @@ export function initResourcesCycling() {
     .catch(error => console.error('Error loading resources data:', error));
 }
 
+// 圖片自帶傾角（只有真桌面的 accordion.css 會用到）：±0.5~1.5°（user 2026-10-19 嫌 ±1~2° 太多，同 activities 清單媒體），
+// 太接近 0 看不出斜；斜角伸進標題 padding 不蓋到字（圖貼齊標題、不留左 padding）。hover 圖片本身轉正、離開換新角
+const resImgRot = () => `${((0.5 + Math.random()) * (Math.random() < 0.5 ? -1 : 1)).toFixed(2)}deg`;
+
 function renderResourcesAccordion(data, container) {
   // 建立 Accordion Wrapper
   const wrapper = document.createElement('div');
@@ -58,7 +62,7 @@ function renderResourcesAccordion(data, container) {
       <div class="accordion-body">
         <div class="accordion-body-inner">
           <div class="accordion-img-wrap">
-            <div class="res-switcher">${slides}</div>
+            <div class="res-frame"><div class="res-switcher" style="--img-rot:${resImgRot()}">${slides}</div></div>
           </div>
           <div class="accordion-text-wrap">
             <!-- 英中上下堆疊在同一個可捲 box（data-resources-text＝沿用既有內捲 + .list-scroll 全站細黑 scrollbar） -->
@@ -85,6 +89,11 @@ function renderResourcesAccordion(data, container) {
   const shortLandscape = SCCDHelpers.isLandscapeGate();
   if (SCCDHelpers.isDesktopLayout()) {
     initRotatedAccordion(wrapper, { animateEntry: entry });
+    wrapper.querySelectorAll('.res-switcher').forEach(el => {
+      const sw = /** @type {HTMLElement} */ (el);
+      sw.parentElement?.addEventListener('mouseleave', () =>   // .res-frame：只有 hover 圖片本身才算
+        sw.style.setProperty('--img-rot', SCCDHelpers.rerollAngle(resImgRot, sw.style.getPropertyValue('--img-rot'))));
+    });
   } else {
     const items = Array.from(wrapper.querySelectorAll('.accordion-item'));
     if (entry && typeof ScrollTrigger !== 'undefined') {
@@ -104,7 +113,7 @@ function renderResourcesAccordion(data, container) {
           playClipReveal(items, { stagger: { each: 0.08 } });
         },
       });
-      registerPageExit(() => playRevealExit(items));
+      registerPageExit(() => playRevealExit(items, { stagger: 0 }));   // 全部同時出場（user 2026-10-19，同桌面）
     }
 
     // 封鎖綫不佔 flow（section 層 z-0 < site-container z-30，色帶從卡片後左右探出）：

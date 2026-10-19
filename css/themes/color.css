@@ -35,6 +35,16 @@ body.mode-color .footer-logo-inner {
     color: var(--theme-fg-inverse-contrast) !important;
   }
 }
+/* 散佈卡 hover（真桌面才有散佈）：mode3 不上 rgb、黑白對調（mode1/2 在 footer.css） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover {
+    background: var(--theme-fg-inverse-contrast) !important;
+  }
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover,
+  body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover :is(h6, p, a, span) {
+    color: var(--theme-fg-contrast) !important;
+  }
+}
 
 /* Footer 社群 icon 的 mode3 反色走 --footer-invert-filter，規則在 components/icon.css .icon.footer-social-glyph */
 
@@ -470,12 +480,12 @@ body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
 /* ===== About Faculty hover ===== */
 @media (min-width: 768px) {
   /* faculty-card hover：strict B/W 蓋掉 cards.css var(--card-color)；子元素無 .text-black，自然繼承字色 */
-  body.mode-color .faculty-card:hover {
+  body.mode-color .faculty-card:is(:hover, .is-active) {
     background-color: var(--theme-fg) !important;
     color: var(--theme-fg-inverse);
   }
   /* 代用 logo hover：卡底翻 theme-fg → 在 base filter 上再 invert(1) 才對比 */
-  body.mode-color .faculty-card-placeholder:hover .faculty-card-image {
+  body.mode-color .faculty-card-placeholder:is(:hover, .is-active) .faculty-card-image {
     filter: var(--theme-invert-filter, invert(0)) invert(1);
   }
 }
@@ -755,11 +765,23 @@ body.mode-color .atlas-list-col[data-category="employ"] .atlas-list-nav-btn {
   color: var(--lib-fg) !important;
 }
 
-/* 左下 layout toggle btn：bg fg + icon 對比色 → strict B/W
- * .icon 走 currentColor，色源跟 .atlas-layout-inner color 一致 */
+/* view 切換膠囊：strict B/W（base icon＝theme-bg 會變 hue 色）。膠囊 fg 底＋反色 icon；
+   mode3 無三原色 → active／hover inactive 一律翻反色（hover 時兩半同色） */
 body.mode-color .atlas-layout-inner {
-  background: var(--theme-fg) !important;
-  color: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg-inverse);
+}
+body.mode-color .atlas-layout-face {
+  background: var(--theme-fg);
+}
+body.mode-color .atlas-layout-opt.is-active .atlas-layout-face {
+  background: var(--theme-fg-inverse);
+  color: var(--theme-fg);
+}
+@media (hover: hover) and (min-width: 768px) {
+  body.mode-color .atlas-layout-opt:not(.is-active):hover .atlas-layout-face {
+    background: var(--theme-fg-inverse);
+    color: var(--theme-fg);
+  }
 }
 
 /* List 項目主標 / chevron：寫死 black → fg；子層半透明副標自然繼承 */

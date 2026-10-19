@@ -248,7 +248,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     const asyncDecode = !isModePlaceholder(item);
     const color = SCCDHelpers.ACCENT_COLORS[index % SCCDHelpers.ACCENT_COLORS.length];
     const sign = Math.random() < 0.5 ? -1 : 1;
-    const initDeg = (sign * (3 + Math.random() * 3)).toFixed(2);
+    const initDeg = (sign * (1 + Math.random() * 2)).toFixed(2);   // ±1–3°，理由見 faculty-filter.js facultyImgDeg
     const imgDir = randomRevealDir();   // 圖片進場 4 方向 random 抽，faculty-filter setupFacultyCardAnim 讀 data-img-dir
     // 沒照片也沒代用 logo＝不放 img、只留灰底卡（後台是唯一圖片來源，不放假照片，user 2026-10-04）
     const imgHtml = (item.image || isModePlaceholder(item))

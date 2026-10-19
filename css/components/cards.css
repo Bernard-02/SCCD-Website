@@ -159,7 +159,7 @@
 
   /* Hover（桌面） */
   @media (min-width: 768px) {
-    .faculty-card:hover {
+    .faculty-card:is(:hover, .is-active) {   /* .is-active＝slide-in 開著的那張（faculty-slide-in.js），關完才拿掉 */
       background-color: var(--card-color, var(--color-blue));
     }
   }
@@ -178,7 +178,7 @@
     }
   }
 
-  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0°。圖片進場 clip-reveal：外層 mask 當遮罩（overflow:clip），
+  /* Faculty 卡片預設旋轉（JS 設 --init-deg），hover 恢復 0°、離開 JS 換新 --init-deg（faculty-filter／alumni）。圖片進場 clip-reveal：外層 mask 當遮罩（overflow:clip），
      wrapper（灰底+照片+overlay）在內滑入。旋轉/transition 放 mask 不放 wrapper：
      ① clip 在旋轉後的 local box 生效 → 旋轉角不被裁
      ② wrapper 不留 CSS transition → GSAP 每幀寫 transform 不被 transition 追打（卡頓） */
@@ -189,7 +189,7 @@
   }
 
   @media (min-width: 768px) {
-    .faculty-card:hover .faculty-card-image-mask {
+    .faculty-card:is(:hover, .is-active) .faculty-card-image-mask {
       transform: rotate(0deg);
     }
   }

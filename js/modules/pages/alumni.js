@@ -84,7 +84,7 @@ function renderMembers(data) {
   if (!container) return;
   container.innerHTML = (data.members || []).map((m, i) => {
     const color = SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length];
-    const initDeg = randDeg(3, 6);
+    const initDeg = randDeg(1, 3);   // 同 faculty 卡 ±1–3°（大角度 hover 轉正途中圖角壓出粉框，見 faculty-filter.js facultyImgDeg）
     const imgDir = randomRevealDir();
     return `
       <div class="faculty-card p-[6px] cursor-default" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
@@ -107,8 +107,15 @@ function renderMembers(data) {
     `;
   }).join('');
 
-  if (typeof gsap === 'undefined') return;
   const cards = container.querySelectorAll('.faculty-card');
+  // hover 卡片圖轉正（cards.css :hover）、離開換新角（user 2026-10-19，同 faculty）
+  if (window.matchMedia('(hover: hover)').matches) {
+    cards.forEach(el => {
+      const card = /** @type {HTMLElement} */ (el);
+      card.addEventListener('mouseleave', () => card.style.setProperty('--init-deg', `${SCCDHelpers.rerollAngle(() => randDeg(1, 3), card.style.getPropertyValue('--init-deg'))}deg`));
+    });
+  }
+  if (typeof gsap === 'undefined') return;
   cards.forEach(card => {
     const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
     const name  = card.querySelector('.faculty-card-name');

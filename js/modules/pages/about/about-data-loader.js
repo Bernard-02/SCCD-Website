@@ -125,10 +125,10 @@ function renderPlaylist(box, iframe, listId, vids) {
     b.type = 'button';
     b.className = 'works-playlist-item';
     b.dataset.vid = v.id;
-    // default 隨機旋轉（全站 -4~+6° 排除 0）；桌面 hover 抽新角、離開保持（全站 nav btn 同模型；user 2026-09-15）
-    const setRot = () => b.style.setProperty('--pl-rot', `${SCCDHelpers.getRandomRotation()}deg`);
-    setRot();
-    if (spinOn) b.addEventListener('mouseenter', setRot);
+    // default 隨機旋轉（全站 -4~+6° 排除 0）；桌面 hover 轉正（lists.css）、離開換新角（全站卡片內圖片同款，user 2026-10-19）
+    b.style.setProperty('--pl-rot', `${SCCDHelpers.getRandomRotation()}deg`);
+    if (spinOn) b.addEventListener('mouseleave', () =>
+      b.style.setProperty('--pl-rot', `${SCCDHelpers.rerollAngle(SCCDHelpers.getRandomRotation, b.style.getPropertyValue('--pl-rot'))}deg`));
     const img = document.createElement('img');
     img.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`;   // 320×180 真 16:9（hqdefault 是 4:3 帶黑邊）
     img.alt = v.title;

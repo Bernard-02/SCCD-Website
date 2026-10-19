@@ -134,9 +134,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   const slotZ = (Array.isArray(opts.slotZ) && opts.slotZ.length === slotLefts.length) ? opts.slotZ : null;
   // tick 離場方向：預設 'left'（與整列左移同向）；dshow-detail 子展覽傳 true → 隨機 4 向
   const leaveRandom = !!opts.leaveRandom;
-  // hover 行為（user 2026-09-13，about class 圖用）：true＝hover 抽新隨機角並「吃住」（_rotation 一併更新、
-  // 離開不彈回，含 slot 0）；false＝原行為（hover 轉正 0°、離開還原、slot 0 不轉——degree-show 維持）
-  const hoverSpin = !!opts.hoverSpin;
+  // hover 轉正 0°、離開換新角（user 2026-10-19）；hoverAll（about class 圖）＝含 slot 0 都轉正，
+  // 預設 slot 0 不轉（degree-show 維持）
+  const hoverAll = !!opts.hoverAll;
   // alignTop（user 2026-09-15，about 桌面用）：圖頂對齊容器頂＝說明 box 頂（grid items-start 同列同頂）；
   // 預設維持 top:70% + yPercent:-50 垂直置中（degree-show / timeline 等共用者不變）
   const slotPos = opts.alignTop ? { top: 0, yPercent: 0 } : {};
@@ -187,33 +187,24 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     registerPageCleanup(() => window.removeEventListener('resize', relayout));
   }
 
-  function clearHoverState(wrapper) {
+  // reroll（滑鼠離開）：轉正過的那張換新角（user 2026-10-19）；tick 移位前的清除只還原、不換
+  function clearHoverState(wrapper, reroll = false) {
     if (wrapper._rotation === undefined) return;
+    if (reroll && wrapper._straight) wrapper._rotation = SCCDHelpers.rerollAngle(randomRotation, wrapper._rotation);
+    wrapper._straight = false;
     gsap.to(wrapper, { rotation: wrapper._rotation, duration: HOVER_DUR, overwrite: 'auto' });
   }
 
   function activateHover(wrapper) {
+    wrapper._straight = true;
     gsap.to(wrapper, { rotation: 0, duration: HOVER_DUR, overwrite: 'auto' });
   }
 
-  // hoverSpin：抽一個跟現角至少差 2° 的新隨機角（±4，同出生 randomRotation），寫回 _rotation＝定案
-  //（之後 shift/leave 都用新角）；再 hover 再抽。
-  function spinHover(wrapper) {
-    const cur = wrapper._rotation ?? 0;
-    let r = cur;
-    while (Math.abs(r - cur) < 2) r = randomRotation();
-    wrapper._rotation = r;
-    gsap.to(wrapper, { rotation: r, duration: HOVER_DUR, overwrite: 'auto' });
-  }
-
-  // shift 完成後呼叫：若游標仍停在某 slot 上（slot 1 或 2），立刻啟用 hover；
+  // shift 完成後呼叫：若游標仍停在某 slot 上，立刻啟用 hover；
   // 不需要使用者移開再進入才觸發。
   function reapplyHoverIfPointerInside() {
-    // spin 模式：shift/click 後不主動補抽角——移位後停在游標下的圖已帶自己定案的 _rotation，
-    // 這裡再 spinHover 會變「點一下就自己轉到新角度」（user 不要）；真的 hover（移入）仍會經 mouseenter 抽新角。
-    if (hoverSpin) return;
     slots.forEach((s, i) => {
-      if (i === 0) return; // 原行為：slot 0 不 hover
+      if (i === 0 && !hoverAll) return; // 預設：slot 0 不 hover
       if (s.matches(':hover')) activateHover(s);
     });
   }
@@ -235,7 +226,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   }
 
   // 點擊任一張（含 slot 0）：觸發一次 shift-left，整列往左移（2026-08-17 對齊 degree-show gallery）。
-  // hover：暫停自動輪播 + 旋轉歸 0°（slot 0 不做旋轉但仍暫停）；leave 還原角度、無 slot 被 hover 才恢復。
+  // hover：暫停自動輪播 + 旋轉歸 0°（預設 slot 0 不做旋轉但仍暫停；hoverAll 含 slot 0）；leave 換新角、無 slot 被 hover 才恢復。
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
       if (isShifting) return;
@@ -250,12 +241,11 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     wrapper.addEventListener('mouseenter', () => {
       pauseAutoplay();
       if (isShifting) return;
-      if (hoverSpin) { spinHover(wrapper); return; }   // spin 模式：含 slot 0、離開不還原（_rotation 已更新）
-      if (slots.indexOf(wrapper) === 0) return; // slot 0（第 1 張）不做旋轉 hover
+      if (!hoverAll && slots.indexOf(wrapper) === 0) return; // 預設 slot 0（第 1 張）不做旋轉 hover
       activateHover(wrapper);
     });
     wrapper.addEventListener('mouseleave', () => {
-      if (!hoverSpin) clearHoverState(wrapper);
+      clearHoverState(wrapper, true);
       if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
     });
   }
@@ -295,7 +285,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     isShifting = true;
 
     // 移動前清掉所有 slot 的 hover 狀態（旋轉還原）
-    slots.forEach(clearHoverState);
+    slots.forEach(s => clearHoverState(s));   // 別直接傳 clearHoverState：forEach 的 index 會被當成 reroll
 
     const leaving = slots[0];
 
@@ -500,7 +490,7 @@ export async function initClassImagesSlideshow() {
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
-      : { textHlReveal: true, hoverSpin: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 抽新角吃住（09-13）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
+      : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

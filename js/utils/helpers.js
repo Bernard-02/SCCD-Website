@@ -114,6 +114,15 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return deg;
   };
 
+  // 卡片內圖片 hover 離開換新角（user 2026-10-19）：用各自的角度產生器 gen 重抽，跟舊角 prev 差 ≥1° 才算「新」（差太少看起來像沒換）。
+  // gen 可回數字或 '4.2deg' 字串，prev 同；回傳 gen 的原格式
+  Helpers.rerollAngle = function(gen, prev) {
+    const p = parseFloat(String(prev)) || 0;
+    let d;
+    do { d = gen(); } while (Math.abs(parseFloat(String(d)) - p) < 1);
+    return d;
+  };
+
   // Fisher–Yates 原地洗牌、回傳同一陣列（要保留來源順序／來源是 frozen 時先 [...arr] 複製）
   Helpers.shuffle = function(arr) {
     for (let i = arr.length - 1; i > 0; i--) {

@@ -919,6 +919,7 @@ function closeLightbox() {
     // 清 zoom refs（fit/drag flags 等下次 renderMain 會重置）
     zoomImg = null; zoomStage = null; isDragging = false;
     if (refUi) refUi.reset();
+    document.dispatchEvent(new CustomEvent('sccd:lightbox-closed'));   // 淡出收完（library 點開列的 active 底色此時才清）
   }, 300);
   document.dispatchEvent(new CustomEvent('sccd:close-lightbox'));
 }

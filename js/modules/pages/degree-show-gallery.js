@@ -126,11 +126,15 @@ export function initDegreeShowGallery(container, pool) {
     timer = setInterval(tick, INTERVAL);
   }
 
-  function clearHoverState(wrapper) {
+  // reroll（滑鼠離開）：轉正過的那張換新角（user 2026-10-19，同 class-images-slideshow）；tick 移位前的清除只還原
+  function clearHoverState(wrapper, reroll = false) {
     if (wrapper._rotation === undefined) return;
+    if (reroll && wrapper._straight) wrapper._rotation = SCCDHelpers.rerollAngle(randomRotation, wrapper._rotation);
+    wrapper._straight = false;
     gsap.to(wrapper, { rotation: wrapper._rotation, duration: HOVER_DUR, overwrite: 'auto' });
   }
   function activateHover(wrapper) {
+    wrapper._straight = true;
     gsap.to(wrapper, { rotation: 0, duration: HOVER_DUR, overwrite: 'auto' });
   }
   function reapplyHoverIfPointerInside() {
@@ -148,7 +152,7 @@ export function initDegreeShowGallery(container, pool) {
   }
 
   // 點擊任一張（含 slot 0）：觸發一次 shift-left，整列往左移（user 2026-08-17「點任何一張都往左推、不限第幾張」）
-  // hover：暫停自動輪播 + 旋轉歸 0°（slot 0 不做旋轉但仍暫停）；leave 還原角度、無 slot 被 hover 才恢復輪播
+  // hover：暫停自動輪播 + 旋轉歸 0°（slot 0 不做旋轉但仍暫停）；leave 換新角、無 slot 被 hover 才恢復輪播
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
       if (isShifting) return;
@@ -163,7 +167,7 @@ export function initDegreeShowGallery(container, pool) {
       activateHover(wrapper);
     });
     wrapper.addEventListener('mouseleave', () => {
-      clearHoverState(wrapper);
+      clearHoverState(wrapper, true);
       if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
     });
   }
@@ -186,7 +190,7 @@ export function initDegreeShowGallery(container, pool) {
     isShifting = true;
 
     // 移動前清掉所有 slot 的 hover 狀態（旋轉還原）
-    slots.forEach(clearHoverState);
+    slots.forEach(s => clearHoverState(s));   // 別直接傳 clearHoverState：forEach 的 index 會被當成 reroll
 
     const leaving = slots[0];
     gsap.to(leaving.firstElementChild, {

@@ -186,6 +186,11 @@
   @media (min-width: 768px) {
     .colored-accordion .res-switcher { will-change: transform; }
   }
+  /* 不轉的 0° 圖框：桌面 hover 判定掛這層（見下方桌面傾角 block） */
+  .res-frame {
+    width: 100%;
+    height: 100%;
+  }
   .res-slide {
     width: 100%;
     height: 100%;
@@ -226,6 +231,22 @@
     .colored-accordion .accordion-label-zh {
       margin-top: 0;
     }
+  }
+  /* 桌面圖片自帶傾角（--img-rot，resources-cycling 出生時寫、離開換新角），只有 hover 圖片本身才轉正（user 2026-10-19）。
+     hover 判定掛不轉的 .res-frame（＝圖 0° 時的框）、switcher 不吃滑鼠：凸出框外的斜角不算 hover，也免轉正後游標落到框外又轉回的抖動。
+     圖、文維持貼齊標題（不加左 padding，user 2026-10-19）：展開卡的 body／img-wrap 放開 overflow，斜角左緣伸進標題的
+     右 padding（sm 16）——角度收在 ±0.5~1.5°（resources-cycling resImgRot）＝伸進去最多 ~10px、蓋不到標題字（上下靠 img-wrap 的 md padding）。
+     只放開 .active：收合卡 body 寬 0、放開會讓斜角冒在別張標題上；右側溢出由 item 的 inline overflow:hidden 照裁（開合過場不外露）。
+     ponytail: 10px 是 2560×1440（圖高 ~700）的量；更高的螢幕（4K 原生）大角度可能碰到字，真遇到再依圖高縮角度 */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    .colored-accordion .accordion-img-wrap,
+    .colored-accordion .accordion-item.active .accordion-body { overflow: visible; }
+    .colored-accordion .res-switcher {
+      rotate: var(--img-rot, 0deg);
+      pointer-events: none;
+      transition: rotate var(--dur-fast) var(--ease-standard);
+    }
+    .colored-accordion .res-frame:hover .res-switcher { rotate: 0deg; }
   }
   /* 桌面標籤直式：英在上、中在下各自成段（inner 不 rotate，改 column）
      EN vertical-rl + sideways＝字頭朝右由上往下讀；ZH upright＝直排字正；sep 隱藏、英中距吃 lg token

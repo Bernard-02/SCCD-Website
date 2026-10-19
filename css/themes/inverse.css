@@ -248,7 +248,7 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 
 /* ===== Faculty Card hover：inverse 繼承白字，hover 亮三原色底上看不清 → 反黑 ===== */
 @media (min-width: 768px) {
-  body.mode-inverse .faculty-card:hover {
+  body.mode-inverse .faculty-card:is(:hover, .is-active) {
     color: black;
   }
 }

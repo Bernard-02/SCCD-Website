@@ -219,18 +219,19 @@ export function bindMediaHover(container) {
       // 角度出生已烙在 HTML（mediaRot：圖＋佔位框同角）；沒烙的（HLS 截幀 tile 等）才在此補抽。
       // 旋轉幅度刻意小（0.5°~1.5°），避免外溢過多影響 layout；六輪 2-B：純寫、零 computed 讀，hover 的 gsap.to 從此 CSS rotate 接手。
       if (!img.dataset.initDeg) {
-        const initDeg = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 1);
-        img.dataset.initDeg = String(initDeg);
+        const initDeg = mediaDeg();
+        img.dataset.initDeg = initDeg;
         img.style.transform = `rotate(${initDeg}deg)`;
       }
-      // hover 轉正時佔位框一起轉（色塊載完已移除＝落空即只轉圖）
+      // hover 轉正、離開換新角（user 2026-10-19）；佔位框一起轉（色塊載完已移除＝落空即只轉圖）
       const turnees = () => [img, wrapper.querySelector(':scope > .gallery-ph')].filter(Boolean);
       wrapper.addEventListener('mouseenter', () => {
         gsap.to(turnees(), { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
       });
       wrapper.addEventListener('mouseleave', () => {
-        const deg = parseFloat(img.dataset.initDeg) || 0;
-        gsap.to(turnees(), { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+        const deg = SCCDHelpers.rerollAngle(mediaDeg, img.dataset.initDeg);
+        img.dataset.initDeg = deg;
+        gsap.to(turnees(), { rotation: +deg, duration: DUR.fast, ease: EASE.enterSoft });
       });
     };
 
@@ -461,8 +462,9 @@ const PH_DIRS = ['0%, -110%', '0%, 110%', '-110%, 0%', '110%, 0%'];
 const phDir = () => `translate(${PH_DIRS[(Math.random() * 4) | 0]})`;
 // 媒體微旋角（0.5°~1.5°、兩邊隨機）出生就烙進 HTML（圖＋佔位框同角，data-init-deg 給 bindMediaHover hover 轉回用）：
 //   大清單／deep-link 的展開內容 binds 延後 1.6s+settle（見 _bindTimer），原本綁時才寫角度＝展開當下沒角度、過一下才突轉（user 2026-10-03）。
+const mediaDeg = () => ((Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random())).toFixed(2);   // bindMediaHover 離開換新角同用
 const mediaRot = () => {
-  const d = ((Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random())).toFixed(2);
+  const d = mediaDeg();
   return {
     img: ` style="visibility:hidden; transform: rotate(${d}deg)" data-init-deg="${d}"`,
     ph: `<span class="gallery-ph" aria-hidden="true" style="transform: rotate(${d}deg)"><span style="--ph-in: ${phDir()}; --ph-out: ${phDir()}"></span></span>`,

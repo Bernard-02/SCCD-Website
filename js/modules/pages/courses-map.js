@@ -437,22 +437,27 @@ function openCourseSlideIn(card, onOpened) {
 }
 
 export function closeCourseSlideIn() {
-  // 確保關閉時清除 activeCard 狀態與角度（處理 ESC 或點擊 overlay 關閉的情境）
+  // 確保關閉時清除 activeCard 狀態與角度（處理 ESC 或點擊 overlay 關閉的情境）。
+  // 底色留到 panel 滑出完才清（user 2026-10-19「active 中底色不能先拿掉」）；期間被重選或游標移上去（hover 自上色）就不清
+  const wasActive = activeCard;
   if (activeCard) {
-    activeCard.style.background = '';
-    delete activeCard.dataset.currentColor;
     const baseRot = activeCard.dataset.baseRot || '0';
     activeCard.style.transform = `rotate(${baseRot}deg)`;
     activeCard = null;
   }
+  const clearActiveBg = () => {
+    if (!wasActive || wasActive === activeCard || wasActive.matches(':hover')) return;
+    wasActive.style.background = '';
+    delete wasActive.dataset.currentColor;
+  };
 
   const slideIn = getSlideIn();
   const panel = getSlidePanel();
   const overlay = getSlideOverlay();
-  if (!slideIn || !panel || !overlay) return;
+  if (!slideIn || !panel || !overlay) { clearActiveBg(); return; }
 
   // 如果面板已經是隱藏狀態，直接 return，避免切換 program 分頁時觸發多餘的 CSS 變化
-  if (slideIn.classList.contains('invisible')) return;
+  if (slideIn.classList.contains('invisible')) { clearActiveBg(); return; }
 
   // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open。
   // deferHeaderShow：slide-in 是往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
@@ -478,6 +483,7 @@ export function closeCourseSlideIn() {
         slideIn.classList.remove('pointer-events-auto');
         panel.style.backgroundColor = '';
         htmlEl.classList.remove('has-slide-in');
+        clearActiveBg();
         if (coursesReturnFocus) { coursesReturnFocus.focus({ preventScroll: true }); coursesReturnFocus = null; }
       });
   } else {
@@ -488,6 +494,7 @@ export function closeCourseSlideIn() {
       slideIn.classList.remove('pointer-events-auto');
       panel.style.backgroundColor = '';
       htmlEl.classList.remove('has-slide-in');
+      clearActiveBg();
     }, 500);
   }
 }
