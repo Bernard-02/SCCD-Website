@@ -47,6 +47,10 @@ const ENTER_DELAY = 0.5;      // 新進場 banner 在 cycle 觸發後 delay 0.5s
 // 舊版 poster 走 CSS transition 0.4s cubic-bezier、push 走 0.5s power2.inOut，兩條曲線對不上（user 2026-09-28）
 const PUSH_DUR = DUR.base;
 const PUSH_EASE = EASE.enterSoft;
+// 海報頂端離畫面頂的最小距離（同桌面 hero 圖上界 48）：矮螢幕放不下原尺寸 → banner 整條等比收窄、海報寬＝banner 寬
+// （user 2026-10-19；字級不動，放不下的字照跑馬燈）。收窄下限 MIN_BANNER_W，再矮就只縮海報（比 bar 窄）保底
+const POSTER_TOP_GAP = 48;
+const MIN_BANNER_W = 200;
 
 // 全部 slot 同 x（左對齊），y 階梯排列；rotation 由 item 自帶
 // index 0 = 最上方（第一個 / 最舊），index 2 = 最下方（最後一個 / 最新）
@@ -136,6 +140,7 @@ async function preloadOrientations(items) {
       const img = new Image();
       img.onload = () => {
         item.orientation = (img.naturalWidth >= img.naturalHeight) ? 'landscape' : 'portrait';
+        item.ratio = img.naturalHeight / img.naturalWidth;   // fitBannerToRoom 用
         resolve();
       };
       img.onerror = () => { item.orientation = 'landscape'; resolve(); };
@@ -307,6 +312,15 @@ function createBanner(item, squareColor) {
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
 // 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。逐行獨立 gate。
+// 海報（寬＝banner 寬）在 room 內放不下 → banner 整條等比收窄。需在 gateMarqueeScroll（量寬）與 bind（算 _posterH）之前呼叫。
+// ponytail: 視窗高只在建立 banner 時量（同寬度決定時機）；resize 後新進場的 banner 才吃新高度，舊的由 openPoster 保底
+function fitBannerToRoom(b, room) {
+  const r = b.item.ratio;
+  if (!b.posterEl || !r || b.width * r <= room) return;
+  b.width = Math.max(MIN_BANNER_W, Math.floor(room / r));
+  b.el.style.width = `${b.width}px`;
+}
+
 function gateMarqueeScroll(b) {
   // duration＝像素制（全域 marqueeSpeed()，桌面 80/手機 60）；loop 一輪位移 = -50% = 一份 copy 寬。
   // 兩行共用同一 duration（取較長行）＝同拍循環、loop 接縫不脫節（短行等比慢，同 buildSyncedMarqueeTimeline 慣例）
@@ -378,8 +392,12 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   const openPoster = () => {
     onEnter();
     if (b.posterEl && b._posterH) {
+      // 保底：banner 已收窄到 MIN_BANNER_W 仍放不下（極矮視窗）／resize 變矮 → 海報再縮、比 bar 窄（靠左）
+      const room = Math.max(0, b.row.getBoundingClientRect().top - POSTER_TOP_GAP);
+      b._openH = Math.min(b._posterH, room);
+      b.posterEl.style.width = `${b._openH / b._posterH * 100}%`;
       // 只長到圖高（舊 +20 是 max-height 超過內容高的空跑段、視覺不變，但 push 也 +20 → 海報上方多出 20px 假 gap）
-      gsap.to(b.posterEl, { maxHeight: b._posterH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
+      gsap.to(b.posterEl, { maxHeight: b._openH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       pushAbove(b);
     }
   };
@@ -440,6 +458,9 @@ function runMarqueeStack(stack, items) {
   // 滿 3 則時 slotOffset=0（行為與舊版完全一致）。pushAbove/restoreAbove 也用 slotOffset 校正。
   const visibleCount = Math.min(SLOT_COUNT, items.length);
   const slotOffset = SLOT_COUNT - visibleCount;
+  // 最上層 slot（banner 會輪到那裡）上方可放海報的高：stack 底＝slot y 基準、banner 頂再扣 bar 高與上界
+  // （−4＝±1° 旋轉讓 banner 頂角上翹的量，不扣的話 hover 時 openPoster 保底會再縮 1–2px）
+  const posterRoom = () => stack.clientHeight + slotConfigs()[slotOffset].y - measuredBarH - POSTER_TOP_GAP - 4;
 
   // setTimeout-based pause/resume：hover 期間真的「凍結倒數」，離開後用剩餘秒數重排
   // （舊版 setInterval + pending 在 hover 跨 tick 時離開瞬間立刻 advance，視覺上像「沒等夠」）
@@ -500,7 +521,7 @@ function runMarqueeStack(stack, items) {
   function pushAbove(hovered) {
     const idx = banners.indexOf(hovered);
     if (idx <= 0) return; // 最上面 (slot 0) 沒有東西在上方
-    const pushAmount = hovered._posterH || 0;   // 推開量＝海報高 → 海報頂到上方 banner 的距離維持 SLOT_GAP
+    const pushAmount = hovered._openH || 0;   // 推開量＝海報展開高（矮螢幕已縮）→ 海報頂到上方 banner 的距離維持 SLOT_GAP
     for (let i = 0; i < idx; i++) {
       const above = banners[i];
       const cfg = slotConfigs()[slotOffset + i];
@@ -534,6 +555,7 @@ function runMarqueeStack(stack, items) {
     stack.appendChild(b.el);
     // 首個 banner 進 DOM 後量 bar 實高（中英兩行 > 舊常數 40）→ slotConfigs 以實高排 slot 間距
     if (i === 0) measuredBarH = b.el.offsetHeight || BAR_HEIGHT;
+    fitBannerToRoom(b, posterRoom());
     gateMarqueeScroll(b);
     applySlotTransform(b, slotOffset + i, false);
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
@@ -591,6 +613,7 @@ function runMarqueeStack(stack, items) {
     cursor = (cursor + 1) % items.length;
     const nb = createBanner(newItem, inheritedColor);
     stack.appendChild(nb.el);
+    fitBannerToRoom(nb, posterRoom());
     gateMarqueeScroll(nb);
     applySlotTransform(nb, SLOT_COUNT - 1, false);
     bindBannerInteraction(nb, onEnter, onLeave, pushAbove, restoreAbove);

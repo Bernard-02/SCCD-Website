@@ -412,8 +412,8 @@ function initYTCardClick(ytCard, playerRef) {
     const targetScale = (maxDist / (rect.width / 2)) * 2.2;
 
     // 字母 fadeOut（短）+ 圓圈放大（長），同時起跑，圓圈放慢讓字母能完整消失。
-    // ⚠️ ytCard 父層 <section> 有 position:relative + z:9998 形成 stacking context，
-    //    ytCard 內的 z 怎麼調都被困在 section（9998），永遠在 body-level clone (z:10001) 之下。
+    // ⚠️ ytCard 自身 position:absolute + z:20 形成 stacking context，
+    //    ytCard 內的 z 怎麼調都被困在 20，永遠在 body-level clone (z:10001) 之下。
     //    解法：把 chars 元素暫時 reparent 到 body，position:fixed 對齊 card 原位 + z:10002，
     //    這樣 chars 突破 section stacking 浮在 clone 之上，動畫期間可見。
     const ytCharsEl = document.getElementById('homepage-yt-chars');

@@ -4,7 +4,7 @@
 #mode-color-panel {
   position: fixed;
   inset: 0;
-  z-index: 9998;            /* 低於 lightbox 9999；＝index hero snap-zone 9998，本 layer append 在 body 最後、同 z 靠 source order 贏 */
+  z-index: 9998;            /* 低於 lightbox 9999；index 首屏內容（浮卡 0／news 15／WATCH 20）都在其下 */
   pointer-events: none;     /* layer 不擋頁面，只有子元件可點 */
   display: none;            /* 預設藏；JS gate 打開 */
   overflow: hidden;         /* inset:0＝視窗：wheel 從右緣外滑入的唯一裁切線（也防 off-screen 面板撐出橫向捲軸） */

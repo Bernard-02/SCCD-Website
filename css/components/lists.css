@@ -149,7 +149,7 @@
      鈕本身 overflow:clip＝遮罩；內層上 padding＝清單頂 clearance(sm) → 箭頭落在原第一顆 btn 頂，下 padding xs＝下 chevron 鏡像。 */
   .nav-overflowing > .nav-less-btn {
     position: absolute;
-    z-index: 1;
+    z-index: 4;   /* 高過清單：curriculum 的 .courses-program-bar 帶 z-index 3（flex 子項＝自成疊層），1 會被 btn 蓋住看不到（user 2026-10-19） */
     align-self: flex-start;
     display: block;
     padding: 0;
@@ -1334,6 +1334,16 @@ body.mode-color .gallery-ph > span {
 .hm-banner-row.is-swap .homepage-marquee-link { background: var(--hm-accent) !important; }
 .hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) { color: #000 !important; }
 
+/* news banner 疊層：首屏 section 與 stack 都不建 stacking context（z auto）→ banner 直接跟 header(9999) 比。
+   平常 15＝浮卡層(0)之上、WATCH 卡(20)之下；桌面 hover 那則拉到 10000，海報蓋過 logo（user 2026-10-19）——
+   只抬 hover 那則：浮卡與被推開的 banner 留在 logo 下。離開延遲 --dur-base（＝海報收合 PUSH_DUR）才降回，收合途中不被 logo 切過。
+   手機不抬（點開常駐，會蓋 header 鈕） */
+.hm-banner { z-index: 15; }
+@media (min-width: 1024px) and (min-height: 501px) {
+  .hm-banner { transition: z-index 0s var(--dur-base); }
+  .hm-banner:hover { z-index: 10000; transition-delay: 0s; }
+}
+
 /* ponytail: activities/admission list 無分割線 + 斑馬紋。
    - item divider / 年份 separator 隱藏、search 底線去掉。
    - 交叉要「連續」跨年份組：靠 loadListInto 全域計數加 .list-item-zebra（CSS nth-child 會在各 .list-year-items 內重新計數）。 */
@@ -1493,9 +1503,12 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   border: 0;
   background: transparent;
   cursor: var(--cursor-pointer);
-  /* default 隨機角（JS 設 --pl-rot）；桌面 hover 由 JS 換新角 */
+  /* default 隨機角（JS 設 --pl-rot）；桌面 hover 轉正、離開 JS 換新角（about-data-loader） */
   transform: rotate(var(--pl-rot, 0deg));
   transition: transform var(--dur-fast) ease;
+}
+@media (min-width: 1024px) and (min-height: 501px) {
+  .works-playlist-item:hover { transform: rotate(0deg); }
 }
 .works-playlist-item img {
   display: block;

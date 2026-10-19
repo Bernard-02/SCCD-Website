@@ -38,7 +38,7 @@ const CAM_SPEED = 36;                           // px/秒（同日三修「再�
 const CAM_TURN_SEC = [20, 40];                  // 轉向間隔（秒）
 const CAM_TURN_RAD = [Math.PI / 6, Math.PI * 2 / 3];
 const CAM_TURN_TAU = 2;                         // 航向指數逼近目標的時間常數（秒；≈6s 轉完，同原每幀 0.008）
-let camVX = 0, camVY = 0;                       // 當前鏡頭速度（px/秒；tick 寫、spawnItem 邊緣進場讀方向）
+const LEAD_MIN = CAM_SPEED * 0.2;               // 卡朝畫面內 ≥ 這速度的邊才算進場邊（太平行＝卡在畫面外爬很久進不來）
 const IMG_WIDTH = 140; // 所有圖片統一寬度，高度 auto follow 原比例（2026-05-28 從 200 減 30%）
 const MAX_TEXT_WIDTH = 210; // 2026-05-28 從 300 減 30%
 // 手機小一號（user 2026-09-10「大小不用太大、分佈平均」）：卡窄＋透視放大 cap 1.05（桌面 1.5）
@@ -51,8 +51,12 @@ function perspectiveScale(cx, cy, cw, ch, gain) {
   const hx = cw / 2, hy = ch / 2;
   return 0.6 + Math.min(Math.hypot(cx - hx, cy - hy) / (Math.hypot(hx, hy) || 1), 1) * gain;
 }
-// 當前畫面上的卡（initFloatingItems 指派）：邊緣進場挑位置要看現有卡在哪
-let liveItems = [];
+// 卡中心到「看得見的邊」的半寬／半高：透視倍率 s ＋ 3D 擺動投影外擴（perspective 600、Y±60°/X±30° 近側被放大，
+// 實算最多約 0.09×長邊，取 0.1）。進場外推與出場收卡共用——只算倍率時大張直式海報會在邊緣先露一截（10-19 實測 22px）
+function visHalf(w, h, s) {
+  const pad = 0.1 * Math.max(w, h);
+  return [s * (w / 2 + pad), s * (h / 2 + pad)];
+}
 
 // ── Pool 建立 ──────────────────────────────────────────────
 
@@ -184,20 +188,21 @@ async function fetchAwardTexts() {
   return pool;
 }
 
-// 開場均勻鋪點：純隨機會結塊（一角一坨），改 jittered grid——切成 ~sqrt(n) 欄列、每格放一點再在格內
-// 抖動（0.2~0.8 格）→ 鋪滿整個視窗又不呆板。回傳視窗座標（卡片中心），數量 = n。
+// 開場均勻鋪點：逐點抽 15 個候選、取離現有點最遠者（邊界當鏡像點＝離邊至少半個間距）→ 比 jittered grid 平均
+// （grid 格內抖動仍會兩點貼近、旁邊空一塊），也跟移動中補洞（fillHoles）同一套「最遠空位」。回傳卡片中心，數量 = n。
 function scatterPositions(n, cw, ch) {
-  const cols = Math.max(1, Math.round(Math.sqrt(n * cw / ch)));
-  const rows = Math.ceil(n / cols);
-  const cellW = cw / cols;
-  const cellH = ch / rows;
   const pts = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      pts.push({ x: (c + 0.2 + Math.random() * 0.6) * cellW, y: (r + 0.2 + Math.random() * 0.6) * cellH });
+  for (let i = 0; i < n; i++) {
+    let best = null, bestD = -1;
+    for (let k = 0; k < 15; k++) {
+      const p = { x: Math.random() * cw, y: Math.random() * ch };
+      let d = 2 * Math.min(p.x, cw - p.x, p.y, ch - p.y);
+      for (const q of pts) d = Math.min(d, Math.hypot(p.x - q.x, p.y - q.y));
+      if (d > bestD) { bestD = d; best = p; }
     }
+    pts.push(best);
   }
-  return SCCDHelpers.shuffle(pts).slice(0, n);
+  return pts;
 }
 
 // 把一組 entry 包成 category 池：標記 _cat（給去重/均分用）+ 洗牌後配一個 cursor 輪替
@@ -223,7 +228,7 @@ let newsHoverActive = false;   // 當前是否處於 news hover 態——給「h
 // 全局 theme:changed listener registry（離頁時統一移除，避免 SPA 換頁累積）
 const themeListeners = [];
 
-// 訂閱 news hover：注意「hover 進行中才誕生的卡（edge-respawn thumbnail / 文字卡）」——
+// 訂閱 news hover：注意「hover 進行中才誕生的卡（補洞進場的圖片卡 / 文字卡）」——
 // 過去只 push listener、不看當前狀態 → 新卡不會補上遮蔽（user 報 bug）。訂閱當下若已在 hover 態就立刻套。
 function subscribeNewsHover(enterFn, leaveFn) {
   newsHoverListeners.enter.push(enterFn);
@@ -304,7 +309,7 @@ function createImageEl(src, url, interactive = true, preImg = null) {
     transition: none;
   `;
 
-  // preImg：edge-respawn 先 new Image() 預載好的元素，reuse＝量測時已 complete、offsetHeight 正確
+  // preImg：補洞進場先 new Image() 預載好的元素，reuse＝量測時已 complete、offsetHeight 正確
   // （新建 <img> 就算 URL 已快取也不保證同步 complete → offsetHeight 可能 0 → realH 用錯 fallback）。
   const img = preImg || document.createElement('img');
   if (!preImg) img.src = src;
@@ -483,7 +488,7 @@ export function initWatchHover() {
   // ⭐overlay 要掛進 <header> 內（而非 body）＝關鍵：header 是 z-9999 的 stacking context，overlay 當它子層、
   //   z-index:5 剛好夾在 nav bars（z-auto=0）之上、logo-wrapper（.z-10）之下 → overlay 自然蓋住 bars（bar 完全
   //   不動：不 hide/不 fade/不調 opacity，user 2026-09-04），logo 在 overlay 之上恆亮＝「logo 除外」。header
-  //   context(9999) 整體又在 section(9998) 之上 → 同片 overlay 順帶蓋住 section（floating pool + news marquee），
+  //   context(9999) 整體又在首屏 section 內容（≤20）之上 → 同片 overlay 順帶蓋住 section（floating pool + news marquee），
   //   單層無雙重壓暗。⚠️但 header 是 async fetch 進 #site-header、initWatchHover 執行時多半還沒到 → 首次 hover 才移
   //   （lazy）；移不到（header 未載）就留在 body z-9998 當 fallback（蓋 section、蓋不到 header bars）。
   //   ⚠️靠 <header> 本身無 transform（只 bars 被 collapse 動 transform）→ position:fixed 子層才仍以 viewport 為基準、
@@ -613,7 +618,8 @@ export function initWatchHover() {
 // ── Spawn & Animate ─────────────────────────────────────────
 
 // 池子空（後台沒資料／整池都已在畫面上）→ 回 null 不生成：後台是唯一圖片來源，不再拿本地測試圖補位（user 2026-10-04）
-function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initialPos = null) {
+// pos＝卡片中心 { x, y, side? }：有 side＝補洞進場（fillHoles，生在該邊畫面外）；沒有＝初始批（scatterPositions）
+function spawnItem(container, poolEntry, pos, preImg = null) {
   const cw = container.clientWidth;
   const ch = container.clientHeight;
 
@@ -628,8 +634,6 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   }
 
   const { el, w, h, slideTargets = null } = elData;
-
-  let x = 0, y = 0;
 
   // 量真實尺寸：暫時 append 到 container
   el.style.visibility = 'hidden';
@@ -665,38 +669,19 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   el.style.position = 'static';
 
   // 計算位置
-  // 邊緣 spawn 要多推「縮放溢出量」：透視倍率最大 1.5＝卡片以中心放大、單邊溢出
-  // (1.5-1)/2 = 0.25×尺寸。若只貼著邊（x=cw / y=-realH），第一幀 scale 一放大就露出 0.25×size 一角
-  // ＝在畫面邊緣 pop（圖與文字卡都中招；user 2026-08-19 二報）。多推 OVER×尺寸讓縮放後仍完全在畫面外。
-  const OVER = 0.25;
-  if (fromEdge) {
-    // 進場邊＝鏡頭前方（卡在畫面上以 −鏡頭速度移動；通量加權：鏡頭橫向分量大→多從左右進）。
-    // 隨機挑邊會生在鏡頭後方、馬上被甩出去 cull → 空轉重生、鏡頭前方卻補不到卡。
-    const rx = -camVX, ry = -camVY;
-    const fluxX = Math.abs(rx) * ch, fluxY = Math.abs(ry) * cw;
-    const horiz = Math.random() * (fluxX + fluxY) < fluxX;
-    // 沿進場邊抽 8 個候選、取離現有卡中心最遠者＝補進空檔（user 2026-10-01「分佈可以更平均」）。卡之間已不相對移動
-    //   （只隨鏡頭平移）→ 進場時的間距一路保留；舊版卡各自漂、橫越途中又洗亂，這招才只少 15% 空格。
-    let bestD = -1;
-    for (let k = 0; k < 8; k++) {
-      const cx = horiz ? (rx > 0 ? -realW * (1 + OVER) : cw + realW * OVER) : rand(-realW, cw);
-      const cy = horiz ? rand(-realH, ch) : (ry > 0 ? -realH * (1 + OVER) : ch + realH * OVER);
-      let d = Infinity;
-      for (const o of liveItems) d = Math.min(d, Math.hypot(o.x + o.w / 2 - cx - realW / 2, o.y + o.h / 2 - cy - realH / 2));
-      if (d > bestD) { bestD = d; x = cx; y = cy; }
-    }
-  } else if (initialPos) {
-    // 初始批：jittered-grid 中心點（見 scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
-    x = initialPos.x - realW / 2;
-    y = initialPos.y - realH / 2;
-    // 手機：初始批整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）
-    if (SCCDHelpers.isMobileLayout()) {
-      x = Math.min(Math.max(x, 8), Math.max(8, cw - realW - 8));
-      y = Math.min(Math.max(y, 8), Math.max(8, ch - realH - 8));
-    }
-  } else {
-    x = rand(-realW * 0.5, cw - realW * 0.5);
-    y = rand(-realH * 0.5, ch - realH * 0.5);
+  let x = pos.x - realW / 2, y = pos.y - realH / 2;
+  if (pos.side) {
+    // 補洞進場：沿進場邊外推到整張（最大透視倍率＋擺動外擴）都在畫面外，從畫面外滑進來、不在邊緣先露一截
+    // （fillHoles 挑點時用的是預估尺寸，文字卡實寬可能更寬 → 這裡以實測尺寸補推）
+    const [hx, hy] = visHalf(realW, realH, 0.6 + scaleGain());
+    if (pos.side === 'L') x = Math.min(x, -hx - realW / 2);
+    if (pos.side === 'R') x = Math.max(x, cw + hx - realW / 2);
+    if (pos.side === 'T') y = Math.min(y, -hy - realH / 2);
+    if (pos.side === 'B') y = Math.max(y, ch + hy - realH / 2);
+  } else if (SCCDHelpers.isMobileLayout()) {
+    // 初始批：手機整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）
+    x = Math.min(Math.max(x, 8), Math.max(8, cw - realW - 8));
+    y = Math.min(Math.max(y, 8), Math.max(8, ch - realH - 8));
   }
 
   const rotation = randomRotation();
@@ -757,6 +742,12 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
 
   // speed：鏡頭位移倍率（hover 停 0、離開漸進回 1）；z：目前寫上的深度 zIndex（tick 隨透視倍率更新）
   const item = { el: mover, x, y, w: realW, h: realH, rotation, hovered: false, speed: 1, z: z0, scale: scale0, gsapTween, rotator, card: el, slideTargets: itemSlideTargets, poolEntry };
+  // 初始批圖卡量尺寸時封面多半還沒載完（高 0、先拿卡寬頂替）→ 載完補量實高。不補的話直式海報的
+  // h 只算一半：收卡以為整張出了上緣、其實下半還在畫面上就被收掉（10-19 實測露 37~94px 瞬間消失）
+  const cover = itemSlideTargets[0];
+  if (cover instanceof HTMLImageElement && !cover.complete) {
+    cover.addEventListener('load', () => { item.h = el.offsetHeight || item.h; }, { once: true });
+  }
 
   if (el.tagName !== 'A') {
     // 無連結卡不吃滑鼠（卡本身原就 pointer-events:none）：外框也不擋下面的卡、不觸發 hover
@@ -766,32 +757,62 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
     //   卡片投影變窄，游標落在外框內、卡片外＝打到透明的 perspectiveWrap → 卡片收不到 mouseenter。
     let swayAt = null;   // hover 暫停當下的擺動角：離開時轉回這裡再續播＝反向動畫（原 resume 從 0 瞬跳回擺動角）
     let clicked = false; // 點了＝要離頁：退場中游標移開也維持轉正／hover 態，不轉回原角度（user 2026-10-02）
+    // hover 疊到最上層（1000，高過深度排名 1~N）／放回原深度：z-index 只能瞬切 → 換深度時疊一張複本交叉淡化
+    //   （user 2026-10-19「從後面移到最前面太直接」）。複本每幀抄本體 transform＝跟本體完全重合、只差在 z →
+    //   沒重疊處看不出有兩張，重疊處＝前後兩張卡交叉淡化。本體一律立刻換到目標深度（游標判定不變），
+    //   複本留在另一層代班：進場本體在上淡入、複本墊底；離開複本在上淡出。複本在 onHover 之後才拷＝hover 色照樣瞬切。
+    const depth = { f: 0 };   // 本卡疊在前面的程度（0＝原深度、1＝最上）；中途反向從目前值接著淡、不跳
+    let ghost = null, depthTween = null;
+    function crossfadeDepth(toFront) {
+      ghost?.remove();
+      ghost = /** @type {HTMLElement} */ (mover.cloneNode(true));
+      ghost.style.pointerEvents = 'none';
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.inert = true;
+      const g = ghost, gRot = /** @type {HTMLElement} */ (g.firstElementChild.firstElementChild);
+      mover.style.zIndex = toFront ? '1000' : String(item.z);
+      g.style.zIndex = toFront ? String(item.z) : '1000';
+      const top = toFront ? mover : g;   // 疊在上面、要淡的那張
+      mover.style.opacity = g.style.opacity = '';
+      top.style.opacity = String(depth.f);
+      container.appendChild(g);
+      depthTween = gsap.to(depth, {
+        f: toFront ? 1 : 0, duration: DUR.fast, ease: EASE.enterSoft, overwrite: true,
+        onUpdate: () => {
+          g.style.transform = mover.style.transform;
+          gRot.style.transform = rotator.style.transform;
+          top.style.opacity = String(depth.f);
+        },
+        onComplete: () => { g.remove(); if (ghost === g) ghost = null; mover.style.opacity = ''; },
+      });
+    }
     mover.addEventListener('mouseenter', () => {
       item.hovered = true;
       gsap.killTweensOf(item, 'speed');
       item.speed = 0;                  // 立刻停住（user 2026-08-28：方便點擊）
-      mover.style.zIndex = '1000';     // 疊到最上層（高過所有深度排名 1~N；同時只有一張被 hover）
       if (elData.onHover) elData.onHover(true);
       if (!swayAt) {
         gsapTween.pause();
         swayAt = { x: gsap.getProperty(rotator, 'rotateX'), y: gsap.getProperty(rotator, 'rotateY') };
       }
       gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+      crossfadeDepth(true);   // 排在轉正 tween 之後建：GSAP 同幀依建立順序更新 → 複本抄到的是本幀角度、不慢一幀
     });
     mover.addEventListener('mouseleave', () => {
       if (clicked) return;
       item.hovered = false;
-      mover.style.zIndex = String(item.z);
       if (elData.onHover) elData.onHover(false);
       gsap.to(item, { speed: 1, duration: DUR.fast, ease: EASE.enterSoft });   // 移動也漸進接回、不瞬間起跑
       gsap.to(rotator, {
         rotateY: swayAt.y, rotateX: swayAt.x, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto',
         onComplete: () => { swayAt = null; gsapTween.resume(); },
       });
+      crossfadeDepth(false);
     });
     // 外框內、卡片外的點擊（還沒轉正就點）轉給卡片連結 → router 照常攔 a[href]
     mover.addEventListener('click', (e) => {
       clicked = true;
+      depthTween?.progress(1);   // 要離頁：直接收掉複本，免得本體滑出遮罩後墊底的複本還留在原地
       if (!el.contains(/** @type {Node} */ (e.target))) el.click();
     });
   }
@@ -799,7 +820,7 @@ function spawnItem(container, poolEntry, fromEdge = false, preImg = null, initia
   return item;
 }
 
-// 單張浮卡進場——**只給初始批（畫面內 spawn 的卡）**；edge-respawn 卡從畫面外漂進來、不走這裡（見 tick 註解）。
+// 單張浮卡進場——**只給初始批（畫面內 spawn 的卡）**；補洞進場的卡從畫面外漂進來、不走這裡（見 fillHoles）。
 // 圖片卡與文字卡都走「slideTargets 在遮罩內滑入」（clip-reveal）。
 // 圖片卡＝**等封面 img 載好才滑入**→ 修「封面比卡晚載＝clip-reveal 先跑完、圖才 pop 出」（初始批 documents 封面大／
 //   首訪未快取最明顯，user 2026-08-19 報）；img 已載/快取則立即依 delay 播。文字卡無 img → 立即滑入。
@@ -871,24 +892,23 @@ export async function initFloatingItems() {
     return takeFrom(ties[Math.floor(Math.random() * ties.length)]);
   }
 
-  function trackSpawn(entry, fromEdge, pos = null) {
+  function trackSpawn(entry, pos) {
     if (entry) { onScreen.add(entry); liveCount[entry._cat]++; }
-    return spawnItem(container, entry, fromEdge, null, pos);
+    return spawnItem(container, entry, pos);
   }
 
   const items = [];
   const pushItem = (it) => { if (it) items.push(it); };   // spawnItem 池空回 null＝不生成
-  liveItems = items;   // spawnItem 邊緣進場挑空檔用（同一陣列、push/splice 即時反映）
 
-  // 離頁後 cancelled 為 true，in-flight 的 edge-respawn 圖片預載完成時不再 spawn（避免動已棄置的 pool）
+  // 離頁後 cancelled 為 true：轉向重散佈不再動已棄置的卡
   let cancelled = false;
 
   // 初始化 items：nextEntry 逐筆挑最少的 category → 開場即均分、無重複；
-  // 座標走 jittered grid（scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
+  // 座標走最遠空位鋪點（scatterPositions）→ 開場均勻鋪滿視窗、不擠一角
   {
     const n = totalItems();
     const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
-    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), false, positions[i]));
+    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), positions[i]));
   }
 
   // 進場：initial batch stagger 揭露——圖片卡＝img/overlay 同向滑入 wrapper 遮罩（clip-reveal）、
@@ -909,39 +929,89 @@ export async function initFloatingItems() {
     items.length = 0;
     onScreen.clear();
     CATS.forEach(c => { liveCount[c] = 0; });
+    readyQ.forEach(r => { onScreen.add(r.entry); liveCount[r.entry._cat]++; });   // 排隊中的預載卡仍佔位
     const n = totalItems();
     const positions = scatterPositions(n, container.clientWidth, container.clientHeight);
-    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), false, positions[i]));
+    for (let i = 0; i < n; i++) pushItem(trackSpawn(nextEntry(), positions[i]));
     playFloatEntrance(0);
   }
   const rotateGateMq = window.matchMedia(SCCDHelpers.LANDSCAPE_GATE);
   const onRotateGateChange = () => requestAnimationFrame(respawnAll);
   rotateGateMq.addEventListener('change', onRotateGateChange);
 
-  // edge-respawn：圖片卡先預載封面再 spawn。未載完的 <img height:auto> 高度＝0＝整張隱形，
-  // 從畫面外漂進來時看不見，等封面下載完（常常已漂到畫面內）才「長出高度＋內容」＝從畫面中間 pop 出來
-  // （user 2026-08-19 報「有新 item 是 pop 出現、不是完整從畫面外進場」）。預載後 spawnItem 拿到 img.complete、
-  // 量得到正確高度、內容也現成 → 整張成形才從邊緣漂入。文字卡/無 src 直接 spawn（無載入延遲）。
-  function spawnFromEdge() {
-    const entry = nextEntry();
-    if (!entry || entry.type !== 'image' || !entry.src) { pushItem(trackSpawn(entry, true)); return; }
-    onScreen.add(entry); liveCount[entry._cat]++;   // 先佔位：載入空窗期避免下一 tick 重選同一筆
-    const pre = new Image();
-    pre.onload = () => {
-      if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }  // 已離頁
-      pushItem(spawnItem(container, entry, true, pre));  // reuse 預載元素＝量測 offsetHeight 正確；不走 trackSpawn（佔位已手動做）
-    };
-    pre.onerror = () => {
-      if (cancelled) { onScreen.delete(entry); liveCount[entry._cat]--; return; }
-      pushItem(spawnItem(container, entry, true));  // 失敗不 reuse：讓 createImageEl 新建→onerror remove、drift 後自然 cull 釋放佔位
-    };
-    pre.src = entry.src;
+  // ── 補洞進場（user 2026-10-19「移動時會有一區空白」）──
+  // 舊版「出畫面一張才補一張」：補的時機跟著離場走、不看哪裡缺 → 離場稀疏那段鏡頭前方就沒卡、
+  // 轉向時新的進場邊整條沒卡＝空白帶開進畫面。改成每幀在進場邊外抽幾個候選點，離最近卡中心 ≥ 間距
+  // 就補一張（最遠空位優先）→ 卡在進畫面前就排勻；數量自然落在 totalItems() 附近。
+  // 圖片卡先預載好排隊（readyQ）：未載完的 <img> 高度 0＝隱形漂入、載完才在畫面中間 pop（08-19 報）；
+  // 排 3 張＝要補時立刻有成形的卡，轉向時一整條邊要補也跟得上。
+  const readyQ = [];
+  let preparing = 0;
+  function prepNext() {
+    while (readyQ.length + preparing < 3) {
+      const entry = nextEntry();
+      if (!entry) return;
+      onScreen.add(entry); liveCount[entry._cat]++;   // 先佔位：預載空窗期不被重選
+      if (entry.type !== 'image' || !entry.src) { readyQ.push({ entry, pre: null }); continue; }
+      preparing++;
+      const pre = new Image();
+      pre.onload = () => { preparing--; readyQ.push({ entry, pre }); };
+      pre.onerror = () => {   // 壞圖踢出池、不再重試
+        preparing--;
+        onScreen.delete(entry); liveCount[entry._cat]--;
+        const q = categoryPools[entry._cat].queue, i = q.indexOf(entry);
+        if (i >= 0) q.splice(i, 1);
+      };
+      pre.src = entry.src;
+    }
+  }
+
+  function fillHoles(cw, ch) {
+    prepNext();
+    if (!readyQ.length || items.length >= totalItems() * 2) return;   // 上限只是保險（實測常態 ≈1.15～1.4 倍：含進場帶裡還沒進畫面的卡）
+    const vx = -camVX, vy = -camVY;   // 卡在畫面上的速度（＝反向鏡頭）
+    const gap = 1.1 * Math.sqrt(cw * ch / totalItems());   // 卡中心最小間距（依每張分到的面積；1.1＝實測畫面內張數≈totalItems）
+    // 各邊的進場帶深（從「整張剛好看不見」起算）：朝內走 1.5 秒的距離、封頂半個間距 → 補的卡很快就進畫面，
+    //   不在外面爬十幾秒佔數量；-1＝不是進場邊（朝內太慢＝太平行／離場邊）
+    const bandOf = v => v > LEAD_MIN ? Math.min(gap / 2, v * 1.5) : -1;
+    const bL = bandOf(vx), bR = bandOf(-vx), bT = bandOf(vy), bB = bandOf(-vy);
+    const sides = [['L', bL, vx * ch], ['R', bR, -vx * ch], ['T', bT, vy * cw], ['B', bB, -vy * cw]].filter(s => s[1] >= 0);
+    if (!sides.length) return;
+    const next = readyQ[0];
+    const ew = next.pre ? imgWidth() : maxTextWidth();   // 預估尺寸（文字卡實寬 spawnItem 量完再補推）
+    const eh = !next.pre ? 60 : next.pre.naturalWidth ? ew * next.pre.naturalHeight / next.pre.naturalWidth : ew;
+    const [hx, hy] = visHalf(ew, eh, 0.6 + scaleGain());
+    const flux = sides.reduce((s, f) => s + f[2], 0);   // 候選點依通量（朝內速度×邊長）分配
+    let best = null, bestD = gap;
+    for (let k = 0; k < 6; k++) {
+      let r = Math.random() * flux, [side, band] = sides[0];
+      for (const [s, b, f] of sides) if ((r -= f) <= 0) { side = s; band = b; break; }
+      // 沿邊方向延伸進角落：只延伸到「相鄰邊也是進場邊」的那一頭、深度同那一邊的帶
+      //   （延伸到非進場邊＝生了就被收卡條件當場收掉；延伸太深＝在角落外爬很久）
+      let cx, cy;
+      if (side === 'L' || side === 'R') {
+        const d = hx + Math.random() * band;
+        cx = side === 'L' ? -d : cw + d;
+        cy = rand(bT >= 0 ? -hy - bT : 0, bB >= 0 ? ch + hy + bB : ch);
+      } else {
+        const d = hy + Math.random() * band;
+        cy = side === 'T' ? -d : ch + d;
+        cx = rand(bL >= 0 ? -hx - bL : 0, bR >= 0 ? cw + hx + bR : cw);
+      }
+      let dMin = Infinity;
+      for (const o of items) dMin = Math.min(dMin, Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy));
+      if (dMin >= bestD) { bestD = dMin; best = { x: cx, y: cy, side }; }
+    }
+    if (!best) return;
+    readyQ.shift();
+    pushItem(spawnItem(container, next.entry, best, next.pre));   // reuse 預載元素＝量測 offsetHeight 正確
   }
 
   let running = true;
   let rafId = null;
 
   // 鏡頭航向：用 tick 的 dt 倒數（非 setTimeout）→ 分頁隱藏／待機時跟 tick 一起自動暫停
+  let camVX = 0, camVY = 0;   // 當前鏡頭速度（px/秒）
   let camAngle = rand(0, Math.PI * 2);
   let camTarget = camAngle;
   let camTurnIn = rand(...CAM_TURN_SEC);
@@ -983,25 +1053,25 @@ export async function initFloatingItems() {
       item.el.style.transform = `translate(${item.x}px, ${item.y}px) scale(${scale})`;
       item.scale = scale;
 
-      // 完全出畫面就 cull（縮放溢出 0.25×尺寸同 spawn 的 OVER，＋20px 餘裕讓剛生在邊緣的卡不被當場收掉）。
-      // 舊的 250~500px 隱形緩衝在鏡頭平移下＝卡要多飄十幾秒才重生 → 鏡頭前方空出一整條沒卡的帶。
-      const ox = item.w * 0.25 + 20;
-      const oy = item.h * 0.25 + 20;
+      // 收卡＝整張（含放大＋擺動外擴）在畫面外、且那一軸沒有朝內走（離場中，或太平行、短時間進不來）。
+      // 進場邊外剛補的卡朝內走 → 不會被當場收掉（fillHoles 挑點用同一個 LEAD_MIN）
+      const [hx, hy] = visHalf(item.w, item.h, scale);
+      const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
       if (
-        item.x > cw + ox ||
-        item.x + item.w < -ox ||
-        item.y > ch + oy ||
-        item.y + item.h < -oy
+        (cx + hx < 0 && -camVX <= LEAD_MIN) ||
+        (cx - hx > cw && camVX <= LEAD_MIN) ||
+        (cy + hy < 0 && -camVY <= LEAD_MIN) ||
+        (cy - hy > ch && camVY <= LEAD_MIN)
       ) {
         // 釋放離場那筆（從畫面集合移除）→ 它的 category 數量 -1 → 下一筆均分時可再被選回（去重：離場才解禁）
         if (item.poolEntry) { onScreen.delete(item.poolEntry); liveCount[item.poolEntry._cat]--; }
         container.removeChild(item.el);
         items.splice(i, 1);
-        // edge-respawn 不做 clip-reveal（那是初始批的畫面內進場）：它從畫面外邊緣漂進來就是它的進場。
-        // 但封面要先預載才 spawn（見 spawnFromEdge）——否則未載的 img 高度 0＝隱形漂入、載完才在畫面中間 pop。
-        spawnFromEdge();
       }
     }
+
+    // 補洞進場不做 clip-reveal（那是初始批的畫面內進場）：從畫面外滑進來就是它的進場
+    fillHoles(cw, ch);
 
     // 深度排序跟著透視倍率走（近＝大的蓋遠＝小的），z＝倍率排名（唯一整數）。原本各自 round(scale×100)：兩張重疊卡
     // 倍率差 <0.01 時會「同分(DOM 序決勝)↔差 1」來回切＝重疊角落不停閃、像穿模（user 2026-10-03，實測 2s 互換 14 次）；
@@ -1053,7 +1123,6 @@ export async function initFloatingItems() {
   // （tick 對 detached DOM 空跑、visibilitychange 匿名 handler 複利、newsHoverListeners/themeListeners 無限增長）
   registerPageCleanup(() => {
     cancelled = true;
-    liveItems = [];   // 放掉離頁卡片（detached DOM）參照
     running = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
     rotateGateMq.removeEventListener('change', onRotateGateChange);
