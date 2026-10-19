@@ -89,7 +89,8 @@ function updateOverFooterState(thumbTop) {
     const rect = footerEl.getBoundingClientRect();
     const thumbBottom = thumbTop + cachedThumbH;
     // footer 已進入 viewport 且 thumb 視覺下緣已壓到 footer 頂端 → 視為 over
-    if (rect.top < thumbBottom && rect.bottom > thumbTop) over = true;
+    // 真桌面 footer 是四周內縮的卡（footer.css）→ 右緣沒碰到視窗右邊＝thumb 在卡外的頁面底色上，不換色
+    if (rect.top < thumbBottom && rect.bottom > thumbTop && rect.right >= window.innerWidth - 2) over = true;
   }
   if (over !== isOverFooter) {
     isOverFooter = over;

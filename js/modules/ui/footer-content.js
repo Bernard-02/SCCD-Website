@@ -112,6 +112,8 @@ function buildSocialGroup(socials, fgroup) {
     let label = 'Social';
     try { label = new URL(item.url).hostname.replace(/^www\./, '').split('.')[0]; label = label.charAt(0).toUpperCase() + label.slice(1); } catch (_) {}
     const box = el('div', 'footer-social-icon');
+    // hover 色塊每次抽新三原色（不連續重複）；上色在 icon.css。footer 持久存在、重渲染整個重建＝listener 不累積
+    box.addEventListener('mouseenter', () => box.style.setProperty('--social-c', SCCDHelpers.getRandomAccentColor()));
     const a = link(item.url || '#', { ariaLabel: label });
     const icon = el('span', 'icon footer-social-glyph');
     if (item.iconUrl) icon.style.setProperty('--icon', `url('${resolveAsset(item.iconUrl)}')`);

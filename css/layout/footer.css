@@ -162,7 +162,7 @@
   }
 
   /* 無障礙標章 placeholder（88×31＝標章規格）：正式標章拿到前先隱藏；拿到後換成 <a><img></a> 並改回 display:block（landscape.css 也要開）。
-     已在 footer-scatter.js getFooterPrivacyLinks 的 clip-reveal selector（display:none 時為無害 no-op）。 */
+     桌面覆蓋卡整張進退場、線性版由 MOBILE_BLOCK_SELECTOR 帶。 */
   .footer-a11y-badge {
     display: none;
     width: 88px;
@@ -303,9 +303,8 @@
   @media (min-width: 768px) and (max-width: 899px) {
     /* mark 同縮手機值 64（SCCDAA wordmark 比例寬、110 基準下 mark 就 ~155px＝EN cap 再小也塞不下） */
     .footer-random > .footer-tabs { gap: var(--spacing-md); --tab-mark-w: 64px; }
-    .footer-random > .footer-tabs .footer-tab { flex: 0 0 auto; }
-    .footer-random > .footer-tabs .footer-tab-en { max-width: 10.5rem; }
-    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] .footer-tab-en { max-width: 6rem; }
+    .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
+    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
   }
 
   /* ===== tab 按鈕外觀（全 viewport 共用）=====
@@ -313,6 +312,7 @@
   /* 單顆 tab（radio）：無底色；active = --footer-fg 全亮、非 active dim。SCCD/SCCDAA 有 wordmark mark，units 只 EN/ZH 兩行。 */
   .footer-tab {
     display: inline-flex;
+    flex-shrink: 0;   /* 列太擠時不壓窄 tab（壓窄＝字折超過兩行），改列內左右拖動 */
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
@@ -349,17 +349,16 @@
   .footer-tab:not(:has(.footer-tab-mark)) {
     padding-top: calc(var(--tab-mark-h) + var(--spacing-xs));
   }
+  /* 英中各最多兩行（user 2026-10-19）：起跳寬 --tab-text-cap（各 viewport 可調），兩行裝不下由 footer-scatter.js fitTabText
+     加寬、寫 --tab-text-w（英中共用同寬）。balance＝折兩行時上下等長、不留單字孤行 */
   .footer-tab .footer-tab-en,
   .footer-tab .footer-tab-zh {
     font-size: var(--font-size-s);
     font-weight: 700;
-    white-space: nowrap;
-    color: var(--footer-fg, #fff);
-  }
-  /* 英文全名過長（如 Department of Communications Design）設上限自動換行；中文短維持 nowrap */
-  .footer-tab .footer-tab-en {
     white-space: normal;
-    max-width: 12rem;
+    text-wrap: balance;
+    max-width: var(--tab-text-w, var(--tab-text-cap, 12rem));
+    color: var(--footer-fg, #fff);
   }
   .footer-tab .footer-tab-zh {
     margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
@@ -384,11 +383,9 @@
     /* 線性版不旋轉（同平板）：!important 蓋掉 bindFooterTabs 的 inline rotate */
     .footer-random > .footer-tabs .footer-tab { transform: none !important; }
     /* tab 寬貼內容＋等距 gap：第三顆在右緣露出＝提示還有。固定寬會留框內空白、gap 忽大忽小、第三顆整顆掉出畫面。
-       EN cap 讓長名折兩行仍 hug：dept「Communications Design」167px、aa「Association」90px（@14px bold）→ 第三顆起點 ~310px、375 寬起入鏡。
-       ⚠️ cap 綁 CMS 文案（footer_tabs），後台改字要重校。 */
-    .footer-random > .footer-tabs .footer-tab { flex: 0 0 auto; }
-    .footer-random > .footer-tabs .footer-tab-en { max-width: 10.5rem; }
-    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] .footer-tab-en { max-width: 6rem; }
+       --tab-text-cap＝起跳寬（短名在此寬內 hug）；長名超過兩行由 fitTabText 加寬到剛好兩行。 */
+    .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
+    .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
     /* ⚠️ 不加列尾 spacer（同 faculty/activities nav 列）：點擊靠左對齊由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝最右顆自然停右側。 */
   }
 
@@ -404,45 +401,22 @@
     .footer-privacy { flex-shrink: 0; }
   }
 
-  /* ===== Desktop scatter (≥1024)：上區隨機散佈、下區 logo bar ===== */
+  /* ===== Desktop scatter (≥1024)：散佈區（tabs 左上、legal 右側、copyright 貼底）===== */
   @media (min-width: 1024px) {
-    /* 上下兩區：上區＝散佈區（tabs 左上、legal 右側、copyright 貼上區底）、下區＝整條 logo bar（卡片不進來）。
-       上區 tab 列＋legal 由 footer-scatter 當 obstacle 避開。 */
-    /* 矮視窗（1280×720 級）logo 縮到 floor 140 上區仍 <480 會疊卡 → shell auto + inner min-height 100vh：
-       一般視窗剛好一屏，上區 480 撐不下時 footer 才長高。 */
+    /* 高度＝內容（散佈區 480 保證＋padding），不再一屏（user 2026-10-19 拿掉底部 logo 列）。 */
     .footer-shell {
       height: auto;
     }
     .footer-inner {
-      min-height: 100vh;
       /* !important：蓋 HTML 的 md:flex-row utility（@layer utilities 在 components 之後；important 反轉層序才贏）。 */
       flex-direction: column !important;
-      gap: var(--container-padding);   /* logo bar 上緣留白 = inner 下 padding → logo 上下留白一致 */
     }
 
-    /* logo bar：in-flow 排最後、整條給 logo。邊長＝min(30vw, 35vh, 視窗扣三段 padding 後留 480 給上區)、floor 140。
-       矮視窗不讓位的話上區扣掉 tab 帶只剩 ~200px，7 張卡塞不下走 fallback 疊卡（headless：1440×900 上區 405 過、1200×800 340 炸）。
-       要改 logo 大小動 30vw/35vh；480 是上區最低保證（legal 整條當 obstacle 後 420 在 1200×800 疊卡）。 */
-    .footer-logo-area {
-      order: 2;
-      aspect-ratio: 1 / 1;
-      width: max(140px, min(30vw, 35vh, 100vh - 3 * var(--container-padding) - 480px));
-      height: auto;
-      flex: 0 0 auto;
-      align-self: flex-start;
-      min-width: 0;
-    }
-
-    .footer-logo-inner {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* 上區：吃滿 logo bar 以上的全部高度；privacy absolute 相對此區（右側整高、copyright 貼底）。 */
+    /* 散佈區；privacy absolute 相對此區（右側整高、copyright 貼底）。 */
     .footer-right {
-      flex: 1 1 0;
+      flex: 1 1 auto;
       min-width: 0;
-      min-height: 480px;   /* 上區最低保證（同 logo 公式的 480）；撐不下時 footer 長高（見 .footer-shell） */
+      min-height: 480px;   /* 散佈最低保證；排不進時 footer-scatter.js 再加高（卡變高、不是變一屏） */
       position: relative;
       display: flex;
       flex-direction: column;
@@ -475,23 +449,20 @@
          → padding-left 留旋轉空間、等值負 margin 拉回，視覺左緣仍對齊。 */
       padding-left: var(--spacing-md);
       margin-left: calc(-1 * var(--spacing-md));
-      /* 下／右同理：hover 抽角 −4~+6° 時 tab 角實測超出底 9.8px、右 3.9px。absolute 不佔流＝補 padding 不推東西；
-         只有 reserveTabRow 量 offsetHeight，那邊扣掉 padding-bottom。 */
-      padding-right: var(--spacing-sm);
-      padding-bottom: var(--spacing-sm);
+      /* 上／下／右同理：最寬的 SCCDAA tab（~400px）hover 抽到 +6° 時角凸出 (w/2)·sin6° ≈ 21px，餘量 16 會被裁（user 2026-10-19 截圖）
+         → 三邊 24。absolute 不佔流＝補 padding 不推東西；reserveTabRow 量 offsetTop+offsetHeight 再扣 padding-bottom。
+         上緣：padding 24 配 margin-top −8＝tab 列視覺位置不變（仍下移 16）、裁切界往上多 8 進卡的內 padding 區 */
+      padding-right: var(--spacing-md);
+      padding-bottom: var(--spacing-md);
       z-index: 1;
       opacity: 1;   /* ⚠️ 蓋掉下方 `.footer-random > div { opacity:0 }`（scatter anchor 預設）——tabs 是 div 會誤中 */
-      padding-top: var(--spacing-sm);
+      padding-top: var(--spacing-md);
+      margin-top: calc(var(--spacing-sm) - var(--spacing-md));
       /* mark 尺寸集中：改寬只動 --tab-mark-w，mark 高 + 無 mark 的 tab2 對齊墊高都跟著算（免逐處硬寫）。 */
       --tab-mark-w: 110px;
       --tab-mark-h: calc(var(--tab-mark-w) * 320 / 1135);   /* SVG 1135×320 比例 */
     }
 
-    /* 捲到 footer 時（header bars/logo 已 footerHideBars 滑走）放行 header 點擊：透明的 fixed header（z-9999）不再攔截下方 footer 頂部 tab。
-       旗標 body.footer-bars-hidden 由 header.js setBarsHidden 隨 footer-near 掛/卸；只此期間 + ≥1024 生效。 */
-    body.footer-bars-hidden header.fixed {
-      pointer-events: none;
-    }
     /* 頂部整條保留區（隱形滿寬 obstacle）：scatter 卡片全擋到 tab 那條之下 → tab 右邊淨空。
        沿用 `.footer-random > div` 的 absolute + opacity:0，JS reserveTabRow 設 top/width/height。 */
     .footer-random > .footer-tab-reserve {
@@ -562,8 +533,54 @@
     }
   }
 
-  /* 真桌面（散佈版；排除矮橫向）才有的兩樣 */
+  /* 真桌面（散佈版；排除矮橫向）才有的幾樣 */
   @media (min-width: 1024px) and (min-height: 501px) {
+    /* 整張 footer＝蓋在頁面上的一張旋轉卡（user 2026-10-19）：不在捲動流裡、fixed、出生藏在視窗下；
+       footer-scatter.js openFooter 升起＋同時從 0° 轉到每次新抽的 ±[1,2]°（GSAP transform；散佈量測時暫時轉正見 unrotated）。
+       0° 時的框＝左右 container padding、頂對齊第一顆 nav btn（--nav-line）、底對齊左下當前頁卡的底（48＝navigation.css #page-indicator bottom）；
+       散佈區 480 保證撐不下（矮視窗）就往上長高。z 低於 header（9999）＝logo／mode／menu 鈕都浮在卡上照常可點；
+       開卡期間 .footer-backdrop 墊在卡下吃掉卡外的滑鼠操作（點／滾＝關卡，不碰後面內容；hover 也到不了）。
+       ⚠️ HTML 不能帶 .relative utility（utilities 層會壓過這裡的 fixed）。 */
+    .footer-shell {
+      position: fixed;
+      left: var(--container-padding);
+      right: var(--container-padding);
+      bottom: 48px;   /* ＝左下頁卡 bottom（user 2026-10-19「到動態那張卡的底」）；開卡時頁卡被蓋住 */
+      z-index: 9998;
+      /* 矮螢幕上限：卡頂不越過 menu 鈕底（header 帶 --header-height 96）＋gap md（user 2026-10-19「不能重疊到 menu btn」）；
+         散佈區最小高跟著縮（下方 .footer-right），footer-scatter.js 長高迴圈到頂就停 */
+      --footer-cap: calc(100vh - var(--header-height, 96px) - var(--spacing-md) - 48px);
+      max-height: var(--footer-cap);
+      transform: translateY(130%);   /* 130 非 115：底離視窗邊 48，100% 不夠藏 */
+    }
+    .footer-inner {
+      padding: calc(var(--container-padding) / 2);   /* 卡內四周 30（user 2026-10-19 減半） */
+      min-height: calc(100vh - var(--nav-line) - 48px);
+    }
+    /* 最小高＝散佈 480 保證（卡 540）；視窗矮到連這都放不下時改吃上限（扣內 padding），排不進由 fallback 疊卡、不往上長過 menu 鈕 */
+    .footer-right {
+      min-height: min(480px, calc(var(--footer-cap) - var(--container-padding)));
+    }
+    .footer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 9997;
+    }
+    /* 桌面沒有 logo 列（回首頁走 header logo）；線性版（<1024／矮橫向）照舊在左上 */
+    .footer-logo-area {
+      display: none;
+    }
+
+    /* 散佈卡 hover＝翻成 footer 前景色底（user 2026-10-19：mode1 白底黑字、mode2 黑底白字；mode3 黑白對調在 color.css）。
+       !important 蓋 JS inline 三原色底；:not(.mode-color)＝本檔是 layer、layered !important 會壓過 color.css 的 mode3 規則 */
+    body:not(.mode-color) .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover {
+      background: var(--footer-fg) !important;
+    }
+    body:not(.mode-color) .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover,
+    body:not(.mode-color) .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover :is(h6, p, a, span) {
+      color: var(--footer-bg);
+    }
+
     /* 分頁說明文字：散佈區左下角，純文字不可點。footer-scatter.js 設靜止傾斜並當 obstacle。
        外層＝定位／旋轉／clip-reveal 遮罩，內層 yPercent 進出場；opacity 蓋掉上方 `.footer-random > div` 的 0。非當前分頁由 .fgroup-off 收掉 */
     .footer-random > .footer-note {

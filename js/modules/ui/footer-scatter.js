@@ -17,11 +17,12 @@
 
 // scatter items 進出場走 clip-reveal（item 在 .footer-anchor overflow:clip 遮罩內 yPercent 升起/沉入，
 // user 2026-08-10：進出場一律 clip-reveal，只有 10s shuffle 是位移）；規章區 4 連結亦各自 clip-reveal（見 playFooterExit）
-import { setupClipReveal, playClipReveal, playRevealExit } from './scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit, revealHidden } from './scroll-animate.js';
 import { awaitLayoutReady } from './await-layout-ready.js';
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
 import { bindArrowSpin, randomSpinAngle } from './arrow-spin.js';   // footer 分類 tab／散佈卡 hover 抽新角、離開保持
+import { hasScrollableAncestor } from '../lightbox/lightbox-shell.js';   // 覆蓋卡：游標下的內捲框還捲得動就不開卡
 // footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
 // clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
@@ -31,17 +32,19 @@ import { bindArrowSpin, randomSpinAngle } from './arrow-spin.js';   // footer �
 // （原 HIDDEN_YPERCENT=110 同理「防 sub-pixel 殘影」；overflow:clip 裁掉多出的 10%，視覺等同全隱）。
 const CLIP_HIDE_YPERCENT = 110;
 
-// 進場起點：item 沉入 anchor 遮罩下（x/y 歸零清掉 page-exit 殘留，reset 重進場從乾淨態起跑）
+// 進場起點：item 藏到 anchor 遮罩外，每張卡四向隨機、每次重抽（user 2026-10-19 切分頁「四周進場」）；
+// x/y 歸零清掉 page-exit 殘留，reset 重進場從乾淨態起跑
 function hideItemsClip(items) {
   if (typeof gsap === 'undefined') return;
-  gsap.set(items, { yPercent: CLIP_HIDE_YPERCENT, xPercent: 0, x: 0, y: 0 });
+  items.forEach((it) => gsap.set(it, { ...revealHidden(), x: 0, y: 0 }));
 }
 
-// 進場：item 由遮罩底緣升起（hero clip-reveal），跨卡 stagger 0.08
+// 進場：item 從各自藏的那一邊滑回遮罩內（hero clip-reveal），跨卡 stagger 0.08
 function playClipRevealScatter(items) {
   if (typeof gsap === 'undefined') return;
   gsap.killTweensOf(items);
   gsap.to(items, {
+    xPercent: 0,
     yPercent: 0,
     duration: DUR.reveal,
     ease: EASE.enter,
@@ -94,12 +97,6 @@ const LINKS_BOTTOM_REGION_RATIO = 0.7;
 // 10s shuffle loop（從原本 5s 放慢，user 覺得 5s 太頻繁眼花）
 const SHUFFLE_INTERVAL_MS = 10000;
 
-// 離頁退場（playFooterExit）的 stagger：散佈 items 與 logo/privacy extras 共用。設 0 = 全部同時出場、
-// 出場時長完全一致（user 2026-06-08 要「都一樣」）。原本用 {amount:0.2, axis:'y'}：axis:'y' 是依 Y 座標的
-// spatial stagger，在「8 個散佈 items」vs「2 個 extras」元素數/位置不同下展成不同落差 → logo/legal 看起來比較快。
-// 共用 0 就保證每個元素 duration/ease/起跑全同、同時收完。
-const FOOTER_EXIT_STAGGER = 0;
-
 // 離頁退場時長＝DUR.medium(0.5s)，直接照 hero exit（hero-animation.js EXIT_DURATION=0.5 + EASE.exit/power3.in）。
 // 歷史：曾為「對齊頁面 cascade 總長」拉到 0.75s，但 power3.in 在 0.75s 前段空白被放大＝「delay 很久才走」
 // （user 2026-06-08；中途試 power2.in@0.75 仍怪）→ user 要直接照 hero clip-reveal 設定 → 縮回 0.5s 配 power3.in 就順。
@@ -123,6 +120,17 @@ let currentLayout = null;
 
 function rand(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+// footer 整張卡旋轉（openFooter 的 GSAP rotation，user 2026-10-19）：散佈演算法用 gBCR 算相對位置，旋轉中讀到的是外接框＝量歪。
+// 量測期間暫時轉正、量完同步還原（同一 task 內不繪製＝不閃）。進場 tween 跑到一半也安全：下一幀 tween 自己寫回
+function unrotated(el, fn) {
+  const shell = /** @type {HTMLElement | null} */ (el && el.closest('.footer-shell'));
+  if (!shell || typeof gsap === 'undefined') return fn();
+  const rot = /** @type {number} */ (gsap.getProperty(shell, 'rotation'));
+  if (!rot) return fn();
+  gsap.set(shell, { rotation: 0 });
+  try { return fn(); } finally { gsap.set(shell, { rotation: rot }); }
 }
 
 // 旋轉後 axis-aligned bbox：w' = w·|cos θ| + h·|sin θ|, h' = h·|cos θ| + w·|sin θ|（404 散佈共用）
@@ -154,7 +162,9 @@ function domRectsOverlap(a, b, padding) {
 // 先 clear width 再量 → re-init（router recovery）時不會疊用上一輪鎖死的寬度。box-sizing:border-box
 // → width 含 padding。一次性（fonts.ready 後文字寬不再變），不在每次 shuffle 重算。
 function applyOfficeSnugWidth(office) {
-  if (!office) return;
+  if (office) unrotated(office, () => measureOfficeSnugWidth(office));
+}
+function measureOfficeSnugWidth(office) {
   office.style.width = '';
   void office.offsetWidth; // force reflow 讓 shrink-to-fit 還原自然寬
   const cs = getComputedStyle(office);
@@ -211,12 +221,13 @@ function obstacleRectLocal(obstacleEl, areaRect) {
  * 回傳 [{anchor, cx, cy, rot}]；length === anchors.length 表示所有 items 都成功 placed
  */
 function generatePlacement(area, anchors, obstacles) {
-  const areaRect = area.getBoundingClientRect();
+  const { areaRect, obstacleRects } = unrotated(area, () => {
+    const areaRect = area.getBoundingClientRect();
+    return { areaRect, obstacleRects: obstacles.map((o) => obstacleRectLocal(o, areaRect)) };
+  });
   const sw = areaRect.width;
   const sh = areaRect.height;
   if (sw === 0 || sh === 0) return [];
-
-  const obstacleRects = obstacles.map((o) => obstacleRectLocal(o, areaRect));
 
   // 順序：兩張 link 卡先（都限定底部當「地板」），其他依面積降序排在 link 卡上方
   const indexed = anchors.map((a, i) => ({ idx: i, anchor: a }));
@@ -326,9 +337,10 @@ function applyPlacement(placement) {
  * 必要：apply 完先 `void area.offsetHeight` 強制 sync reflow 才讀 getBoundingClientRect
  */
 function verifyPlacement(area, anchors, obstacles) {
-  void area.offsetHeight; // force sync reflow
-  const liveRects = anchors.map((a) => a.getBoundingClientRect());
-  const obsLive = obstacles.map((o) => o.getBoundingClientRect());
+  const { liveRects, obsLive } = unrotated(area, () => ({
+    liveRects: anchors.map((a) => a.getBoundingClientRect()),
+    obsLive: obstacles.map((o) => o.getBoundingClientRect()),
+  }));
 
   for (let i = 0; i < anchors.length; i++) {
     for (let j = i + 1; j < anchors.length; j++) {
@@ -458,7 +470,7 @@ function scheduleNextShuffle(delay) {
 function startShuffleLoop(area, anchors, obstacles, items, fallbackLayout) {
   stopShuffleLoop();
   shuffleCtx = { area, anchors, obstacles, items, fallbackLayout };
-  scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
+  if (_footerOpen) scheduleNextShuffle(SHUFFLE_INTERVAL_MS);   // 卡藏在視窗下不洗牌（openFooter 再排）
 }
 
 function stopShuffleLoop() {
@@ -497,12 +509,14 @@ function bindAnchorHover(anchors) {
 // 以卡片現中心 + 新角的 AABB 對其他卡現 gBCR；試 8 次都撞＝取 |角| 最小那個（AABB 最小、最不易撞）。
 function pickFreeSpinAngle(anchor) {
   const cur = /** @type {number} */ (gsap.getProperty(anchor, 'rotation'));
-  const r = anchor.getBoundingClientRect();
+  const ctx = shuffleCtx;
+  const { r, others } = unrotated(anchor, () => ({
+    r: anchor.getBoundingClientRect(),
+    others: ctx ? [...ctx.anchors.filter((a) => a !== anchor && a.offsetParent !== null), ...ctx.obstacles]
+      .map((el) => el.getBoundingClientRect()) : [],
+  }));
   const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
   const w = anchor.offsetWidth, h = anchor.offsetHeight;
-  const ctx = shuffleCtx;
-  const others = ctx ? [...ctx.anchors.filter((a) => a !== anchor && a.offsetParent !== null), ...ctx.obstacles]
-    .map((el) => el.getBoundingClientRect()) : [];
   let best = null;
   for (let i = 0; i < 8; i++) {
     const deg = randomSpinAngle(cur);
@@ -550,19 +564,21 @@ function getFooterNoteInner(area) {
 // 點擊 = 這顆 active、切 `.footer-random[data-fgroup]` → CSS（≥1200）把非 active 群組 display:none → 重跑
 // scatter 只散 active 群組（見 switchFooterGroup）。非 active tab dim（CSS opacity）。定位/配色全在 CSS。
 
-// 群組出場：現群組 items clip-reveal 沉入 anchor 遮罩（yPercent 0→110 over-shoot、overflow:clip 裁掉即消失），
-// 與 initFooterScatter 進場（playClipRevealScatter，反向升起）對稱。回 Promise 讓切換 await 完出場再換群組進場。
+// 群組出場：現群組 items 滑出 anchor 遮罩（±110 over-shoot、overflow:clip 裁掉即消失），每張卡四向隨機、每次重抽
+// （user 2026-10-19「四周退場」）。回 Promise 讓切換 await 完出場再換群組進場。
 function playScatterGroupExit() {
   if (typeof gsap === 'undefined' || !shuffleCtx) return Promise.resolve();
   const { items } = shuffleCtx;
   if (!items || !items.length) return Promise.resolve();
   stopShuffleLoop();
   gsap.killTweensOf(items);
-  const noteInner = getFooterNoteInner(shuffleCtx.area);   // 這個分頁的說明文字跟卡片同拍沉出
-  if (noteInner) gsap.to(noteInner, { yPercent: CLIP_HIDE_YPERCENT, duration: DUR.base, ease: EASE.exit, overwrite: 'auto' });
+  const noteInner = getFooterNoteInner(shuffleCtx.area);   // 這個分頁的說明文字跟卡片同拍滑出
+  if (noteInner) gsap.to(noteInner, { ...revealHidden(), duration: DUR.base, ease: EASE.exit, overwrite: 'auto' });
+  const dirs = items.map(() => revealHidden());
   return new Promise((resolve) => {
     gsap.to(items, {
-      yPercent: CLIP_HIDE_YPERCENT,
+      xPercent: (i) => dirs[i].xPercent,
+      yPercent: (i) => dirs[i].yPercent,
       duration: DUR.base,          // 退場 base(0.4s) 不用 reveal(1.0s)——1.0s+power3.in 前段空白＝user 報「速度很奇怪」
       ease: EASE.exit,
       stagger: 0,                  // 全部同時走（user 2026-08-10：不要 icon 先走；對齊離頁 playFooterExit 的 stagger 0）
@@ -682,6 +698,35 @@ function bindFooterTabs(footer) {
   });
 }
 
+// tab 名英中各最多兩行、放不下就加寬（user 2026-10-19）：從 CSS 起跳寬（--tab-text-cap）開始，兩行裝不下才二分搜
+// 「剛好兩行」的最窄寬；英中取大者共用（--tab-text-w）。量 offset*/scrollWidth＝layout 值，不受 tab／footer 旋轉影響
+function fitTabText(footer) {
+  footer.querySelectorAll('.footer-tab').forEach((t) => {
+    const tab = /** @type {HTMLElement} */ (t);
+    if (tab.offsetParent === null) return;
+    tab.style.removeProperty('--tab-text-w');
+    const spans = /** @type {HTMLElement[]} */ (Array.from(tab.querySelectorAll('.footer-tab-en, .footer-tab-zh')))
+      .filter((s) => s.textContent.trim());
+    if (!spans.length) return;
+    const cap = Math.ceil(parseFloat(getComputedStyle(spans[0]).maxWidth)) || 0;
+    let w = cap;
+    spans.forEach((s) => {
+      s.style.whiteSpace = 'nowrap';
+      s.style.maxWidth = 'none';
+      const oneLine = s.scrollWidth + 1, lineH = s.offsetHeight;
+      s.style.whiteSpace = '';
+      const fits = (px) => { s.style.maxWidth = `${px}px`; return s.offsetHeight <= lineH * 2 + 1; };
+      if (!fits(w)) {
+        let lo = w, hi = oneLine;   // lo 裝不下、hi（一行寬）必裝得下
+        while (hi - lo > 1) { const mid = Math.floor((lo + hi) / 2); if (fits(mid)) hi = mid; else lo = mid; }
+        w = hi;
+      }
+      s.style.maxWidth = '';
+    });
+    if (w > cap) tab.style.setProperty('--tab-text-w', `${w}px`);
+  });
+}
+
 // tab 列可左右拖動（未來 tab 多、超出寬度時）：滑鼠按住拖曳捲 scrollLeft；觸控走原生 overflow-x pan（不攔）。
 // 無 chevron、無可見 scrollbar（CSS 隱藏）。拖動（moved）後 capture 攔 click 免誤切 tab。persistent + dataset guard 防重綁。
 // ⚠️ 寬度夠（無溢出）時不啟動拖曳（user 2026-08-11）——pointerdown 當下檢查 scrollWidth，免得拖曳態誤攔 click。
@@ -727,9 +772,10 @@ function reserveTabRow(tabs, area) {
   res.style.left = '0';
   res.style.top = '0';
   res.style.width = '100%';
-  // 扣 padding-bottom：那段只是給旋轉 tab 角的裁切緩衝（footer.css），不算 tab 列高
+  // 扣 padding-bottom：那段只是給旋轉 tab 角的裁切緩衝（footer.css），不算 tab 列高；
+  // 加 offsetTop：容器 margin-top 為負（上緣餘量往上借），reserve 從 0 起算要扣回
   const padB = parseFloat(getComputedStyle(tabs).paddingBottom) || 0;
-  res.style.height = `${Math.ceil(tabs.offsetHeight - padB + CARD_GAP_PX)}px`;
+  res.style.height = `${Math.ceil(tabs.offsetTop + tabs.offsetHeight - padB + CARD_GAP_PX)}px`;
   res.style.pointerEvents = 'none';
   return res;
 }
@@ -751,6 +797,7 @@ export async function initFooterScatter(scope, opts = {}) {
   const animate = opts.animate === true;
 
   bindFooterBreakpointReinit();   // 綁一次：跨 1200 寬度邊界時重建 footer（scatter↔線性）重播進場、免空白
+  bindFooterOverlay();            // 綁一次：真桌面覆蓋卡的開／關（listener 自己 gate 桌面）
 
   // <1200（窄桌面 hybrid + 手機）：footer 走線性 clip-reveal（無散佈）；≥1200 才 scatter。見 usesMobileFooter()
   if (usesMobileFooter()) { initFooterMobileReveal(footer, animate); return; }
@@ -764,7 +811,7 @@ export async function initFooterScatter(scope, opts = {}) {
   // 進場版（切分頁／跨斷點）：說明文字 CSS 是 opacity 1（不像散佈卡 anchor 預設 0 藏著），transform 又被 unwrap 清掉
   // → 下面 await 期間會先閃一下才 clip-reveal（user 2026-10-03）→ 同步先藏進遮罩
   const noteInnerEarly = animate ? getFooterNoteInner(area) : null;
-  if (noteInnerEarly && typeof gsap !== 'undefined') gsap.set(noteInnerEarly, { yPercent: CLIP_HIDE_YPERCENT });
+  if (noteInnerEarly && typeof gsap !== 'undefined') gsap.set(noteInnerEarly, revealHidden());
 
   const rawItems = /** @type {HTMLElement[]} */ (
     Array.from(footer.querySelectorAll(ITEM_SELECTORS.join(',')))
@@ -792,7 +839,11 @@ export async function initFooterScatter(scope, opts = {}) {
   // radio 切換散佈群組。
   bindFooterTabs(footer);
   bindLegalChips(footer);
-  const tabs = footer.querySelector('.footer-tabs');
+  fitTabText(footer);
+  const tabs = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-tabs'));
+  const privacy = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-privacy'));
+  // tab 列止於 legal 欄左緣：加寬後的 tab 不鑽到 legal 底下，排不下就列內左右拖動（unwrapFooterAnim 清掉）
+  if (tabs && privacy) tabs.style.maxWidth = `${privacy.offsetLeft}px`;
   makeTabsDraggable(tabs);
   const reserve = reserveTabRow(tabs, area);
   // 文字 block 套初始三原色底色 + 綁 hover（抽新角、shuffle 時原地不動）
@@ -807,7 +858,6 @@ export async function initFooterScatter(scope, opts = {}) {
   // 2026-09-27 版面：上區散佈（tabs 左上、legal 右上整高、copyright 貼底）、下區 logo bar 不在 area 內。
   // legal 整條（右側整高）當一個 obstacle：卡片不進 legal 區（user 2026-09-27「他們是一個整體」）。
   // 說明文字只擋它自己那一塊（user 2026-10-03：卡片移動空間不含它、其他空間照用）。
-  const privacy = footer.querySelector('.footer-privacy');
   const obstacles = [reserve, privacy, note].filter(Boolean);
 
   // 初始：items 沉入 anchor 遮罩下（clip-reveal 起點；anchor opacity 從 CSS default 0 起）
@@ -824,6 +874,9 @@ export async function initFooterScatter(scope, opts = {}) {
   for (let i = 0; i < 4 && right; i++) {
     applyPlacement(fallbackLayout);
     if (fallbackLayout.length === anchors.length && verifyPlacement(area, anchors, obstacles)) break;
+    // 覆蓋卡有上限高（footer.css --footer-cap：矮螢幕不蓋到 menu 鈕）→ 到頂就不再長高，排不進只能走 fallback 疊卡
+    const cap = parseFloat(getComputedStyle(footer).maxHeight);
+    if (Number.isFinite(cap) && footer.offsetHeight >= cap - 1) break;
     right.style.minHeight = `${right.offsetHeight + 80}px`;
     grew = true;
     fallbackLayout = (await buildLayoutCache(area, anchors, obstacles))[0];
@@ -842,7 +895,8 @@ export async function initFooterScatter(scope, opts = {}) {
     gsap.set(anchors, { opacity: 1 });
     if (animate && !prefersReducedMotion()) {
       playClipRevealScatter(items);
-      if (noteInner) gsap.fromTo(noteInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
+      // 已由上方 noteInnerEarly 藏好（四向隨機）→ 從那一邊滑回
+      if (noteInner) gsap.to(noteInner, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
     } else {
       gsap.set(items, { clearProps: 'transform' });   // 清掉 hideItemsClip 的 yPercent 沉沒 → 直接就位
       if (noteInner) gsap.set(noteInner, { clearProps: 'transform' });   // 切分頁時沉出去的，靜態重建也要回來
@@ -861,7 +915,104 @@ export async function initFooterScatter(scope, opts = {}) {
 // _footerExited flag：只在「退場真的跑了」時才需要重置 → header 連結（footer 不在畫面）導航時兩者皆 no-op，
 //   shuffle loop 不被打斷。
 let _footerExited = false;
-let _footerExitResolve = null;
+
+// ── 真桌面 footer＝蓋在頁面上的卡（user 2026-10-19）────────────────────────────
+// 卡不在捲動流裡（footer.css 真桌面段 position:fixed、出生藏在視窗下）：捲到頁底再往下滾 → 卡從視窗下升起、同時從 0° 轉到
+// 這次新抽的 ±[1,2]°；往上滾／點卡上非互動處／換頁（router playFooterExit）→ 轉回 0° 沉下去。
+// header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點／往上滾＝關卡、往下滾只擋，不碰後面內容）。
+// footer:open／footer:close（document）→ header.js 關桌面 menu＋logo 縮小／還原。
+// 手機／矮橫向仍是頁尾一段（線性版 initFooterMobileReveal），不走這裡。
+const OVERLAY_HIDE_YPERCENT = 130;   // 卡底離視窗底 48，100% 不夠藏；130 連 600 高的卡都蓋過
+let _footerOpen = false;
+let _overlayBound = false;
+let _lastScrollY = 0;
+let _closePromise = null;   // 退場中：router 再問就等同一個
+let _closeDone = null;      // 退場收尾（resolve）；被新一次 open 打斷時先結掉，router 不會等不到
+let _backdrop = null;
+
+function getOverlayFooter() {
+  const f = document.querySelector('footer.footer-shell');
+  // fixed 元素 offsetParent 恆 null → 用有沒有 box 判顯隱（library/atlas/create 容器 display:none）
+  return f instanceof HTMLElement && f.getClientRects().length ? f : null;
+}
+function finishClose() { const f = _closeDone; _closeDone = null; _closePromise = null; if (f) f(); }
+
+// 卡下透明墊：卡外任何滑鼠操作先關卡、不穿到後面的內容（user 2026-10-19）；header z 更高不受影響
+function showBackdrop() {
+  if (_backdrop) return;
+  const b = document.createElement('div');
+  b.className = 'footer-backdrop';
+  b.setAttribute('aria-hidden', 'true');
+  b.addEventListener('click', () => closeFooter());
+  // 往上滾＝關；往下滾只擋掉（user 2026-10-19：開著往下滾不關——否則滾到底的連續滾輪會開→關→再開）
+  b.addEventListener('wheel', (e) => { e.preventDefault(); if (e.deltaY < 0) closeFooter(); }, { passive: false });
+  document.body.appendChild(b);
+  _backdrop = b;
+}
+function hideBackdrop() { if (_backdrop) { _backdrop.remove(); _backdrop = null; } }
+
+export function openFooter() {
+  const shell = getOverlayFooter();
+  if (!shell || _footerOpen || typeof gsap === 'undefined') return;
+  finishClose();
+  _footerOpen = true;
+  _lastScrollY = window.scrollY;
+  showBackdrop();
+  document.dispatchEvent(new CustomEvent('footer:open'));
+  if (shuffleCtx) scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
+  const rot = (Math.random() < 0.5 ? -1 : 1) * rand(1, 2);
+  gsap.killTweensOf(shell);
+  // y:0 蓋掉 CSS 出生 translateY(120%) 被 GSAP 讀成的 px；位移與旋轉同一支 tween＝同時跑
+  gsap.fromTo(shell, { y: 0, yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0 },
+    { yPercent: 0, rotation: rot, duration: prefersReducedMotion() ? 0 : DUR.reveal, ease: EASE.enter, overwrite: 'auto' });
+}
+
+export function closeFooter() {
+  const shell = getOverlayFooter();
+  if (!shell || typeof gsap === 'undefined') return Promise.resolve();
+  if (!_footerOpen) return _closePromise || Promise.resolve();
+  _footerOpen = false;
+  hideBackdrop();
+  document.dispatchEvent(new CustomEvent('footer:close'));   // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）
+  stopShuffleLoop();
+  gsap.killTweensOf(shell);
+  _closePromise = new Promise((resolve) => {
+    _closeDone = resolve;
+    gsap.to(shell, { yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0, duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.exit, overwrite: 'auto', onComplete: finishClose });
+  });
+  return _closePromise;
+}
+
+function bindFooterOverlay() {
+  if (_overlayBound) return;
+  _overlayBound = true;
+  // 頁底再往下滾＝開；開著往上滾＝關（看滾輪不看捲動＝首頁不可捲也能關）
+  window.addEventListener('wheel', (e) => {
+    if (!SCCDHelpers.isDesktopLayout() || e.ctrlKey) return;
+    if (_footerOpen) { if (e.deltaY < 0) closeFooter(); return; }
+    if (e.deltaY <= 0 || e.defaultPrevented || document.body.classList.contains('lightbox-open')) return;
+    const intro = document.getElementById('intro-overlay');
+    if (intro && intro.style.display !== 'none') return;   // 首頁 intro 還蓋著
+    if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 2) return;   // 還沒到頁底
+    if (hasScrollableAncestor(e.target, 'y', 1)) return;   // 游標下的內捲框還捲得動＝那是它的捲動
+    openFooter();
+  }, { passive: true });
+  // 任何來源往上捲就收；往下的殘餘平滑捲動不算（滾到底的慣性會在開卡後再送幾個 scroll）
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (_footerOpen && y < _lastScrollY - 1) closeFooter();
+    _lastScrollY = y;
+  }, { passive: true });
+  // 點卡上非互動處＝關（卡外由 backdrop 接；header logo 交給 router：換頁的 playFooterExit 收卡）
+  document.addEventListener('click', (e) => {
+    const t = e.target instanceof Element ? e.target : null;
+    if (_footerOpen && t && t.closest('footer.footer-shell') && !t.closest('a, button')) closeFooter();
+  });
+  // 鍵盤 Tab 進到藏著的卡＝打開（不然焦點落在畫面外）
+  document.addEventListener('focusin', (e) => {
+    if (!_footerOpen && SCCDHelpers.isDesktopLayout() && e.target instanceof Element && e.target.closest('footer.footer-shell')) openFooter();
+  });
+}
 
 // ════════════════════════════════════════════════════════════════
 // 手機 footer 進退場（user 2026-06-11）
@@ -896,6 +1047,7 @@ function initFooterMobileReveal(footer, animate = false) {
   bindFooterTabs(footer);
   const tabsEl = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-tabs'));
   makeTabsDraggable(tabsEl);
+  document.fonts.ready.then(() => fitTabText(footer));   // 量字寬要等字型（已載完＝microtask，繪製前就定）
   // 平板 tabs absolute 疊在資訊區頂、不佔 flow 高 → 量實高寫進 var 給 .footer-random padding-top 預留
   // （CSS fallback 88px；offsetParent null＝<768/矮橫向 display:none 跳過不量）
   if (tabsEl && tabsEl.offsetParent !== null) {
@@ -945,34 +1097,6 @@ function resetFooterMobileAfterExit() {
   if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
 }
 
-// 散佈 items 以外的 footer 元素：它們不在 scatter 系統內，退場時若不動會「凍在畫面上」顯得只散了一半。
-//   - 左側 Lottie logo：hero clip-reveal（.footer-logo-area 當遮罩 overflow:clip、內層 .footer-logo-inner
-//     yPercent 沉出/升入）——2026-07-15 由 header bars 同款 clip-path wipe 改制，對齊 header logo 的滑動退場。
-//   - 左下規章連結區（.footer-privacy）：clip-reveal（yPercent 沉出/升入），.footer-privacy 自身 overflow:clip
-//     當遮罩、只動內層 `> div`（不動態 wrap，避免破壞 .footer-privacy > div 的 align/text-align 規則）。user 2026-06-08。
-// 回傳 { mask, inner }：mask=.footer-logo-area（掛 overflow:clip，不 reparent 免破壞 footer-inner flex 佈局）
-function getFooterLogo(area) {
-  const footerRoot = area.closest('footer');
-  const mask = footerRoot ? footerRoot.querySelector('.footer-logo-area') : null;
-  if (!mask) return null;
-  const inner = mask.querySelector('.footer-logo-inner');
-  if (!inner) return null;
-  mask.style.overflow = 'clip';   // 常駐無害（logo 本就含在 area 內），設一次免 race
-  return { mask, inner };
-}
-
-// 規章區 4 個連結各自獨立 clip-reveal：回傳 4 個 <a>。setupClipReveal 會各包一層 overflow:clip 遮罩，
-// <a> 靠 footer.css 的 display:block 才吃得到 yPercent transform（包進 div 後不再是 flex item、預設 inline）。
-function getFooterPrivacyLinks(area) {
-  const footerRoot = area.closest('footer');
-  if (!footerRoot) return [];
-  // 含 a11y 標章 placeholder 與 copyright <p>：跟連結一起 clip-reveal，否則退場時它們會凍住不動（其餘沉出）。
-  // ⚠️ display:none 的要濾掉（現況＝標章 placeholder 全域 hide）：元素本身無 layout box，但 setupClipReveal
-  //    包的 wrapper 是可見空 div、在 flex column 多佔一個 gap 槽（8px）→ 欄變高、底部錨定 → 點擊瞬間整欄上跳
-  return Array.from(footerRoot.querySelectorAll('.footer-privacy a, .footer-a11y-badge, .footer-privacy .footer-copyright'))
-    .filter((el) => getComputedStyle(el).display !== 'none');
-}
-
 // 分頁鈕列（.footer-tabs）：clip-reveal（user 2026-09-09f，由 clip-path wipe 改制、對齊全站進出場語彙）。
 // per-tab yPercent 不可行（平板 CSS `.footer-tab { transform:none !important }` 蓋掉 GSAP inline）→ 改動
 // 「整條 inner wrapper」：box 本身當遮罩（overflow-x:auto 連帶 y 裁切、scrollbar 已藏），children lazy 包進
@@ -996,77 +1120,14 @@ function getFooterTabsInner(footerRoot) {
 export function playFooterExit() {
   if (typeof gsap === 'undefined') return Promise.resolve();
   if (usesMobileFooter()) return playFooterMobileExit();
-  if (!shuffleCtx) return Promise.resolve();
-  const { area, anchors, items } = shuffleCtx;
-  if (!area || area.offsetParent === null || !items.length) return Promise.resolve();
-  // 只在 footer 真的在視窗內才退場（捲在上方點 header 連結 → footer 不在畫面 → 不跑、不打斷 shuffle）
-  const r = area.getBoundingClientRect();
-  const vh = window.innerHeight || 0;
-  if (r.bottom <= 0 || r.top >= vh) return Promise.resolve();
-
-  // 連點：上一次退場 Promise 還沒 resolve 又被呼叫 → 先 resolve 舊的，否則 killTweensOf 殺掉舊 onComplete = hang
-  if (_footerExitResolve) { _footerExitResolve(); _footerExitResolve = null; }
-
-  _footerExited = true;
-  stopShuffleLoop();
-  const logo = getFooterLogo(area);
-  const privacyLinks = getFooterPrivacyLinks(area);
-  if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false }); // 各包 overflow:clip 遮罩（idempotent）
-  gsap.killTweensOf(anchors);  // 殺掉可能還在跑的 shuffle glide（現在 shuffle 動的是 anchor），否則 anchor 邊移邊被 items exit 疊加
-  gsap.killTweensOf(items);
-  return new Promise(resolve => {
-    _footerExitResolve = resolve;
-    // 三組 footer 元素全 clip-reveal 沉出、timing **完全相同**（FOOTER_EXIT_DUR 0.5s + EASE.exit + 無 stagger）→ 同時、同速、時長一致。
-    // ease/時長直接照 hero clip-reveal exit（hero-animation.js EXIT_DURATION=0.5 + EASE.exit/power3.in；power3.in 在短 0.5s 前段空白不明顯）。
-    //   - 散佈卡：item yPercent 0→100 沉入 anchor overflow:clip 遮罩 → 換頁前乾淨消失（舊版用 viewport px 整卡滑出，
-    //     因當時 anchor 無遮罩、yPercent 只挪一下沒出界 → user 報「移到一半就切」；改遮罩後 yPercent:100 即全隱）。
-    //   - logo：.footer-logo-area 遮罩、內層 yPercent 沉出。
-    //   - 規章區：4 個連結各自 clip-reveal 沉出（yPercent 0→100，每個 <a> 自己的 overflow:clip wrapper 當遮罩），stagger 0 一起出場。
-    // 三組同在 0.5s 結束，用 items 的 onComplete resolve。
-    if (logo) gsap.to(logo.inner, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
-    if (privacyLinks.length) gsap.to(privacyLinks, { yPercent: 100, duration: FOOTER_EXIT_DUR, ease: EASE.exit, stagger: 0, overwrite: 'auto' });
-    // 110 overshoot：旋轉 tab 角凸出 inner 上緣，100% 貼齊遮罩底會殘留（同上 mobile 路徑註）
-    const tabsInner = getFooterTabsInner(area.closest('footer'));
-    if (tabsInner) gsap.to(tabsInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
-    const noteInner = getFooterNoteInner(area);
-    if (noteInner) gsap.to(noteInner, { yPercent: CLIP_HIDE_YPERCENT, duration: FOOTER_EXIT_DUR, ease: EASE.exit, overwrite: 'auto' });
-    gsap.to(items, {
-      yPercent: CLIP_HIDE_YPERCENT,
-      duration: FOOTER_EXIT_DUR,
-      ease: EASE.exit,
-      stagger: FOOTER_EXIT_STAGGER,  // 與 extras 共用 → 全部同時、同時長
-      overwrite: 'auto',
-      onComplete: () => { _footerExitResolve = null; resolve(); },
-    });
-  });
+  return closeFooter();   // 真桌面覆蓋卡：開著就整張沉下（換頁／點 header logo 同拍）；沒開＝no-op
 }
 
 export function resetFooterAfterExit() {
   if (!_footerExited) return;
   if (typeof gsap === 'undefined') { _footerExited = false; return; }
   if (usesMobileFooter()) { resetFooterMobileAfterExit(); return; }
-  if (!shuffleCtx) { _footerExited = false; return; }
-  const { area, anchors, obstacles, items, fallbackLayout } = shuffleCtx;
-  // footer 在新頁是隱藏頁（generate/library/atlas）→ 留著 flag，下次顯示 footer 的頁再重置，避免 items 卡隱藏
-  if (!area || area.offsetParent === null) return;
-  _footerExited = false;
-  gsap.killTweensOf(items);
-  // anchor 套回 currentLayout（退場若撞上 shuffle glide，anchor 被凍在半路）→ 不重算 layout、直接重進場。
-  if (currentLayout) applyPlacement(currentLayout);
-  hideItemsClip(items);
-  playClipRevealScatter(items);
-  const logo = getFooterLogo(area);
-  const privacyLinks = getFooterPrivacyLinks(area);
-  if (privacyLinks.length) setupClipReveal(privacyLinks, { hide: false });
-  // timing 對齊 items 重進場（playClipRevealScatter：DUR.reveal + EASE.enter）→ 復位也一致
-  if (logo) gsap.fromTo(logo.inner, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
-  // 規章區 4 連結 clip-reveal 復位：從 yPercent:100（沉在遮罩下）一起升回 0（stagger 0）；fromTo 明確起點、clearProps 收乾淨
-  if (privacyLinks.length) gsap.fromTo(privacyLinks, { yPercent: 100 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0, overwrite: 'auto', clearProps: 'transform' });
-  const tabsInner = getFooterTabsInner(area.closest('footer'));
-  if (tabsInner) gsap.fromTo(tabsInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
-  const noteInner = getFooterNoteInner(area);
-  if (noteInner) gsap.fromTo(noteInner, { yPercent: CLIP_HIDE_YPERCENT }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: 'auto', clearProps: 'transform' });
-  startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+  _footerExited = false;   // 線性版退場後跨到桌面：卡藏在視窗下、items 原位，沒東西要復位
 }
 
 // ── 跨 1200 邊界即時重建（scatter ↔ 線性）─────────────────────────
@@ -1099,7 +1160,10 @@ function unwrapFooterAnim(footer, keepLegal = false) {
   });
   // 分頁鈕列舊版 clip-path wipe 殘留（改制前退場後進隱藏頁再跨斷點）→ 清掉免 tabs 永久隱形（新版 inner 已被上方 unwrap 剝掉）
   const tabsBox = footer.querySelector('.footer-tabs');
-  if (tabsBox) /** @type {HTMLElement} */ (tabsBox).style.clipPath = '';
+  if (tabsBox) {
+    /** @type {HTMLElement} */ (tabsBox).style.clipPath = '';
+    /** @type {HTMLElement} */ (tabsBox).style.maxWidth = '';   // 散佈版止於 legal 欄的寬，線性版不適用
+  }
   // 散佈排不進時 initFooterScatter 加高的上區：重建（resize／跨斷點）才還原，切分頁保留
   const right = /** @type {HTMLElement | null} */ (footer.querySelector('.footer-right'));
   if (right && !keepLegal) right.style.minHeight = '';
@@ -1108,7 +1172,7 @@ function unwrapFooterAnim(footer, keepLegal = false) {
 
 function reinitVisibleFooters() {
   document.querySelectorAll('footer.footer-shell, footer#site-footer-static').forEach((f) => {
-    if (!(f instanceof HTMLElement) || f.offsetParent === null) return;  // 隱藏 footer（generate/library/atlas）不重建
+    if (!(f instanceof HTMLElement) || !f.getClientRects().length) return;  // 隱藏 footer（generate/library/atlas）不重建；桌面卡 fixed、offsetParent 恆 null 不能用
     stopShuffleLoop();
     mobileBlocks = null;
     _footerExited = false;

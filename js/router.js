@@ -7,7 +7,7 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive, clearNavActive, setNavActive, playPageIndicatorExit } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
-import { playFooterExit, resetFooterAfterExit } from './modules/ui/footer-scatter.js';
+import { playFooterExit, resetFooterAfterExit, closeFooter } from './modules/ui/footer-scatter.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
 import { releaseSnapHold, scrollWindowNoSnap } from './modules/ui/snap-scroll.js';
 import { lockForDeepLink, unlockDeepLink } from './modules/ui/deeplink-lock.js';
@@ -510,7 +510,10 @@ export function initRouter() {
     // 目標是本頁（如首頁點 logo）就只捲頂不重載；別頁則 footer 不動、上方換成新頁再往上捲進去（loadPage fromFooter）
     if (link.closest('#site-footer, #site-footer-static')) {
       e.preventDefault();
-      if (resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page) scrollWindowNoSnap(0);
+      const samePage = resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page;
+      // 真桌面 footer 是覆蓋卡（footer-scatter.js）：同頁＝收卡；別頁＝一般換頁（loadPage 的 playFooterExit 收卡、新頁從頂開始）
+      if (SCCDHelpers.isDesktopLayout()) { if (samePage) closeFooter(); else navigateTo(url.href); return; }
+      if (samePage) scrollWindowNoSnap(0);
       else navigateTo(url.href, { fromFooter: true });
       return;
     }

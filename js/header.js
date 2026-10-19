@@ -283,6 +283,21 @@ if (typeof window !== 'undefined') {
   // hook 委派（避免與 lightbox-shell 循環 import）；桌面隨機四方向、手機一致上滑由 footerHideBars 內部 gate 決定。
   window.__sccdHideHeaderBars = footerHideBars;   // 皆接受 { duration, ease }
   window.__sccdShowHeaderBars = footerShowBars;
+  // 真桌面覆蓋卡 footer（footer-scatter.js）開卡＝關桌面 menu（面板在 header 層、會蓋在卡上）；logo／mode／menu 鈕都不收
+  //（user 2026-10-19 第二輪），點 logo 照常回首頁、卡同拍退場。
+  // logo 尺寸：開卡縮到小（100）——首頁沒得捲、scroll-shrink 到不了；關卡回到「捲動應有」的尺寸（180 − 80×min(1, scrollY/300)
+  // ＝scroll-shrink 同一條公式；捲到底的頁本來就 100＝no-op）。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）尺寸各自管、不還原。
+  // 不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡 180），兩支同屬性 tween 最後都收斂到同一公式值
+  function footerLogoSize(open) {
+    const logo = document.getElementById('header-logo');
+    if (!logo || typeof gsap === 'undefined' || !SCCDHelpers.isDesktopLayout()) return;
+    const hasScrub = typeof ScrollTrigger !== 'undefined' && ScrollTrigger.getAll().some(st => st.vars && st.vars.trigger === 'body');
+    if (!open && !hasScrub) return;
+    const size = open ? 100 : 180 - 80 * Math.min(1, window.scrollY / 300);
+    gsap.to(logo, { width: size, height: size, duration: DUR.slow, ease: EASE.move });
+  }
+  document.addEventListener('footer:open', () => { closeMobileMenu(); footerLogoSize(true); });
+  document.addEventListener('footer:close', () => footerLogoSize(false));
 }
 
 /**
@@ -1129,6 +1144,9 @@ export function initHeader() {
     // 經 __sccdHideHeaderBars 委派回這裡，user 2026-08-31；bars 是同一組 getHeaderTargets）。
     // instant=true：初次載入同步時瞬間收起（duration:0），不要 refresh 後看到 bars 閃現再滑走
     function syncFooterHide(instant = false) {
+      // 真桌面 footer 是覆蓋卡（footer-scatter.js openFooter/closeFooter）、header 不收；
+      // 這裡只管線性版（手機／矮橫向／iPad）捲到頁尾 footer
+      if (SCCDHelpers.isDesktopLayout()) return;
       // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
       // offsetHeight 可能變 0 或 detached → 每次重抓最新的；多 footer 場景（index 同時有 #site-footer-static
       // 跟空的 #site-footer container）取第一個可見的（offsetHeight>0）

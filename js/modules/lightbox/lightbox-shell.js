@@ -225,7 +225,7 @@ function canScroll(el, axis, dir) {
 }
 
 // target 往上是否有「該 axis/dir 還能捲」的祖先（到 body 為止）——有的話該捲動歸 modal 內容，不擋
-function hasScrollableAncestor(target, axis, dir) {
+export function hasScrollableAncestor(target, axis, dir) {
   let el = target instanceof Element ? target : null;
   while (el && el !== document.body && el !== document.documentElement) {
     if (canScroll(el, axis, dir)) return true;

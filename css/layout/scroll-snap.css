@@ -32,6 +32,13 @@ html {
     scroll-snap-align: end;
     scroll-snap-stop: always;
   }
+  /* 真桌面 footer 是 fixed 覆蓋卡（footer.css），不在捲動流裡＝不當 snap 點；#site-footer 容器 0 高留著＝吸到頁底 */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    html:is(.snap-mandatory, .snap-proximity) footer#site-footer-static.snap-zone {
+      scroll-snap-align: none;
+      scroll-snap-stop: normal;
+    }
+  }
 }
 
 /* ===== about 100vh sections =====

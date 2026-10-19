@@ -34,6 +34,25 @@
 body.mode-inverse .icon.footer-social-glyph { filter: invert(0); }
 body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, invert(1)); }
 
+/* hover＝隨機三原色塊（user 2026-10-19；色由 footer-content.js mouseenter 抽 --social-c）。雙色底圖不能直接換色 →
+   疊一層同形 ::after（mask＝icon 外框）用 screen 混色：黑塊變疊色、白字不動，之後才經本體 filter。
+   mode1 本體 invert → 疊色先自己 invert 抵銷（結果＝色塊黑字）；mode2 不反（色塊白字）；mode3 不上 rgb＝difference 白＝黑白對調。瞬間進出不 fade */
+@media (min-width: 768px) {
+  .icon.footer-social-glyph { position: relative; }
+  .footer-social-icon:hover .icon.footer-social-glyph::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--social-c, var(--color-pink));
+    -webkit-mask: var(--icon) center / contain no-repeat;
+            mask: var(--icon) center / contain no-repeat;
+    mix-blend-mode: screen;
+    filter: invert(1);
+  }
+  body.mode-inverse .footer-social-icon:hover .icon.footer-social-glyph::after { filter: none; }
+  body.mode-color .footer-social-icon:hover .icon.footer-social-glyph::after { background: #fff; filter: none; mix-blend-mode: difference; }
+}
+
 /* size tier（footer social 另走 --icon-hero）：
    XL 32px＝share modal 等強調主操作；L 24px＝主控按鈕（video player / header toggle）；M 20px＝lightbox / arrow / chevron / zoom；
    S 16px＝list-item inline；XS 14px＝search / sort-arrow 等輔助 */
