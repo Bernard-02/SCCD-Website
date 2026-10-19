@@ -26,7 +26,7 @@ import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-hel
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { deepLinkUnlocker } from './modules/ui/deeplink-lock.js';
 // Page Cleanup Registry（各模組註冊離頁要解綁的 window/document listener，SPA 換頁統一 drain）
-import { runPageCleanups, registerPageCleanup } from './modules/ui/page-cleanup.js';
+import { runPageCleanups } from './modules/ui/page-cleanup.js';
 import { registerPageExit } from './modules/ui/page-exit.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 
@@ -360,7 +360,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     ]).then(([viewerMod, panelsMod, cardMod]) => {
     if (!alive()) return;   // 下載期間已換頁 → 頁面 DOM 已 swap，放棄 init
     viewerMod.initLibraryViewer();
-    // 桌面：search 列（search／filter／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
+    // 桌面：search 列（search／date sort）收成灰卡右下角 icon 工具列（user 2026-09-29；樣式 library.css .lib-toolbar）。
     // 搬成 panel 直接子層：留在內容 grid 裡會被 grid 的進場 clip-path 裁掉（工具列定位在 grid 外的底部標題列）。
     // 必須在 initLibraryPanels 前搬＝它結尾的 hidePanelChildren 才會把工具列一起藏進 phase 1。手機／矮橫向維持原 DOM。
     if (SCCDHelpers.isDesktopLayout()) {
@@ -374,57 +374,18 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         //   程式沒有直接改搜尋框值的地方，input 事件就涵蓋打字／刪字／貼上
         const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
         if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
+        // files／album 分類選項：常駐在年份欄最上方（user 2026-10-19 拿掉 filter icon＋右側滑板）；版面見 library.css .lib-cat-col。
+        // 包一層 .lib-cat-group＝選項框＋其上下 chevron／reset（library-panels.js attachCatPager）整組最高 1/3 欄
+        const cat = panel.querySelector('[id$="cat-filter"]');
+        const yearCol = panel.querySelector('[id$="year-picker-wrap"]')?.parentElement;
+        if (cat && yearCol) {
+          const group = document.createElement('div');
+          group.className = 'lib-cat-group';
+          group.append(cat);
+          yearCol.classList.add('lib-cat-col');
+          yearCol.prepend(group);
+        }
       });
-      // filter 鈕：開關右側分類滑板（.lib-filter-open）＋ icon 換 default/active；點滑板以外（年份區除外）即關。
-      // 選項 stagger 進退場（user 2026-10-04）：開＝滑板滑入、選項逐一由上往下 clip-reveal（同 library chrome 的 hide/play）；
-      // 關＝選項逐一收回、收完滑板才滑出。動畫中（含進場未走完）不接受開關（鈕／點外面都擋）＝免半途反轉留殘態。
-      const OPT_DELAY = 0.15, OPT_STAGGER = 0.05, OPT_STAGGER_OUT = 0.03;   // album 13 顆：收合 stagger 減半免拖
-      const setFilterOpen = (/** @type {HTMLElement} */ panel, /** @type {boolean} */ open) => {
-        if (panel.classList.contains('lib-filter-open') === open || panel.dataset.filterBusy) return;
-        const btn = panel.querySelector('.lib-filter-btn');
-        if (btn) {
-          btn.setAttribute('aria-expanded', String(open));
-          btn.querySelector('.icon').className = `icon ${open ? 'icon-filter-active' : 'icon-filter'}`;   // 直接換、不做 clip reveal（user 2026-10-01）
-        }
-        const opts = /** @type {HTMLElement[]} */ ([...panel.querySelectorAll('[id$="cat-filter"] button')]);
-        if (prefersReducedMotion() || !opts.length) { panel.classList.toggle('lib-filter-open', open); return; }
-        const setOpts = (/** @type {boolean} */ shown, /** @type {number} */ dur, /** @type {number} */ delay0, /** @type {string} */ ease, stagger = 0) => opts.forEach((el, i) => {
-          const d = (delay0 + i * stagger).toFixed(2);
-          el.style.transition = `clip-path ${dur}s ${ease} ${d}s, translate ${dur}s ${ease} ${d}s`;
-          el.style.clipPath = shown ? 'inset(0 0 0 0)' : 'inset(0 0 100% 0)';
-          el.style.translate = shown ? '0 0' : '0 -0.4rem';
-        });
-        const clearOpts = () => opts.forEach(el => { el.style.transition = ''; el.style.clipPath = ''; el.style.translate = ''; });
-        const span = (/** @type {number} */ s) => (opts.length - 1) * s;
-        panel.dataset.filterBusy = '1';
-        // 起點先定成「完全顯示／完全隱藏」的 inset 值並 commit：clip-path 從 none（清過 inline）到 inset() 不能補間＝會直接跳
-        setOpts(!open, 0, 0, 'linear');
-        void panel.offsetHeight;
-        if (open) {
-          panel.classList.add('lib-filter-open');
-          setOpts(true, DUR.medium, OPT_DELAY, 'ease-out', OPT_STAGGER);
-          setTimeout(() => { clearOpts(); delete panel.dataset.filterBusy; }, (OPT_DELAY + span(OPT_STAGGER) + DUR.medium) * 1000 + 50);
-        } else {
-          setOpts(false, DUR.fast, 0, 'ease-in', OPT_STAGGER_OUT);
-          setTimeout(() => {
-            panel.classList.remove('lib-filter-open');   // 選項都收完才滑出；滑完才清 inline（早清＝滑出途中選項又現）
-            setTimeout(() => { clearOpts(); delete panel.dataset.filterBusy; }, DUR.medium * 1000 + 50);
-          }, (span(OPT_STAGGER_OUT) + DUR.fast) * 1000);
-        }
-      };
-      document.querySelectorAll('.lib-filter-btn').forEach(btn => btn.addEventListener('click', () => {
-        const panel = /** @type {HTMLElement} */ (btn.closest('[id^="lib-panel-"]'));
-        setFilterOpen(panel, !panel.classList.contains('lib-filter-open'));
-      }));
-      const onOutsideFilter = (/** @type {PointerEvent} */ e) => {
-        const t = /** @type {HTMLElement} */ (e.target);
-        document.querySelectorAll('.lib-filter-open').forEach(panel => {
-          if (t.closest?.('[id$="cat-filter"], .lib-filter-btn, [id$="year-picker-wrap"]')) return;
-          setFilterOpen(/** @type {HTMLElement} */ (panel), false);
-        });
-      };
-      document.addEventListener('pointerdown', onOutsideFilter);
-      registerPageCleanup(() => document.removeEventListener('pointerdown', onOutsideFilter));
     }
     const panels = panelsMod.initLibraryPanels();
 

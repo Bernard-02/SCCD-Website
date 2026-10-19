@@ -10,6 +10,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { revealHidden } from '../ui/scroll-animate.js';
 
 export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb, initialTab = 'awards' }) {
 
@@ -458,6 +459,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   let entrancePlayed = false;
 
   // hover 樣式（inverse mode 反轉：白底黑字，standard 黑底白字）——抽成可重用（§15.4 解鎖補發也呼叫）
+  // 只變色不動 z：留在原層、灰卡照樣蓋在上面（user 2026-10-19；原本提到 z 11 整塊浮到灰卡前）
   function applyCardHover(el) {
     const titleEl = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
     const isInverse = document.body.classList.contains('mode-inverse');
@@ -465,7 +467,6 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     //   `:not([style*="--theme-fg-inverse"])` 放行 → 箭頭預覽／解鎖補發跟 mode1/2 同一套 JS 觸發（原 CSS :hover 版預覽被 !important 吃掉，user 2026-09-28）
     const isMode3 = document.body.classList.contains('mode-color');
     el.style.background = isMode3 ? 'var(--theme-fg-inverse)' : (isInverse ? '#fff' : '#000');
-    el.style.zIndex     = '11';
     if (titleEl) titleEl.style.color = isMode3 ? 'var(--theme-fg)' : (isInverse ? '#000' : '#fff');
   }
   // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
@@ -511,7 +512,6 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       //   此處無 gate 時游標滑出＝直接把 RGB 寫進本體（「色塊變小自動填色」）。pending 中 hover 從沒套過、無需還原。
       if (el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
-      el.style.zIndex     = String(baseZOf.get(el) ?? 1);
       titleEl.style.color = '#000';
       // #4：離開「不」再轉（user 二輪：避免一次 hover 轉兩次）——只 enter 轉；卡片維持 hover 那次的角度到下次 hover。
     });
@@ -1053,7 +1053,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       const contentEl = document.getElementById('library-card-content');
       if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
       if (contentEl) contentEl.classList.add('content-visible');
-      if (nextBtnEl) nextBtnEl.style.clipPath = '';
+      if (nextBtnEl && typeof gsap !== 'undefined') gsap.set(nextBtnEl.firstElementChild, { xPercent: 0, yPercent: 0 });
       isSwitching = false;  // 進場完成 → 解鎖 switchTab
       syncHoverAfterUnlock();   // §15.4
       if (onEntranceDoneCb) onEntranceDoneCb();
@@ -1090,8 +1090,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
           const contentEl = document.getElementById('library-card-content');
           if (onTabSwitch) onTabSwitch(tabOf.get(grayEl));
           contentEl.classList.add('content-visible');
-          // reveal 完清 clip：殘留 inset(0) 會切掉 inner rotate 凸出鈕盒的角（穩態交還 inner 自己的 -12px buffer）
-          if (nextBtnEl) heroRevealCard(nextBtnEl, revealDir(nextBtnEl), ENTER_DUR, () => { nextBtnEl.style.clipPath = ''; });
+          nextBtnSlide(true, ENTER_DUR);
           if (onEntranceDoneCb) onEntranceDoneCb();
           // marquee 已在 initColorEls 內 gate document.fonts.ready render 一次（字型準確），這裡不再重量避免抖動
         });
@@ -1125,7 +1124,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         allEls.forEach(el => { el.style.transition = 'none'; });
         heroExitCard(grayEl, revealDir(grayEl), EXIT_DUR);  // 灰卡也走 hero 位移+揭露收（user 2026-08-23，原 in-place wipe）
         if (activePanel) playPanelBodyExit(activePanel, EXIT_DUR);
-        if (nextBtnEl) heroExitCard(nextBtnEl, revealDir(nextBtnEl), EXIT_DUR);  // 鈕獨立在 section 層，同語彙收場
+        nextBtnSlide(false, EXIT_DUR);
 
         // 進場是 colorEls 由低 z → 高 z stagger，最後 grayEl
         // 退場反過來：grayEl 收 → colorEls 由高 z → 低 z 倒序 stagger（全卡＝位移+揭露 heroExitCard）
@@ -1248,7 +1247,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   registerPageCleanup(() => {
     switchColorTimers.forEach(clearTimeout); switchColorTimers = [];
     document.querySelectorAll('.lib-color-wipe').forEach(w => { if (typeof gsap !== 'undefined') gsap.killTweensOf(w); w.remove(); });  // §14.1 overlay 兜底
-    allEls.forEach(killHeroTween); killHeroTween(nextBtnEl);   // hero proxy 不被 router killTweensOf 涵蓋、離頁顯式殺
+    allEls.forEach(killHeroTween);   // hero proxy 不被 router killTweensOf 涵蓋、離頁顯式殺
   });
 
   // 點擊事件
@@ -1262,10 +1261,16 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 的 .tl-list-next-btn（沿用 .tl-icon-btn-inner 黑方塊）。掛在 section 層而非灰卡內
   // （user 2026-08-23）：掛卡內時灰卡 reveal/wipe 的 clip-path 會把凸出的半顆鈕切掉。
   // 改一次生成、JS 釘在灰卡 footprint 右上角（footprint 固定置中，切分頁不動；resize 才重定位）、
-  // z 恆在所有卡之上；顯隱只跟頁面進退場，走 hero clip-reveal（entrance 完 heroRevealCard 進、
-  // playExitAnimation heroExitCard 收；user 2026-08-23 指定非 fade）。
+  // z 恆在所有卡之上；顯隱只跟頁面進退場（entrance 完進、playExitAnimation 收；user 2026-08-23 指定非 fade）。
   const TAB_ORDER = ['awards', 'files', 'press', 'album'];  // award → document → press → album
   let nextBtnEl = null;
+  // 進退場＝方塊（inner）在外層遮罩內四向隨機滑；遮罩跟方塊同大同角（library.css）→ 剪裁邊貼方塊自己的斜邊（user 2026-10-19）
+  function nextBtnSlide(show, dur) {
+    const inner = nextBtnEl && nextBtnEl.firstElementChild;
+    if (!inner || typeof gsap === 'undefined') return;
+    if (show) gsap.fromTo(inner, revealHidden(), { xPercent: 0, yPercent: 0, duration: dur, ease: EASE.enter, overwrite: true });
+    else gsap.to(inner, { ...revealHidden(), duration: dur, ease: EASE.exit, overwrite: true });
+  }
   // #3 (user 2026-09-12)：箭頭 hover＝預覽下一分頁色塊（applyCardHover 黑底白字）。抽成 function-scope helper，
   //   讓「色塊變小的切分頁動畫完成後、游標仍停在箭頭上」時由 syncHoverAfterUnlock 補套（靜止游標下 mouseenter 不會重 fire）。
   let btnHoverTarget = null;
@@ -1295,18 +1300,19 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     nextBtnEl.className = 'lib-card-next-btn';
     nextBtnEl.setAttribute('aria-label', '下一個分頁 Next section');
     nextBtnEl.innerHTML = '<span class="tl-icon-btn-inner"><span class="icon icon-arrow-right"></span></span>';
-    nextBtnEl.style.clipPath = 'inset(100% 0% 0% 0%)';  // 進場前隱藏；entrance 完 heroRevealCard 揭露
     sectionEl.appendChild(nextBtnEl);
+    // 進場前藏在遮罩外。rotation:0 明寫：GSAP 首觸若讀到 lists.css 的 inner −8°（library.css 晚到）會記進快取、跟外層角疊兩次
+    if (typeof gsap !== 'undefined') gsap.set(nextBtnEl.firstElementChild, { ...revealHidden(), rotation: 0 });
     nextBtnEl.addEventListener('click', () => {
       if (isSwitching) return;
       const target = nextTargetEl();
       if (target) switchTab(target);
     });
     // hover/click 隨機角度（arrow-spin，同 library sort 箭頭；取代舊 CSS :hover +8° 固定角——純 CSS
-    // 版 hover 一解除就彈回 0，user 2026-09-10 要「點擊定案、切卡後留住」）。轉 inner：外層是
-    // clip 遮罩＋translate 置中不能動；−4~+6 range 在 -12px clip buffer 內（buffer 原為 ±8 設計）
-    const nextInner = /** @type {HTMLElement|null} */ (nextBtnEl.querySelector('.tl-icon-btn-inner'));
-    if (nextInner) bindArrowSpin(nextBtnEl, (/** @type {number} */ d) => { nextInner.style.transform = `rotate(${d}deg)`; });
+    // 版 hover 一解除就彈回 0，user 2026-09-10 要「點擊定案、切卡後留住」）。轉外層遮罩（連同方塊）、保留置中 translate；
+    // inner 的 transform 留給進退場滑動
+    const btn = nextBtnEl;
+    bindArrowSpin(btn, (/** @type {number} */ d) => { btn.style.transform = `translate(-50%, -50%) rotate(${d}deg)`; });
     // hover 上色（lists.css .tl-icon-btn-inner 段；user 2026-09-28 全站黑方塊鈕）：色＝下一色塊色（user 2026-10-01，非隨機）
     bindNavBtnHover(nextBtnEl, { pick: () => colorOf.get(nextTargetEl()) || SCCDHelpers.ACCENT_COLORS[0] });
 
@@ -1319,8 +1325,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       btnHoverTarget = null;
       if (!el || el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
-      el.style.zIndex     = String(baseZOf.get(el) ?? 1);
-      const t = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
+      const t =/** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
       if (t) t.style.color = '#000';
     });
   }

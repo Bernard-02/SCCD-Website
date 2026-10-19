@@ -1075,6 +1075,7 @@ export function initPdfViewer() {
         applyZoom(false);
         renderTitle(null);
         refUi.reset();
+        document.dispatchEvent(new CustomEvent('sccd:lightbox-closed'));   // 淡出收完（library 點開列的 active 底色此時才清）
         resolve();
       }, 300);
     });

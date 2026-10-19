@@ -25,6 +25,7 @@ import { loadUiLabels } from '../ui/ui-labels.js';
 import { shortLibId } from './library-deeplink.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';   // accent → 深一階（awards row open 用）
+import { escapeHtml } from '../ui/escape-html.js';
 
 // 文件分類 dropdown（後台 library_documents.docType）→ 顯示文字。fallback 用；實際文字優先讀 ui_labels（可後台改）
 const DOCTYPE_FALLBACK = {
@@ -195,10 +196,135 @@ function filterKeepingNearestYear(listEl, doFilter) {
   scroller.scrollTo(0, r.top - scroller.getBoundingClientRect().top + scroller.scrollTop - keep);
 }
 
-// 52＝award 單列桌面實高（上下 0.5rem＋中英兩行；同 library.css .award-record-item contain-intrinsic-size）
-const YEAR_RESET_SLOT_H = 52;
+// reset 空間高＝icon 20＋上方 xs 8（user 2026-10-19「reset 到 chevron 的距離可以縮減」；原 52＝award 單列高）
+const YEAR_RESET_SLOT_H = 28;
 // 20＝桌面工具列 icon 同尺寸（library.css .lib-toolbar）
 const YEAR_RESET_ICON = 20;
+
+function makeResetBtn(ariaLabel, onClick) {
+  const btn = document.createElement('button');
+  btn.className = 'year-reset-btn';
+  // icon 取代「Reset 重設」字（user 2026-10-01，同 create 面板的 reset.svg）；block＝不吃行高、盒高＝icon 高
+  btn.innerHTML = `<span class="icon icon-reset" style="display:block;font-size:${YEAR_RESET_ICON}px;"></span>`;
+  btn.setAttribute('aria-label', ariaLabel);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+// 桌面 reset 空間：在下一批 chevron 正下方、貼左＝跟 chevron／選項／年份字左緣一直線（user 2026-10-19，撤 10-01 置中；
+// 同日試過放 chevron 右邊同列，user 改回上下）。按鈕＝整個空間高（點擊區），icon 齊底＝上 padding 吃掉空間高減 icon 高、底貼欄底
+function makeResetSlot(btn) {
+  const slot = document.createElement('div');
+  slot.className = 'year-reset-slot';
+  slot.style.cssText = `flex:none;height:${YEAR_RESET_SLOT_H}px;display:flex;`;
+  btn.style.cssText = `height:${YEAR_RESET_SLOT_H}px;padding:${YEAR_RESET_SLOT_H - YEAR_RESET_ICON}px 0 0;border:none;background:none;color:var(--lib-fg);cursor:var(--cursor-pointer);display:none;`;
+  slot.appendChild(btn);
+  return slot;
+}
+
+// 捲動框的上／下一批 chevron（年份欄 user 2026-10-01、分類選項 10-19 共用；樣式 library.css .year-more-btn／.year-less-btn）。
+//   下一批＝框下緣；點＝前進半窗：越過可見窗中線的第一個 item 捲到窗頂（user 2026-10-02「只移動一半」；不切半個 item）。
+//   到底＝disabled：捲動內容尾端的 sentinel 可見＝沒有下一批（IO 也涵蓋 panel 隱藏→顯示、resize，不必另掛 scroll／resize 重判）
+//   上一批（user 2026-10-02，同四頁 nav）：一離頂就 clip-reveal 蓋在框頂（absolute 不佔版面、內層帶底色上往下出現、下往上收起）、
+//   回頂收起；點＝上一批。整批換落點讓出它的高＝下一批第一個 item 不被蓋。
+//   col＝放 chevron 的 flex 欄：上一批 absolute 的靜態位置＝欄 content 起點，margin 補到框頂。caller 把 up/more 放進欄後呼叫 sync
+function makeScrollPager(wrap, col, getItems, labels) {
+  const more = document.createElement('button');
+  more.className = 'year-more-btn';
+  more.setAttribute('aria-label', labels.more);
+  more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
+  const up = document.createElement('button');
+  up.className = 'year-less-btn';
+  up.setAttribute('aria-label', labels.less);
+  up.inert = true;
+  up.innerHTML = '<span class="year-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span>';  // 90＝朝上
+  const upInner = /** @type {HTMLElement} */ (up.firstElementChild);
+  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
+  let upShown = false;
+  // chevron 觸發的程式捲動目的地（-1＝沒在捲）：顯隱看終點、點擊當下就進退場，不等捲完（user 2026-10-02）
+  let goal = -1;
+  const syncUp = () => {
+    const show = (goal >= 0 ? goal : wrap.scrollTop) > 1;
+    if (show === upShown) return;
+    upShown = show;
+    up.inert = !show;
+    if (show) {   // 靜態位置＝欄 content 起點 → margin 補到框頂（awards 欄頂還有 spacer p；分類框下方的年份欄還隔著分類區）
+      const cr = col.getBoundingClientRect();
+      up.style.width = `${wrap.offsetWidth}px`;
+      up.style.marginTop = `${wrap.getBoundingClientRect().top - cr.top - col.clientTop - parseFloat(getComputedStyle(col).paddingTop)}px`;
+    }
+    if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
+    else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
+  };
+  wrap.addEventListener('scroll', syncUp, { passive: true });
+  const scrollTo = (/** @type {number} */ target) => {
+    if (typeof gsap === 'undefined') { wrap.scrollTop = target; return; }
+    const done = () => { goal = -1; syncUp(); };
+    gsap.to(wrap, { scrollTop: target, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: done, onInterrupt: done });
+    goal = target;   // 寫在 gsap.to 之後：overwrite 殺舊 tween 時它的 onInterrupt 會先把 goal 清掉
+    syncUp();
+  };
+  more.addEventListener('click', () => {
+    const box = wrap.getBoundingClientRect();
+    const mid = (box.top + (upShown ? up.offsetHeight : 0) + box.bottom) / 2;   // 可見窗（扣掉上 chevron 蓋住的）中線
+    const next = /** @type {HTMLElement[]} */ ([...getItems()]).find(b => b.getBoundingClientRect().top >= mid);
+    const max = wrap.scrollHeight - wrap.clientHeight;
+    // 落點讓出上 chevron 高；無下一個＝補捲剩下的零頭到底
+    scrollTo(next ? Math.min(max, wrap.scrollTop + next.getBoundingClientRect().top - box.top - up.offsetHeight) : max);
+  });
+  up.addEventListener('click', () => {
+    const box = wrap.getBoundingClientRect();
+    // 上一批＝被上 chevron 蓋住（或捲出頂）的最後一個 item，捲到它貼框底。
+    // 落點離頂不到上 chevron 高＝第一個 item 還會被它蓋住 → 直接回頂（也免小數 scrollTop 停在 1.x 讓 chevron 又冒出來）
+    const prev = /** @type {HTMLElement[]} */ ([...getItems()]).reverse().find(b => b.getBoundingClientRect().top < box.top + up.offsetHeight - 1);
+    const t = prev ? wrap.scrollTop + prev.getBoundingClientRect().bottom - box.bottom : 0;
+    scrollTo(t < up.offsetHeight ? 0 : t);
+  });
+  const end = document.createElement('div');
+  end.className = 'year-more-end';
+  end.style.height = '1px';
+  wrap.appendChild(end);   // 捲動內容最尾
+  const io = new IntersectionObserver(([e]) => { more.disabled = e.isIntersecting; }, { root: wrap });
+  io.observe(end);
+  /** @type {any} */ (more)._io = io;
+  return { up, more, sync: syncUp };
+}
+
+// 分類選項框（桌面年份欄頂的 .lib-cat-group，main-modular.js 包的）：上／下一批 chevron＋reset，同年份欄（user 2026-10-19）。
+// 回傳 reset 鈕（caller 依有無選取顯隱）；手機／矮橫向沒有 group＝null
+function attachCatPager(catEl, onReset) {
+  const group = catEl?.parentElement;
+  if (!group?.classList.contains('lib-cat-group')) return null;
+  group.querySelectorAll(':scope > .year-less-btn, .year-more-btn, :scope > .year-reset-slot, .year-more-end')
+    .forEach(el => { /** @type {any} */ (el)._io?.disconnect(); el.remove(); });
+  const btn = makeResetBtn('重設分類篩選 Reset category filter', onReset);
+  const { up, more, sync } = makeScrollPager(catEl, group, () => catEl.querySelectorAll(':scope > button'),
+    { more: '下一批分類 More categories', less: '上一批分類 Previous categories' });
+  group.append(up, more, makeResetSlot(btn));
+  sync();
+  // 首開進場排程中才出現（資料 async 晚到才建／下面 fit 從 none 改回顯示）：照 revealPanelChrome 排的時間點補進場＝仍等選項出完（user 2026-10-19）。
+  //   ⚠️display none→顯示的元素沒有 transition 起點＝已排好的延遲進場會直接跳終點，所以要重排
+  const enterLate = (/** @type {HTMLElement[]} */ els) => {
+    const wait = Number(group.dataset.chevAt || 0) - performance.now();
+    if (wait <= 0) return;
+    els.forEach(chromeHide);
+    requestAnimationFrame(() => requestAnimationFrame(() => els.forEach(el => chromePlay(el, Math.max(0, wait / 1000 - 0.033)))));
+  };
+  enterLate([up, more]);
+  // 選項放得下（沒到 1/3 欄）＝不出 chevron（user 2026-10-19；documents 只有 4 個）。判斷「沒有 chevron 時放不放得下」＝框高＋（顯示中的）chevron 高，
+  // 免 chevron 本身佔掉的高把框擠到溢出；只在結果變了才動 display（每次先藏再量會打斷 chevron 的進場 transition）。框尺寸變（panel 顯示、resize、標籤載入）才重判
+  const fit = () => {
+    const shown = more.style.display !== 'none';
+    const fits = catEl.scrollHeight <= catEl.clientHeight + (shown ? more.offsetHeight : 0) + 1;
+    if (fits !== shown) return;
+    more.style.display = fits ? 'none' : '';
+    if (!fits) enterLate([more]);
+  };
+  const ro = new ResizeObserver(fit);
+  ro.observe(catEl);
+  registerPageCleanup(() => ro.disconnect());
+  return btn;
+}
 
 function attachYearReset(pickerEl, onReset) {
   const wrap = pickerEl.parentElement;         // scroll 容器
@@ -206,16 +332,12 @@ function attachYearReset(pickerEl, onReset) {
   // 兩處都清：跨 breakpoint re-init 時舊 reset 可能在另一個容器
   grid.querySelector('.year-reset-btn')?.remove();
   pickerEl.querySelector('.year-reset-btn')?.remove();
-  // 桌面年份欄底部件（reset 空間／下一批 chevron＋其到底 IO／sentinel）：重建年份、跨 breakpoint re-init 都會再進來
+  // 桌面年份欄底部件（reset 空間／下一批 chevron＋其到底 IO／sentinel）：重建年份、跨 breakpoint re-init 都會再進來。
+  // 分類框（.lib-cat-group）的同款部件不是年份的、別清
   pickerEl.closest('[id^="lib-panel-"]')?.querySelectorAll('.year-reset-slot, .year-more-btn, .year-less-btn, .year-more-end')
-    .forEach(el => { /** @type {any} */ (el)._io?.disconnect(); el.remove(); });
-  const btn = document.createElement('button');
-  btn.className = 'year-reset-btn';
-  // icon 取代「Reset 重設」字（user 2026-10-01，同 create 面板的 reset.svg）；block＝不吃行高、盒高＝icon 高
-  btn.innerHTML = `<span class="icon icon-reset" style="display:block;font-size:${YEAR_RESET_ICON}px;"></span>`;
-  btn.setAttribute('aria-label', '重設年份篩選 Reset year filter');
+    .forEach(el => { if (el.closest('.lib-cat-group')) return; /** @type {any} */ (el)._io?.disconnect(); el.remove(); });
   // Reset 也回頂（user 2026-07-21）：頂端＝當前 sort 的第一個年份組（正序最新年、倒序最舊年），不用管方向
-  btn.addEventListener('click', () => {
+  const btn = makeResetBtn('重設年份篩選 Reset year filter', () => {
     onReset();
     pickerEl.closest('[id^="lib-panel-"]')?.querySelector('[id$="-scroll"]')?.scrollTo(0, 0);
   });
@@ -235,80 +357,13 @@ function attachYearReset(pickerEl, onReset) {
     btn.style.cssText = BTN_CSS + 'background:var(--lib-bg);padding:var(--spacing-xs) 0;';
     btn.style.bottom = gcs.paddingBottom;
   } else {
+    // 年份 box 下緣：下一批 chevron → reset 空間（都貼左）。reset 不再 absolute 掛 grid：那是「Reset 重設」字比年份寬時
+    // 怕撐寬欄的解法，現在 20px icon 比年份窄、進 flow 不會推版
     const col = wrap.parentElement;
-    // 下一批年份 chevron（user 2026-10-01）：年份 box 下緣、reset 之上、欄內置中（樣式 library.css .year-more-btn）。
-    //   點＝前進半窗：越過可見窗中線的第一個年份捲到窗頂（user 2026-10-02「只移動一半」；不切半個年份）。到底＝disabled：捲動內容尾端的 sentinel 可見
-    //   ＝沒有下一批（IO 也涵蓋 panel 隱藏→顯示、resize，不必另掛 scroll／resize 重判）
-    const more = document.createElement('button');
-    more.className = 'year-more-btn';
-    more.setAttribute('aria-label', '下一批年份 More years');
-    more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
-    // 上一批 chevron（user 2026-10-02，同四頁 nav）：年份一離頂就 clip-reveal 蓋在年份 box 頂（absolute 不佔版面、
-    //   內層帶底色上往下出現、下往上收起）、回頂收起；點＝上一批。整批換落點讓出它的高＝下一批第一個年份不被蓋（樣式 library.css .year-less-btn）
-    const up = document.createElement('button');
-    up.className = 'year-less-btn';
-    up.setAttribute('aria-label', '上一批年份 Previous years');
-    up.inert = true;
-    up.innerHTML = '<span class="year-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span>';  // 90＝朝上
-    const upInner = /** @type {HTMLElement} */ (up.firstElementChild);
-    if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
-    let upShown = false;
-    // chevron 觸發的程式捲動目的地（-1＝沒在捲）：顯隱看終點、點擊當下就進退場，不等捲完（user 2026-10-02）
-    let goal = -1;
-    const syncUp = () => {
-      const show = (goal >= 0 ? goal : wrap.scrollTop) > 1;
-      if (show === upShown) return;
-      upShown = show;
-      up.inert = !show;
-      if (show) {   // 靜態位置＝欄 content 起點 → margin 補到年份 box 頂（awards 欄頂還有 spacer p）
-        const cr = col.getBoundingClientRect();
-        up.style.width = `${wrap.offsetWidth}px`;
-        up.style.marginTop = `${wrap.getBoundingClientRect().top - cr.top - col.clientTop - parseFloat(getComputedStyle(col).paddingTop)}px`;
-      }
-      if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
-      else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
-    };
-    wrap.addEventListener('scroll', syncUp, { passive: true });
-    const scrollYears = (/** @type {number} */ target) => {
-      if (typeof gsap === 'undefined') { wrap.scrollTop = target; return; }
-      const done = () => { goal = -1; syncUp(); };
-      gsap.to(wrap, { scrollTop: target, duration: DUR.medium, ease: EASE.move, overwrite: true, onComplete: done, onInterrupt: done });
-      goal = target;   // 寫在 gsap.to 之後：overwrite 殺舊 tween 時它的 onInterrupt 會先把 goal 清掉
-      syncUp();
-    };
-    more.addEventListener('click', () => {
-      const box = wrap.getBoundingClientRect();
-      const mid = (box.top + (upShown ? up.offsetHeight : 0) + box.bottom) / 2;   // 可見窗（扣掉上 chevron 蓋住的）中線
-      const next = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]')]).find(b => b.getBoundingClientRect().top >= mid);
-      const max = wrap.scrollHeight - wrap.clientHeight;
-      // 落點讓出上 chevron 高；無下一個＝補捲剩下的零頭到底
-      scrollYears(next ? Math.min(max, wrap.scrollTop + next.getBoundingClientRect().top - box.top - up.offsetHeight) : max);
-    });
-    up.addEventListener('click', () => {
-      const box = wrap.getBoundingClientRect();
-      // 上一批＝被上 chevron 蓋住（或捲出頂）的最後一個年份，捲到它貼 box 底。
-      // 落點離頂不到上 chevron 高＝第一個年份還會被它蓋住 → 直接回頂（也免小數 scrollTop 停在 1.x 讓 chevron 又冒出來）
-      const prev = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]')]).reverse().find(b => b.getBoundingClientRect().top < box.top + up.offsetHeight - 1);
-      const t = prev ? wrap.scrollTop + prev.getBoundingClientRect().bottom - box.bottom : 0;
-      scrollYears(t < up.offsetHeight ? 0 : t);
-    });
-    const end = document.createElement('div');
-    end.className = 'year-more-end';
-    end.style.height = '1px';
-    wrap.appendChild(end);   // picker 之後＝捲動內容最尾
-    const io = new IntersectionObserver(([e]) => { more.disabled = e.isIntersecting; }, { root: wrap });
-    io.observe(end);
-    /** @type {any} */ (more)._io = io;
-    const slot = document.createElement('div');
-    slot.className = 'year-reset-slot';
-    // reset 直接住在空間裡、水平置中於年份欄（user 2026-10-01「chevron 跟 reset 都要置中、不要靠左」）。
-    // 不再 absolute 掛 grid：那是「Reset 重設」字比年份寬時怕撐寬欄的解法，現在 20px icon 比年份窄、進 flow 不會推版
-    slot.style.cssText = `flex:none;height:${YEAR_RESET_SLOT_H}px;display:flex;justify-content:center;`;
-    // 按鈕＝整個空間高（點擊區），icon 齊底（user 2026-10-01）＝上 padding 吃掉空間高減 icon 高、底貼年份欄／list 底
-    btn.style.cssText = `height:${YEAR_RESET_SLOT_H}px;padding:${YEAR_RESET_SLOT_H - YEAR_RESET_ICON}px 0 0;border:none;background:none;color:var(--lib-fg);cursor:var(--cursor-pointer);display:none;`;
-    slot.appendChild(btn);
-    col.append(up, more, slot);
-    syncUp();   // 重建年份（filter/cat）時捲動位置還在
+    const { up, more, sync } = makeScrollPager(wrap, col, () => pickerEl.querySelectorAll('button[data-year]'),
+      { more: '下一批年份 More years', less: '上一批年份 Previous years' });
+    col.append(up, more, makeResetSlot(btn));
+    sync();   // 重建年份（filter/cat）時捲動位置還在
     return btn;
   }
   btn.style.left = gcs.paddingLeft;
@@ -337,8 +392,8 @@ function createYearPicker(pickerEl, years, onFilter) {
     resetBtn.style.display = hasSel ? '' : 'none';
     pickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
       const isSel = selected.has(b.dataset.year);
-      // 選取＝維持原色，未選＝dim 0.5、disabled＝0.2（兩者分開，user 2026-09-28；09-29 由 0.6/0.3 調；淡入淡出靠 library.css 的 color transition）
-      b.style.color = b.disabled ? 'rgba(var(--lib-fg-rgb),0.2)'
+      // 選取＝維持原色，未選＝dim 0.5、disabled／當前搜尋無結果（.lib-faint）＝0.2（兩者分開，user 2026-09-28；09-29 由 0.6/0.3 調；淡入淡出靠 library.css 的 color transition）
+      b.style.color = (b.disabled || b.classList.contains('lib-faint')) ? 'rgba(var(--lib-fg-rgb),0.2)'
         : (!hasSel || isSel) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.5)';
       b.setAttribute('aria-pressed', String(isSel)); // 無障礙：選取狀態靠 aria-pressed 報讀（取代視覺底線，不依賴顏色）
     });
@@ -393,7 +448,16 @@ function createYearPicker(pickerEl, years, onFilter) {
     updateStyles();
   };
 
-  return { selected, setEnabled };
+  // 切分頁歸零用（PANEL_RESETS）：只清選取＋樣式，不觸發 onFilter（caller 自己重篩，免跑篩選動畫）
+  const clear = () => { selected.clear(); updateStyles(); };
+  // 搜尋時該年沒有結果＝淡到 0.2（同分類鈕 syncCatBtns 的「當前搜尋無結果」層；仍可點）。原本年份不理搜尋＝看起來正常、
+  // 一點就 No Result（user 2026-10-19 回報）。matchYears＝搜尋（＋分類）下有結果的年份；null＝沒在搜尋
+  const setSearchMatch = (/** @type {Set<string>|null} */ matchYears) => {
+    pickerEl.querySelectorAll('button[data-year]').forEach(b => b.classList.toggle('lib-faint', !!matchYears && !matchYears.has(b.dataset.year)));
+    updateStyles();
+  };
+
+  return { selected, setEnabled, clear, setSearchMatch };
 }
 
 /**
@@ -426,11 +490,23 @@ function syncCatBtns(catBtns, selectedCats, listEl, selYears, q) {
   return selectedCats.size !== before;
 }
 
+// 點開 viewer/lightbox 的那列＝active：底色留到 viewer 淡出收完才清（user 2026-10-19「active 中底色不能先拿掉」）。
+// click 標 data-lib-active；mouseleave（overlay 蓋上觸發）時 viewer 真的開著（body.lightbox-open）才保留——
+// press/files 的 click 先 await 抓 refs 才 dispatch open，不能靠 open 事件當下的 :hover 判斷；沒開成（無媒體/中途移開）照常清。
+// sccd:lightbox-closed（PDF viewer／media lightbox 淡出完）統一清。
+function clearLibActive() {
+  document.querySelectorAll('[data-lib-active]').forEach(el => {
+    delete el.dataset.libActive;
+    if (!el.matches(':hover')) el.style.background = '';
+  });
+}
+
 /** list item hover 底色 + overlay 顏色 follow */
 function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
   // 矮橫向同手機：tap 會觸發 emulated mouseenter → 底色殘留，不綁
   if (SCCDHelpers.isMobileLayout()) return;
   containerEl.querySelectorAll(itemSelector).forEach(item => {
+    item.addEventListener('click', () => { item.dataset.libActive = '1'; });
     item.addEventListener('mouseenter', () => {
       // 封面還沒載好的卡不上色（user 2026-09-11：deep-link 剛落地鄰卡封面未到，accent 疊空封面＝裸色塊）；
       // coverPending 只有 files 卡會設（build 時標、封面 ready/失敗清），press/album 恆 undefined 不受影響
@@ -444,6 +520,8 @@ function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
       }
     });
     item.addEventListener('mouseleave', () => {
+      if (item.dataset.libActive && document.body.classList.contains('lightbox-open')) return;
+      delete item.dataset.libActive;
       item.style.background = '';
     });
   });
@@ -1260,7 +1338,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           return `
             <div class="award-record-item py-[0.5rem]${zebra}"
                  style="font-size: var(--font-size-xs);${cursorStyle}"
-                 data-search="${searchText}"${item.id ? ` id="${item.id}"` : ''}>
+                 data-search="${escapeHtml(searchText)}"${item.id ? ` id="${item.id}"` : ''}>
               <div class="clip-reveal-wrapper" style="overflow-y:clip;overflow-x:visible;"><div class="award-row" data-clip-wrapped="1" style="display:grid;${AWARD_GRID} align-items: center;">
                 <div class="award-cell-mask"><div style="display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div></div>
                 <div class="award-mid">
@@ -1596,15 +1674,22 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const awardsEmptyState = ensureEmptyState(listEl);
     const selectedYears = new Set();
     const searchInput = document.getElementById('library-awards-search');
+    // 搜尋下有結果的年份（null＝沒在搜尋）：年份鈕淡化用（同 createYearPicker.setSearchMatch；awards 自己的 picker 在下方 updateBtns 套）
+    /** @type {Set<string>|null} */
+    let awardsMatchYears = null;
+    let syncAwardsYearBtns = () => {};
     const applyAwardsFilters = () => {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       // 篩選要掃「全部」資料 → lazy 未建完就先補完（一次性；歸零後不重觸發）
       if (q || selectedYears.size) buildAllRemaining();
+      awardsMatchYears = q ? new Set() : null;
       listEl.querySelectorAll('.year-block').forEach(block => {
         const yearMatch = selectedYears.size === 0 || selectedYears.has(block.dataset.year);
         let blockVisible = false;
         block.querySelectorAll('.award-record-item').forEach(item => {
-          const visible = yearMatch && (!q || (item.dataset.search || '').includes(q));
+          const searchMatch = !q || (item.dataset.search || '').includes(q);
+          if (awardsMatchYears && searchMatch) awardsMatchYears.add(block.dataset.year);
+          const visible = yearMatch && searchMatch;
           /** @type {HTMLElement} */ (item).style.display = visible ? '' : 'none';
           if (visible) blockVisible = true;
           // 不動 border（visible items 一致 default border-b-2 黑）；防禦性清掉舊邏輯可能殘留的 border-b-4
@@ -1616,6 +1701,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       restripeZebra(listEl, '.award-record-item'); // 篩後依可見順序重排斑馬
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
       awardsEmptyState.classList.toggle('hidden', anyVisible);
+      syncAwardsYearBtns();
     };
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
@@ -1679,9 +1765,14 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const hasSel = selectedYears.size > 0;
         resetBtn.style.display = hasSel ? '' : 'none';
         yearPickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
-          b.style.color = (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.5)';  // 未選 0.5＝同 createYearPicker
+          const faint = !!awardsMatchYears && !awardsMatchYears.has(b.dataset.year);   // 當前搜尋該年無結果＝0.2（同 createYearPicker）
+          b.classList.toggle('lib-faint', faint);
+          b.style.color = faint ? 'rgba(var(--lib-fg-rgb),0.2)'
+            : (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.5)';  // 未選 0.5＝同 createYearPicker
+          b.setAttribute('aria-pressed', String(selectedYears.has(b.dataset.year)));
         });
       };
+      syncAwardsYearBtns = updateBtns;
 
       const resetBtn = attachYearReset(yearPickerEl, () => {
         const before = snapshotVisibleYears(listEl);
@@ -1690,6 +1781,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         updateList();
         clipWipeChangedBlocks(listEl, before);
       });
+      PANEL_RESETS.awards = () => {
+        if (!selectedYears.size) return false;
+        selectedYears.clear(); updateBtns(); updateList();
+        return true;
+      };
 
       allYears.forEach(year => {
         if (!dataYears.has(String(year))) return;
@@ -1965,8 +2061,7 @@ async function initPressPanel() {
             pdfCover = item.pdfUrl;                                 // 無預產 → PDF 首頁 render 懶載（fallback）
           }
           if (readySrc || pdfCover || videoFrame) {
-            const sign = Math.random() < 0.4 ? -1 : 1;
-            const deg  = (sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5)).toFixed(2);
+            const deg  = albumThumbDeg().toFixed(2);   // 同 album 縮圖角
             const accent = SCCDHelpers.getRandomAccentColor();
             const lazyAttr = pdfCover ? ` data-pdf-cover="${attr(pdfCover)}"`
                            : videoFrame ? ` data-video-frame="${attr(videoFrame)}"` : '';
@@ -2037,9 +2132,27 @@ async function initPressPanel() {
       listEl.querySelectorAll('.press-item-thumb[data-pdf-cover], .press-item-thumb[data-video-frame]').forEach(el => thumbIO.observe(el));
       // 縮圖 ready 才滑進場（畫外滑入＝不 pop，user 2026-09-02）：lazy（pdf/video）圖由 thumbIO 補 src → load 觸發；
       // 已 cached 的（readySrc）交給 entrance/reveal 路徑滑（免搶在 box clip 前被遮）。slideThumbIn 自帶 once guard。
-      listEl.querySelectorAll('.press-item').forEach(item => {
+      // 縮圖 hover 轉正、離開換新角（同 album，user 2026-10-19；press 只有一張、不攤開）。點開 viewer／lightbox 時
+      // overlay 觸發的 mouseleave 先不換角，等 sccd:lightbox-closed（淡出收完）才換（同 album pendingStack）
+      const pressThumbHover = window.innerWidth >= 768;
+      listEl.querySelectorAll('.press-item').forEach(el => {
+        const item = /** @type {HTMLElement} */ (el);
         const img = /** @type {HTMLImageElement|null} */ (item.querySelector('.press-thumb-img'));
         if (img && !(img.complete && img.naturalWidth)) img.addEventListener('load', () => slideThumbIn(item));
+        const t = /** @type {HTMLElement|null} */ (item.querySelector('.press-item-thumb'));
+        if (!pressThumbHover || !t) return;
+        let lbOpen = false;
+        const settle = () => {
+          const deg = SCCDHelpers.rerollAngle(albumThumbDeg, t.dataset.initDeg);
+          t.dataset.initDeg = deg.toFixed(2);
+          gsap.to(t, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+        };
+        item.addEventListener('mouseenter', () => gsap.to(t, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft }));
+        item.addEventListener('mouseleave', () => { if (!lbOpen) settle(); });
+        if (item.style.cursor) item.addEventListener('click', () => {   // 有設 pointer 游標＝上面綁了開 viewer／lightbox 的 click
+          lbOpen = true;
+          document.addEventListener('sccd:lightbox-closed', () => { lbOpen = false; settle(); }, { once: true });
+        });
       });
 
       // marquee 溢出偵測（panel 顯示後才執行）
@@ -2062,17 +2175,20 @@ async function initPressPanel() {
 
     function applyFiltersWithRef() {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      const matchYears = q ? new Set() : null;   // 搜尋下有結果的年份（年份鈕淡化用，見 setSearchMatch）
       listEl.querySelectorAll('.press-year-block').forEach(block => {
         const yearMatch = selectedYears.size === 0 || selectedYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.press-item').forEach(item => {
           const searchMatch = !q || item.dataset.search.includes(q);
+          if (matchYears && searchMatch) matchYears.add(block.dataset.year);
           const visible = yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
         });
         block.style.display = anyVisible ? '' : 'none';
       });
+      setYearSearchMatch(matchYears);
       restripeZebra(listEl, '.press-item'); // 篩後依可見順序重排斑馬
       // Empty state：任何篩選組合（search / 年份）歸零都顯示（user 2026-08-10：不限 search）
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.press-year-block')]).some(b => b.style.display !== 'none');
@@ -2081,7 +2197,12 @@ async function initPressPanel() {
 
     // 年份 Picker
     const years = [...new Set(sorted.map(p => String(p.year)))].sort((a, b) => Number(b) - Number(a));
-    const { selected: selectedYears } = createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFiltersWithRef(); clipWipeChangedBlocks(listEl, before); });
+    const { selected: selectedYears, clear: clearYears, setSearchMatch: setYearSearchMatch } = createYearPicker(yearPickerEl, years, () => { const before = snapshotVisibleYears(listEl); applyFiltersWithRef(); clipWipeChangedBlocks(listEl, before); });
+    PANEL_RESETS.press = () => {
+      if (!selectedYears.size) return false;
+      clearYears(); applyFiltersWithRef();
+      return true;
+    };
 
     // 排序
     const sortBtn = document.getElementById('library-press-sort-btn');
@@ -2196,6 +2317,9 @@ function applyPdfCoverTo(card, pdfUrl) {
     probe.src = dataUrl;
   });
 }
+
+// 封面角：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣（出生＋hover 離開換新角共用）
+const filesCoverDeg = () => (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
 
 async function initFilesPanel() {
   try {
@@ -2319,8 +2443,7 @@ async function initFilesPanel() {
           div.dataset.search = [item.titleEn, item.titleZh, item.subtitleEn, item.subtitleZh].filter(Boolean).join(' ').toLowerCase();
 
           const accentColor = SCCDHelpers.getRandomAccentColor();
-          // 旋轉：sign 隨機 × magnitude 1~3，範圍 [-3,-1] ∪ [1,3]，排除 0 和近 0 避免卡片看起來都一樣
-          const finalDeg = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2);
+          const finalDeg = filesCoverDeg();
           // 2026-08-16 封面進場改 clip-reveal（同 faculty 卡）：rotation + 尺寸約束搬到 .files-item-cover-mask
           // （overflow:clip 遮罩），封面本體填滿 mask、進場在內滑動；mask 比例由 --cover-ratio 依圖實際比例設
           // （replicate 原 <img> max-w/h auto 的 contain 行為），clip 在旋轉後 local box 生效＝不切旋轉角。
@@ -2439,15 +2562,23 @@ async function initFilesPanel() {
 
       if (window.innerWidth >= 768) {
         listEl.querySelectorAll('.files-item-card').forEach(item => {
-          // hover 轉回 0°：目標改 mask（旋轉載體 2026-08-16 搬到 mask；封面本體的 transform 留給進場滑動）
+          // hover 轉回 0°、離開換新角（user 2026-10-19）：目標改 mask（旋轉載體 2026-08-16 搬到 mask；封面本體的 transform 留給進場滑動）
           const mask = /** @type {HTMLElement|null} */ (item.querySelector('.files-item-cover-mask'));
           if (!mask) return;
+          // 點開 viewer／lightbox 期間維持 0°（overlay 蓋上觸發的 mouseleave 不換角），收完才換新角（user 2026-10-19；同 press 縮圖）
+          let lbOpen = false;
+          const settle = () => {
+            const deg = SCCDHelpers.rerollAngle(filesCoverDeg, mask.dataset.initDeg);
+            mask.dataset.initDeg = String(deg);
+            gsap.to(mask, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+          };
           item.addEventListener('mouseenter', () => {
             gsap.to(mask, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
           });
-          item.addEventListener('mouseleave', () => {
-            const deg = parseFloat(mask.dataset.initDeg) || 0;
-            gsap.to(mask, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
+          item.addEventListener('mouseleave', () => { if (!lbOpen) settle(); });
+          if (item.style.cursor) item.addEventListener('click', () => {   // 有設 pointer 游標＝綁了開 viewer／lightbox 的 click
+            lbOpen = true;
+            document.addEventListener('sccd:lightbox-closed', () => { lbOpen = false; settle(); }, { once: true });
           });
         });
       }
@@ -2495,20 +2626,35 @@ async function initFilesPanel() {
       return [...set].sort((a, b) => Number(b) - Number(a));
     };
     // 全年份都列、切分類只原地標 disabled（user 2026-09-28，取代 08-26「只列該分類年份＋重建」）
-    const { selected: selYears, setEnabled: setYearsEnabled } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);
+    const { selected: selYears, setEnabled: setYearsEnabled, clear: clearYears, setSearchMatch: setYearSearchMatch } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);
+    PANEL_RESETS.files = () => {
+      if (!selYears.size && !selectedCats.size) return false;
+      selectedCats.clear(); clearYears(); setYearsEnabled(new Set(availYears())); applyFilters();
+      return true;
+    };
+    // 分類 reset（桌面，同年份 reset）：清分類＝同點分類鈕的後續（年份可點範圍、保留最近年份位置、重播近視窗卡片）
+    const catReset = attachCatPager(document.getElementById('library-files-cat-filter'), () => {
+      selectedCats.clear();
+      setYearsEnabled(new Set(availYears()));
+      filterKeepingNearestYear(listEl, applyFilters);
+      clipWipeItems(visibleFilesCards(listEl));
+    });
 
     function applyFilters() {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       // 分類↔年份雙向：先依選取年份退選／淡化分類；有分類被退選＝年份可點範圍跟著放寬
       if (syncCatBtns(filesCatBtns, selectedCats, listEl, selYears, q)) setYearsEnabled(new Set(availYears()));
+      if (catReset) catReset.style.display = selectedCats.size ? '' : 'none';
       const isAll = selectedCats.size === 0;
       const singleCat = selectedCats.size === 1;   // 單選＝卡片下方分類 tag 冗餘（全同類）
+      const matchYears = q ? new Set() : null;   // 搜尋＋分類下有結果的年份（年份鈕淡化用，見 setSearchMatch）
       listEl.querySelectorAll('.files-year-block').forEach(block => {
         const yearMatch = selYears.size === 0 || selYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.files-item').forEach(item => {
           const catMatch    = isAll || selectedCats.has(item.dataset.cat);
           const searchMatch = !q || item.dataset.search.includes(q);
+          if (matchYears && catMatch && searchMatch) matchYears.add(block.dataset.year);
           const visible = catMatch && yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
@@ -2529,6 +2675,7 @@ async function initFilesPanel() {
       // Empty state：任何篩選組合（search / 年份 / 分類）歸零都顯示（user 2026-08-10：不限 search）
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.files-year-block')]).some(b => b.style.display !== 'none');
       filesEmptyState.classList.toggle('hidden', anyVisible);
+      setYearSearchMatch(matchYears);
     }
 
     syncCatBtns(filesCatBtns, selectedCats, listEl, selYears, '');   // 初始：完全沒 item 的分類 disabled
@@ -2649,6 +2796,8 @@ function loadAlbumItemsCached() {
 // 攤開不蓋標題，長標題交給 hover marquee。全部縮圖量好才設（讀 applyRatio 寫的 inline 寬、不讀 layout——
 // cached 圖在列進 DOM 前就量）；未量好＝CSS 預設三張最大寬。欄寬一變 is-overflow 就舊了 → 重量 marquee。
 const ALBUM_FAN_GAP = 12;   // hover 攤開縮圖間距（mouseenter 同用；library.css strip 預設寬同步）
+// 縮圖堆疊角（album＋press 縮圖的出生＋hover 離開換新角共用）：偏正向 [0.5,6]、負向 [-4,-0.5]
+const albumThumbDeg = () => (Math.random() < 0.4 ? -(Math.random() * 3.5 + 0.5) : (Math.random() * 5.5 + 0.5));
 let _albumMqTimer = 0;
 function fitAlbumStrip(item) {
   if (window.innerWidth < 768) return;   // 手機 strip 是 CSS 100% 橫捲，不設
@@ -2682,12 +2831,13 @@ async function initAlbumPanel() {
 
     // 點開 lightbox 時 overlay 蓋上會觸發 item 的 mouseleave → 縮回 stack。
     // user 要求：展開狀態點進 lightbox 維持展開，等 lightbox 關閉才做 stack 動畫。
-    // 記住該 item 的 stack 動作，延到 sccd:close-lightbox 才執行。
+    // 記住該 item 的 stack 動作，延到 lightbox 淡出收完（sccd:lightbox-closed）才執行＝跟列底色同一拍換新角
+    //（user 2026-10-19；原 sccd:close-lightbox 是關閉「開始」就發）。
     // 宣告在 initAlbumPanel 層、close listener 只註冊一次（renderItems 會因 sort 重跑，避免重複綁）。
     let pendingStack = null;
     const onLbClose = () => { if (pendingStack) { pendingStack(); pendingStack = null; } };
-    document.addEventListener('sccd:close-lightbox', onLbClose);
-    registerPageCleanup(() => document.removeEventListener('sccd:close-lightbox', onLbClose));
+    document.addEventListener('sccd:lightbox-closed', onLbClose);
+    registerPageCleanup(() => document.removeEventListener('sccd:lightbox-closed', onLbClose));
 
     function renderItems(data) {
       listEl.innerHTML = '';
@@ -2723,8 +2873,7 @@ async function initAlbumPanel() {
           // 桌面 CSS 仍套舊 absolute stack 視覺，手機 CSS 改 flex-wrap 排成自然 row（library.css album 手機 rule）
           const thumbMedia = (item.media || []).slice(0, 3);
           const thumbsHtml = thumbMedia.map((m, ti) => {
-            const sign = Math.random() < 0.4 ? -1 : 1;
-            const finalDeg = sign > 0 ? (Math.random() * 5.5 + 0.5) : -(Math.random() * 3.5 + 0.5);
+            const finalDeg = albumThumbDeg();
             const src = m.thumb || m.src;
             return `
               <div class="album-thumb" data-thumb-index="${ti}" data-init-deg="${finalDeg}" style="transform: rotate(${finalDeg}deg);">
@@ -2832,9 +2981,11 @@ async function initAlbumPanel() {
           const thumbs = [...item.querySelectorAll('.album-thumb')];
           if (!strip || !thumbs.length) return;
 
+          // 收回堆疊＝每張換新角（user 2026-10-19：hover 轉正、離開換新角）
           const stackThumbs = () => {
             thumbs.forEach(t => {
-              const deg = parseFloat(t.dataset.initDeg) || 0;
+              const deg = SCCDHelpers.rerollAngle(albumThumbDeg, t.dataset.initDeg);
+              t.dataset.initDeg = String(deg);
               gsap.to(t, { x: 0, rotation: deg, duration: DUR.fast, ease: EASE.enterSoft });
             });
           };
@@ -2896,18 +3047,32 @@ async function initAlbumPanel() {
       listEl.querySelectorAll('.files-item').forEach(it => { if (isAll || selectedCats.has(it.dataset.cat)) set.add(it.dataset.year); });
       return [...set].sort((a, b) => Number(b) - Number(a));
     };
-    const { selected: selYears, setEnabled: setYearsEnabled } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);  // 同 Documents（user 2026-09-28）
+    const { selected: selYears, setEnabled: setYearsEnabled, clear: clearYears, setSearchMatch: setYearSearchMatch } = createYearPicker(yearPickerEl, availYears(true), onYearFilter);  // 同 Documents（user 2026-09-28）
+    PANEL_RESETS.album = () => {
+      if (!selYears.size && !selectedCats.size) return false;
+      selectedCats.clear(); clearYears(); setYearsEnabled(new Set(availYears())); applyFilters();
+      return true;
+    };
+    const catReset = attachCatPager(document.getElementById('library-album-cat-filter'), () => {   // 同 Documents
+      selectedCats.clear();
+      setYearsEnabled(new Set(availYears()));
+      filterKeepingNearestYear(listEl, applyFilters);
+      clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));
+    });
 
     function applyFilters() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
       if (syncCatBtns(albumCatBtns, selectedCats, listEl, selYears, q)) setYearsEnabled(new Set(availYears()));   // 分類↔年份雙向（同 Documents）
+      if (catReset) catReset.style.display = selectedCats.size ? '' : 'none';
       const isAll = selectedCats.size === 0;
+      const matchYears = q ? new Set() : null;   // 搜尋＋分類下有結果的年份（同 Documents）
       listEl.querySelectorAll('.album-year-block').forEach(block => {
         const yearMatch = selYears.size === 0 || selYears.has(block.dataset.year);
         let anyVisible  = false;
         block.querySelectorAll('.files-item').forEach(item => {
           const catMatch    = isAll || selectedCats.has(item.dataset.cat);
           const searchMatch = !q || item.dataset.search.includes(q);
+          if (matchYears && catMatch && searchMatch) matchYears.add(block.dataset.year);
           const visible = catMatch && yearMatch && searchMatch;
           item.style.display = visible ? '' : 'none';
           if (visible) anyVisible = true;
@@ -2929,6 +3094,7 @@ async function initAlbumPanel() {
       // Empty state：任何篩選組合（search / 年份 / 分類）歸零都顯示（user 2026-08-10：不限 search）
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.album-year-block')]).some(b => b.style.display !== 'none');
       albumEmptyState.classList.toggle('hidden', anyVisible);
+      setYearSearchMatch(matchYears);
     }
 
     syncCatBtns(albumCatBtns, selectedCats, listEl, selYears, '');   // 初始：完全沒 item 的分類 disabled
@@ -2965,6 +3131,11 @@ async function initAlbumPanel() {
 }
 
 // ── Panel 切換 ────────────────────────────────────────────────────────────────
+
+// 切分頁＝新分頁的分類＋年份篩選歸零（user 2026-10-19）。各 panel init 註冊；回傳 true＝有東西被清（清單要回頂）。
+// 不清 search（user 只點名選項＋年份）
+/** @type {Record<string, () => boolean>} */
+const PANEL_RESETS = {};
 
 const PANEL_MAP = {
   awards: 'lib-panel-awards',
@@ -3740,38 +3911,55 @@ export function playPanelTitleReveal(title) {
 //   標題仍走 hide+play（不瞬現、有進場動畫），只是不再等 list 波（§36 的 gate 保留、順序取消）。
 //   「clip reveal（translate+clip）非 clip path 原地擦除」；一律由上往下＝inset(0 0 100% 0)→inset(0)、translate 從上方微滑入。
 //   delaySec：instant(tab 切換)＝VEIL_REVEAL_DELAY 等去色滑板掀開才起跑；非-instant(awards 首進)＝小 delay。
+// chrome clip reveal 起點／播放（revealPanelChrome、晚建的分類 chevron 共用）：由上往下＝底邊先藏、往下揭＋從上方微滑入
+function chromeHide(/** @type {HTMLElement} */ el) {
+  el.style.transition = 'none'; el.style.clipPath = 'inset(0 0 100% 0)'; el.style.translate = '0 -0.4rem';
+}
+function chromePlay(/** @type {HTMLElement} */ el, /** @type {number} */ d) {
+  const dur = DUR.medium;
+  el.style.transition = `clip-path ${dur}s ease-out ${d.toFixed(2)}s, translate ${dur}s ease-out ${d.toFixed(2)}s`;
+  el.style.clipPath = 'inset(0 0 0 0)';
+  el.style.translate = '0 0';
+  setTimeout(() => { el.style.transition = ''; el.style.clipPath = ''; el.style.translate = ''; }, (d + dur) * 1000 + 60);
+}
+// 分類選項逐顆進場間隔（同舊 filter 滑板 OPT_STAGGER）
+const CAT_OPT_STAGGER = 0.05;
+
 function revealPanelChrome(panelEl, delaySec, animateTitle) {
   const DUR_C = DUR.medium;
-  const HIDE  = 'inset(0 0 100% 0)';         // 由上往下：底邊先藏、往下揭
   const q = /** @param {string} s */ s => /** @type {HTMLElement|null} */ (panelEl.querySelector(s));
   const title     = /** @type {HTMLElement|null} */ (q(':scope > .lib-panel-title'));
   const searchRow = q(':scope [style*="align-items: flex-end"][style*="display: flex"]');
   const yearWrap  = q(':scope [id$="year-picker-wrap"]');
   const catFilter = q(':scope [id$="cat-filter"]');
   const ticker    = q(':scope [id$="awards-ticker"]');
-  // 下一批 chevron 在捲動框外（年份欄底）→ 另抓、跟年份同批揭
-  const yearItems = yearWrap ? /** @type {HTMLElement[]} */ ([...yearWrap.querySelectorAll('button[data-year]'), ...panelEl.querySelectorAll('.year-more-btn, .year-less-btn')]) : [];
+  // 下一批 chevron 在捲動框外（年份欄底）→ 另抓、跟年份同批揭；分類框的 chevron 不算（下面另排）
+  const yearItems = yearWrap ? /** @type {HTMLElement[]} */ ([...yearWrap.querySelectorAll('button[data-year]'),
+    ...[...panelEl.querySelectorAll('.year-more-btn, .year-less-btn')].filter(el => !el.closest('.lib-cat-group'))]) : [];
+  // 桌面分類框（年份欄頂 .lib-cat-group，user 2026-10-19）：選項逐顆 clip reveal、chevron 等選項出完才出。
+  //   只錯開框內看得到的那幾顆（框外的捲上來才看得到，跟最後一顆同拍＝不拖長 chevron 的等待）；先量再藏（translate 會動 rect）
+  const catGroup = /** @type {HTMLElement|null} */ (catFilter?.closest('.lib-cat-group') || null);
+  const catOpts = catGroup ? /** @type {HTMLElement[]} */ ([...catFilter.querySelectorAll(':scope > button')]) : [];
+  const catChev = catGroup ? /** @type {HTMLElement[]} */ ([...catGroup.querySelectorAll('.year-more-btn, .year-less-btn')]) : [];
+  const boxBottom = catGroup ? catFilter.getBoundingClientRect().bottom : 0;
+  const catShown = Math.max(1, catOpts.filter(o => o.getBoundingClientRect().top < boxBottom).length);
+  const chevDelay = delaySec + (catShown - 1) * CAT_OPT_STAGGER + DUR_C;
+  if (catGroup) catGroup.dataset.chevAt = String(performance.now() + chevDelay * 1000);   // attachCatPager 晚建 chevron 時照這個時間補進場
 
   markRevealBusy(delaySec + DUR_C + 0.5);
   _chromeStartAt = performance.now() + delaySec * 1000;   // §46：ticker 滑入對齊 chrome 起跑（見 chromeStartRemaining）
 
-  const hide = (/** @type {HTMLElement} */ el, /** @type {string} */ shift) => {
-    el.style.transition = 'none'; el.style.clipPath = HIDE; el.style.translate = shift;
-  };
-  const play = (/** @type {HTMLElement} */ el, /** @type {number} */ d) => {
-    el.style.transition = `clip-path ${DUR_C}s ease-out ${d.toFixed(2)}s, translate ${DUR_C}s ease-out ${d.toFixed(2)}s`;
-    el.style.clipPath = 'inset(0 0 0 0)';
-    el.style.translate = '0 0';
-    setTimeout(() => { el.style.transition = ''; el.style.clipPath = ''; el.style.translate = ''; }, (d + DUR_C) * 1000 + 60);
-  };
+  const hide = chromeHide;
+  const play = chromePlay;
 
   // 同步預藏（雙 rAF 後才觸發，避免起點反向走全程）
-  if (searchRow) hide(searchRow, '0 -0.4rem');
-  yearItems.forEach(el => hide(el, '0 -0.4rem'));
-  if (catFilter) hide(catFilter, '0 -0.4rem');
-  if (ticker)    hide(ticker,    '0 -0.4rem');
+  if (searchRow) hide(searchRow);
+  yearItems.forEach(el => hide(el));
+  if (catGroup) [...catOpts, ...catChev].forEach(el => hide(el));
+  else if (catFilter) hide(catFilter);
+  if (ticker)    hide(ticker);
   if (animateTitle && title) {
-    hide(title, '0 -0.4rem');   // §36：含 instant 首開（user「第一次打開卡片 marquee 不能瞬現」）
+    hide(title);                // §36：含 instant 首開（user「第一次打開卡片 marquee 不能瞬現」）
     bumpTitleSeq(title);        // 作廢 pending 舊 tween、殺半路 reveal——skip playPanelTitleReveal 後這裡要自己做
     if (typeof gsap !== 'undefined') gsap.killTweensOf(title);
   }
@@ -3779,7 +3967,10 @@ function revealPanelChrome(panelEl, delaySec, animateTitle) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (searchRow) play(searchRow, delaySec);
     yearItems.forEach(el => play(el, delaySec));
-    if (catFilter) play(catFilter, delaySec);
+    if (catGroup) {
+      catOpts.forEach((el, i) => play(el, delaySec + Math.min(i, catShown - 1) * CAT_OPT_STAGGER));
+      catChev.forEach(el => play(el, chevDelay));
+    } else if (catFilter) play(catFilter, delaySec);
     if (ticker)    play(ticker, delaySec);
     if (animateTitle && title) play(title, delaySec);
   }));
@@ -3804,6 +3995,12 @@ export function playPanelReveal(panelEl, { instant = false } = {}) {
   //   重新設隱藏態，清在後面會把那些隱藏態抹掉（=未揭列裸露）。已揭列（data-lib-revealed / files 非 pending）
   //   被 oneShot 跳過不重播，不清就永久隱形。
   panelPieces(panelEl).forEach(el => { el.style.transition = 'none'; el.style.clipPath = ''; el.style.translate = ''; });
+  // 桌面左欄／工具列逐顆退場的殘值。transition 清回 ''（不留 'none'）：年份鈕／chevron 的 CSS color 過渡（點選變淡、到底變灰）
+  //   要留著；CSS 沒宣告 clip／translate 過渡＝同 tick 清掉也不會補間回來
+  panelEl.querySelectorAll(DESK_COL_EXIT_SELS).forEach(b => {
+    const el = /** @type {HTMLElement} */ (b);
+    el.style.transition = ''; el.style.clipPath = ''; el.style.translate = '';
+  });
   panelEl.querySelectorAll('.press-year-label').forEach(l => {
     const el = /** @type {HTMLElement} */ (l);
     el.style.transition = 'none'; el.style.clipPath = ''; el.style.overflow = ''; el.style.boxShadow = '';
@@ -3944,11 +4141,12 @@ const PANEL_PIECE_SELS = [
   '[id$="awards-ticker"]',
   '[id$="-scroll"]',
 ];
+// querySelectorAll：chevron 不只一組（年份欄＋桌面分類框各一組，分類框在前＝querySelector 會只抓到分類的）
 function panelPieces(panelEl) {
-  return PANEL_PIECE_SELS
-    .map(s => /** @type {HTMLElement|null} */ (panelEl.querySelector(':scope ' + s)))
-    .filter(Boolean);
+  return PANEL_PIECE_SELS.flatMap(s => /** @type {HTMLElement[]} */ ([...panelEl.querySelectorAll(':scope ' + s)]));
 }
+// 桌面左欄＋工具列逐顆退場的件（playPanelBodyExit；殘值由 playPanelReveal 開頭清）
+const DESK_COL_EXIT_SELS = '[id$="year-picker"] > button[data-year], .lib-cat-group [id$="cat-filter"] > button, .year-more-btn, .year-less-btn, .year-reset-btn, .lib-toolbar';
 // §38（req2+req5, user 2026-09-09，撤 §36/§37 的「整件 clip+位移滑出」）：
 //   - chrome（search 列/年份欄/cat-filter/ticker/年份標籤）＝**直接消失**（transition:none 即刻 clip 藏、不需要 ease）
 //   - zebra rows（視窗內清單列）＝每列自身 clip 由上往下收合＋微下沉位移（進場「由下往上揭」的鏡像）；
@@ -3957,10 +4155,33 @@ function panelPieces(panelEl) {
 //   殘值（rows/labels/pieces 的 inline clip/translate）由 playPanelReveal 開頭統一清（見該處註解）。
 export function playPanelBodyExit(panelEl, dur = 0.35) {
   if (!panelEl) return;
+  // 桌面左欄（分類選項／年份／上下 chevron／reset）＋右下工具列（search／sort）：逐顆 clip reveal 退場＝進場反向（往上收）、
+  //   全部同時（user 2026-10-19：分類選項先做、同日擴到整欄＋工具列，撤 §38 這幾件「直接消失」）。
+  //   捲動框裡捲出框外的看不到、不動畫（cull）；display:none（沒選取的 reset、放得下時的分類 chevron）也跳過
+  const desk = panelEl.classList.contains('lib-desk-tools');
+  const els = desk ? /** @type {HTMLElement[]} */ ([...panelEl.querySelectorAll(DESK_COL_EXIT_SELS)]).filter(el => {
+    if (el.offsetParent === null) return false;
+    const box = el.parentElement?.closest('[id$="year-picker-wrap"], [id$="cat-filter"]');
+    if (!box) return true;
+    const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+    return r.bottom > b.top && r.top < b.bottom;
+  }) : [];
   panelPieces(panelEl).forEach(el => {
     if (el.id && el.id.endsWith('-scroll')) return;   // 捲動框不整塊 clip——rows 各自退場
+    if (desk && (els.includes(el) || el.matches('[id$="year-picker-wrap"], [id$="cat-filter"]'))) return;   // 裡面的鈕逐顆退場（下方）
     el.style.transition = 'none'; el.style.clipPath = 'inset(0 0 100% 0)'; el.style.translate = '';
   });
+  //   明確起點＋reflow 再設終點（none→inset() 不補間）；時長同 rows 收在 dur 窗內
+  if (els.length) {
+    const OPT_DUR = Math.min(0.22, dur * 0.6);
+    els.forEach(el => { el.style.transition = 'none'; el.style.clipPath = 'inset(0 0 0 0)'; el.style.translate = '0 0'; });
+    void panelEl.offsetWidth;
+    els.forEach(el => {
+      el.style.transition = `clip-path ${OPT_DUR}s ease-in, translate ${OPT_DUR}s ease-in`;
+      el.style.clipPath = 'inset(0 0 100% 0)';
+      el.style.translate = '0 -0.4rem';
+    });
+  }
   panelEl.querySelectorAll('.press-year-label').forEach(l => {
     /** @type {HTMLElement} */ (l).style.transition = 'none'; /** @type {HTMLElement} */ (l).style.clipPath = 'inset(0 0 100% 0)';
   });
@@ -4040,12 +4261,17 @@ function hidePanelChildren(panelEl) {
 
 // reveal=false：只切 display 不跑 wipe（library-card grayEl 進場前 pre-swap 用，避免 chip 提早 visible）
 // instant=true：內容直接就位不跑 wipe（色塊 veil 掀開流程，見 playPanelReveal）
+let _shownTab = '';
 function showLibPanel(tab, { reveal = true, instant = false } = {}) {
+  const switched = tab !== _shownTab;   // 同分頁重顯示（hash deep-link 等）不歸零
+  _shownTab = tab;
   Object.entries(PANEL_MAP).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
     if (key === tab) {
       el.style.display = 'flex';
+      // 篩選歸零放在顯示後、reveal 前：清單回頂要有 layout，且 reveal 量的是歸零後的可見列（veil 還蓋著＝看不到中間態）
+      if (switched && PANEL_RESETS[key]?.()) el.querySelector('[id$="-scroll"]')?.scrollTo(0, 0);
       const titleMq = el.querySelector('.lib-panel-title');
       if (titleMq) buildTitleMarquee(titleMq);  // 顯示後（可量字寬）建/重算頂部標題 marquee box
       if (reveal) {
@@ -4167,6 +4393,10 @@ export function initLibraryPanels() {
   initPressPanel();
   initFilesPanel();
   initAlbumPanel();
+
+  // 點開的列維持 active 底色到 viewer 收完（見 clearLibActive）
+  document.addEventListener('sccd:lightbox-closed', clearLibActive);
+  registerPageCleanup(() => document.removeEventListener('sccd:lightbox-closed', clearLibActive));
 
   // 預設所有 panel 內 chip + 內容隱藏（等 grayEl 進場揭露完 onTabSwitch 才 reveal）
   // 不做的話 awards (HTML 預設 display:flex) chip 會在 grayEl clip wipe 時被一起揭出半身

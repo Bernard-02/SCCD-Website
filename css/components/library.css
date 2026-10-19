@@ -39,7 +39,7 @@
 .lib-toolbar > div { flex: none !important; gap: 0 !important; padding-bottom: 0 !important; }
 /* 三顆鈕同一 --tool-w × --tool-h 盒、icon contain 置中＝墨跡同高（後台稿共用畫板高 168.26）。
    search 的 icon 是 label 上的 mask → mask 以 content-box 定位/縮放，padding 只加點擊範圍 */
-.lib-toolbar :is(label.icon-search, .lib-filter-btn, .library-sort-btn) {
+.lib-toolbar :is(label.icon-search, .library-sort-btn) {
   flex: none;
   box-sizing: border-box;
   width: var(--tool-w);
@@ -72,57 +72,68 @@
 .lib-toolbar .lib-sort-label,
 .lib-toolbar .sort-arrow { display: none; }
 .lib-toolbar .lib-sort-time { display: inline-block; font-size: var(--tool-icon); width: calc(1em * 204.12 / 184.06); }
-/* filter 鈕（files／album）：手機不顯示（分類 chip 常駐）；開啟＝換 active icon（後台 key: filter / filter_active），無底色 */
-.lib-filter-btn { display: none; }
-.lib-toolbar .lib-filter-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  color: var(--lib-fg);
-  font-size: var(--tool-icon);
-  cursor: var(--cursor-pointer);
-}
-/* 內容 grid 收成單列：頂部 search cell 已空（press 全空、files/album 只剩分類）→ 年份欄與 list 同頂 */
+/* 內容 grid 收成單列：頂部 search cell 已空（search 搬進工具列、files/album 分類搬進年份欄）→ 年份欄與 list 同頂 */
 [id^="lib-panel-"].lib-desk-tools > div[style*="grid"] { grid-template-rows: 1fr !important; position: relative; }
 [id^="lib-panel-"].lib-desk-tools > div[style*="grid"] > div:first-child:empty,
-#lib-panel-press.lib-desk-tools > div[style*="grid"] > div:nth-child(2) { display: none; }
+:is(#lib-panel-press, #lib-panel-files, #lib-panel-album).lib-desk-tools > div[style*="grid"] > div:nth-child(2) { display: none; }
 /* awards：左欄 spacer、4px、底 padding 拿掉＝年份欄底與 list 底對齊。
    attachYearReset 讀這裡的 computed padding 對位 reset → 須在年份建置前生效（lib-desk-tools 早於 initLibraryPanels 掛） */
 #lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
 #lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child > p { display: none; }
-/* files／album 分類＝覆蓋在 list 右側的滑板（不推擠 list）：wrapper＝貼灰卡右緣的遮罩，本體從右滑入。
-   z 高過 sticky 年份標（5）；收起時遮罩不吃 pointer */
-#lib-panel-files.lib-desk-tools > div[style*="grid"] > div:nth-child(2),
-#lib-panel-album.lib-desk-tools > div[style*="grid"] > div:nth-child(2) {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  padding: 0 !important;
-  overflow: hidden;
-  pointer-events: none;
+/* files／album 分類選項＝年份欄最上方（main-modular.js 桌面把 cat-filter 搬進年份欄、欄掛 .lib-cat-col；
+   user 2026-10-19 拿掉 filter icon＋右側滑板）。選項區最高＝欄高 1/3（放不下＝區內捲），年份 wrap 本來就 flex:1＝吃剩下的高。
+   欄寬＝min-content＝最長英文單字寬（現 Contributions ~91px，約年份 2.7 倍）：user 提年份兩倍（68），但有 5 個單字比 68 寬、
+   單字不能斷＝會被切；min-content＝不切字的最窄，後台改標籤自動跟著變。多字標籤照常換行（英文最多兩行） */
+.lib-cat-col {
+  width: min-content;
+  align-items: flex-start;
 }
-.lib-desk-tools [id$="cat-filter"] {
-  height: 100%;
-  box-sizing: border-box;
+/* 選項框＋上下 chevron＋reset（library-panels.js attachCatPager，同年份欄）整組最高 1/3 欄＝選項 1：年份 2（user 2026-10-19，原半欄）；
+   選項框吃剩下的高、放不下＝框內捲 */
+.lib-cat-group {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  max-height: calc(100% / 3);
+  min-height: 0;
+  margin-bottom: var(--spacing-xl);   /* 選項↔年份（user 2026-10-19 由 lg 加大） */
+}
+.lib-cat-col [id$="cat-filter"] {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
   flex-direction: column !important;
   flex-wrap: nowrap !important;
-  align-items: flex-start;                        /* 不讓選項鈕拉滿欄寬（button 字會置中） */
-  gap: var(--spacing-xs) !important;
-  padding: var(--spacing-lg);                     /* 左右同距；上＝grid padding-top → 第一個選項與年份／list 同頂 */
-  white-space: nowrap;
-  background: var(--lib-bg);
-  transform: translateX(100%);
-  transition: transform var(--dur-medium) var(--ease-standard), background-color var(--dur-base) ease;
-  pointer-events: auto;
+  gap: var(--spacing-sm) !important;
 }
-.lib-filter-open [id$="cat-filter"] { transform: none; }
-/* filter 開著：list 不吃 hover／點擊（點 list＝只關 filter，main-modular.js 外點關閉）；捲動框本身仍吃滾輪照捲 */
-.lib-filter-open [id$="-list"] { pointer-events: none; }
-.lib-desk-tools [id$="cat-filter"] button:disabled { cursor: var(--cursor-default); }
+.lib-cat-col [id$="cat-filter"]::-webkit-scrollbar { display: none; }
+/* 捲動尾端 sentinel 也是 flex item → 抵銷它前面那格 gap，免捲到底多出一段空白 */
+.lib-cat-col [id$="cat-filter"] > .year-more-end { flex: none; margin-top: calc(-1 * var(--spacing-sm)); }
+/* 選項英中兩行（同手機 chip）；英文最多兩行、超過截斷 */
+.lib-cat-col [id$="cat-filter"] button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  line-height: 1.2;
+}
+.lib-cat-col .cat-btn-en {
+  margin-right: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.lib-cat-col .cat-btn-zh { white-space: nowrap; }
+.lib-cat-col [id$="cat-filter"] button:disabled { cursor: var(--cursor-default); }
+/* 年份區維持原窄寬（34＝年份 picker min-width），不跟著加寬的欄變寬。
+   chevron 一律貼左＝跟選項／年份字左緣一直線（user 2026-10-19，撤 34 盒置中），見 .year-more-btn／.year-less-inner */
+.lib-cat-col [id$="year-picker-wrap"] { width: 34px; }
 
 /* ── Color Rect Marquee ──────────────────────────────────────── */
 .color-rect-title {
@@ -215,19 +226,28 @@
 /* ── 灰卡右上角「下一個分頁」箭頭鈕（桌面限定）──
    視覺沿用 lists.css .tl-icon-btn-inner。掛 section 層：灰卡的 clip-path 會切掉凸出的半顆。
    left/top 由 JS positionNextBtn 設、translate(-50%,-50%) 釘在灰卡右上角；顯隱走 JS heroRevealCard／heroExitCard */
+/* 外層＝遮罩（overflow:clip＋旋轉，跟方塊同大同角），inner 在裡面平移做進退場＝剪裁邊貼齊方塊自己的斜邊
+   （同 cards.css .slide-in-back-square；user 2026-10-19，原本外層 72px 正框＝切邊是水平直線）。
+   hover／click 抽角由 JS arrow-spin 寫外層 inline transform（保留置中 translate）。 */
 .lib-card-next-btn {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(-8deg);
   z-index: 20;
-  /* clip buffer：inner rotate(-8deg) 的角凸出 48px 盒外會被 clip-reveal 切 → 盒加 12px padding（72px） */
-  padding: 12px;
+  padding: 0;
   border: none;
   background: none;
+  overflow: clip;
   cursor: var(--cursor-pointer);
   /* resize 時貼著灰卡滑：同 library-card.js TRANSITION 的 left/top 曲線；改那邊時長/曲線要同步 */
-  transition: left var(--dur-slow) var(--ease-standard), top var(--dur-slow) var(--ease-standard);
+  transition: left var(--dur-slow) var(--ease-standard), top var(--dur-slow) var(--ease-standard),
+              transform var(--dur-fast) var(--ease-standard);
 }
-/* hover 旋轉由 JS arrow-spin 接手（inline transform 寫 inner，transition 沿用 lists.css） */
+/* 旋轉搬到外層 → 拿掉 lists.css 給 inner 的 −8° 與 clip buffer；transform 留給 GSAP 進退場、不帶 transition 免追打 */
+.lib-card-next-btn > .tl-icon-btn-inner {
+  transform: none;
+  clip-path: none;
+  transition: none;
+}
 
 /* ── Search placeholder ────────────────────────────────────── */
 #library-awards-search::placeholder {
@@ -375,9 +395,10 @@
 .press-item-thumb-wrap {
   display: flex;
   align-items: center;
+  justify-content: flex-end;   /* 縮圖靠右＝全列右緣切齊（user 2026-10-19；原靠左＝窄封面右側留空不齊） */
   align-self: start;         /* 對齊標題頂端 */
   min-height: 4.5rem;
-  /* slot 固定寬＋縮圖靠左 → 文字欄全列同寬、縮圖左緣切齊。5rem：press 幾乎全是直式 PDF 封面（~3.2rem 寬），
+  /* slot 固定寬 → 文字欄全列同寬（縮圖在 slot 內靠右、右緣切齊）。5rem：press 幾乎全是直式 PDF 封面（~3.2rem 寬），
      16:9 影片幀由 img max-width 等比縮進來。桌面手機同值 */
   width: 5rem;
 }
@@ -413,6 +434,14 @@
   max-width: 5rem;           /* 影片 16:9 幀由此等比縮進 slot */
   width: auto;
   height: auto;
+}
+/* 真桌面：直式封面高＝標題欄高（兩行標題＋gap＋兩行副標＝88px）→ 縮圖上下留白都＝列 padding 16（user 2026-10-19；
+   原 4.5rem 貼頂＝下方多出 16）。佔位灰塊同比例放大。改標題／副標字級或行數要同步這裡。
+   16:9 影片幀仍受 max-width 5rem 限制（高 ~45px），上下照舊留比較多 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  .press-item-thumb-wrap { min-height: 5.5rem; }
+  .press-item-thumb:not(:has(.press-thumb-img[src])) { min-width: 4.15rem; height: 5.5rem; }
+  .press-item-thumb img { max-height: 5.5rem; }
 }
 
 /* 桌面 inline 並排時 EN/ZH 間留空格（手機 block stack 無影響） */
@@ -723,16 +752,16 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 /* 年份／分類鈕 hover＝瞬間 100% 原色（.lib-faint／disabled 不動）。改 text-fill 不改 color：color transition 留給點選變淡、hover 不吃它。
    只給真滑鼠（觸控 sticky hover 會黏住） */
 @media (hover: hover) and (min-width: 768px) {
-  [id$="-year-picker"] button[data-year]:not(:disabled):hover,
+  [id$="-year-picker"] button[data-year]:not(:disabled, .lib-faint):hover,
   :is(.lib-files-cat-btn, .lib-album-cat-btn):not(:disabled, .lib-faint):hover {
     -webkit-text-fill-color: var(--lib-fg);
   }
 }
-/* 年份欄「下一批」chevron（library-panels.js attachYearReset 建、桌面限定）：年份 box 下緣、reset 之上、欄內置中。
+/* 年份欄／分類框「下一批」chevron（library-panels.js makeScrollPager，桌面限定）：框下緣、reset 之上、貼左。
    color/cursor 寫 CSS：理由同上（clip-reveal 收尾清 inline） */
 .year-more-btn {
   flex: none;
-  align-self: center;
+  align-self: flex-start;
   margin-top: auto;            /* 年份少、沒撐滿欄時跟 reset 空間一起貼欄底 */
   display: flex;
   padding: var(--spacing-xs) 0 0;
@@ -761,14 +790,14 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 .year-less-inner {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;   /* 貼左＝同下一批 chevron */
   padding-bottom: var(--spacing-xs);
   background: var(--lib-bg);
 }
-/* reset.svg 畫板左側自帶 ~3px 留白（圈最左墨跡 x≈24.5/160）→ 挪 3px 讓墨跡對齊年份數字左緣。不改 svg：create 面板共用。
-   桌面 reset 在 .year-reset-slot 置中不需挪 → 只剩矮橫向（absolute 貼左）在用；後台換稿要重量 */
+/* reset.svg 畫板左側自帶 ~3px 留白（圈最左墨跡 x≈24.5/160）→ 挪 3px 讓墨跡對齊年份數字／chevron 左緣（桌面 slot 貼左
+   10-19 實測 chevron 墨跡 224.5、reset 227）。不改 svg：create 面板共用。後台換稿要重量 */
 @media (min-width: 768px) {
-  :not(.year-reset-slot) > .year-reset-btn .icon-reset { margin-left: -3px; }
+  .year-reset-btn .icon-reset { margin-left: -3px; }
 }
 
 .files-item-card {
