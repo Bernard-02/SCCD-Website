@@ -58,11 +58,12 @@ const ATLAS_MAIN_HTML = `
         <span class="anchor-nav-inner">Partners 合作單位</span>
       </button>
     </div>
-    <button id="atlas-layout-btn" aria-label="切換視圖">
+    <div id="atlas-layout-btn" role="group" aria-label="切換視圖">
       <span class="atlas-layout-inner">
-        <span class="icon icon-atlas-list"></span>
+        <button class="atlas-layout-opt is-active" data-view="map" aria-label="星雲" aria-pressed="true"><span class="atlas-layout-face"><span class="icon icon-atlas-view"></span></span></button>
+        <button class="atlas-layout-opt" data-view="list" aria-label="列表" aria-pressed="false"><span class="atlas-layout-face"><span class="icon icon-atlas-list"></span></span></button>
       </span>
-    </button>
+    </div>
   </section>
 `;
 
@@ -73,8 +74,6 @@ let initialized = false;
 let atlasMounted = false;
 let inPlace = false;        // atlas 頁星雲：頁面本身當待機畫面（不蓋紙）
 let chromeHidden = false;   // inPlace 且真的收了非待機元素（背景分頁不收，見 atlas.js enter 註解）
-/** @type {(() => void) | null} 背景分頁進待機時掛的一次性 visibilitychange listener（見 armMountOnVisible） */
-let pendingMountOnVisible = null;
 
 function ensureOverlay() {
   let overlay = document.getElementById('idle-standby-overlay');
@@ -92,23 +91,26 @@ function ensureOverlay() {
   return overlay;
 }
 
-async function mountStandbyAtlas(instant) {
+// 紙＝骨架 #atlas-main（只有底色、還沒星雲，幾個節點＝便宜）。opacity 0＝等 fade in；1＝立刻蓋住。
+function coverStandby(opacity) {
   const overlay = ensureOverlay();
   overlay.innerHTML = ATLAS_MAIN_HTML;
   overlay.style.pointerEvents = 'auto';
   // 上一輪退場切片把 overlay 設了 display:none；若新一輪在 idle 收尾跑完前進場（收尾有 isStandby guard
   // 會跳過還原）display 會殘留 none＝待機隱形 → mount 時一律重置（09-25 切片收尾的配套）
   overlay.style.display = '';
-
   const main = /** @type {HTMLElement|null} */ (overlay.querySelector('#atlas-main'));
-  if (main) main.style.opacity = '0';
+  if (main) main.style.opacity = String(opacity);
+  return overlay;
+}
 
-  // 非 instant：先把空白底 fade in（骨架 #atlas-main 只有 bg、還沒內容＝「先 fade 成空白」），
-  // 內容進場交給 initAtlas 自己的「分批點燈」intro（同 atlas 頁，user 2026-07-15：不另外製作動畫）。
-  // 之前把 #atlas-content 壓 opacity:0、intro 在看不見時播完、再普通 fade 蓋上去＝浪費現成動畫。
+async function mountStandbyAtlas(instant) {
+  // instant（背景分頁／resize 重掛）：紙直接不透明——import／initAtlas 的 await 期間不能露出底下原頁
+  // （resize 重掛曾閃一下原頁）；跳過 atlas intro，掛上來就是定態。
+  // 非 instant：先把空白底 fade in（「先 fade 成空白」），內容進場交給 initAtlas 自己的「分批點燈」intro
+  // （同 atlas 頁，user 2026-07-15：不另外製作動畫）。
+  const overlay = coverStandby(instant ? 1 : 0);
   if (!instant) await fadeAtlasMain(1);
-
-  // instant（背景分頁）：跳過 atlas intro，掛上來就是定態
   atlasApi = await import('../pages/atlas.js');
   await atlasApi.initAtlas({ root: overlay, instant });
   atlasMounted = true;
@@ -146,35 +148,22 @@ function fadeAtlasMain(to) {
   return fadeEl(main, to);
 }
 
-// 背景分頁瞬間定態：直接設 opacity:1（rAF 暫停時 gsap tween 不會跑、切回本 tab 才補播 = 不要的「切回才 fade」）
-function setStandbyAtlasVisible() {
-  const main = /** @type {HTMLElement|null} */ (document.querySelector('#idle-standby-overlay #atlas-main'));
-  if (main) main.style.opacity = '1';
-}
-
-// 背景分頁進待機（09-25）：不在隱藏期間真 mount——隱藏分頁不跑 rendering pipeline，
-// ~7500 節點＋431 顆 will-change 合成層的首繪/光柵化/GPU 上傳會全欠到「切回分頁的第一幀」一次付清
-// ＝user 報「回到畫面非常卡」的主因。改成：立旗標，切回可見的**下一幀**才 mount（instant 定態、
-// 無 fade/intro）——底頁先便宜地畫出來、standby 首繪落在後續幀，「切回來已是待機」體驗幾乎不變。
-function armMountOnVisible() {
-  if (pendingMountOnVisible) return;
+// 背景分頁進待機：切回分頁時，瀏覽器在新畫面畫好前會先顯示離開前的最後一幀（＝上一個畫面）。
+// 實測（真 Chrome 切 tab，2026-10-04）：新畫面只有紙＝~0.1s 就換掉（瀏覽器下限，網頁端無解）；
+// 背景先掛好整片星雲＝切回要畫 0.6~0.7s，上一個畫面就停那麼久（拆 470 合成層也沒救）。
+// 所以背景只蓋紙（便宜），星雲切回可見的下一幀才掛（instant 定態、無 fade/intro）。
+function mountAtlasOnVisible() {
   const onVisible = () => {
     if (document.hidden) return;   // 只認 hidden→visible
-    disarmMountOnVisible();
+    document.removeEventListener('visibilitychange', onVisible);
     requestAnimationFrame(async () => {
       if (!isStandby || isTransitioning || atlasMounted) return;
-      await mountStandbyAtlas(true);
-      setStandbyAtlasVisible();
+      atlasApi = await import('../pages/atlas.js');
+      await atlasApi.initAtlas({ root: ensureOverlay(), instant: true });
+      atlasMounted = true;
     });
   };
-  pendingMountOnVisible = onVisible;
   document.addEventListener('visibilitychange', onVisible);
-}
-
-function disarmMountOnVisible() {
-  if (!pendingMountOnVisible) return;
-  document.removeEventListener('visibilitychange', pendingMountOnVisible);
-  pendingMountOnVisible = null;
 }
 
 async function enterStandby() {
@@ -205,8 +194,12 @@ async function enterStandby() {
       document.body.classList.add('idle-standby-inplace');
     }
   } else if (instant) {
-    // 背景分頁：不真 mount，切回可見的下一幀才掛（09-25，見 armMountOnVisible 註解）
-    armMountOnVisible();
+    // 背景分頁：先蓋紙、星雲切回才掛（見 mountAtlasOnVisible 註解）；atlas 程式＋後台資料趁背景先下載，
+    // 切回只剩建構＋繪製（不先抓＝後台慢時切回後紙空白好幾秒）
+    coverStandby(1);
+    import('../pages/atlas-source.js').then(m => m.loadAtlasData()).catch(() => {});
+    import('../pages/atlas.js').catch(() => {});
+    mountAtlasOnVisible();
   } else {
     // mount overlay atlas：先空白底 fade in（header 連 logo 隨之被蓋掉）、內容走 atlas 分批點燈 intro（mount 內處理）
     await mountStandbyAtlas(false);
@@ -230,7 +223,6 @@ async function exitStandby() {
     return;
   }
   isTransitioning = true;
-  disarmMountOnVisible();   // 背景進待機、還沒切回就退出（防禦）：撤掉待掛的 mount
 
   // 待機離場時原頁內容也 fade in（user 2026-09-12）：此刻仍被不透明 overlay 蓋住 → 同步壓 opacity:0
   // 不會閃，再與 overlay fade out 同時 crossfade 回來（背景色都是 --theme-bg → 底不破）。
@@ -337,7 +329,6 @@ export function initIdleStandby() {
       isTransitioning = true;   // 重掛期間擋 exitStandby，避免拆一半被 fade-out 撞上
       unmountStandbyAtlas();
       await mountStandbyAtlas(true);
-      setStandbyAtlasVisible();
       isTransitioning = false;
     }, 300);
   });

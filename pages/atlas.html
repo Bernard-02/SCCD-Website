@@ -61,12 +61,13 @@
         </button>
       </div>
 
-      <!-- 左下角 layout toggle -->
-      <button id="atlas-layout-btn" aria-label="切換視圖">
+      <!-- view 切換膠囊（真桌面底部置中）：左＝星雲、右＝list；active 半邊底色由 atlas.js 給 -->
+      <div id="atlas-layout-btn" role="group" aria-label="切換視圖">
         <span class="atlas-layout-inner">
-          <span class="icon icon-atlas-list"></span>
+          <button class="atlas-layout-opt is-active" data-view="map" aria-label="星雲" aria-pressed="true"><span class="atlas-layout-face"><span class="icon icon-atlas-view"></span></span></button>
+          <button class="atlas-layout-opt" data-view="list" aria-label="列表" aria-pressed="false"><span class="atlas-layout-face"><span class="icon icon-atlas-list"></span></span></button>
         </span>
-      </button>
+      </div>
     </section>
 
     <!-- 右下角細節面板（僅標題 + 説明，無 tag；城市不顯示卡片）

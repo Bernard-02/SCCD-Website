@@ -3,7 +3,7 @@ import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { ensureIconClipWrap, navChipHidden, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
+import { navChipHidden, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
@@ -276,6 +276,9 @@ export async function initAtlas(options = {}) {
   // .theme-toggle-btn 可能還沒進 DOM，直接對按鈕設 inline 會 no-op → body class 讓晚到的按鈕也被擋。
   // disabled 屬性照設（a11y／鍵盤），按鈕已存在時同步。
   const gateModeBtn = root === document;
+  // 待機紙（idle-standby overlay）＝只看不互動：不建 list 副標／換 view 色塊（每節點多 ~5 個 DOM、共 ~2500），
+  // 不綁 hover／縮放／拖曳。節點越少，切回分頁時星雲越快畫出來（user 2026-10-06）。
+  const standbyRoot = root !== document;
   const setModeBtnEnabled = (on) => {
     document.body.classList.toggle('atlas-mode-gate', !on);
     document.querySelectorAll('.theme-toggle-btn').forEach((btn) => {
@@ -1182,7 +1185,7 @@ export async function initAtlas(options = {}) {
       clip.appendChild(sub);
       subsEl.appendChild(clip);
     };
-    if (item.category !== 'D') {
+    if (item.category !== 'D' && !standbyRoot) {
       const listCat = getItemCat(item);
       if (listCat === 'partners') {
         addSub(item._listCountryEn, item._listCountryZh);   // 先國家、後類型（user 2026-06-23 對調）
@@ -1191,7 +1194,7 @@ export async function initAtlas(options = {}) {
         addSub(item._listSubEn, item._listSubZh);   // faculty: 職稱(＋國家)；host/employ: 國家
       }
     }
-    span.appendChild(subsEl);
+    if (!standbyRoot) span.appendChild(subsEl);
     item._nameLine = nameLine;
     item._nameBlock = nameBlock;
     item._enEl = enEl;
@@ -1231,18 +1234,19 @@ export async function initAtlas(options = {}) {
     //   D / B 用 bgColor（chip 底色）；A/C 用 item.color（連線色 / 字色）
     // 預設 clip-path inset(0% 100% 0% 0%) 隱藏 → idle 不可見；switchToList/switchToMap 期間動 clip-path 蓋住/退開文字
     // DOM 順序放最後 = 絕對定位天然蓋在前面 in-flow 文字上方
-    const cover = document.createElement('span');
-    cover.className = 'atlas-name-cover';
-    cover.style.backgroundColor = (item.category === 'D' || item.category === 'B')
-      ? (item.bgColor || SCCDHelpers.ACCENT_COLORS[0])
-      : item.color;
-    span.appendChild(cover);
+    if (!standbyRoot) {
+      const cover = document.createElement('span');
+      cover.className = 'atlas-name-cover';
+      cover.style.backgroundColor = (item.category === 'D' || item.category === 'B')
+        ? (item.bgColor || SCCDHelpers.ACCENT_COLORS[0])
+        : item.color;
+      span.appendChild(cover);
+    }
 
     anchor.appendChild(span);
     fragment.appendChild(anchor);
     item._anchor = anchor;
     item._span = span;
-    item._cover = cover;
   });
   content.appendChild(fragment);
 
@@ -1556,6 +1560,7 @@ export async function initAtlas(options = {}) {
     if (hoverPinnedItem === item) return;
     unpinHoverZ();
     if (!item._anchor) return;
+    flushZFade(item);   // 換層淡化的收尾會寫回目標層＝蓋掉釘的 4 → 先收完
     hoverPinnedItem = item;
     item._anchor.style.zIndex = '4';
     item._lastZ = 4;
@@ -1565,9 +1570,45 @@ export async function initAtlas(options = {}) {
     if (!it) return;
     hoverPinnedItem = null;
     if (!it._anchor) return;
-    if (it.category === 'B' || it.category === 'D') { it._lastZ = null; }  // Phase 2.5 下一幀重算
+    if (it.category === 'B') { it._lastZ = 4; }                             // Phase 2.5 下一幀 4→原層（交叉淡化）
+    else if (it.category === 'D') { it._lastZ = null; }                     // Phase 2.5 下一幀重算
     else { it._anchor.style.zIndex = ''; it._lastZ = null; }               // A/C 交還 CSS z:1
   }
+  // B 環 chip 換層（過分割線 0↔2、hover 放開 4→原層）：z-index 只能瞬切 → 疊一張複本交叉淡化
+  //   （user 2026-10-19，同首頁浮卡 crossfadeDepth）。複本永遠在高層、本體墊低層，只淡複本＝anchor opacity
+  //   （篩選／intro／換形都在用）不碰；淡完本體才換到目標層、拔複本（同位同層＝無感換手）。
+  //   中途又翻回同一對層＝同一張複本反向接著淡、不跳。
+  function crossfadeZ(item, fromZ, toZ) {
+    const a = item._anchor;
+    const hi = Math.max(fromZ, toZ), lo = Math.min(fromZ, toZ);
+    let zf = item._zFade;
+    if (zf && zf.hi !== hi) { zf.tween.progress(1); zf = null; }
+    if (!zf) {
+      const g = /** @type {HTMLElement} */ (a.cloneNode(true));
+      g.inert = true;   // inert＝不吃 hit-test（.atlas-name 的 CSS pointer-events:auto 也一併失效）
+      g.setAttribute('aria-hidden', 'true');
+      g.style.zIndex = String(hi);
+      a.after(g);       // 緊貼本體＝跟同層兄弟的 DOM 疊序不變
+      zf = item._zFade = { g, gSpan: g.querySelector('.atlas-name'), hi, f: fromZ === hi ? 1 : 0, tween: null };
+    }
+    const { g, gSpan } = zf;
+    a.style.zIndex = String(lo);
+    const sync = () => {
+      g.style.transform = a.style.transform;
+      g.style.translate = a.style.translate;
+      gSpan.className = item._span.className;      // dim / highlight 中途切換也跟上
+      gSpan.style.rotate = item._span.style.rotate;   // hover 放開的轉角 tween
+      g.style.opacity = String(zf.f);
+    };
+    sync();
+    zf.tween?.kill();
+    zf.tween = gsap.to(zf, {
+      f: toZ === hi ? 1 : 0, duration: DUR.fast, ease: EASE.enterSoft, onUpdate: sync,
+      onComplete: () => { a.style.zIndex = String(toZ); g.remove(); item._zFade = null; },
+    });
+  }
+  /** 換形／篩選／hover 釘層前收掉進行中的換層淡化（複本不跟換形飛、也不跟篩選淡） @param {any} item */
+  function flushZFade(item) { item._zFade?.tween.progress(1); }
   let floatRaf = null;
   let floatPausedAt = null;          // 暫停起點 ms；恢復時補回 floatStart 讓 ambient 漂移接續不跳
   let menuPausedAtlas = false;       // 手機 menu 全屏 overlay 開著 → 暫停（window.setAtlasFloatPaused 切換）
@@ -1832,7 +1873,14 @@ export async function initAtlas(options = {}) {
       const visualY = item.y + (item._floatDy || 0);
       const z = item.category === 'D' ? 3 : (visualY < cy ? 0 : 2);
       if (item._lastZ !== z) {
-        item._anchor.style.zIndex = String(z);
+        const a = item._anchor;
+        if (item.category === 'B' && item._lastZ != null && !viewMorphing && !item._asList && !item._fadingOut
+          && (a.style.opacity === '' || a.style.opacity === '1') && !a.classList.contains('atlas-filtered-out')) {
+          crossfadeZ(item, item._lastZ, z);
+        } else {
+          flushZFade(item);
+          a.style.zIndex = String(z);
+        }
         item._lastZ = z;
       }
     }
@@ -2148,7 +2196,7 @@ export async function initAtlas(options = {}) {
         // 國家：desc 列出相關合作單位/系友就職，每筆「左 title(英中各行) + 右 類別」。
         //   不一次列完 → 每 4s clip-path 換下一批（startDetailBatchCycle），hover 期間持續輪播。
         //   卡片寬以內容為主、380 為上限 → title 子欄受限時自動 marquee。
-        //   min(…, 100vw-112px)：直向手機卡片左緣讓開左下 layout btn（24 + 48 btn + 8 呼吸 +
+        //   min(…, 100vw-152px)：直向手機卡片左緣讓開左下切換膠囊（24 + 88 膠囊 + 8 呼吸 +
         //   ~15 卡片 ±3° 旋轉 bbox 外擴；inline min-width 會蓋 CSS max-width，必須在這裡一起 cap）；
         //   桌面/橫向 100vw 大 → 維持 380。
         const related = [...ids]
@@ -2158,7 +2206,7 @@ export async function initAtlas(options = {}) {
           .filter(rel => rel.category !== 'D');  // 不列其他國家節點（多國工作營會把別國 D 節點也拉進同 group）
         // 卡寬以內容為主（user 2026-08-11，取代固定 380）：量「全部 related」最寬 title/label
         // （不只當前批 → 4s 批次輪播間卡寬穩定不跳）；cat 欄同步縮成最寬 label（--atlas-cat-col，
-        // 各列左緣仍對齊一直欄）。380 仍是上限（超長 title 走 marquee）、240 下限、直向另有 100vw-112 cap。
+        // 各列左緣仍對齊一直欄）。380 仍是上限（超長 title 走 marquee）、240 下限、直向另有 100vw-152 cap。
         // ⚠️ 批次量測（原本逐 rel「寫 textContent → 讀 offsetWidth」交錯 = O(n) forced reflow，實測 hover 首幀 132ms；
         //   profiler 2026-09-01）→ 改成先 append 全部 probe span（純寫），再一次讀所有 offsetWidth（單次 reflow）。
         const meas = document.createElement('div');
@@ -2182,7 +2230,7 @@ export async function initAtlas(options = {}) {
         meas.remove();
         // 16=左右 padding(8+8)、12=row gap；+2 防 marquee 臨界誤判
         const contentW = Math.max(240, Math.ceil(titleW + catW + 12 + 16 + 2));
-        const dw = `min(${contentW}px, 380px, 100vw - 112px)`;
+        const dw = `min(${contentW}px, 380px, 100vw - 152px)`;
         detail.style.width = dw;
         detail.style.minWidth = dw;
         detail.style.setProperty('--atlas-cat-col', `${Math.ceil(catW)}px`);
@@ -2446,6 +2494,12 @@ export async function initAtlas(options = {}) {
   function setStraighten(item) {
     const next = (item && item.category !== 'D' && item._float) ? item : null;
     if (straightItem === next) return;
+    // B（hosting 環 chip）放開不回原角：抽新靜態傾斜（同出生範圍 ±8、與舊角差 ≥4 才看得出），轉正 0 → 新角（user 2026-10-19）。
+    //   baseRot 是 B 唯一的角度來源（色塊消失／換形 getRot／回 map 補角都讀它）→ 改這裡全部跟著走
+    if (straightItem && straightItem.category === 'B') {
+      const f = straightItem._float, old = f.baseRot;
+      do f.baseRot = Math.random() * 16 - 8; while (Math.abs(f.baseRot - old) < 4);
+    }
     if (straightItem) { tweenStraight(straightItem, 0); resumeFloat(straightItem); }   // 放開前一顆
     straightItem = next;
     if (straightItem) { tweenStraight(straightItem, 1); pauseFloat(straightItem); }
@@ -2589,8 +2643,8 @@ export async function initAtlas(options = {}) {
     }
   }
 
-  content.addEventListener('mouseover', onMouseOver);
-  content.addEventListener('mouseout',  onMouseOut);
+  if (!standbyRoot) content.addEventListener('mouseover', onMouseOver);
+  if (!standbyRoot) content.addEventListener('mouseout',  onMouseOut);
   cleanupFns.push(() => {
     content.removeEventListener('mouseover', onMouseOver);
     content.removeEventListener('mouseout',  onMouseOut);
@@ -2817,7 +2871,7 @@ export async function initAtlas(options = {}) {
     applyTransform();
     markZoomActive();
   }
-  stage.addEventListener('wheel', onWheel, { passive: false });
+  if (!standbyRoot) stage.addEventListener('wheel', onWheel, { passive: false });
   cleanupFns.push(() => stage.removeEventListener('wheel', onWheel));
 
   let dragging = false;
@@ -2853,9 +2907,11 @@ export async function initAtlas(options = {}) {
     dragging = false;
     document.body.style.cursor = '';
   }
-  stage.addEventListener('mousedown', onMouseDown);
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup',   onMouseUp);
+  if (!standbyRoot) {
+    stage.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup',   onMouseUp);
+  }
   cleanupFns.push(() => {
     stage.removeEventListener('mousedown', onMouseDown);
     window.removeEventListener('mousemove', onMouseMove);
@@ -3874,11 +3930,27 @@ export async function initAtlas(options = {}) {
     revealTimers.forEach(t => clearTimeout(t));
     revealTimers.length = 0;
   }
+  // 切換鈕進退場＝clip-reveal（user 2026-10-19；沿用本鈕待機版＋左下頁卡時序：進 DUR.reveal＋EASE.enter／退 DUR.base＋EASE.exit）：
+  // 每格＝自己的遮罩（含 hover 角）、兩格 face 同一隨機方向滑入/滑出（每次重抽）。.atlas-layout-revealed＝狀態旗標＋點擊 gate（已在該態＝no-op）。
+  // 出生藏態在 CSS（transform 110%）→ 不 clearProps；x/y 0 蓋掉 GSAP 從 CSS 解析到的 px 位移
+  const layoutFaces = /** @type {HTMLElement[]} */ (layoutBtn ? [...layoutBtn.querySelectorAll('.atlas-layout-face')] : []);
+  function showLayoutBtn() {
+    if (!layoutBtn || layoutBtn.classList.contains('atlas-layout-revealed')) return;
+    layoutBtn.classList.add('atlas-layout-revealed');
+    if (typeof gsap === 'undefined') { layoutFaces.forEach(f => { f.style.transform = 'none'; }); return; }
+    gsap.fromTo(layoutFaces, { ...revealHidden(), x: 0, y: 0 },
+      { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true });
+  }
+  function hideLayoutBtn() {
+    if (!layoutBtn || !layoutBtn.classList.contains('atlas-layout-revealed')) return;
+    layoutBtn.classList.remove('atlas-layout-revealed');
+    if (typeof gsap !== 'undefined') gsap.to(layoutFaces, { ...revealHidden(), duration: DUR.base, ease: EASE.exit, overwrite: true });
+  }
   const revealFilters = () => {
     drainRevealTimers();
     if (gateModeBtn) setModeBtnEnabled(true); // 渲染＋intro 完成 → 解鎖 header mode btn
     // layoutBtn 跟第一個 filter btn (faculty) 同時 reveal（無 stagger delay）
-    if (layoutBtn) layoutBtn.classList.add('atlas-layout-revealed');
+    showLayoutBtn();
     btns.forEach((btn, i) => {
       const t = setTimeout(() => {
         if (btn.isConnected) btn.classList.add('atlas-filter-revealed');
@@ -3911,11 +3983,8 @@ export async function initAtlas(options = {}) {
 
   // ── atlas 頁待機（user 2026-10-01）：不蓋紙、星雲本身就是待機畫面 ──
   // 非待機元素各走自己的離頁/進場同款 clip-reveal：篩選鈕＋career/subchip（同 playMapExit / revealFilters）、說明卡（clearDetail）、
-  // 切換鈕（見下）；header logo/鈕、左下頁卡、mode3 色盤鈕由 idle-standby.js 收。list view 沒星雲可留 → 回 false 照蓋紙
+  // 切換鈕（hide/showLayoutBtn）；header logo/鈕、左下頁卡、mode3 色盤鈕由 idle-standby.js 收。list view 沒星雲可留 → 回 false 照蓋紙
   if (root === document) {
-    const layoutInner = /** @type {HTMLElement|null} */ (layoutBtn && layoutBtn.querySelector('.atlas-layout-inner'));
-    let layoutInnerTf = '';
-    let layoutHidden = false;
     pageStandby = {
       enter(instant) {
         if (currentView !== 'map' || viewMorphing || pageExiting) return false;
@@ -3927,38 +3996,11 @@ export async function initAtlas(options = {}) {
         [...btns].reverse().forEach((btn, i) => {
           revealTimers.push(/** @type {any} */ (setTimeout(() => btn.classList.remove('atlas-filter-revealed'), i * STAGGER)));
         });
-        // 切換鈕：原本進退場是 clip-path 擦除 → 待機改 clip-reveal。鈕本身（48×48＝inner）當遮罩、inner 的傾角借給它
-        // （角度留在 inner＝正遮罩切斜鈕的角，同 header lendCssRotToMask），inner 轉正後隨機四向滑出；
-        // CSS transform transition 先關（會跟 GSAP 逐幀互搶）。時序同隔壁左下頁卡（離頁 DUR.base＋EASE.exit）
-        if (layoutBtn && layoutInner) {
-          const m = new DOMMatrix(getComputedStyle(layoutInner).transform);
-          layoutInnerTf = layoutInner.style.transform;   // hover 抽的角（inline）；空＝CSS 預設 -8°
-          layoutBtn.style.rotate = `${Math.atan2(m.b, m.a) * 180 / Math.PI}deg`;
-          layoutBtn.style.overflow = 'clip';
-          layoutInner.style.transition = 'none';
-          layoutHidden = true;
-          gsap.fromTo(layoutInner, { rotation: 0, xPercent: 0, yPercent: 0 }, {
-            ...revealHidden(),
-            duration: DUR.base, ease: EASE.exit, overwrite: true,
-          });
-        }
+        hideLayoutBtn();
         return true;
       },
       exit() {
-        revealFilters();
-        if (!layoutHidden || !layoutBtn || !layoutInner) return;
-        layoutHidden = false;
-        gsap.to(layoutInner, {
-          xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true,
-          onComplete: () => {
-            // 角度還回 inner、同一幀拿掉遮罩的角＝視覺不跳
-            gsap.set(layoutInner, { clearProps: 'transform' });
-            layoutInner.style.transform = layoutInnerTf;
-            layoutInner.style.transition = '';
-            layoutBtn.style.rotate = '';
-            layoutBtn.style.overflow = '';
-          },
-        });
+        revealFilters();   // 內含 showLayoutBtn
       },
     };
     cleanupFns.push(() => { pageStandby = null; });
@@ -4857,6 +4899,7 @@ export async function initAtlas(options = {}) {
   /** @param {any} item @param {boolean} show @param {number} [wait] */
   function fadeFilterItem(item, show, wait = 0) {
     const a = item._anchor;
+    flushZFade(item);
     if (show) {
       if (a.classList.contains('atlas-filtered-out')) { a.style.opacity = '0'; a.classList.remove('atlas-filtered-out'); }
       (itemLines.get(item.id) || []).forEach(syncLineDisplay);
@@ -5091,49 +5134,6 @@ export async function initAtlas(options = {}) {
 
   apply();
 
-  // ── Layout toggle ──────────────────────────────────────────────────
-  // （layoutBtn 已在 Filter 段提前宣告）
-
-  // icon 跟著星雲整段 intro tween 同步做（0.75s = Phase 1 cover reveal 0→0.35 + Phase 2 span hide 0.35→0.75）：
-  // exit hide / entry reveal 都 0→0.75 + power2.out，**起跑點不延遲、duration 同 chip 整段**，forward/return 時間對稱即互為反向
-  // icon 切換走 clip-reveal（貼身 overflow:clip 遮罩 + 隨機四向滑出/滑入），取代原 clip-path inset wipe
-  const LAYOUT_ICON_SLIDES = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
-  const LAYOUT_ICON_DURATION = 0.4;
-  const LAYOUT_ICON_EASE = 'power2.out';
-  /** @type {{xPercent?:number,yPercent?:number}|null} */
-  let _lastIconHideDir = null;
-
-  /**
-   * @param {{ timeline?: any, position?: string | number }} [opts]
-   */
-  function hideLayoutIcon(opts = {}) {
-    const { timeline = null, position = 0 } = opts;
-    const icon = /** @type {HTMLElement|null} */ (layoutBtn?.querySelector('.icon'));
-    if (!icon || typeof gsap === 'undefined') return;
-    ensureIconClipWrap(icon);
-    const dir = LAYOUT_ICON_SLIDES[Math.floor(Math.random() * 4)];
-    _lastIconHideDir = dir;
-    const vars = { ...dir, duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, overwrite: true };
-    if (timeline) timeline.to(icon, vars, position);
-    else gsap.to(icon, vars);
-  }
-
-  function revealLayoutIcon(newClass) {
-    const icon = /** @type {HTMLElement|null} */ (layoutBtn?.querySelector('.icon'));
-    if (!icon) return;
-    if (typeof gsap === 'undefined') {
-      icon.className = newClass;
-      return;
-    }
-    ensureIconClipWrap(icon);
-    icon.className = newClass;
-    // reveal 起點 = 上次 hide 的滑出方向 → 視覺上 reveal 就是 hide 的時間反向
-    const startDir = _lastIconHideDir ?? LAYOUT_ICON_SLIDES[Math.floor(Math.random() * 4)];
-    gsap.fromTo(icon, startDir,
-      { xPercent: 0, yPercent: 0, duration: LAYOUT_ICON_DURATION, ease: LAYOUT_ICON_EASE, clearProps: 'transform', overwrite: true }
-    );
-  }
-
   // ── View morph（2026-08-25 單一節點遮罩架構，取代 2026-08-18 clone FLIP）──────
   // item＝單一節點：吞（自帶 cover）→ 全遮蔽時 reparent＋換形 → 純色塊接手飛行 → 落地掀開同一節點。
   // chrome（filter btn／欄標題）＝maskFlyChrome hidden-swap（DOM 不合併、視覺恆單一）。
@@ -5225,6 +5225,7 @@ export async function initAtlas(options = {}) {
     g.style.height = `${n.offsetHeight}px`;
     g.style.backgroundColor = getComputedStyle(n).backgroundColor;
     g.style.transform = 'translate(-50%, -50%)';   // 同 .atlas-cat-b 置中；wobble 個別屬性照抄
+    g.style.transformOrigin = '0 0';               // 同 .atlas-cat-b 繞視覺中心轉（atlas.css）
     g.style.translate = n.style.translate;
     // 色塊用該 chip 的靜態傾斜角消失（user 09-02）：B 直接取 _float.baseRot，不抄 n.style.rotate——
     // 後者可能被 hover 轉正(_straight)或清空成 0＝色塊「先回正才消失」。B 恆靜態不 wobble、baseRot 即其固定傾斜。
@@ -5620,8 +5621,6 @@ export async function initAtlas(options = {}) {
       if (!d) return;   // 無對應欄（如 ec 佔位）→ 只 fade（無位移）
       scheduleDrift(i, at, 0, () => inlineRotDeg(i._span));   // A/C CSS 只 translateY(-50%)＝xPercent 0；保留凍結 wobble 角
     });
-    // layout btn icon 於 t=0 同步 hide
-    hideLayoutIcon({ timeline: tl, position: 0 });
     // companyRingEllipse 的 erase 由 caller 的 hideCareer() → animateRingEllipse(false) 處理
     if (!tl.duration()) tl.to({}, { duration: 0.01 });   // 空集合保底（onComplete / then 正常走）
     return tl;
@@ -5717,6 +5716,7 @@ export async function initAtlas(options = {}) {
     if (currentView === 'list' || viewMorphing) return;
     currentView = 'list';
     clearDetail();
+    items.forEach(flushZFade);
 
     // 每次切 view 重置到第一頁（user 2026-08-18 定案）：morph 對應關係固定＝星雲 chip ↔ list 第一頁
     Object.keys(listPageState).forEach(k => { listPageState[k] = 0; });
@@ -5731,8 +5731,6 @@ export async function initAtlas(options = {}) {
       applyListFilter();
       listView.classList.add('visible');
       updateFilterBtnColors();
-      const icon = /** @type {HTMLElement|null} */ (layoutBtn ? layoutBtn.querySelector('.icon') : null);
-      if (icon) icon.className = 'icon icon-atlas-view';
       return;
     }
 
@@ -5878,8 +5876,6 @@ export async function initAtlas(options = {}) {
     }, null, restoreDelay);
     const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
     master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
-    // layout icon：buildMapExitTl 在 restoreDelay 收舊 icon → 收完立刻揭新 icon，不等 list 進場整段跑完（user 2026-09-29）
-    master.call(() => { if (!destroyed) revealLayoutIcon('icon icon-atlas-view'); }, null, restoreDelay + LAYOUT_ICON_DURATION);
     // Phase B（restoreDelay + M_CITY_LEAD）：城市走完才「全體變黑 + 擦色塊」。全 map item 文字統一漸變到 theme-fg
     // （黑／inverse 白／mode3 前景）；dur＝M_COLOR_FADE、ease exitSoft 對齊 host 色塊掃除（見 buildMapExitTl / paired 分支）。
     // ⚠️ gsap 不能 interp CSS var 目標 → 先用隱形 probe 把 var(--theme-fg) 解成 concrete 色。
@@ -5972,8 +5968,6 @@ export async function initAtlas(options = {}) {
       apply();
       btns.forEach(b => b.classList.add('atlas-filter-revealed'));
       syncCareer();
-      const icon = /** @type {HTMLElement|null} */ (layoutBtn ? layoutBtn.querySelector('.icon') : null);
-      if (icon) icon.className = 'icon icon-atlas-list';
       return;
     }
 
@@ -5982,7 +5976,6 @@ export async function initAtlas(options = {}) {
     main.classList.add('atlas-morphing');
     drainRevealTimers();
     if (introTween) introTween.kill();
-    hideLayoutIcon();
     if (listCareerCtrl) listCareerCtrl.hide({ delay: 0 });   // stage1：list-only（career）先清，領先回程波（R_LIST_EXIT）
 
     // ── 星雲復位（zoom 初始態）＋顯示；wobble 維持凍結（refreshFloatRunning gate viewMorphing）──
@@ -6064,8 +6057,6 @@ export async function initAtlas(options = {}) {
     });
     introTween = /** @type {any} */ (master);
     master.add(enterTl, 0);
-    // layout icon：開頭 hideLayoutIcon 收完立刻揭新 icon，不等星雲回程整段跑完（user 2026-09-29）
-    master.call(() => { if (!destroyed) revealLayoutIcon('icon icon-atlas-list'); }, null, LAYOUT_ICON_DURATION);
 
     // Stage 3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」
     // ＝正向 exit「decolorize + 色塊 clip-out」的鏡像倒放。bulk 在 R_BLOOM 同步；晚到的 paired straggler 各自 onLand 自補。
@@ -6186,20 +6177,42 @@ export async function initAtlas(options = {}) {
   }
 
   if (layoutBtn) {
-    // hover/click 隨機角度（arrow-spin，全站箭頭統一 −4~+6；取代舊 CSS :hover +15° 固定角）。
-    // 轉 inner：clip reveal 也跑在 inner 上，-12px buffer 原為 ±15 設計、−4~+6 綽綽有餘
-    const layoutInner = /** @type {HTMLElement|null} */ (layoutBtn.querySelector('.atlas-layout-inner'));
-    if (layoutInner) bindArrowSpin(layoutBtn, d => { layoutInner.style.transform = `rotate(${d}deg)`; });
-    bindNavBtnHover(layoutBtn);   // hover 隨機三原色（atlas.css；user 2026-09-28 全站黑方塊鈕）；只 hover、無 active（list view 開著不上色，user 同日拍板）
-    layoutBtn.addEventListener('click', () => {
-      if (isMobileAtlas) {
-        // 手機：list ↔ 星雲（星雲直式時顯示轉向提示、橫式才顯示內容）
-        if (currentView === 'map') switchToMobileList();
-        else switchToMobileMap();
-        return;
-      }
-      if (currentView === 'map') switchToList();
-      else switchToMap();
+    // view 切換膠囊（user 2026-10-19）：active 半邊底＝隨機三原色；hover inactive 半邊抽「跟 active 不同」的一色＝膠囊同時兩色，
+    // 點下去沿用該色成新 active（不跳色）。點 active 半邊＝無效
+    const opts = /** @type {HTMLElement[]} */ ([...layoutBtn.querySelectorAll('.atlas-layout-opt')]);
+    const colorOf = o => o.style.getPropertyValue('--layout-bg');
+    const pickOther = o => {
+      const avoid = colorOf(opts.find(x => x !== o));
+      const pool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== avoid);
+      o.style.setProperty('--layout-bg', pool[Math.floor(Math.random() * pool.length)]);
+    };
+    opts[0].style.setProperty('--layout-bg', SCCDHelpers.getRandomAccentColor());
+    // 兩格一體：hover inactive 格＝整顆轉新角、離開保持（同 arrow-spin 語意＋取角）；active 格 hover 不轉。
+    // 不用 bindArrowSpin：它的角度狀態綁在單一元素，兩格各綁會各記各的角
+    let capRot = 0;
+    const spinCap = () => { capRot = randomSpinAngle(capRot); layoutBtn.style.rotate = `${capRot}deg`; };
+    const hoverSpin = SCCDHelpers.isDesktopLayout();
+    opts.forEach(o => {
+      o.addEventListener('mouseenter', () => {
+        if (o.classList.contains('is-active')) return;
+        pickOther(o);
+        if (hoverSpin) spinCap();
+      });
+      o.addEventListener('click', () => {
+        const view = o.dataset.view;
+        if (view === currentView) return;
+        if (!hoverSpin) spinCap();   // 觸控沒 hover → 點下去才轉
+        if (!colorOf(o) || colorOf(o) === colorOf(opts.find(x => x !== o))) pickOther(o);   // 觸控沒 hover
+        // 手機：list ↔ 星雲；switch* 自帶 morph 守衛，被擋時 currentView 不變 → 下面照 currentView 同步
+        if (isMobileAtlas) { if (view === 'list') switchToMobileList(); else switchToMobileMap(); }
+        else if (view === 'list') switchToList();
+        else switchToMap();
+        opts.forEach(x => {
+          const on = x.dataset.view === currentView;
+          x.classList.toggle('is-active', on);
+          x.setAttribute('aria-pressed', String(on));
+        });
+      });
     });
   }
 
@@ -6254,7 +6267,6 @@ export async function initAtlas(options = {}) {
         cityLines.forEach(cl => gsap.to(cl, { retractT: cityLineRestT(cl), duration: 0.55, ease: EASE.enterSoft, overwrite: true }));
       }
     };
-    revealLayoutIcon('icon icon-atlas-list');
     // 分類 tab 同步反向收（clip wipe，CSS transition）
     drainRevealTimers();
     [...btns].reverse().forEach((btn, i) => {
@@ -6330,7 +6342,6 @@ export async function initAtlas(options = {}) {
       }, i * STAGGER);
       revealTimers.push(t);
     });
-    revealLayoutIcon('icon icon-atlas-view');
     // 星雲模式期間可能轉向過 → 以當前 viewport 重 render 顯示中的欄
     listView.querySelectorAll('.atlas-list-col').forEach(col => {
       const colEl = /** @type {HTMLElement} */ (col);
@@ -6355,8 +6366,6 @@ export async function initAtlas(options = {}) {
     applyListFilter();          // list 只顯示預設 faculty 欄（layout btn 切過去才顯示）
     updateFilterBtnColors();    // tab active 樣式（switchToMobileList 顯示時直接可用）
     btns.forEach(b => b.classList.toggle('active', selected.has(b.dataset.filter)));
-    const gateLayoutIcon = /** @type {HTMLElement|null} */ (layoutBtn ? layoutBtn.querySelector('.icon') : null);
-    if (gateLayoutIcon) gateLayoutIcon.className = 'icon icon-atlas-list'; // map view 顯示「切 list」icon
     if (filterEl) filterEl.style.display = 'none';   // 分頁 tab 只在 list view 顯示
     if (isLandscapeGateAtlas) ensureGateSubBtns();   // alumni 左欄子分頁鈕＝橫向 list 3-col 專屬（直向 list 用 2-col）
     // Filter 段尾的 apply()（單選 ['faculty']）已把 B 環/em/partners chip 全藏 → 補回全 chip 純瀏覽
@@ -6390,7 +6399,7 @@ export async function initAtlas(options = {}) {
       drainRevealTimers();
       if (listCareerCtrl) listCareerCtrl.hide();
       hideCareer({ stagger: SUBCHIP_STAGGER });
-      if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
+      hideLayoutBtn();
       [...btns].reverse().forEach((btn, i) => {
         const t = setTimeout(() => {
           if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
@@ -6424,7 +6433,6 @@ export async function initAtlas(options = {}) {
         }
       });
       introTween.to(fadeAnchors, { opacity: 0, duration: FADE, ease: EASE.exitSoft }, 0);
-      hideLayoutIcon({ timeline: introTween, position: 0 });
     });
   }
 
@@ -6432,8 +6440,7 @@ export async function initAtlas(options = {}) {
     return new Promise(resolve => {
       pageExiting = true;
       if (listCareerCtrl) listCareerCtrl.hide();
-      if (layoutBtn) layoutBtn.classList.remove('atlas-layout-revealed');
-      hideLayoutIcon();
+      hideLayoutBtn();
       // 手機：底部分類 tab（= filter btns）跟著收場（桌面 list view 時 filter 本就隱藏不用收）
       if (isMobileAtlas) {
         drainRevealTimers();

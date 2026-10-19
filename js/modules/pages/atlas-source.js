@@ -35,7 +35,19 @@ async function cmsList(collection, mapFn) {
   }
 }
 
-export async function loadAtlasData() {
+// single-flight 快取：待機每次掛星雲都會呼叫，不快取＝每次重抓 7 個 collection（弱機後台慢時切回分頁
+// 待機空白數秒，user 2026-10-04）。任一類失敗（null）不留快取＝下次重抓；硬重整即重抓＝後台改完照常生效。
+let _atlasData = null;
+export function loadAtlasData() {
+  if (!_atlasData) {
+    const p = _atlasData = fetchAtlasData();
+    p.then(d => { if (_atlasData === p && Object.values(d).some(v => v == null)) _atlasData = null; });
+  }
+  // 每次給副本：atlas 頁與待機紙可能同時各跑一份 atlas，不共用同一批資料物件
+  return _atlasData.then(d => structuredClone(d));
+}
+
+async function fetchAtlasData() {
   const [facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry] =
     await Promise.all([
       // 在職教師（與 faculty 卡片頁同源 + 同 cache；失敗回 []）

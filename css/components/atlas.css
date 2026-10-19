@@ -242,9 +242,13 @@ html:not(.mode-switching) body.mode-color #atlas-main { transition: none; }
   white-space: nowrap;
 }
 
-/* B 企業環 chip 雙軸置中：box 中心對齊 ellipse 上的 anchor（蓋 .atlas-name 的 translateY(-50%)） */
+/* B 企業環 chip 雙軸置中：box 中心對齊 ellipse 上的 anchor（蓋 .atlas-name 的 translateY(-50%)）。
+   origin 0 0：傾斜走個別 `rotate`，套在 transform 外層＝繞「置中位移前」的 box 原點轉；預設 50% 50% 換算到畫面是
+   chip 右下角（user 2026-10-19「anchor 在某個角落」）。位移前的左上角＝位移後的視覺中心 → 繞中心轉。
+   飛行換形期間 gsap 自寫 inline origin、落地 clearProps 交還這裡 */
 .atlas-cat-b .atlas-name {
   transform: translate(-50%, -50%);
+  transform-origin: 0 0;
 }
 
 #atlas-content.atlas-dimmed .atlas-name {
@@ -544,47 +548,65 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   margin-top: calc(var(--nav-btn-gap) - 0.5rem);
 }
 
-/* ── 左下 Layout toggle（對齊 logo 左緣）── */
+/* ── View 切換鈕（user 2026-10-19；取代左下單顆黑方塊）：左＝星雲、右＝list，兩個黑底（fg）正方形並排、直角、無中線。
+   active 半邊底＝隨機三原色、inactive 黑底；icon 一律 100% 不調透明度。--layout-bg 由 atlas.js 逐半邊寫（hover inactive 抽另一色＝兩色）。
+   hover inactive 格＝兩格一體整顆轉（atlas.js 寫 #atlas-layout-btn rotate、繞中心）。
+   每格 .atlas-layout-opt＝遮罩（＝格子本身形狀）；.atlas-layout-face＝底色＋icon，進退場/待機在遮罩內四向 clip-reveal。
+   角度在遮罩的祖先上 → face/icon 恆與格子平行、轉了也不會從斜角漏出藏態 */
 #atlas-layout-btn {
   position: fixed;
   left: var(--container-padding, 32px);
   bottom: 32px;
-  cursor: var(--cursor-pointer);
-  background: none;
-  border: none;
-  padding: 0;
   z-index: 50;
+  transition: rotate var(--dur-fast) var(--ease-standard);
 }
 
 .atlas-layout-inner {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: var(--theme-fg, #000);
   color: var(--theme-bg, #fff);
-  font-size: 32px;
-  transform: rotate(-8deg);
-  /* 進退場 clip-path wipe（atlas.js 加/摘 .atlas-layout-revealed）；-12px buffer 蓋旋轉外溢；transform 另給 hover 旋轉用 */
-  clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-  transition: clip-path var(--dur-medium) var(--ease-wipe), transform var(--dur-fast) var(--ease-standard);
 }
 
-#atlas-layout-btn.atlas-layout-revealed .atlas-layout-inner {
-  clip-path: inset(-12px -12px -12px -12px);
-}
-
-/* 未 reveal 時不可點、不給 pointer（同 .atlas-filter-btn 的 :not gate） */
+/* 未 reveal 時不可點、不給 pointer（同 .atlas-filter-btn 的 :not gate；pointer-events 繼承給兩半） */
 #atlas-layout-btn:not(.atlas-layout-revealed) {
   pointer-events: none;
 }
 
-/* hover 隨機三原色（同全站黑方塊 icon 鈕，lists.css .tl-icon-btn-inner），只 hover、無 active；hover 旋轉由 JS arrow-spin 寫 inline。
-   mode3 翻反色；!important 壓 color.css (0,2,1)!important */
+/* 48 正方（同舊方塊佔位：list bottom 依 48） */
+.atlas-layout-opt {
+  display: block;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 32px;
+  overflow: clip;
+  cursor: var(--cursor-pointer);
+}
+.atlas-layout-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--theme-fg, #000);
+  /* 出生藏在遮罩外（init 是動態 import、晚於首繪）；GSAP 接手後寫 inline transform 蓋掉，勿 clearProps */
+  transform: translateY(110%);
+}
+/* active：點了沒作用 → 一般游標 */
+.atlas-layout-opt.is-active {
+  cursor: var(--cursor-default);
+}
+.atlas-layout-opt.is-active .atlas-layout-face {
+  background: var(--layout-bg, var(--color-green));
+  color: #000;
+}
 @media (hover: hover) and (min-width: 768px) {
-  body:not(.mode-color) #atlas-layout-btn[data-nav-hover]:hover .atlas-layout-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
-  body.mode-color #atlas-layout-btn[data-nav-hover]:hover .atlas-layout-inner { background: var(--theme-fg-inverse) !important; color: var(--theme-fg) !important; }
+  .atlas-layout-opt:not(.is-active):hover .atlas-layout-face {
+    background: var(--layout-bg, var(--color-pink));
+    color: #000;
+  }
 }
 
 /* ── List view ───────────────────────────────────────────────────── */
@@ -623,11 +645,12 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   user-select: none;
 }
 
-/* 真桌面：左下當前頁卡（navigation.css #page-indicator）佔原位 → 切換鈕排到卡右邊（--page-indicator-right 由 header.js 發佈）＋24、底 48 同卡底；
+/* 真桌面：切換膠囊視窗底部置中、底 48 同左下當前頁卡底（user 2026-10-19）；
    list 底＝卡頂 + 16（calcListPageSize 讀 list 底） */
 @media (min-width: 1024px) and (min-height: 501px) {
   #atlas-layout-btn {
-    left: calc(var(--page-indicator-right, 120px) + var(--spacing-md, 24px));
+    left: 50%;
+    translate: -50% 0;
     bottom: 48px;
   }
   #atlas-list-view {
@@ -1076,11 +1099,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     max-width: 70vw;
     /* padding 沿用 base 0（head/body 各帶）：勿再加，會內外雙層疊加 */
   }
-  /* 直向手機：① max-width 讓開左下 layout btn（24 + 48 + 8 + ~15 旋轉 bbox）；JS inline width 同步 min() cap（inline min-width 會蓋 CSS max-width）
+  /* 直向手機：① max-width 讓開左下切換膠囊（24 + 88 + 8 + ~15 旋轉 bbox + 右 16）；JS inline width 同步 min() cap（inline min-width 會蓋 CSS max-width）；
+     min-width 240 在窄機（<392）也收進 cap，否則蓋到膠囊
      ② 國家 detail 每筆改上下兩行 */
   @media (orientation: portrait) {
     #atlas-detail {
-      max-width: calc(100vw - 112px);
+      max-width: calc(100vw - 152px);
+      min-width: min(240px, 100vw - 152px);
       /* 點擊 item 會置中 → 卡片不得越過半屏；bottom:16 → 頂緣最低 50vh */
       max-height: calc(50vh - 16px);
     }
@@ -1105,15 +1130,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-detail-desc {
     font-size: 0.8125rem;
   }
-  /* 星雲/list 切換鈕：z-index 70 > 轉向提示 60 → 提示蓋住頁面時返回鈕仍可點 */
+  /* 星雲/list 切換鈕：留左下（底部中間會被右下說明卡蓋）；z-index 70 > 轉向提示 60 → 提示蓋住頁面時返回鈕仍可點。
+     每半 44 正方（觸控標準）、整體 88×44；bottom 18＝頂緣同舊 48 佔位（16+48）→ #atlas-filter bottom 96 不用動 */
   #atlas-layout-btn {
-    bottom: 16px;
-    /* 可見方塊 44（觸控標準）、整體佔位維持 48（padding 2）→ 不必動依賴 48 的 #atlas-filter bottom 與 calcListPageSize；left 補償 padding */
-    left: calc(var(--container-padding, 24px) - 2px);
-    padding: 2px;
+    bottom: 18px;
     z-index: 70;
   }
-  .atlas-layout-inner {
+  .atlas-layout-opt {
     width: 44px;
     height: 44px;
     font-size: 24px;
