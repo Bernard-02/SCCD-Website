@@ -636,7 +636,8 @@ function canModeViewTransition() {
 //   ⭐只收「一直在動」的東西、範圍收到最小（user 同日）：不動的沒有殘影問題，留在快照裡照常交叉淡入才跟大背景完全同步
 //   ——所以 news banner 只抽字在捲的裁切窗（.hm-banner-viewport），bar／數字方塊留快照；ticker 只抽透明的 wrapper，
 //   外層底色（＝灰卡色）留在灰卡快照。命名「裁切容器」而非裡面在動的元素：具名元素不吃祖先 overflow 裁切、只保得住自己的
-const MODE_VT_LIVE_LAYERS = '#floating-layer, .hm-banner-viewport, .lib-title-box, #library-awards-ticker .awards-ticker-wrapper';
+// about history 照片捲軸（.tl-strip＝本體＋clone，class 由 cloneNode 帶過去）：裁切靠 #history 的 clip-path 只裁左右＝視窗邊，抽出不露餡
+const MODE_VT_LIVE_LAYERS = '#floating-layer, .hm-banner-viewport, .lib-title-box, #library-awards-ticker .awards-ticker-wrapper, .tl-strip';
 /** @returns {HTMLElement[]} 已命名元素（VT 結束後清） */
 function nameModeVtElements() {
   /** @type {HTMLElement[]} */
@@ -653,7 +654,9 @@ function nameModeVtElements() {
   // 只命名看得到的（隱藏 panel 的標題盒不必）；名稱各自唯一、樣式靠共用的 view-transition-class 套
   let live = 0;
   document.querySelectorAll(MODE_VT_LIVE_LAYERS).forEach(el => {
-    if (!el.getClientRects().length) return;
+    // 視窗外的不抽（看不到＝凍了也沒差；也免得每次切 mode 都擷取整條巨寬的 history 捲軸）
+    const r = el.getBoundingClientRect();
+    if (!r.width || r.bottom <= 0 || r.top >= window.innerHeight) return;
     name(/** @type {HTMLElement} */ (el), `vt-live-${++live}`);
     /** @type {HTMLElement} */ (el).style.setProperty('view-transition-class', 'vt-live');
   });
@@ -676,6 +679,11 @@ function nameModeVtElements() {
   name(document.getElementById('page-indicator'), 'page-indicator');
   name(document.getElementById('custom-scrollbar-thumb'), 'scroll-thumb');
   if (document.documentElement.classList.contains('mobile-menu-open')) name(document.getElementById('mobile-nav-panel'), 'site-menu');
+  // about：蓋在 history 捲軸上面的 nav（桌面 sticky／手機 strip）、清單鈕、清單
+  name(document.getElementById('anchor-nav'), 'about-nav');
+  name(document.querySelector('.mobile-anchor-strip-wrap'), 'about-nav-m');
+  name(document.querySelector('.tl-list-btn-grid'), 'tl-list-btn');
+  name(document.getElementById('timeline-list-view'), 'tl-list');
   return named;
 }
 

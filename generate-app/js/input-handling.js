@@ -311,7 +311,8 @@ function initDesktopKeyMap() {
         caretRaf = (fakeCaret?.isConnected && ta.getAnimations().length) ? requestAnimationFrame(followCaret) : 0;
     };
     ta.addEventListener('transitionrun', () => { if (!caretRaf) caretRaf = requestAnimationFrame(followCaret); });
-    updateFakeCaret();
+    // 進頁當下 setup 剛寫 --scale，字級正從 120 過渡到縮放值、且 transitionrun 接不到（小螢幕游標卡在 scale 1 的高度）→ 直接跟到過渡跑完
+    followCaret();
 }
 
 // 假游標＝字尾位置：同樣式的隱形鏡像 div 放同一份文字＋尾端標記，量標記位置

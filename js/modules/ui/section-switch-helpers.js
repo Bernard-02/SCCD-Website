@@ -8,7 +8,8 @@
  *   showPanel('.activities-panel', `panel-${key}`);
  */
 import { registerPageCleanup } from './page-cleanup.js';
-import { fitCardToText, navChipHidden, NAV_CHIP_SHOWN } from './scroll-animate.js';
+import { registerPageExit } from './page-exit.js';
+import { fitCardToText, navChipHidden, NAV_CHIP_SHOWN, randomRevealDir } from './scroll-animate.js';
 import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR, EASE } from './motion.js';
@@ -338,6 +339,14 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     scrollList(t < up.offsetHeight ? 0 : t);
   });
   list.addEventListener('scroll', syncEnd, { passive: true });
+  // 離頁退場（user 2026-10-19）：chevron 顯示中＝跟 nav btn 一起收（同 DUR.base／EASE.wipe）——下 chevron 四向隨機 clip reveal
+  //   （同 nav btn 的 navChipHidden）、上 chevron 內層往上收（同它平常的收起）。沒溢出＝chevron 本來就沒顯示、不動
+  registerPageExit(() => {
+    if (typeof gsap === 'undefined' || !host.classList.contains('nav-overflowing')) return Promise.resolve();
+    const tws = [gsap.fromTo(more, { ...NAV_CHIP_SHOWN }, { ...navChipHidden(more, randomRevealDir()), duration: DUR.base, ease: EASE.wipe })];
+    if (upShown) tws.push(gsap.to(upInner, { yPercent: -100, duration: DUR.base, ease: EASE.wipe, overwrite: true }));
+    return Promise.all(tws.map(t => t.then()));
+  });
   // host 高（視窗 resize）或項目高（ui_labels 填字後折行、字型載入）一變就重判；
   // active 換顆（about scroll-spy 邊捲邊換、四頁點擊）也重跑＝把 active 帶進可視範圍
   let raf = 0;
