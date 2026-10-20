@@ -551,19 +551,22 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
 /* ── View 切換鈕（user 2026-10-19；取代左下單顆黑方塊）：左＝星雲、右＝list，兩個黑底（fg）正方形並排、直角、無中線。
    active 半邊底＝隨機三原色、inactive 黑底；icon 一律 100% 不調透明度。--layout-bg 由 atlas.js 逐半邊寫（hover inactive 抽另一色＝兩色）。
    hover inactive 格＝兩格一體整顆轉（atlas.js 寫 #atlas-layout-btn rotate、繞中心）。
-   每格 .atlas-layout-opt＝遮罩（＝格子本身形狀）；.atlas-layout-face＝底色＋icon，進退場/待機在遮罩內四向 clip-reveal。
-   角度在遮罩的祖先上 → face/icon 恆與格子平行、轉了也不會從斜角漏出藏態 */
+   #atlas-layout-btn＝整顆膠囊一個遮罩；.atlas-layout-inner（兩格）進退場/待機在遮罩內一整塊四向 clip-reveal（user 10-20：不分格）。
+   角度寫在遮罩本身 → 遮罩跟著轉、inner 恆與遮罩平行，轉了也不會從斜角漏出藏態 */
 #atlas-layout-btn {
   position: fixed;
   left: var(--container-padding, 32px);
   bottom: 32px;
   z-index: 50;
+  overflow: clip;
   transition: rotate var(--dur-fast) var(--ease-standard);
 }
 
 .atlas-layout-inner {
   display: flex;
   color: var(--theme-bg, #fff);
+  /* 出生藏在遮罩外（init 是動態 import、晚於首繪）；GSAP 接手後寫 inline transform 蓋掉，勿 clearProps */
+  transform: translateY(110%);
 }
 
 /* 未 reveal 時不可點、不給 pointer（同 .atlas-filter-btn 的 :not gate；pointer-events 繼承給兩半） */
@@ -581,7 +584,6 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   background: none;
   color: inherit;
   font-size: 32px;
-  overflow: clip;
   cursor: var(--cursor-pointer);
 }
 .atlas-layout-face {
@@ -591,8 +593,6 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   width: 100%;
   height: 100%;
   background: var(--theme-fg, #000);
-  /* 出生藏在遮罩外（init 是動態 import、晚於首繪）；GSAP 接手後寫 inline transform 蓋掉，勿 clearProps */
-  transform: translateY(110%);
 }
 /* active：點了沒作用 → 一般游標 */
 .atlas-layout-opt.is-active {
@@ -645,8 +645,10 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   user-select: none;
 }
 
-/* 真桌面：切換膠囊視窗底部置中、底 48 同左下當前頁卡底（user 2026-10-19）；
-   list 底＝卡頂 + 16（calcListPageSize 讀 list 底） */
+/* 真桌面：切換膠囊視窗底部置中、底 48 同左下當前頁卡底（user 2026-10-19）。
+   list 左右由 atlas.js layoutListBox 寫（logo 右緣 → mode 鈕左緣）；
+   list 底＝切換鈕頂（底 48＋鈕高 48）再上 md＝固定距離（user 2026-10-20，原「頁卡頂＋16」矮螢幕會壓到鈕；calcListPageSize 讀 list 底）。
+   grid 列鎖在 list 高內：auto 列會被欄內容的最小高撐出 list 底（1440×600 實測欄底標題蓋到切換鈕） */
 @media (min-width: 1024px) and (min-height: 501px) {
   #atlas-layout-btn {
     left: 50%;
@@ -654,12 +656,31 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
     bottom: 48px;
   }
   #atlas-list-view {
-    bottom: calc(var(--page-indicator-top) + 16px);
+    bottom: calc(48px + 48px + var(--spacing-md));
+    grid-template-rows: minmax(0, 1fr);
+    /* 主持↔就職同屬系友 → 欄距 xl、另外兩道 3xl（user 2026-10-20：先 120 再「小一級」）；三道總和改了要同步 atlas.js LIST_TWO_SUBCOL_MIN_W */
+    grid-template-columns:
+      minmax(0, 1fr) var(--spacing-3xl)
+      minmax(0, 1fr) var(--spacing-xl)
+      minmax(0, 1fr) var(--spacing-3xl)
+      minmax(0, 1fr);
   }
-  /* 頂＝--nav-line；atlas.js calcListPageSize 讀 list computed top 同步 */
-  #atlas-filter,
-  #atlas-list-view {
+  /* 單列模式：主持／就職欄寬固定＝就職標題卡＋一個箭頭寬的間距＋箭頭（atlas.js 量好寫 --alumni-col-w），兩欄同寬；
+     剩下的寬平分給教師／合作單位（user 2026-10-20）。兩子欄模式維持四欄等寬（系友兩欄要擺兩子欄） */
+  #atlas-list-view.atlas-list-single {
+    grid-template-columns:
+      minmax(0, 1fr) var(--spacing-3xl)
+      var(--alumni-col-w, minmax(0, 1fr)) var(--spacing-xl)
+      var(--alumni-col-w, minmax(0, 1fr)) var(--spacing-3xl)
+      minmax(0, 1fr);
+  }
+  /* filter 頂＝--nav-line；list 框對齊 library 灰卡：頂＝header 鈕中線（--header-logo-mid，伸進 header 列、user 2026-10-20），
+     左右見 atlas.js layoutListBox。calcListPageSize 讀 list computed top 同步 */
+  #atlas-filter {
     top: var(--nav-line);
+  }
+  #atlas-list-view {
+    top: var(--header-logo-mid);
   }
 }
 
@@ -972,6 +993,29 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
 .atlas-list-item-label + .atlas-list-item-label {
   margin-top: 6px;
 }
+
+/* ── 單列模式（真桌面欄寬擺不下兩子欄，atlas.js layoutListBox 掛 .atlas-list-single；user 2026-10-20）──
+   每欄一子欄、每筆一列：教師＝名稱｜職稱、合作單位＝名稱（國家）｜類型 兩欄；主持／就職＝名稱（國家）一欄。
+   國家副標（.atlas-sub-country）藏起、改由名稱內的 .atlas-list-cc 後綴顯示。星雲節點與 ghost 量高都吃這組（皆 .atlas-list-item） */
+.atlas-list-cc { display: none; }
+/* 外層＝遮罩（inline-block＋overflow:hidden）、內層換形落地才滑入（atlas.js）；pre＝保住開頭空格「 (TW)」 */
+#atlas-list-view.atlas-list-single .atlas-list-cc {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  white-space: pre;
+}
+.atlas-list-cc > span { display: inline-block; }
+#atlas-list-view.atlas-list-single .atlas-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--spacing-sm);
+  align-content: start;
+}
+#atlas-list-view.atlas-list-single .atlas-list-item:is([data-category="host"], [data-category="employ"]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+#atlas-list-view.atlas-list-single .atlas-sub-country { display: none; }
 
 /* ── 分頁 nav item：absolute 貼 .atlas-list-col-items 底、跨整欄（手機同）。
    content-size box + 純 bottom 偏移（勿用 min-height:var(--list-item-h)：各欄值不同 → chevron 高度不一）── */
