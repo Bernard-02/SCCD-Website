@@ -2,9 +2,9 @@
   <!-- 無障礙 Phase 1：鍵盤 Tab 第一站，跳過導航直達主內容（#page-content 跨 SPA 換頁恆在） -->
   <a href="#page-content" class="skip-link">跳到主要內容 Skip to content</a>
   <div class="site-container">
-    <!-- 桌面版：整排 flex，items-start＝logo 與 mode/menu 鈕頂對齊（pt 48）。
-         h-24 固定 96：logo（180/100）in-flow 但溢出列底，不撐高 header（--header-height 全站版面在用） -->
-    <div class="hidden md:flex items-start pt-[3rem] h-24 relative z-50">
+    <!-- 桌面版：整排 flex，items-start＝mode/menu 鈕頂＝--header-btn-top（variables.css，由 --header-logo-top 推：鈕置中於縮小態 logo 中線）；
+         logo 用負 margin 拉回 logo 頂（navigation.css）。h-24 固定 96：logo 與鈕 in-flow 但可溢出列底，不撐高 header（--header-height 全站版面在用） -->
+    <div class="hidden md:flex items-start pt-[var(--header-btn-top,3rem)] h-24 relative z-50">
 
       <!-- Logo（2026-09-27 由 absolute -top-4 改 in-flow）：relative＝/create typewriter 的 absolute SCCD svg/cursor 定位框 -->
       <a href="../index.html" class="relative flex-shrink-0 z-10" aria-label="SCCD 首頁 Home">

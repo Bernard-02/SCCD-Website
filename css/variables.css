@@ -170,13 +170,27 @@
   --lib-fg-rgb: 0, 0, 0;
 }
 
-/* 真桌面 header：logo 頂對齊鈕列（頂 48、縮小態 100 → 底 148）→ nav line 下移 24，維持 logo 底↔nav 36 間距。
-   矮橫向／768–1023 走手機 header，維持 160 */
+/* --nav-line 註冊成 <length>：桌面值是 calc（跟著 --header-logo-top），註冊後 computed＝算好的 px，
+   JS getPropertyValue 才讀得到數字（library-card.js 色卡上界）。手機 base 160 照常 */
+@property --nav-line {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 160px;
+}
+
+/* 真桌面 header：全部從 --header-logo-top 推（user 2026-10-20：logo 以縮小態為準、中線對齊 mode／menu 鈕，「標準一起調整」）。
+   矮橫向／768–1023 走手機 header，nav line 維持 160 */
 @media (min-width: 1024px) and (min-height: 501px) {
   :root {
-    --nav-line: 184px;
-    /* 縮小態 logo 中線＝鈕列頂 48 + 100/2：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box）對齊此線 */
-    --header-logo-mid: 98px;
+    /* header 幾何唯一來源：縮小態 logo（100）頂距螢幕頂。JS 讀這個值的：SCCDHelpers.headerGeom()（hero 禁區、footer 卡、library 灰卡）。
+       改這裡＝logo、鈕、nav line、上下同錨框全站一起走 */
+    --header-logo-top: 36px;
+    /* mode／menu 鈕（48）置中於 logo 中線 */
+    --header-btn-top: calc(var(--header-logo-top) + (100px - 48px) / 2);
+    /* nav line＝縮小態 logo 底＋36（第一顆 nav btn、footer 卡頂、色卡上界對齊此線） */
+    --nav-line: calc(var(--header-logo-top) + 100px + 36px);
+    /* 縮小態 logo 中線：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box、DSD 影片高）上下都對齊此線 */
+    --header-logo-mid: calc(var(--header-logo-top) + 50px);
   }
 }
 

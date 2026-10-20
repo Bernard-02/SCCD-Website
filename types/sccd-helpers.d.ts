@@ -26,6 +26,7 @@ interface SCCDHelpersAPI {
   getRandomAccentColor(): string;
   getRandomRotation(): number;
   rerollAngle<T extends number | string>(gen: () => T, prev: number | string | undefined): T;
+  headerGeom(): { logoTop: number; mid: number; btnTop: number; btnBottom: number };
   shuffle<T>(arr: T[]): T[];
 
   // 站台路徑

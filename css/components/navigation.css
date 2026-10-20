@@ -239,6 +239,9 @@
   initial-value: 0px;
 }
 @media (min-width: 1024px) and (min-height: 501px) {
+  /* 桌面 logo 以縮小態為準：100 的中線對齊 mode／menu 鈕中線（user 2026-10-20，原與鈕頂齊 48）→ 從鈕頂拉回 26＝--header-logo-top。
+     大 logo 180 同錨點（左上角）縮放＝頂也是 --header-logo-top */
+  #site-header a:has(> #header-logo) { margin-top: calc(var(--header-logo-top) - var(--header-btn-top)); }
   /* 面板不吃事件（menu 開著畫面仍可 scroll）→ 只有選項本身可點；點外面關閉由 mobile-menu.js 掛 document 監聽。
      雙 id：color.css 的 .bg-white !important 帶 :not(#faculty-panel)＝1 id 權重，單 id 蓋不過 → mode3 面板變實色蓋掉內容 */
   #site-header #mobile-nav-panel {
@@ -246,10 +249,10 @@
     background: transparent !important;
     pointer-events: none;
   }
-  /* 第一顆 top＝漢堡鈕底（頂 48＋高 48＝96）與 --nav-line 的中點；下組貼底、底距 48＝漢堡鈕離頂距離 */
+  /* 第一顆 top＝漢堡鈕底（鈕頂＋48）與 --nav-line 的中點；下組貼底、底距＝漢堡鈕離頂距離 */
   #site-header .mobile-nav .site-container {
-    padding-top: calc((var(--nav-line) + 96px) / 2);
-    padding-bottom: 48px;
+    padding-top: calc((var(--nav-line) + var(--header-btn-top) + 48px) / 2);
+    padding-bottom: var(--header-btn-top);
   }
   #site-header .mobile-nav nav {
     overflow: visible; /* 蓋 overflow-x-hidden：靠右旋轉 btn 的凸角不被切 */

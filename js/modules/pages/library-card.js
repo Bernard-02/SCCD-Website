@@ -26,21 +26,22 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   let TOP_GAP = BASE_TOP_GAP; // ≥1200 由 layoutMain 換成 DESK_TOP_GAP
   const BOTTOM_GAP = 64;  // 下緣留白（改這個 = 底部距離）
   // ≥1200（同 desktop menu / 當前頁卡 gate）桌面版面（user 2026-09-27）：灰卡頂在 header 鈕半高、底對齊左下當前頁卡底、不置中——
-  //   DESK_TOP_GAP −24＝header 鈕垂直中線 72（列 pt 48 + 鈕 48/2）− section 頂 96：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
+  //   deskTopGap()＝header 鈕垂直中線（SCCDHelpers.headerGeom().mid）− section 頂 96：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
   //   （灰卡頂伸進 header 列；header 放行點擊見 library.css）；
   //   DESK_BOTTOM_GAP 48＝當前頁卡底（navigation.css bottom 48）＝上下 padding 一致（上＝header 列 pt 48）；色卡底界也用它；
   //   DESK_LEFT 192＝logo 右緣 160 + 32（左下當前頁卡同寬、同樣讓開 32）；
   //   DESK_RIGHT 228＝next 鈕中心 sw−228 → 右緣 sw−204，跟 mode 鈕（左緣 sw−180）留 24＝mode↔漢堡 gap（header.html ml-md）＝三顆等距；
   //   色卡上界＝全站 nav line（見 genColorConfig），左右到 container padding 60；只避開左下當前頁卡（見 indicatorZone）。
   // ponytail: header 幾何寫死（列 pt / logo 尺寸 / 鈕寬），header 列改了要同步
-  const DESK_TOP_GAP = -24, DESK_BOTTOM_GAP = 48, DESK_LEFT = 192, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
+  const deskTopGap = () => SCCDHelpers.headerGeom().mid - 96;
+  const DESK_BOTTOM_GAP = 48, DESK_LEFT = 192, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
   const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
   // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。Math.max 保底＝極矮視窗不算出負高。
   function layoutMain(sw, sh) {
     const desk = isDesk();
-    TOP_GAP = desk ? DESK_TOP_GAP : BASE_TOP_GAP;
+    TOP_GAP = desk ? deskTopGap() : BASE_TOP_GAP;
     MAIN_W = desk ? sw - DESK_LEFT - DESK_RIGHT : Math.round(sw * 0.84);
     MAIN_H = Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP));
   }
@@ -163,7 +164,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const pad = 40;
     const MAX_TRIES = 80;
     const minSide = Math.min(sw, sh) * 0.15;  // 下限跟 max 一樣以視窗為準（原本依灰卡 MAIN_W/H；user 2026-08-27）
-    // 色卡上緣：<1200 照原本 BASE_TOP_GAP；≥1200＝全站 nav line（variables.css --nav-line 184）換成 section 座標
+    // 色卡上緣：<1200 照原本 BASE_TOP_GAP；≥1200＝全站 nav line（variables.css --nav-line，@property 註冊＝讀得到 px）換成 section 座標
     // （section 頂＝header 高）＝色塊（含旋轉 bbox）最高只到頁內 nav 頂、不貼 logo（user 2026-09-27）。下緣仍留 pad。
     // bias 中心＝灰卡中心（≥1200 不置中＝grayCx）
     const desk = isDesk();

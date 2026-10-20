@@ -123,6 +123,14 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return d;
   };
 
+  // 真桌面 header 幾何（唯一來源＝variables.css --header-logo-top）：縮小態 logo 100、mode／menu 鈕 48 置中於 logo 中線。
+  // 只在真桌面 gate 有定義，其他視口回 fallback 36（呼叫端本來就只在桌面用）
+  Helpers.headerGeom = function() {
+    const logoTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-logo-top')) || 36;
+    const mid = logoTop + 50;
+    return { logoTop, mid, btnTop: mid - 24, btnBottom: mid + 24 };
+  };
+
   // Fisher–Yates 原地洗牌、回傳同一陣列（要保留來源順序／來源是 frozen 時先 [...arr] 複製）
   Helpers.shuffle = function(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
