@@ -3,6 +3,8 @@
 //   條件＝junction sort 欄+parent relation sort_field，兩者本就具備）。曾一度誤改 list-m2m→反而沒把手，已改回 files。
 // - collection 實際只有 1 筆（照片池）→ 設 singleton，側欄點一下直接進表單、免點 record
 // - 清 13 筆孤兒 junction row（about_history_images_id=null；只移除連結，檔案留在媒體庫）
+// - ④（2026-10-20）每頁筆數 15→200：Directus files 介面「總筆數 > 每頁上限」就關掉拖曳把手（allowDrag = total <= limit，
+//   不給跨頁拖），55 張分 4 頁＝把手消失——這才是「沒有 drag」的真因。其他 files M2M 欄超過 15 張同樣要調
 // ⚠️ singleton 後前台 /items/about_history_images 回「物件非陣列」→ history-source.js 已加 Array.isArray 判斷
 // 跑（repo 根目錄）：NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/fix-about-history-images-sortable.cjs [--dry]
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -37,6 +39,10 @@ async function req(method, path, body) {
     if (DRY) console.log('   [dry] 會刪這些 junction row（檔案留在媒體庫）');
     else { await req('DELETE', '/items/about_history_images_files', orphans.map(o => o.id)); console.log('   已刪（檔案保留在媒體庫）'); }
   }
+
+  // 4) 每頁筆數：超過一頁 Directus 就不給拖 → 200 一頁放完才有 ⠿ 把手
+  console.log('④ images 欄每頁筆數 → 200...');
+  await req('PATCH', '/fields/about_history_images/images', { meta: { options: { limit: 200 } } });
 
   console.log('\n✅ done');
 })().catch(e => { console.error('❌', e.message); process.exit(1); });
