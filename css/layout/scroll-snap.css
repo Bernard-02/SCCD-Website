@@ -192,3 +192,21 @@ html {
     );
   }
 }
+
+/* ===== DSD 主影片／紀錄影片：大小走「上下同錨」框高（100svh − 2×98）=====
+   影片高＝欄寬 × 9/16，扁螢幕會戳出畫面 → 欄寬上限＝框高 × 16/9（等比縮、左緣仍 col-5）。
+   位置不套 98/98：上方 98 大半被 header 鈕列（底 96）佔掉＝視覺偏上（user 2026-10-20）→ 維持 HTML 的
+   md:pt-[92px]＋置中（header 帶下緣～屏底），被框高限住時頂 144／底 52。鎖欄不鎖影片：clip-reveal 遮罩跟著同寬 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #video-section > div,
+  #documentary-video-section > div {
+    max-width: calc((100svh - 2 * var(--header-logo-mid)) * 16 / 9);
+  }
+  /* 紀錄影片（回顧影片）整屏只有它 → 水平置中、寬最大 col 3–18（右緣到 col 18、左右對稱；user 2026-10-20）；
+     被上面框高上限縮窄時 justify-self 讓它仍在中線 */
+  #documentary-video-section > div {
+    grid-column: 3 / span 16;
+    justify-self: center;
+    width: 100%;
+  }
+}

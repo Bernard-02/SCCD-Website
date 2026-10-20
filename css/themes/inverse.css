@@ -235,7 +235,7 @@ body.mode-inverse .legal-map-card.is-swap { --map-num-bg: #fff; --map-body-bg: v
 body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: #000; }
 
 /* ===== About Anchor Nav ===== */
-/* inactive 黑底白字（hover 見 navigation.css「nav btn hover」段）；#anchor-nav / #sticky-events-nav 同套 */
+/* inactive 黑底白字（hover 見 navigation.css「nav btn hover」段） */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
   background-color: #000 !important; /* 實色（非半透明）防透出後方內容 */
   color: white !important;

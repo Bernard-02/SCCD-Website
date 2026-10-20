@@ -236,9 +236,12 @@
 /* ===== Activities Year Group =====
    桌面：year col + list col 並排；手機：年份在上、list 在下堆疊（HTML order-1/order-2），chevron 換到右側。 */
 /* 桌面：年份欄固定 80px（＝寬桌面 1/12 原值）＋其餘 11 軌 1fr → 縮窄時只有 list 變窄、年份↔list gap 恆定。
-   (0,2,0) 蓋過 .grid-12 的 grid-cols-12。年份文字（toggle 版含 chevron ~105px）溢出 80px 軌進 gutter 無害。 */
+   (0,2,0) 蓋過 .grid-12 的 grid-cols-12。年份文字（toggle 版含 chevron ~105px）溢出 80px 軌進 gutter 無害。
+   filter bar（tab／search）與 Permanent 外層也吃同一套軌：等寬 12 欄在窄螢幕 col 1 < 80 → 清單相對 search 右偏。 */
 @media (min-width: 768px) {
-  .list-year-group.grid-12 {
+  .list-year-group.grid-12,
+  .activities-filter-bar > .grid-12,
+  #panel-exhibitions > .grid-12 {
     grid-template-columns: 80px repeat(11, 1fr);
   }
 }
@@ -1368,8 +1371,9 @@ body.mode-color .gallery-ph > span {
   display: none;
 }
 /* divider 藏了，給它讓位的 4px padding 也歸零（同 legal-zebra）。原本靠 divider wrapper 的 -4px margin 抵銷＝
-   只有包過遮罩的列抵得掉；deep-link born-shown 列沒包、每列多 4px，settle 補包時整串上跳（user 2026-10-04） */
-:is(#activities-content-section, #admission-content-section) .list-item {
+   只有包過遮罩的列抵得掉；deep-link born-shown 列沒包、每列多 4px，settle 補包時整串上跳（user 2026-10-04）
+   畢業展卡 padding 寫在 .list-item 本身（py-sm），排除＝別被 #id 權重壓掉下 padding */
+:is(#activities-content-section, #admission-content-section) .list-item:not(.degree-show-card-content) {
   padding-bottom: 0;
 }
 .activities-search-inner {
@@ -1439,7 +1443,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
    .dshow-next-title > .dshow-title-inner（setupNextProject setTitle 注入）。桌面 max-width 當換行界、手機以卡寬為界。 */
 .dshow-next-title {
   white-space: normal;
-  /* line-height 與 hero 標題（.dshow-hero-title）一致（理由見該處）；!important 蓋 text-2xl utility 綁的 lh。 */
+  /* line-height 與 hero 標題（.dshow-hero-title）一致（理由見該處）；!important 蓋 text-xl utility 綁的 lh。 */
   line-height: 1.1 !important;
 }
 .dshow-next-title .dshow-title-inner {

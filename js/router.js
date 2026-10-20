@@ -539,6 +539,12 @@ export function initRouter() {
     loadPage(route, search);
   });
 
+  // history.state.restore（activities 畢業展子分頁的上一頁還原）只給 popstate 用：refresh／直接開＝全新頁面（user 2026-06-04）
+  if (history.state?.restore) {
+    const { restore, ...rest } = history.state;
+    history.replaceState(rest, '');
+  }
+
   // 初始路由（頁面首次載入）；首頁判斷用剝掉子路徑前綴後的邏輯路徑
   const { pathname, search } = window.location;
   const initRoute = resolveRoute(pathname);

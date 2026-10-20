@@ -79,6 +79,36 @@
        覆蓋容器 pt-6xl(192)；ID 特異度(1-1-0)勝 pt-6xl utility。 */
     #dsd-desc-section > .site-container { padding-top: var(--nav-line); }
   }
+  /* 真桌面：海報＋主影片合一屏＝about works 同 grid（user 2026-10-20）：海報 col 4–9（6 欄，user 10-20 從 works 說明欄 4 欄放寬）、影片 col 10–18＋ml sm
+     （欄間＝gutter＋sm＝programs 圖文 gap），影片垂直置中於海報（user 10-20）；影片寬上限＝框高 × 16/9（同 works，扁螢幕等比縮）。
+     JS 有海報才掛 .dsd-media-row、有影片才把 #video-wrapper 搬進 #events-video＋.has-video。
+     沒影片＝海報高＝resources 卡片高（上下同錨框 100svh − 2×98）、寬隨比例、水平置中於視窗（user 10-20）。整塊在框內垂直置中 */
+  .dsd-events-video { display: none; }
+  @media (min-width: 1024px) and (min-height: 501px) {
+    #dsd-desc-section.dsd-media-row {
+      --dsd-frame-h: calc(100svh - 2 * var(--header-logo-mid));
+      display: flex;
+      align-items: center;
+      height: 100vh;
+      padding: var(--header-logo-mid) 0;
+    }
+    #dsd-desc-section.dsd-media-row > .site-container { padding-top: 0; padding-bottom: 0; }
+    /* 清單欄：桌面清單已併進子展覽 tab、這裡恆空 */
+    #dsd-desc-section.dsd-media-row #events-section > :first-child { display: none; }
+    /* 盒貼圖寬（justify-self 非 stretch）：#events-kv 是海報滑入的遮罩，撐滿整列會看到圖在空白處滑行 */
+    #dsd-desc-section.dsd-media-row #events-kv { grid-row: 1; grid-column: 1 / -1; justify-self: center; }
+    #dsd-desc-section.dsd-media-row .dsd-events-kv-img { height: var(--dsd-frame-h); max-height: none; max-width: none; margin-left: 0; }
+    #dsd-desc-section.dsd-media-row.has-video #events-kv { grid-column: 4 / span 6; justify-self: stretch; }
+    #dsd-desc-section.dsd-media-row.has-video .dsd-events-kv-img { width: 100%; height: auto; max-height: var(--dsd-frame-h); }
+    #dsd-desc-section.dsd-media-row .dsd-events-video.has-video {
+      display: block;
+      grid-row: 1;
+      grid-column: 10 / span 9;
+      align-self: center;
+      margin-left: var(--spacing-sm);
+      max-width: calc(var(--dsd-frame-h) * 16 / 9);
+    }
+  }
   /* 手機：海報在活動清單下方（先文字、再海報）。兩者都 col-span-full → DOM 順序自然堆疊。 */
   @media (max-width: 767px) {
     .dsd-events-kv.has-kv { display: block; margin-top: var(--spacing-2xl); }

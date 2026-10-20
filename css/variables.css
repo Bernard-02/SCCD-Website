@@ -230,10 +230,51 @@
   /* 不加 overflow:clip：橫圖與 ±4° 旋轉投影會超出容器左右緣，clip 會裁掉。
      水平溢出由 router.js 對 about 頁設的 body overflowX:hidden 兜住。 */
 }
-/* degree-show：跨全寬＋等面積 vw 尺寸（見 degree-show-gallery.js），直式最高約 35vw。
-   min-height 720＝不塌陷的底（更高的直式靠 section md:h-screen 容納），免 absolute top:50% 的圖上下露出撞到相鄰 section */
-.division-images--degree-show {
-  min-height: 720px;
+/* DSD 桌面子展覽 tab 區（degree-show-data-loader buildDesktopEventTabs，2026-10-20 比照 about programs）：一屏。
+   tab 列高＝programs 鈕列（--about-pill-row-h，scroll-snap.css）、tab 底對齊 programs 鈕底；tab 換行長高時 JS 寫 --dsd-tabs-row-h。
+   卡頂＝列底＋2xl；圖容器／說明卡內捲高＝框內剩餘高（到 98 線）——蓋 scroll-snap.css .class-info-panel 那兩條（多一層 class） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  .dsd-event-tabs-section {
+    --dsd-area-h: calc(100svh - var(--dsd-tabs-row-h, var(--about-pill-row-h)) - var(--spacing-2xl) - var(--header-logo-mid));
+    height: 100svh;
+    overflow-x: clip;
+  }
+  .dsd-event-tabs-row {
+    min-height: var(--about-pill-row-h);
+    padding-top: calc(var(--header-logo-mid) + var(--about-pill-label));
+    padding-bottom: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .dsd-event-tabs-area { padding-top: var(--spacing-2xl); }
+  /* 左 box 欄＋右 gallery（col 4–18）：中間只留 programs 圖文 gap（gutter＋sm），其餘寬全給 gallery */
+  .dsd-event-panel-row {
+    display: flex;
+    align-items: flex-start;
+    gap: calc(var(--spacing-gutter) + var(--spacing-sm));
+  }
+  /* box 欄寬上限＝col 4～col 8（15 欄內容區的 5 欄＋4 gap，user 2026-10-20）；box 比它窄就貼字（fitCardToText）→ 欄寬＝最寬那塊。
+     三塊總高超過框＝整欄內捲 */
+  .dsd-event-boxes {
+    flex: 0 1 auto;
+    max-width: calc((100% - 14 * var(--spacing-gutter)) * 5 / 15 + 4 * var(--spacing-gutter));
+    max-height: var(--dsd-area-h);
+    overflow-y: auto;
+    overflow-x: hidden;   /* fitCardToText 的 +1px 防折行會比欄寬多 1px → 不擋就冒橫向捲軸 */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  .dsd-event-tabs-section .class-info-panel .division-images { flex: 1 1 0; min-width: 0; min-height: 0; height: var(--dsd-area-h); }
+  /* 圖往右延伸到視窗邊（user 2026-10-20「往右無限延伸、不一定只有 3 張」）：容器右緣從 col 18 推到視窗右緣
+     （＋2 欄 2 gap＋container padding），張數由 JS 給（最多 5、不超過該 event 圖數）；超出視窗的由 section overflow-x:clip 裁 */
+  .dsd-event-tabs-section .class-info-panel .division-images {
+    margin-right: calc(-1 * (var(--container-padding) + 2 * ((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter))));
+  }
+  /* 長名換行（同 about 分組鈕 max-width 折行），免一排擠出畫面 */
+  .dsd-event-tabs-section .class-division-btn { max-width: 260px; }
 }
 .class-img {
   position: absolute;

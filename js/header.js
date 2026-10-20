@@ -868,11 +868,14 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
   let revealCard = false;
   const indDir = IND_REVEAL_DIRS[Math.floor(Math.random() * IND_REVEAL_DIRS.length)];
-  if (indCard && (indCard.dataset.page !== activePage || _indCardExited)) {
+  // DSD 詳情頁不放卡（user 2026-10-20）：key 用原 page 而非對應的 activities，回 activities 時才會重填
+  const cardKey = page === 'degree-show-detail' ? page : activePage;
+  if (indCard && (indCard.dataset.page !== cardKey || _indCardExited)) {
     _indCardExited = false;
-    indCard.dataset.page = activePage;
+    indCard.dataset.page = cardKey;
     const label = PAGE_CARD_LABELS[activePage];
-    indCard.innerHTML = label ? `<span>${label[0]}</span> <span>${label[1]}</span>`
+    indCard.innerHTML = cardKey === 'degree-show-detail' ? ''
+      : label ? `<span>${label[0]}</span> <span>${label[1]}</span>`
       : header.querySelector('a.mobile-nav-link.active')?.innerHTML || '';
     /** @type {HTMLElement} */ (indCard.parentElement).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
     revealCard = !!indCard.innerHTML && typeof gsap !== 'undefined';

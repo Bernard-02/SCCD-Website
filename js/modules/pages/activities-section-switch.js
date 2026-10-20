@@ -733,9 +733,13 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // ?section= / ?item= deep-link：只有從首頁 floating 卡片點進來的 SPA 導航（fromUserNav）才套指定 section + 跑導航動畫。
   const params = new URLSearchParams(window.location.search);
+  // 瀏覽器上一頁回到「從畢業展清單點卡離開」的那筆紀錄（initExhibitionsTypeFilter 寫進 history.state；refresh 由 router 清掉）
+  // → 比照舊 ?section=degree-show 連結：開展演＋切畢業展子分頁、hero 後捲到清單（user 2026-10-20）
+  const backToDegreeShow = !fromUserNav && history.state?.restore === 'degree-show';
+  if (backToDegreeShow) params.set('section', 'degree-show');
   const hasDeepLink = params.has('section');
 
-  if (hasDeepLink && fromUserNav) {
+  if (hasDeepLink && (fromUserNav || backToDegreeShow)) {
     let initialSection = params.get('section') || defaultSection;
     // 畢業展 2026-09-29 併入展演子分頁：舊連結（DSD 詳細頁返回鈕、網站地圖 activities?section=degree-show）
     // → 開展演、再切到畢業展子分頁
@@ -1227,6 +1231,14 @@ function initExhibitionsTypeFilter() {
   const btns = document.querySelectorAll('#exhibitions-type-filter .exhibitions-type-btn');
   if (!btns.length) return;
   bindNavBtnSpin(btns);   // 初始隨機角＋桌面 hover 抽角（離開保持）
+
+  // 點畢業展卡進詳情頁前，在本頁這筆 history 記下 → 瀏覽器上一頁回來還原畢業展子分頁（消費端見 initActivitiesSectionSwitch）。
+  // 容器 bubble 比 router 的 document click 先跑＝pushState 之前寫進的是目前這筆
+  document.getElementById('degree-show-list')?.addEventListener('click', (e) => {
+    if (/** @type {Element} */ (e.target).closest('a[href*="degree-show-detail"]')) {
+      history.replaceState({ ...history.state, restore: 'degree-show' }, '');
+    }
+  });
 
   const activeInner = /** @type {HTMLElement | null} */ (document.querySelector('#exhibitions-type-filter .exhibitions-type-btn.active .anchor-nav-inner'));
   if (activeInner) {

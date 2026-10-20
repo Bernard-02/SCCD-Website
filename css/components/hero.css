@@ -233,46 +233,13 @@
     color: #000;
     line-height: 1.15;
   }
-  /* events nav chip：行距同 anchor-nav-inner；英中距用 s 字級 token */
-  .sticky-event-chip .sticky-chip-inner {
-    line-height: var(--line-height-base);
-    gap: var(--space-en-zh-s);
-  }
-  /* 換色不寫在這：chip 掛 .anchor-nav-btn/.anchor-nav-inner 吃 about nav btn 三 mode 規則（navigation.css / inverse.css / color.css）；
-     active accent 底由 JS inline 設（mode3 被 color.css !important 蓋成 B/W） */
-  /* 每顆 chip 用自身尺寸各自 clip-reveal——整個 window 一起 reveal 時，最後一顆會走整條 track 全高滑入。
-     clip-path 預設 SHOWN（-12px buffer 免切旋轉角）；transform＝hover 旋轉(fast)，clip-path/translate＝wipe(medium) */
-  .sticky-event-chip {
-    display: inline-block;
-    /* 旋轉繞中心；translate / clip-path 不受 origin 影響 */
-    transform-origin: center;
-    clip-path: inset(-12px -12px -12px -12px);
-    pointer-events: auto;
-    cursor: var(--cursor-pointer);
-    transition: transform var(--dur-fast) var(--ease-standard),
-                clip-path var(--dur-medium) var(--ease-wipe),
-                translate var(--dur-medium) var(--ease-wipe);
-  }
-  /* window：舊 chip 靠 clip-path SHOWN buffer（inset(-12px)＝12px outset）裁掉；不用 overflow:hidden（0 buffer 會切掉 current chip 旋轉角）。
-     overflow:clip＋同 12px margin 當保險。⚠️ track gap 必須 > buffer + 旋轉下擺量 */
-  #sticky-events-nav {
-    overflow: clip;
-    overflow-clip-margin: 0.75rem;
-    transition: clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe);
-  }
-  /* track：translateY 把 current 推到窗頂。gap 1.5rem＝前一顆底緣要落在 12px buffer 外＋自身旋轉下擺 ~10px */
-  #sticky-events-track {
-    gap: 1.5rem;
-    transition: transform var(--dur-medium) var(--ease-wipe);
-  }
   /* title chip 是 text-lg → 英中距用 lg 字級 token */
   #sticky-title-chip .sticky-chip-inner {
     gap: var(--space-en-zh-lg);
   }
   /* chip max-width＝grid-20 col-span-3（留 col-4 當呼吸空間）；長名 wrap。桌面 only。
      col-span-3 = 3×欄寬 + 2×gutter，欄寬 = (100vw − 2padding − 19 gutter)/20 */
-  #sticky-title-chip .sticky-chip-inner,
-  .sticky-event-chip .sticky-chip-inner {
+  #sticky-title-chip .sticky-chip-inner {
     /* max-content：撐到最長一行；否則 inline-flex column 縮成 min-content 逐字斷行 */
     width: max-content;
     max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) * 3 / 20 + 2 * var(--spacing-gutter));
@@ -323,13 +290,19 @@
     z-index: 9999;
   }
 
-  /* hover 旋轉套 inner：外 .sticky-chip 的 transform 被 JS inline（隨機 base 角）佔用、:hover 蓋不過；
+  /* ref 鈕 hover 旋轉套 inner（返回鈕改 JS arrow-spin 抽新角、離開保持，見 degree-show-data-loader）：
+     外 .sticky-chip 的 transform 被 JS inline（隨機 base 角）佔用、:hover 蓋不過；
      旋轉角靠 -12px clip buffer 不被切。桌面限定免手機 tap 殘留 hover */
   @media (min-width: 768px) {
-    #degree-show-back-btn:hover .sticky-chip-inner,
     #degree-show-ref-btn:hover .sticky-chip-inner {
       transform: rotate(15deg);
     }
+  }
+  /* 返回鈕 hover 上色＝黑方塊 icon 鈕家族（同 lists.css .tl-icon-btn-inner 段；user 2026-10-20）：JS bindNavBtnHover 掛 data-nav-hover
+     ＋--nav-hover（桌面才掛）；mode1/2 隨機三原色底黑 icon、mode3 翻反色。瞬切（inner transition 只列 transform） */
+  @media (hover: hover) and (min-width: 768px) {
+    body:not(.mode-color) #degree-show-back-btn[data-nav-hover]:hover .sticky-chip-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+    body.mode-color #degree-show-back-btn[data-nav-hover]:hover .sticky-chip-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
   }
 
   /* Ref popover chip strict B/W：bg 放 chip 不放 card（card 透明）——chip 靠 margin:-1px 0 垂直重疊，旋轉邊才不漏下層 card bg 1px 細縫；
