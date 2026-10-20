@@ -103,8 +103,8 @@ const BAR_HIDE_DIRS = ['top', 'right', 'bottom', 'left'];
 // 位移在「剛好貼齊遮罩邊」外再多滑的餘量：實色 bar 在剛好 ±自身尺寸（貼邊）會留 sub-pixel 縫（user 回報
 // 「左右收會剩一個縫隙」；hero 字卡是透明字看不出、實色 bar 才顯）。加 buffer 一定滑過邊、無縫。
 const BAR_HIDE_BUFFER = 12;
-// child 藏起位移（px，wrapper 的 local/旋轉座標系內）：貼齊該方向遮罩邊 + buffer。left 用遮罩寬（含鈕的
-// marginLeft）；其餘用 bar 自身尺寸。
+// child 藏起位移（px，wrapper 的 local/旋轉座標系內）：貼齊該方向遮罩邊 + buffer。left 用遮罩寬（margin 已搬到遮罩外＝鈕寬）；
+// 其餘用 bar 自身尺寸。
 function barHideOffset(dir, bar, mask) {
   const B = BAR_HIDE_BUFFER;
   switch (dir) {
@@ -131,6 +131,9 @@ function ensureBarMask(bar) {
   mask.style.flexShrink = '0';
   // 遮罩＝鈕本身形狀（圓鈕圓遮罩）：滑出時不被方框直邊切（user 2026-10-01）
   mask.style.borderRadius = getComputedStyle(bar).borderRadius;
+  // 鈕的 margin-left（menu 鈕 ml-md）搬到遮罩外：遮罩含 margin＝從左邊進出時鈕在兩顆鈕的間距裡現身、沒被裁（user 2026-10-20）
+  const ml = getComputedStyle(bar).marginLeft;
+  if (parseFloat(ml)) { mask.style.marginLeft = ml; bar.style.marginLeft = '0px'; }
   parent.insertBefore(mask, bar);
   mask.appendChild(bar);
   return mask;
@@ -154,6 +157,7 @@ function footerHideBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
   const bars = getFooterHideTargets();
   if (!bars.length) return;
+  bars.forEach(settleBtnCycle);   // 換 icon 中被收起：先把 cycle 收尾，否則 onComplete 永遠不跑＝鈕卡在凍色、icon 不換（user 2026-10-20）
   gsap.killTweensOf(bars);
   // <1200＝手機 header 排（mode + 漢堡兩顆鈕）：一致往上滑收，配 .mobile-header-bg 底色帶的上滑（乾淨的手機式收起）。
   // 桌面散佈版(≥1200) header bars 才用隨機四方向 scatter。user 2026-08-10：兩顆鈕隨機四方向收看起來很奇怪。
@@ -194,10 +198,82 @@ function clearBarMask(bar) {
     if (mask.dataset.lentRot) { mask.style.transform = ''; delete mask.dataset.lentRot; }
   }
 }
+// header 鈕換 icon（mode 切換／menu 開合）＝整顆鈕 clip-reveal 出場 → 換 → 進場（user 2026-10-20，取代只滑 icon／mode icon 直接切）。
+// 遮罩同 footer-near 收鈕（ensureBarMask＋lendCssRotToMask）；出、進各自隨機方向，每半段 DUR.base＝總長 0.8s（user 10-20 嫌 0.3 太快）。
+// 出場那半段凍住點擊當下的底色／icon 色：mode 切換時 body class 立刻換，不凍＝舊 icon 穿新顏色出場；換 icon 那刻放開。
+// 鈕沒顯示、或正被 footer-near／/create／lightbox 收著＝直接換。出場中再點＝只換成最新的 swap；進場中再點＝從目前位置重新出場
+/** @type {WeakMap<HTMLElement, { phase: 'out' | 'in', swap: () => void }>} */
+const btnCycles = new WeakMap();
+// 進行中的 cycle 直接收尾（要砍鈕 tween 前呼叫、或進場發現 tween 已被外部砍掉）：補做待辦的 swap、解凍、清遮罩。
+// 狀態機只靠 onComplete 推進，tween 被 killTweensOf 砍掉＝永遠停在 out：底色凍住、icon 不換、之後每次點都 return（2026-10-20 實測）
+function settleBtnCycle(bar) {
+  const state = btnCycles.get(bar);
+  if (!state) return;
+  btnCycles.delete(bar);
+  state.swap();
+  unfreezeBarColors(bar);
+  clearBarMask(bar);
+}
+function freezeBarColors(bar) {
+  const inner = /** @type {HTMLElement | null} */ (bar.firstElementChild);
+  bar.style.setProperty('background', getComputedStyle(bar).backgroundColor, 'important');
+  inner?.style.setProperty('color', getComputedStyle(inner).color, 'important');
+}
+function unfreezeBarColors(bar) {
+  bar.style.removeProperty('background');
+  /** @type {HTMLElement | null} */ (bar.firstElementChild)?.style.removeProperty('color');
+}
+/** @param {HTMLElement} bar @param {() => void} swap */
+export function cycleHeaderBtn(bar, swap) {
+  let state = btnCycles.get(bar);
+  // 死狀態：有狀態但鈕身上已沒有 x/y tween＝cycle 被外部砍掉（settleBtnCycle 沒經過的路徑）→ 收尾後當新 cycle 跑
+  if (state && !gsap.getTweensOf(bar).some(t => 'x' in t.vars || 'y' in t.vars)) { settleBtnCycle(bar); state = undefined; }
+  if (state) {
+    state.swap = swap;
+    if (state.phase === 'out') return;
+  } else if (typeof gsap === 'undefined' || prefersReducedMotion() || !bar.getClientRects().length
+    || (modeBtnCreateHidden && bar.id === 'mode-btn')
+    // 被收著／收展中＝有位移或位移補間（hover 抽角的 --hdr-rot 補間不算：點擊當下常在跑）
+    || gsap.getProperty(bar, 'x') || gsap.getProperty(bar, 'y')
+    || gsap.getTweensOf(bar).some(t => t.isActive() && ('x' in t.vars || 'y' in t.vars))) {
+    swap();
+    return;
+  }
+  const s = state || { phase: 'out', swap };
+  btnCycles.set(bar, s);
+  s.phase = 'out';
+  const mask = ensureBarMask(bar);
+  if (!state) {
+    // hover 抽角的 --hdr-rot 補間可能還在跑：先跑完再借角給遮罩，否則遮罩拿到半途角、回位時才跳到終點角＝「回原位又轉一次」
+    gsap.getTweensOf(bar).forEach(t => { if ('--hdr-rot' in t.vars) t.progress(1); });
+    if (mask) { mask.style.overflow = 'clip'; lendCssRotToMask(bar, mask); }
+    bar.style.transition = 'none';
+  }
+  freezeBarColors(bar);
+  const off = barHideOffset(pickBarDir(bar), bar, mask || bar);
+  // onComplete 都先驗「狀態還是這個 cycle」：in-tween 最後一幀再點＝新 out-tween 建好但同 tick 舊 in-tween 先完成、
+  // 它的 onComplete 會把新狀態刪掉＋清遮罩（鈕露在遮罩外滑、再點就繞過狀態機 icon 對不上；trace 實抓 2026-10-20）
+  gsap.to(bar, {
+    x: off.x, y: off.y, duration: DUR.base, ease: EASE.exit, overwrite: 'auto',
+    onComplete: () => {
+      if (btnCycles.get(bar) !== s) return;
+      s.swap();
+      unfreezeBarColors(bar);
+      s.phase = 'in';
+      const from = barHideOffset(pickBarDir(bar), bar, mask || bar);
+      gsap.fromTo(bar, { x: from.x, y: from.y }, {
+        x: 0, y: 0, duration: DUR.base, ease: EASE.enter, overwrite: 'auto',
+        onComplete: () => { if (btnCycles.get(bar) !== s || s.phase !== 'in') return; btnCycles.delete(bar); clearBarMask(bar); },
+      });
+    },
+  });
+}
+
 // 即時復位（reset 路徑用，不跑動畫）
 function resetFooterBarsState() {
   if (typeof gsap === 'undefined') return;
   const bars = getFooterHideTargets();
+  bars.forEach(settleBtnCycle);
   gsap.killTweensOf(bars);
   bars.forEach(clearBarMask);
 }
@@ -927,21 +1003,25 @@ export function initHeader() {
     header.querySelectorAll('#mode-btn, #menu-btn').forEach(el => {
       const btn = /** @type {HTMLElement} */ (el);
       btn.style.setProperty('--hdr-rot', '0deg');   // GSAP 補間 var 要有帶單位的起點
-      // mode 鈕：點擊切 mode 跑 View Transition，overlay 蓋住鈕期間瀏覽器判游標「離開」、結束後補發 mouseenter
-      // （游標根本沒動）→ 同點位的 enter 不抽新角（user 2026-10-02「cursor 位置不變就不轉、但可以變色」；變色 listener 照跑）。
-      // 點擊本身也不轉（同日 user：連點也不換角）→ clickReroll:false
-      /** @type {number[] | null} */
-      let clickPt = null;
-      // 只記真人點擊（detail>0）：VT 期間的連點由 theme-toggle forwardModeClick 用 btn.click() 轉交＝座標 0,0，
-      // 蓋掉的話下一次補發的 enter 就對不上、又抽新角
-      if (btn.id === 'mode-btn') btn.addEventListener('click', (e) => { if (e.detail > 0) clickPt = [e.clientX, e.clientY]; });
+      // 遮罩先建好：mode 切換的 View Transition 要在開跑前把遮罩命名成即時層（theme-toggle nameModeVtElements），
+      // 鈕在遮罩內出場再進場（cycleHeaderBtn）才看得到；footer-near 收鈕本來也會建、結構相同
+      ensureBarMask(btn);
+      // 點擊後游標還沒離開鈕的範圍＝不抽新角，要真的移出去再 hover 才抽（user 2026-10-02「cursor 不動就不轉、但可以變色」、
+      //   10-20「點擊之後滑鼠沒離開就不吃新角度，直到再次 hover」；變色 listener 照跑）。補發 mouseenter 的來源：mode 鈕 VT overlay
+      //   蓋住又掀開、兩顆鈕換 icon 時整顆滑出再滑回游標下（游標小幅移動也算沒離開）。範圍量遮罩（鈕滑走時遮罩留在原位）。
+      //   換 icon 動畫中也一律不抽（不然終點角跟遮罩借走的角不同＝回位又轉一次）。點擊本身也不轉 → clickReroll:false
+      let stayed = false;
+      // 只記真人點擊（detail>0）：VT 期間的連點由 theme-toggle forwardModeClick 用 btn.click() 轉交
+      btn.addEventListener('click', (e) => { if (e.detail > 0) stayed = true; });
+      document.addEventListener('mousemove', (e) => {
+        if (!stayed) return;
+        const r = (btn.parentElement || btn).getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) stayed = false;
+      }, { passive: true });
       bindArrowSpin(btn, (d) => {
         if (typeof gsap === 'undefined') { btn.style.setProperty('--hdr-rot', `${d}deg`); return; }
         gsap.to(btn, { '--hdr-rot': `${d}deg`, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
-      }, btn.id === 'mode-btn' ? {
-        ignoreEnter: (e) => !!clickPt && e.clientX === clickPt[0] && e.clientY === clickPt[1],
-        clickReroll: false,
-      } : {});
+      }, { ignoreEnter: () => stayed || btnCycles.has(btn), clickReroll: false });
     });
     // mode 圓鈕 hover 抽三原色（同漢堡鈕 mobile-menu.js；mode3 由 buttons.css 翻黑白）。無 active 態＝每次進入都重抽
     header.querySelector('#mode-btn')?.addEventListener('mouseenter', (e) => {

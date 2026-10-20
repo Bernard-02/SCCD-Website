@@ -2,6 +2,7 @@ import { DUR, EASE } from './motion.js';
 import { sitePath } from './site-base.js';
 import { runLottieWhenVisible } from './lottie-visibility.js';
 import { prefersReducedMotion } from './reduce-motion.js';
+import { cycleHeaderBtn } from '../../header.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -494,7 +495,7 @@ function applyMode(mode, opts) {
   // View Transition（user 2026-10-01 plan B）：整頁新舊快照在合成器交叉淡入，只做一次樣式重算——取代逐元素 CSS
   //   transition（library/about/activities 實測每幀樣式重算 50–100ms＝0.4s 只剩幾格、header 帶與大背景脫節）
   if (animate && canModeViewTransition()) {
-    runModeViewTransition(() => commitMode(mode, autoStartColorLoop));
+    runModeViewTransition(() => commitMode(mode, autoStartColorLoop, true));
     return;
   }
   if (animate) {
@@ -559,23 +560,28 @@ function applyMode(mode, opts) {
     }, MODE_FADE_MS);
   }
 
-  commitMode(mode, autoStartColorLoop);
+  commitMode(mode, autoStartColorLoop, animate);
 }
 
 /** 換 mode 的實際 DOM 更新（class／icon／color loop／theme:changed／header logo）。
  *  View Transition 路徑在 update callback 內呼叫＝新快照含這些變更。
- *  @param {string} mode @param {boolean} autoStartColorLoop */
-function commitMode(mode, autoStartColorLoop) {
+ *  @param {string} mode @param {boolean} autoStartColorLoop @param {boolean} [animateIcon] 使用者切換＝桌面 mode 鈕整顆出場再帶新 icon 進場 */
+function commitMode(mode, autoStartColorLoop, animateIcon = false) {
+  // Header mode btn icon: 跟 mode 切換同步換 mode_1/2/3 SVG（.icon mask 系統，currentColor 跟 .theme-toggle-btn 走）。
+  // 桌面鈕＝整顆出場 → 換 → 進場（header.js cycleHeaderBtn，user 2026-10-20）；排在換 body class 之前＝出場那半段凍得住舊顏色。
+  // 進頁套用／手機鈕＝直接換
+  const MODE_TO_ICON_CLASS = { standard: 'icon-mode-1', inverse: 'icon-mode-2', color: 'icon-mode-3' };
+  const iconCls = `icon ${MODE_TO_ICON_CLASS[mode] || 'icon-mode-1'}`;
+  document.querySelectorAll('[data-header-mode-icon]').forEach(el => {
+    const set = () => { el.className = iconCls; };
+    const bar = /** @type {HTMLElement | null} */ (el.closest('#mode-btn'));
+    if (animateIcon && bar && el.className !== iconCls) cycleHeaderBtn(bar, set); else set();
+  });
+
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.documentElement.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
   document.body.classList.add(`mode-${mode}`);
   document.documentElement.classList.add(`mode-${mode}`);
-
-  // Header mode btn icon: 跟 mode 切換同步換 mode_1/2/3 SVG（.icon mask 系統，currentColor 跟 .theme-toggle-btn 走）
-  const MODE_TO_ICON_CLASS = { standard: 'icon-mode-1', inverse: 'icon-mode-2', color: 'icon-mode-3' };
-  document.querySelectorAll('[data-header-mode-icon]').forEach(el => {
-    el.className = `icon ${MODE_TO_ICON_CLASS[mode] || 'icon-mode-1'}`;
-  });
 
   if (mode === 'color') {
     // autoStartColorLoop=false：/create 內 colormode btn 切到 color 時不自動啟動 RAF（user 須手動點 Play）。
@@ -649,8 +655,12 @@ function nameModeVtElements() {
   };
   name(document.getElementById('header-logo'), 'header-logo');
   name(document.getElementById('mode-color-panel'), 'mcp');   // 此刻可能還 display:none、新畫面才出現（2→3）＝照樣命名
-  // mode 鈕 icon 換圖不淡、直接切（user 2026-10-02）；桌面／手機各一顆，名稱不可重複
-  document.querySelectorAll('[data-header-mode-icon]').forEach((el, i) => name(/** @type {HTMLElement} */ (el), `mode-icon-${i}`));
+  // mode 鈕 icon 不淡（user 2026-10-02）；桌面／手機各一顆，名稱不可重複。桌面鈕命名整個遮罩（header.js 初始化就建好）：
+  //   新快照是即時的＝VT 期間看得到鈕在遮罩內出場再進場（cycleHeaderBtn，10-20）；手機照舊命名 icon＝直接切
+  document.querySelectorAll('[data-header-mode-icon]').forEach((el, i) => {
+    const mask = el.closest('#mode-btn')?.parentElement;
+    name(/** @type {HTMLElement} */ (mask?.classList.contains('header-bar-clip') ? mask : el), `mode-icon-${i}`);
+  });
   // 只命名看得到的（隱藏 panel 的標題盒不必）；名稱各自唯一、樣式靠共用的 view-transition-class 套
   let live = 0;
   document.querySelectorAll(MODE_VT_LIVE_LAYERS).forEach(el => {

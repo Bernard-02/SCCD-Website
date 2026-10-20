@@ -4,7 +4,8 @@
  * 處理手機版漢堡選單的開關、圖示切換與手風琴效果
  */
 
-import { setupClipReveal, clipRevealIconSwap } from './modules/ui/scroll-animate.js';
+import { setupClipReveal } from './modules/ui/scroll-animate.js';
+import { cycleHeaderBtn } from './header.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 
 // 套 random rotation（user pattern：每次點開角度不一樣，跟 footer items / hero title 同款）
@@ -36,8 +37,8 @@ export function initMobileMenu() {
   // 用 inline style.display 切換，避 Tailwind .hidden 跟 icon display:inline-block 的 cascade 競爭
   const iconOpen = document.querySelectorAll('[data-mobile-menu-icon="open"]');
   const iconClose = document.querySelectorAll('[data-mobile-menu-icon="close"]');
-  // 桌面 #menu-btn 單一 glyph：換 class 走 clipRevealIconSwap（同 history 鈕舊做法：隨機四向滑出遮罩→換→同向滑入）
-  // 每半段 DUR.fast 0.3 → 總長 0.6s，貼齊選項收起 0.61s／頁面退場 0.5~0.68s（原 0.4×2＝0.8s，鈕比選項晚換完；user 2026-09-28）
+  // 桌面 #menu-btn 單一 glyph：整顆鈕出場 → 換 icon → 進場（header.js cycleHeaderBtn，user 2026-10-20；原只滑 icon）
+  // 每半段 DUR.fast 0.3 → 總長 0.6s，貼齊選項收起 0.61s／頁面退場 0.5~0.68s（user 2026-09-28）
   const swapIcon = document.querySelector('[data-menu-swap-icon]');
   // 桌面漢堡鈕 hover 抽三原色（mode1/2；mode3 CSS 翻黑白）；開著不重抽＝open 態維持點下去那色（buttons.css .is-open）
   const deskMenuBtn = document.getElementById('menu-btn');
@@ -45,14 +46,14 @@ export function initMobileMenu() {
     if (!deskMenuBtn.classList.contains('is-open')) deskMenuBtn.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
   });
   const setIcons = (open) => {
-    deskMenuBtn?.classList.toggle('is-open', open);
     iconOpen.forEach(i => { i.style.display = open ? 'none' : ''; });
     iconClose.forEach(i => { i.style.display = open ? '' : 'none'; });
-    if (swapIcon) {
-      const cls = open ? 'icon icon-arrow-right' : 'icon icon-menu';
-      if (swapIcon.offsetParent) clipRevealIconSwap(swapIcon, cls, { duration: DUR.fast });
-      else swapIcon.className = cls; // 桌面鈕沒顯示（<1200）：直接換、不跑動畫
-    }
+    // 開合態（.is-open＝開著的底色）跟 icon 一起在「換」那刻切＝出場的還是舊樣子；桌面鈕沒顯示時 cycleHeaderBtn 直接換
+    const swap = () => {
+      deskMenuBtn?.classList.toggle('is-open', open);
+      if (swapIcon) swapIcon.className = open ? 'icon icon-arrow-right' : 'icon icon-menu';
+    };
+    if (deskMenuBtn) cycleHeaderBtn(deskMenuBtn, swap); else swap();
   };
   // 含 nav links + 底部 CREATE! link，整個面板所有 link 都進 stagger
   const menuItems = nav?.querySelectorAll('.mobile-nav-link');
