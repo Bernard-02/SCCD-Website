@@ -1344,37 +1344,34 @@ async function loadPanel(section) {
     onLazyBatch: () => { initListAccordion(); },
   };
 
+  // 載完清單不呼叫 ScrollTrigger.refresh()（2026-10-20）：refresh 會 scrollTo(0) 再還原，打在 hero→main snap 飛行中會砍斷
+  // 動畫停半路、Chrome 再 snap 一次＝「對齊兩次」。桌面 frame 固定 100vh 沒東西要重量；手機 section 長高由上面的 RO 去抖補
   switch (section) {
     case 'exhibitions':
       await loadExhibitionsInto(opts);
       initListAccordion();
       initExhibitionsTypeFilter();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'visits':
       await loadVisitsInto(opts);
       initListAccordion();
       initVisitsTypeFilter();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'competitions':
       await loadGeneralActivitiesInto('competitions-list', 'competitions', '/data/general-activities.json', opts);
       initListAccordion();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'conferences':
       await loadGeneralActivitiesInto('conferences-list', 'conferences', '/data/general-activities.json', opts);
       initListAccordion();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'lectures':
       await loadLecturesInto('lectures-list', opts);
       initListAccordion();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
 
     case 'workshop':
@@ -1395,7 +1392,6 @@ async function loadPanel(section) {
     case 'industry':
       await loadIndustryInto('industry-list', opts);
       initListAccordion();
-      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       return;
   }
 }
