@@ -42,7 +42,7 @@
 │   ├── header.js / footer.js   # 全域 header/footer 初始化（DOMContentLoaded 跑一次）
 │   └── modules/
 │       ├── pages/              # 各頁專屬模組（create-app / atlas / alumni / library-* / 等）
-│       │   └── about/          # about 頁拆分（resources-cycling / brand-trail / timeline / ...）
+│       │   └── about/          # about 頁拆分（about-data-loader / resources-cycling / timeline / ...）
 │       ├── ui/                 # 共用 UI（theme-toggle / page-exit / page-cleanup /
 │       │                         custom-scrollbar / scroll-animate / marquee-overflow / ...）
 │       ├── lightbox/           # lightbox-shell（共用 enter/exit + header bar 收展）

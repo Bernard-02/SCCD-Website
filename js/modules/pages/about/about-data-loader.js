@@ -8,13 +8,16 @@
  * 之後要接 Directus：把這三個 fetch 路徑改成 `${CMS_API_BASE}/about_vision` 等即可
  * （singleton 回 {data:{...}}、list 回 {data:[...]}，記得解一層 .data）。
  *
- * 互動（sticky 切換 / slideshow / highlight / works 影片）全部仍由原模組處理，
- * 此 loader 只填內容、不碰互動 → 必須在那些 init 之前 await 完成（main-modular 已 defer）。
+ * 互動（sticky 切換 / slideshow / works 影片）全部仍由原模組處理，
+ * 此 loader 只填內容 → 必須在那些 init 之前 await 完成（main-modular 已 defer）。
+ * 檔尾另有 initAboutHighlights：同一批說明色卡的底色＋Vision 字卡進退場（原 brand-trail.js）。
  */
 
 import { loadAboutVision, loadAboutClasses, loadAboutWorks } from './about-source.js';
 import { YT_API_KEY } from '../../../config/api.js';
 import { isNavSpinDesktop } from '../../ui/section-switch-helpers.js';
+import { registerPageExit } from '../../ui/page-exit.js';
+import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
 // 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
@@ -204,4 +207,69 @@ export async function loadAboutContent() {
   fillVision(vision);
   fillClasses(classes);
   fillWorks(works);
+}
+
+// ── 說明色卡底色＋Vision 字卡進退場（原 brand-trail.js，2026-10-20 拖尾圖移除後併進來：同一批 [data-*-hl] 卡）──
+// main-modular 在 loadAboutContent 完成、alive() 檢查後才呼叫（不放進 loadAboutContent：換頁中途不該註冊 exit／ScrollTrigger）
+export function initAboutHighlights() {
+  initOverviewHighlight();
+  initClassHighlight();
+  initWorksHighlight();
+}
+
+// Class 文字底色：每個 .class-info-panel 隨機一色，整塊文字區同色
+function initClassHighlight() {
+  const panels = document.querySelectorAll('.class-info-panel');
+  if (!panels.length) return;
+  panels.forEach(panel => {
+    const color = SCCDHelpers.getRandomAccentColor();
+    /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-class-hl]')).forEach(el => {
+      el.style.background = color;
+    });
+  });
+}
+
+// Works 底色：每個 .class-works-panel 隨機一色，標題/內文同色（整塊）
+function initWorksHighlight() {
+  const panels = document.querySelectorAll('.class-works-panel');
+  if (!panels.length) return;
+  panels.forEach(panel => {
+    const color = SCCDHelpers.getRandomAccentColor();
+    /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-works-hl]')).forEach(el => {
+      el.style.background = color;
+    });
+  });
+}
+
+// Overview 文字底色（套在 span 上，只有文字部份有色）
+// 進退場：Vision 字卡 hero clip-reveal（整塊色卡在父 <p> 遮罩內 yPercent 升起/沉出）。
+// user 2026-08-10 一致化：文字字卡走 clip-reveal（滑動+遮罩）不再用 clip-path 擦除。
+// 色卡＝含色底的 [data-overview-hl]（span），父 <p> 當靜止遮罩：span 在 p 內不可插 div wrapper，
+// 故直接把父 <p> 設 overflow:clip（setupClipReveal 偵測父層已 clip 就不另包 wrapper），整塊色卡在 p 內滑動。
+function initOverviewHighlight() {
+  const hls = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('[data-overview-hl]')));
+  if (!hls.length) return;
+  const color = SCCDHelpers.getRandomAccentColor();
+  hls.forEach(el => { el.style.background = color; });
+
+  if (typeof gsap === 'undefined') return;
+
+  // 父 <p> 當遮罩（overflow-y:clip；x 放行不裁行內裝飾）→ setupClipReveal 沿用不另包 div、色卡 yPercent:100 藏起
+  hls.forEach(el => {
+    const p = el.parentElement;
+    if (p) { p.style.overflowY = 'clip'; p.style.overflowX = 'visible'; }
+  });
+  setupClipReveal(hls);
+
+  let revealed = false;
+  const reveal = () => { revealed = true; playClipReveal(hls, { stagger: { each: 0.08 } }); };
+  if (typeof ScrollTrigger === 'undefined') { reveal(); }
+  // trigger 用父 <p>（靜止遮罩、在自然 flow）而非 hls[0]（已被 gsap.set yPercent:100 = translateY 整個高度）：
+  // ScrollTrigger 依 trigger 的「變形後」位置算 start，用被下推整段高度的 span 當 trigger → start 被推到頁面
+  // 捲不到的地方（文字越窄越高、下推越多）→ onEnter 永不觸發、Vision 永久藏起（<1200px 症狀根因）。
+  // 父 <p> 高度=文字自然高、位置不受 child transform 影響 → 'top 88%' 在各寬度都可靠觸發。
+  else ScrollTrigger.create({ trigger: hls[0].parentElement || hls[0], start: 'top 88%', once: true, onEnter: reveal });
+
+  // 離頁退場：整塊色卡 yPercent 沉出遮罩（clip-reveal 反向）；只在已進場 + 視窗內才跑（playRevealExit 內建 viewportOnly）
+  registerPageExit(() => revealed ? playRevealExit(hls, { stagger: 0.08 }) : Promise.resolve());
 }

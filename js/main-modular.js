@@ -224,11 +224,12 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'about') {
     // Vision/Class/Works 文字先注入 DOM（about-data-loader），再跑互動 init —— 內容全在 hero 下方，晚一拍不影響觀感。
     // 資料 fetch 跟其他模組下載並行（不等全部 import 完才開抓）
-    const contentReady = import('./modules/pages/about/about-data-loader.js').then(m => m.loadAboutContent());
+    const dataLoader = import('./modules/pages/about/about-data-loader.js');
+    const contentReady = dataLoader.then(m => m.loadAboutContent());
     Promise.all([
       contentReady,
       import('./modules/pages/about/resources-cycling.js'),
-      import('./modules/pages/about/brand-trail.js'),
+      dataLoader,   // 同一支已在下載（說明色卡上色＋Vision 進場 initAboutHighlights 也在這支）
       import('./modules/pages/about/timeline.js'),
       import('./modules/navigation/anchor-nav.js'),
       import('./modules/accordions/horizontal-accordion.js'),
@@ -238,10 +239,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       import('./modules/pages/about/class-images-slideshow.js'),
       import('./modules/pages/about/about-structure.js'),
       import('./modules/ui/pause-offscreen-video.js'),
-    ]).then(([, resources, brand, timeline, anchor, hAccordion, bfa, polys, sticky, classImgs, structure, pauseVid]) => {
+    ]).then(([, resources, content, timeline, anchor, hAccordion, bfa, polys, sticky, classImgs, structure, pauseVid]) => {
       if (!alive()) return;
       resources.initResourcesCycling();
-      brand.initBrandTrail();
+      content.initAboutHighlights();
       timeline.initTimeline();
       anchor.initAnchorNav({ reveal: true });
       hAccordion.initHorizontalAccordion();

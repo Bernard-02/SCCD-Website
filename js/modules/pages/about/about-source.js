@@ -21,12 +21,6 @@ async function fetchRows(query, label) {
   }
 }
 
-// vision 游標拖尾圖：about_vision.hoverImages（files M2M）→ URL 陣列；空/失敗回 []（＝不顯示拖尾）
-export async function loadAboutVisionImages() {
-  const d = await fetchRows('about_vision?fields=hoverImages.directus_files_id.filename_disk', 'vision images');
-  return cdnUrls(d?.hoverImages);
-}
-
 // singleton：Directus 回 { data: {…} }（非陣列）
 export async function loadAboutVision() {
   const d = await fetchRows('about_vision', 'vision');

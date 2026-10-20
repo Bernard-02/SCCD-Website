@@ -11,7 +11,7 @@ import { registerPageExit } from '../../ui/page-exit.js';
  * - 三張圖片的旋轉角度各自不同，z-index 隨機
  */
 
-// clip-path reveal 終態（brand trail 同樣邏輯）
+// clip-path reveal 終態
 const CLIP_END = 'inset(0% 0% 0% 0%)';
 
 function getClipStart(dir) {
