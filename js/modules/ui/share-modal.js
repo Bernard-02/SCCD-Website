@@ -11,10 +11,16 @@ import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shel
 import { DUR, EASE } from './motion.js';
 import { ensureCardMask, revealHidden, randomRevealDir } from './scroll-animate.js';
 import { bindArrowSpin } from './arrow-spin.js';
+import { registerPageExit } from './page-exit.js';
 
 let initialized = false;
 let shareOpen = false;
 let closing = false;
+// 不 dim（user 2026-10-20）：直接從頁面開＝背景不暗、header 鈕不收、點 logo 照常換頁（同 faculty／curriculum 桌面色卡，html.overlay-no-dim）；
+// 疊在已開的 lightbox 上（album／library viewer 內的 share）＝底下本來就暗，維持原行為
+let noDim = false;
+let exitRegistered = false;   // 這一頁已掛過「換頁時收 share」
+const closeWaiters = [];
 // 已 prefetch 過的 URL — 避免同一個 share btn 被 hover/touch 多次重複 fetch
 const prefetchedUrls = new Set();
 
@@ -66,7 +72,7 @@ function prefetchQr(url) {
 // 內層卡片 color:#000 強制黑字，避免 body.mode-inverse / .mode-color 下全域 p/icon 變白色
 // 卡片背景寫死白色，跟著 mode 變白字 = 白底白字消失
 const LIGHTBOX_HTML = `
-  <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.9); align-items:center; justify-content:center;">
+  <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:transparent; align-items:center; justify-content:center;">
     <!-- stage＝卡片（ensureCardMask 包遮罩）＋角上返回鍵共用的傾斜層：隨機傾角套這層（見 openShareLightbox），
          返回鍵在卡片遮罩之外＝凸出卡片的半顆不被裁 -->
     <div id="share-lightbox-stage" style="position:relative; display:flex;"><!-- flex：遮罩 inline-block 在 block 裡會多出基線空白、stage 比卡高、旋轉中心偏 -->
@@ -151,14 +157,8 @@ function openShareLightbox(url, bg) {
   urlEl.textContent = url.replace(/^https?:\/\//, '');
   urlEl.dataset.fullUrl = url;
 
+  // 背景不 dim（user 2026-10-20）：#share-lightbox 透明、只當「點卡外關閉」的接收層
   lightbox.style.display = 'flex';
-  // 背景遮罩 fade in：display:none→flex 會讓 rgba(0,0,0,0.9) 黑幕瞬間疊上（user 反映「instant 疊加」）。
-  // 只 fade 遮罩底色（卡片另走 clip-path reveal，兩者獨立 → 卡片維持「不配 opacity fade」慣例）。
-  if (typeof gsap !== 'undefined') {
-    gsap.fromTo(lightbox,
-      { backgroundColor: 'rgba(0,0,0,0)' },
-      { backgroundColor: 'rgba(0,0,0,0.9)', duration: DUR.slow, ease: EASE.enter, overwrite: true });
-  }
   // 卡片停定是斜的、進退場本身不轉（user 2026-10-01 二改「先旋轉再進場」）：先把 stage（卡片遮罩＋角上返回鍵的
   // 共同外層）set 到隨機角（全站卡片角度 helper，同左下當前頁卡），卡片再沿當次方向滑入遮罩——遮罩跟著斜、卡角不被切。
   // fromTo 確保 from-state 強制套用（避 first-open 從殘留 transform 跳終值）
@@ -183,7 +183,19 @@ function openShareLightbox(url, bg) {
 
   if (!shareOpen) {
     shareOpen = true;
-    enterLightboxMode();
+    noDim = !document.body.classList.contains('lightbox-open');   // 沒疊在別的 lightbox 上
+    if (noDim) document.documentElement.classList.add('overlay-no-dim');
+    enterLightboxMode({ keepHeader: noDim });
+    // 開著時換頁（點 logo 回首頁等）：share 跟頁面退場同拍收；一頁只掛一次（router 換頁時清空 handler）
+    if (!exitRegistered) {
+      exitRegistered = true;
+      registerPageExit(() => new Promise((resolve) => {
+        exitRegistered = false;
+        if (!shareOpen) return resolve();
+        closeWaiters.push(resolve);
+        closeShareLightbox();
+      }));
+    }
   }
 }
 
@@ -196,18 +208,18 @@ function closeShareLightbox() {
   const finish = () => {
     closing = false;
     lightbox.style.display = 'none';
-    lightbox.style.backgroundColor = ''; // 還原 HTML inline 預設 0.9，下次開再 fromTo
     if (shareOpen) {
       shareOpen = false;
       exitLightboxMode();
+      if (noDim) { document.documentElement.classList.remove('overlay-no-dim'); noDim = false; }
     }
+    closeWaiters.splice(0).forEach(r => r());
   };
 
   // 退場 clip-reveal：卡片沿進場方向反向滑出遮罩（同 dir、來去同一側）
   if (typeof gsap !== 'undefined') {
     closing = true;
-    // 背景遮罩同步 fade out（對稱進場）；角上返回鍵沿自己的進場方向滑回
-    gsap.to(lightbox, { backgroundColor: 'rgba(0,0,0,0)', duration: DUR.medium, ease: EASE.exit, overwrite: true });
+    // 角上返回鍵沿自己的進場方向滑回
     gsap.to('#share-back-inner', { ...revealHidden(backDir), duration: DUR.medium, ease: EASE.exit, overwrite: true });
     gsap.to(card, {
       ...revealHidden(revealDir),

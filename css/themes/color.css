@@ -521,6 +521,41 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   }
 }
 
+/* 真桌面色卡（faculty-slide-in.js openDeskCard）：mode3 底色＝卡片 hover 那個色（上方 .faculty-card:hover＝theme-fg 黑/白），
+   字／scrollbar 翻 theme-fg-inverse、代用 logo 線框再 invert 一次（同卡片 hover 的 placeholder 規則）（user 2026-10-20）。
+   手機／矮橫向 slide-in 照舊跟 hue */
+@media (min-width: 1024px) and (min-height: 501px) {
+  body.mode-color #faculty-panel {
+    --faculty-panel-bg: var(--theme-fg) !important;
+    background-color: var(--theme-fg) !important;
+  }
+  body.mode-color #faculty-panel,
+  body.mode-color #faculty-panel .text-black {
+    color: var(--theme-fg-inverse) !important;
+  }
+  body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
+    background: var(--theme-fg-inverse) !important;
+  }
+  body.mode-color #faculty-panel .theme-invert {
+    filter: var(--theme-invert-filter, invert(0)) invert(1);
+  }
+  @supports (-moz-appearance: none) {
+    body.mode-color :is(#faculty-panel, #courses-detail-panel) .list-scroll {
+      scrollbar-color: var(--theme-fg-inverse) transparent;
+    }
+  }
+  /* curriculum 同款：底＝課程卡 hover 色（上方 .courses-grid-card[style*="background"]＝theme-fg） */
+  body.mode-color #courses-detail-panel {
+    background: var(--theme-fg) !important;
+  }
+  body.mode-color #courses-detail-panel :is(.courses-detail-title-en, .courses-detail-title-zh, .courses-detail-desc-en, .courses-detail-desc-zh) {
+    color: var(--theme-fg-inverse) !important;
+  }
+  body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
+    background: var(--theme-fg-inverse) !important;
+  }
+}
+
 /* Degree show events 捲軸 thumb 的三 mode 色在 lists.css（.dsd-events-scroll） */
 
 /* activities/admission 展開列、about timeline、resources 捲軸：mode3 容器底為 theme-fg，lists.css 黑 thumb 在黑底上會消失 → fg-inverse

@@ -54,7 +54,7 @@ export function cleanupPageModules(destPage) {
   document.body.style.overflow = '';
   document.documentElement.style.overflow = '';
   // slide-in 殘留：切頁時若 faculty/courses slide-in 還開著，has-slide-in class 留下 → footer 讓位 / scrollbar 隱藏規則持續生效
-  document.documentElement.classList.remove('has-slide-in');
+  document.documentElement.classList.remove('has-slide-in', 'overlay-no-dim');
   // lightbox 殘留：class 殘留會持續 pointer-events:none 在 header；lightbox-shell 已不碰 html bg / gutter
   // 保留 documentElement.style.backgroundColor reset 以清除其他模組（如 faculty-slide-in、video-player）的殘留
   document.body.classList.remove('lightbox-open');

@@ -46,3 +46,7 @@ body [data-tl-nav-edge="right"],
 body [data-tl-nav-edge="right"] * {
   cursor: var(--cursor-e-resize);
 }
+/* faculty／curriculum 桌面色卡（不 dim，html.overlay-no-dim）：卡外照常是一般游標、不換左箭頭（user 2026-10-20）；點卡外仍會關卡 */
+html.overlay-no-dim body :is(#faculty-overlay, #courses-overlay) {
+  cursor: var(--cursor-default);
+}

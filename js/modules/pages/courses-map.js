@@ -18,6 +18,8 @@
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { registerPageExit } from '../ui/page-exit.js';
+import { createDeskCard } from '../ui/desk-card.js';
 import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
@@ -106,8 +108,7 @@ function pickRotation() {
 
 function renderCard(chip) {
   // 卡片底色不在 render 時固定 — 改由 hover/click 即時挑三原色（applyHoverColor）
-  // rotation 同思路：render 時的 rot 存為 dataset.baseRot 當「resting」角度，
-  // hover 時 re-roll（applyHoverRot）→ click 時 promote 為新 baseRot → deselect 還原 baseRot
+  // rotation：出生帶隨機角；hover 抽新角、離開保持不還原（同 nav btn，user 2026-10-20）
   // data-slug：母 course.titleEn 的 slug，供 `?item=slug` deep-link 比對；
   // 有 parts 的課程兩張卡共用同一 slug（點任一張都會 highlight + 開 slide-in）
   const rot = pickRotation();
@@ -120,7 +121,6 @@ function renderCard(chip) {
     <div class="courses-grid-card"
          role="button" tabindex="0"
          aria-label="${escapeAttr((titleEn + ' ' + titleZh).trim())}"
-         data-base-rot="${rot}"
          data-desc-en="${descEn}"
          data-desc-zh="${descZh}"${slugAttr}
          style="transform: rotate(${rot}deg);">
@@ -317,16 +317,38 @@ function buildHTML(program, courses) {
 
 // 無障礙 modal：記住開啟課程詳情的觸發元素，關閉時把焦點還回去
 let coursesReturnFocus = /** @type {HTMLElement|null} */ (null);
-// 返回鍵 clip-reveal：每次開隨機四方向滑入、退場沿原方向滑回（2026-08-24 從固定由下改；同 faculty-slide-in.js。
-// 不用 pickNavDir：方塊是正方形，其「沿較短邊」規則會恆挑 top/bottom、退化成只剩上下兩向）
-const BACK_DIRS = [
-  { xPercent: 0, yPercent: 100 }, { xPercent: 0, yPercent: -100 },
-  { xPercent: 100, yPercent: 0 }, { xPercent: -100, yPercent: 0 },
-];
-let backHidden = BACK_DIRS[0];
 function getSlideIn()      { return document.getElementById('courses-slide-in'); }
 function getSlidePanel()   { return document.getElementById('courses-detail-panel'); }
 function getSlideOverlay() { return document.getElementById('courses-overlay'); }
+
+// 真桌面＝固定色卡（desk-card.js，同 faculty；user 2026-10-20）：課名 → 說明 → 返回鍵依序進，同次造訪同一門課再開只做色卡揭露。
+// 手機／矮橫向維持右側 slide-in。開卡時決定（deskMode）、關卡沿用。
+// instance 跟著 panel 走：SPA 換頁 panel 是新元素 → 重建＝「首開才分批」的記錄歸零；同時註冊這次造訪的 page exit
+let desk = /** @type {ReturnType<typeof createDeskCard>|null} */ (null);
+let deskPanel = /** @type {HTMLElement|null} */ (null);
+let deskMode = false;
+let deskClosing = false;
+const closeWaiters = /** @type {(() => void)[]} */ ([]);
+function getDesk(panel) {
+  if (desk && deskPanel === panel) return desk;
+  desk = createDeskCard({
+    panel,
+    backBtn: document.getElementById('courses-back-btn-desktop'),
+    getBlocks: () => [
+      // 課名＝旋轉的 title box 本身（clip 跟著它的角度走、轉出欄外的角不被裁）
+      [panel.querySelector('.courses-detail-title-box')],
+      [panel.querySelector('.courses-detail-desc-wrapper')],   // 說明（捲動框整塊）
+    ],
+  });
+  deskPanel = panel;
+  // 卡開著時換頁（點 logo 回首頁等）：卡跟頁面退場同拍收（同 faculty／footer 卡）
+  registerPageExit(() => new Promise((resolve) => {
+    const s = getSlideIn();
+    if (!s || s.classList.contains('invisible')) return resolve();
+    closeCourseSlideIn(() => resolve());
+  }));
+  return desk;
+}
 
 /**
  * @param {HTMLElement} card
@@ -361,10 +383,15 @@ function openCourseSlideIn(card, onOpened) {
 
   // 標題旋轉：比照 faculty slide-in 名字（faculty-slide-in.js）——±2~4° 隨機（課程名長、旋轉太多不好看，
   // user 2026-08-12 收斂）、每次開重隨機、EN/ZH 共用同一角當一體；left center + fit-content 讓 rotate 繞 content 寬度不撐父寬
+  // 真桌面：課名 title box（EN＋ZH 一塊）繞自身中點轉 ±2~4°（user 2026-10-20：課名要有角度、轉 box 中點；幅度沿用 08-12 課名收斂值），
+  //   各行不另轉。手機／矮橫向維持舊版：EN/ZH 共用一角、各行 left center 轉
+  deskMode = SCCDHelpers.isDesktopLayout();
   const titleDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
+  const titleBox = /** @type {HTMLElement|null} */ (panel.querySelector('.courses-detail-title-box'));
+  if (titleBox) titleBox.style.transform = deskMode ? `rotate(${titleDeg.toFixed(2)}deg)` : '';
   [enT, zhT].forEach(el => {
     if (!el) return;
-    el.style.transform = `rotate(${titleDeg}deg)`;
+    el.style.transform = deskMode ? '' : `rotate(${titleDeg}deg)`;
     el.style.transformOrigin = 'left center';
     el.style.display = 'block';
     el.style.width = 'fit-content';
@@ -394,7 +421,6 @@ function openCourseSlideIn(card, onOpened) {
   slideIn.classList.add('pointer-events-auto');
   // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
   const backBtn = document.getElementById('courses-back-btn-desktop');
-  let backInner = null;
   if (backBtn) {
     // hover/click 隨機角度（arrow-spin，同 faculty-slide-in.js；guard 防每次開重綁）
     if (!backBtn.dataset.hoverRotBound) {
@@ -403,32 +429,27 @@ function openCourseSlideIn(card, onOpened) {
       bindNavBtnHover(backBtn);   // hover 隨機三原色（cards.css .slide-in-back-square 段；user 2026-09-28 全站黑方塊鈕）
     }
     /** @type {any} */ (backBtn)._arrowSpin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6）
-    backBtn.style.transition = '';   // 還原 hover 旋轉的 CSS transition（close 時暫設 none 讓返回鍵追平 panel 平移）
-    if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
-      backInner = backBtn.querySelector('.slide-in-back-square-inner');
-      backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
-      // 兩軸都 set：洗掉上次退場殘留的另一軸位移
-      if (backInner) gsap.set(backInner, backHidden);
-    }
+    // 桌面黑方塊只在真桌面顯示＝只走色卡（返回鍵進退場 desk-card.js 管）；舊 slide-in 版的 inner 隱藏態已不需要
   }
   requestAnimationFrame(() => panel.focus({ preventScroll: true }));
 
   // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
   // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
   //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
-  enterLightboxMode();
+  // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）
+  enterLightboxMode({ keepHeader: deskMode });
+  if (deskMode) {
+    deskClosing = false;
+    getDesk(panel).open({ id: card.dataset.slug || titleEn, onOpened });
+    return;
+  }
   const htmlEl = document.documentElement;
   htmlEl.classList.add('has-slide-in');
 
   if (typeof gsap !== 'undefined') {
-    const tl = gsap.timeline({ onComplete: onOpened })
+    gsap.timeline({ onComplete: onOpened })
       .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
       .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3);
-    // 返回鍵跟 panel 同步 clip-reveal
-    if (backInner) {
-      tl.fromTo(backInner, backHidden,
-        { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
-    }
   } else {
     overlay.style.opacity = '0.8';
     panel.style.transform = 'translateX(0%)';
@@ -436,65 +457,69 @@ function openCourseSlideIn(card, onOpened) {
   }
 }
 
-export function closeCourseSlideIn() {
+/** @param {() => void} [onClosed] 收完才呼叫（page exit 等卡收完再換頁） */
+export function closeCourseSlideIn(onClosed) {
   // 確保關閉時清除 activeCard 狀態與角度（處理 ESC 或點擊 overlay 關閉的情境）。
   // 底色留到 panel 滑出完才清（user 2026-10-19「active 中底色不能先拿掉」）；期間被重選或游標移上去（hover 自上色）就不清
+  // 角度不動（點開當下的 hover 角保留）
   const wasActive = activeCard;
-  if (activeCard) {
-    const baseRot = activeCard.dataset.baseRot || '0';
-    activeCard.style.transform = `rotate(${baseRot}deg)`;
-    activeCard = null;
-  }
+  activeCard = null;
   const clearActiveBg = () => {
     if (!wasActive || wasActive === activeCard || wasActive.matches(':hover')) return;
     wasActive.style.background = '';
     delete wasActive.dataset.currentColor;
+    delete wasActive.dataset.hoverRot;
   };
 
   const slideIn = getSlideIn();
   const panel = getSlidePanel();
   const overlay = getSlideOverlay();
-  if (!slideIn || !panel || !overlay) { clearActiveBg(); return; }
+  if (!slideIn || !panel || !overlay) { clearActiveBg(); onClosed?.(); return; }
 
   // 如果面板已經是隱藏狀態，直接 return，避免切換 program 分頁時觸發多餘的 CSS 變化
-  if (slideIn.classList.contains('invisible')) { clearActiveBg(); return; }
+  if (slideIn.classList.contains('invisible')) { clearActiveBg(); onClosed?.(); return; }
+  // 色卡收場中又被叫關（overlay 連點／Esc／換頁）：不重來，等這次收完一起放行
+  if (deskMode && deskClosing) { if (onClosed) closeWaiters.push(onClosed); return; }
 
   // header bars clip-path 進場（logo 不動）+ 解除 body.lightbox-open。
   // deferHeaderShow：slide-in 是往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
   exitLightboxMode({ deferHeaderShow: true });
 
-  const htmlEl = document.documentElement;
+  const hideSlideIn = () => {
+    slideIn.classList.add('invisible', 'pointer-events-none');
+    slideIn.classList.remove('pointer-events-auto');
+    panel.style.backgroundColor = '';
+    clearActiveBg();
+    if (coursesReturnFocus) { coursesReturnFocus.focus({ preventScroll: true }); coursesReturnFocus = null; }
+  };
+  if (deskMode) {
+    deskClosing = true;
+    if (onClosed) closeWaiters.push(onClosed);
+    getDesk(panel).close(() => {
+      deskClosing = false;
+      hideSlideIn();
+      closeWaiters.splice(0).forEach(r => r());
+    });
+    return;
+  }
 
-  const backBtn = document.getElementById('courses-back-btn-desktop');
+  const htmlEl = document.documentElement;
   if (typeof gsap !== 'undefined') {
     const tl = gsap.timeline()
       .to(panel, { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
       .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5);
-    // 返回鍵跟 panel 一起往右滑出（user 2026-09-12：不自己做方向 clip-reveal 退場，改跟卡片同步平移收起）。
-    // 平移外層 .slide-in-back-square（非 inner——inner 會被 overflow:clip 剪掉、只消失不跟卡片走）；距離＝panel x:110% 的像素量（用 panel 寬）；
-    // transition 暫關避免追不上 GSAP 逐幀寫入；fromTo 明寫 x:0 起點避開 arrow-spin inline transform 造成的 cache 失準。
-    if (backBtn && !prefersReducedMotion() && window.innerWidth >= 768) {
-      backBtn.style.transition = 'none';
-      const travel = panel.getBoundingClientRect().width * 1.1;
-      tl.fromTo(backBtn, { x: 0 }, { x: travel, duration: DUR.medium, ease: EASE.exit }, 0);
-    }
     tl.call(() => {
-        slideIn.classList.add('invisible', 'pointer-events-none');
-        slideIn.classList.remove('pointer-events-auto');
-        panel.style.backgroundColor = '';
         htmlEl.classList.remove('has-slide-in');
-        clearActiveBg();
-        if (coursesReturnFocus) { coursesReturnFocus.focus({ preventScroll: true }); coursesReturnFocus = null; }
+        hideSlideIn();
+        onClosed?.();
       });
   } else {
     overlay.style.opacity = '0';
     panel.style.transform = 'translateX(110%)';
     setTimeout(() => {
-      slideIn.classList.add('invisible', 'pointer-events-none');
-      slideIn.classList.remove('pointer-events-auto');
-      panel.style.backgroundColor = '';
       htmlEl.classList.remove('has-slide-in');
-      clearActiveBg();
+      hideSlideIn();
+      onClosed?.();
     }, 500);
   }
 }
@@ -538,18 +563,11 @@ function applyHoverColor(card) {
   card.dataset.currentColor = color;
 }
 
-// hover 時挑新隨機 rotation，存到 dataset.hoverRot
+// hover 時挑新隨機 rotation；dataset.hoverRot＝「這次 hover 已抽過角」旗標（click 沿用、不再抽）
 function applyHoverRot(card) {
   const rot = pickRotation();
   card.style.transform = `rotate(${rot}deg)`;
   card.dataset.hoverRot = String(rot);
-}
-
-// mouseleave / deselect 還原到 baseRot（render 時設定，click 時更新為 hover-rot）
-function restoreBaseRot(card) {
-  const baseRot = card.dataset.baseRot || '0';
-  card.style.transform = `rotate(${baseRot}deg)`;
-  delete card.dataset.hoverRot;
 }
 
 /**
@@ -560,19 +578,12 @@ function selectCard(card, onOpened) {
   if (activeCard && activeCard !== card) {
     activeCard.style.background = '';
     delete activeCard.dataset.currentColor;
-    // 之前 active 卡片離開 active state — 把當下角度（hover-rot 或 baseRot）保留為新 baseRot
-    if (activeCard.dataset.hoverRot) {
-      activeCard.dataset.baseRot = activeCard.dataset.hoverRot;
-      delete activeCard.dataset.hoverRot;
-    }
+    delete activeCard.dataset.hoverRot;
   }
   activeCard = card;
   // 沿用 hover 留下的色/角度；無則即時挑（mobile tap、無 hover 進入直接點等情境）
   if (!card.dataset.currentColor) applyHoverColor(card);
   if (!card.dataset.hoverRot) applyHoverRot(card);
-  // promote hover-rot → baseRot：click 鎖在 hover 當下角度，deselect 後還原此角度
-  card.dataset.baseRot = card.dataset.hoverRot;
-  delete card.dataset.hoverRot;
   openCourseSlideIn(card, onOpened);
 }
 
@@ -629,13 +640,12 @@ export function deselectActiveCard() {
     card.style.background = '';
     delete card.dataset.currentColor;
     activeCard = null;
-    // 點 active 收回時 cursor 還在卡片上 → 立即重 roll hover 色 + 角度
-    // 否則還原 baseRot（= 上次 click 時的 rot，rotation 鎖在那邊）
+    // 點 active 收回時 cursor 還在卡片上 → 立即重 roll hover 色 + 角度；否則角度保持
     if (wasHovered) {
       applyHoverColor(card);
       applyHoverRot(card);
     } else {
-      restoreBaseRot(card);
+      delete card.dataset.hoverRot;
     }
   }
   closeCourseSlideIn();
@@ -673,8 +683,8 @@ function bindCardClick(panelEl) {
   ensureSlideInClose();
 }
 
-// 卡片 hover：每次進入隨機挑三原色 + 隨機旋轉，離開還原 baseRot
-// active card（已點開）不參與 hover 變色/旋轉，保留 click 時 promote 的 baseRot
+// 卡片 hover：每次進入隨機挑三原色 + 隨機旋轉，離開清底色、角度保持（同 nav btn）
+// active card（已點開）不參與 hover 變色/旋轉，維持點開當下的 hover 角
 function bindCardHover(panelEl) {
   /** @type {NodeListOf<HTMLElement>} */
   const cards = panelEl.querySelectorAll('.courses-grid-card');
@@ -688,7 +698,7 @@ function bindCardHover(panelEl) {
       if (card === activeCard) return;
       card.style.background = '';
       delete card.dataset.currentColor;
-      restoreBaseRot(card);
+      delete card.dataset.hoverRot;
     });
   });
 }

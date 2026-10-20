@@ -88,7 +88,8 @@ function onPortaledLogoClick(e) {
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }
 
-function portalLogoAboveOverlay() {
+// closeOnClick=false（keepHeader）：仍搬到 overlay 之上（否則點擊落在 overlay），但不攔點擊＝照常是回首頁的連結
+function portalLogoAboveOverlay(closeOnClick = true) {
   const siteHeader = document.getElementById('site-header');
   if (!siteHeader || portaledLogos) return;
   // 只搬顯示中的 logo（桌面 #header-logo 或手機 #header-logo-mobile / SCCD anchor）：display:none 的 getClientRects() 空
@@ -111,7 +112,7 @@ function portalLogoAboveOverlay() {
     // 點 logo = 關閉當前 panel（onPortaledLogoClick）；href 已被 disableLogoLinks 拔掉（無導航/無 tooltip），
     // 故自製 pointer 游標改掛 .cursor-pointer class（cursor.css `body .cursor-pointer`）補回。
     a.classList.add('cursor-pointer');
-    a.addEventListener('click', onPortaledLogoClick);
+    if (closeOnClick) a.addEventListener('click', onPortaledLogoClick);
     siteHeader.appendChild(a);
     return saved;
   });
@@ -281,8 +282,12 @@ function installScrollLock() {
 // slide-in（faculty / courses，容器 z-[9999]）與全螢幕 lightbox（activities / library / share，z-[9999]）
 // 共用同一套行為：① freeze 底層捲動 ② 凍結在當下畫面、不跳頂部、頁內 sticky 不動 ③ 關閉還原。統一不分流。
 // （footer 也是 z-9999，slide-in 開啟時靠 css/layout/footer.css 的 html.has-slide-in .footer-shell{z-index:40} 讓位。）
-export function enterLightboxMode() {
+// keepHeader（faculty 桌面色卡不 dim，user 2026-10-20）：header mode／menu 鈕不收（點擊放行由 CSS html.overlay-no-dim 管）、
+// logo 連結不拔＝點 logo 照常回首頁（卡片的收場由 caller 掛 page exit）
+let headerBarsKept = false;
+export function enterLightboxMode({ keepHeader = false } = {}) {
   if (openCount === 0) {
+    headerBarsKept = keepHeader;
     savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦
     callResetFooterHide();
     // freeze 底層捲動：純擋輸入，完全不碰 body/html overflow（保住頁內 sticky 不跳、也不跳頂部）。
@@ -295,10 +300,12 @@ export function enterLightboxMode() {
     // add → switchHeaderLogo(wireframe-inverse 白色 wireframe)；remove → switchHeaderLogo(standard/inverse/wireframe)
     // caller 不應自己 call switchHeaderLogo，否則跟 Observer 撞 race（logoLoadGeneration +2 → 第一次 load stale）
     document.body.classList.add('lightbox-open');
-    portalLogoAboveOverlay();
-    disableLogoLinks();
+    // router 看這個 class 放行 header 連結（logo）——預設 lightbox 開著時 header 連結一律吞掉
+    document.body.classList.toggle('lightbox-keep-header', keepHeader);
+    portalLogoAboveOverlay(!keepHeader);
+    if (!keepHeader) disableLogoLinks();
     padLightboxTops();
-    animateHeaderHide(getHeaderTargets());
+    if (!keepHeader) animateHeaderHide(getHeaderTargets());
   }
   openCount++;
 }
@@ -307,7 +314,7 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
   openCount = Math.max(0, openCount - 1);
   if (openCount === 0) {
     if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
-    document.body.classList.remove('lightbox-open');
+    document.body.classList.remove('lightbox-open', 'lightbox-keep-header');
     restoreLogoLinks();
     // 無障礙：把焦點還給開啟 lightbox 的元素（preventScroll：別把頁面捲走）
     if (savedFocusEl && typeof savedFocusEl.focus === 'function') savedFocusEl.focus({ preventScroll: true });
@@ -318,7 +325,7 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     //   全螢幕 lightbox（fade out）傳 false＝立即，維持「header 與 lightbox 同步淡回」的原設計。
     const revealHeader = () => {
       if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 portal logo + hide）→ 放棄還原
-      animateHeaderShow(getHeaderTargets());
+      if (!headerBarsKept) animateHeaderShow(getHeaderTargets());
       // logo 搬回 header 延到 overlay 300ms 淡出結束：logo portal 期間浮在 overlay 之上，overlay 仍在淡出時就把
       //   logo 搬回 header（沉回 overlay 底下）會讓 logo 閃一下（同 2026-09-07 z 還原太早的問題）。待 overlay
       //   淡完再搬回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
@@ -337,6 +344,7 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
 // SPA 換頁時呼叫（main-modular.js cleanupPageModules）：強制歸零，避免任何 modal 沒走 exit 流程時 state 殘留
 export function resetLightboxMode() {
   openCount = 0;
+  document.body.classList.remove('lightbox-keep-header');
   savedFocusEl = null; // SPA 換頁清掉，不把焦點還到舊頁元素
   restoreLightboxTops();
   restoreLogoDown();   // 把 portal 到 #site-header 的 logo 搬回 header 原位（SPA 換頁時 modal 還開著兜底）

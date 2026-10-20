@@ -1,6 +1,6 @@
 /**
  * Faculty Slide-in Module
- * 處理師資頁面的側邊滑入詳情頁功能
+ * 處理師資頁面的詳情頁：真桌面＝固定色卡（library 灰卡同款，ui/desk-card.js）；手機／矮橫向＝右側滑入 slide-in
  *
  * 對齊 WP CMB2 schema：educations[] / experiences[] / awards[] 三個 sibling group，
  * 不再是舊版 sections[].items[] 雙層結構。本檔負責將打平資料重組成 3 個 section
@@ -21,10 +21,13 @@ let facultyReturnFocus = /** @type {HTMLElement|null} */ (null);
 // 範圍 ±3~6 同 grid 卡圖（HTML 的 rotate(-4deg) 只是 JS 前的初始值）；標題文字另有 ±2~4 cap 別混用
 const randImgDeg = () => (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);
 let facultyImgCycleTimer = /** @type {ReturnType<typeof setInterval>|null} */ (null);
+// 當下這一輪輪替的 tween（照片滑出／滑回＋相框轉角）：關卡要等它們走完才開始收（closeSlideIn）
+let facultyImgCycleTweens = /** @type {any[]} */ ([]);
 // preserveVisual（關卡/離頁時傳 true）：只停 timer + 殺 tween、視覺凍在當下——關閉時剛好露線框就停在線框、
 // 線框旋轉角不歸 0（user 2026-09-10：不強制跳回照片、logo 不要突然回 0°）。換老師/重開才 reset 回「蓋住」起始態。
 function stopFacultyImgCycle(preserveVisual = false) {
   if (facultyImgCycleTimer) { clearInterval(facultyImgCycleTimer); facultyImgCycleTimer = null; }
+  facultyImgCycleTweens = [];
   const img = document.getElementById('faculty-detail-image');
   const wf = document.getElementById('faculty-detail-wireframe');
   if (img) {
@@ -48,10 +51,12 @@ import { modePlaceholderUrl } from './faculty-data-loader.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { registerPageExit } from '../ui/page-exit.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 import { revealHidden } from '../ui/scroll-animate.js';
+import { createDeskCard } from '../ui/desk-card.js';
 
 // 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
@@ -115,12 +120,38 @@ export function initFacultySlideIn() {
   const slideInOverlay = document.getElementById('faculty-overlay');
   const closeBtn = document.getElementById('faculty-close-btn');
   const backBtnMobile = document.getElementById('faculty-back-btn-mobile');
-  // 返回鍵 clip-reveal：每次開隨機四方向滑入、退場沿原方向滑回（2026-08-24 從固定由下改；同 courses-map.js）
-  const BACK_DIRS = [
-    { xPercent: 0, yPercent: 100 }, { xPercent: 0, yPercent: -100 },
-    { xPercent: 100, yPercent: 0 }, { xPercent: -100, yPercent: 0 },
-  ];
-  let backHidden = BACK_DIRS[0];
+  // 真桌面＝固定色卡（desk-card.js；幾何 cards.css 真桌面段）；手機／矮橫向維持右側 slide-in。開卡時決定、關卡沿用。
+  let deskCard = false;
+  // 左欄：照片遮罩＋名字（titles 只有矮橫向才填，桌面恆空）
+  function deskLeft() {
+    const img = document.getElementById('faculty-detail-image');
+    return [img && img.parentElement, document.getElementById('faculty-detail-name-en'), document.getElementById('faculty-detail-name-zh')].filter(Boolean);
+  }
+  // 右欄拆區塊（lead、各 section），每塊再拆片（lead 每項／section 標題欄＋每一列）。
+  // 只拆捲動框內看得到的：框外的捲上來時已就位（同 library 只揭可視列）
+  function deskRightBlocks() {
+    const scroller = slideInPanel.querySelector('#faculty-detail-right .list-scroll');
+    const sections = document.getElementById('faculty-detail-sections');
+    const lead = document.getElementById('faculty-detail-lead');
+    if (!scroller || !sections) return [];
+    const bottom = scroller.getBoundingClientRect().bottom;
+    const leadPieces = lead ? [...lead.children].flatMap(c => c.classList.contains('faculty-lead-rows') ? [...c.children] : [c]) : [];
+    const secPieces = [...sections.children].map(sec => {
+      const [title, body] = sec.children;
+      return [title, ...(body ? body.children : [])];
+    });
+    return [leadPieces, ...secPieces]
+      .map(b => b.filter(el => el && el.getBoundingClientRect().top < bottom))
+      .filter(b => b.length);
+  }
+  // 每次進頁重建＝「每位老師首開才分批進場」的記錄歸零（換頁回來又會完整進場）
+  const desk = createDeskCard({
+    panel: slideInPanel,
+    backBtn: closeBtn,
+    getBlocks: () => [deskLeft(), ...deskRightBlocks()],   // 左欄 → lead → 各 section
+    isFourWay: (el) => !!el.querySelector('#faculty-detail-image'),   // 照片遮罩四向；文字只上下
+  });
+
   // hover/click 隨機角度（arrow-spin，同 library 排序箭頭；角度套外層遮罩、cards.css transition 補間；
   // guard 防同頁重綁，SPA 換頁元素隨 main 換掉免解綁）；每次開啟由 _arrowSpin.reroll 重抽微傾底角
   if (closeBtn && !closeBtn.dataset.hoverRotBound) {
@@ -320,15 +351,15 @@ export function initFacultySlideIn() {
               imgElement.style.transform = showingWf ? `translate(${target.xPercent}%, ${target.yPercent}%)` : '';
               return;
             }
-            gsap.to(imgElement, {
+            facultyImgCycleTweens = [gsap.to(imgElement, {
               ...target,
               duration: DUR.medium,
               ease: showingWf ? EASE.exit : EASE.enter,
               overwrite: true, // 連續 tick 落在動畫中途直接接手，不疊 tween
-            });
+            })];
             // 照片滑回蓋住時整個相框（含線框）同步順轉到新隨機角＝「換個角度接住照片」（user 2026-08-16）
             if (!showingWf && imgMask) {
-              gsap.to(imgMask, { rotation: randImgDeg(), duration: DUR.medium, ease: EASE.enter, overwrite: true });
+              facultyImgCycleTweens.push(gsap.to(imgMask, { rotation: randImgDeg(), duration: DUR.medium, ease: EASE.enter, overwrite: true }));
             }
           }, 5000);
         }
@@ -352,8 +383,9 @@ export function initFacultySlideIn() {
       // 三型（fulltime/admin/parttime）都旋轉（user 2026-08-12：兼任 slide-in 也要旋轉標題）
       // ±2~4°（user 2026-08-12 由 ±2~5° 收斂：標題/職稱長時旋轉太多不好看）；排除近 0 免像沒轉
       // （titles 的獨立角 2026-09-19 退場：矮橫向左欄職稱改同桌面 lead 不旋轉，只剩名字轉）
+      // 真桌面色卡本身會傾斜 → 名字跟卡片平行不另轉、只有照片另外轉（user 2026-10-20）
       const randDeg = () => (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
-      const nameDeg = randDeg();
+      const nameDeg = SCCDHelpers.isDesktopLayout() ? 0 : randDeg();
       const nameEnElement = document.getElementById('faculty-detail-name-en');
       const nameZhElement = document.getElementById('faculty-detail-name-zh');
       if (nameEnElement) {
@@ -520,22 +552,16 @@ export function initFacultySlideIn() {
             slideInPanel.style.backgroundColor = cardColor;
             // 右欄 sticky title 用此 var 蓋住下方 scroll 經過的字（inherit 抓不到 painted bg）
             slideInPanel.style.setProperty('--faculty-panel-bg', cardColor);
+            // 真桌面照片＝卡片牆上那張圖的大小、打開不放大（user 2026-10-20；cards.css 吃這個 var 當左欄寬）。offsetWidth＝不含旋轉
+            const cardMask = /** @type {HTMLElement|null} */ (card.querySelector('.faculty-card-image-mask'));
+            if (cardMask) slideInPanel.style.setProperty('--faculty-img-w', `${cardMask.offsetWidth}px`);
 
             slideIn.classList.remove('invisible', 'pointer-events-none');
             slideIn.classList.add('pointer-events-auto');
-            // 黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
-            let backInner = null;
-            if (closeBtn) {
-              const spin = /** @type {any} */ (closeBtn)._arrowSpin;
-              if (spin) spin.reroll();   // 每次開啟抽新微傾角（全站統一 −4~+6，arrow-spin 管）
-              closeBtn.style.transition = '';   // 還原 hover 旋轉的 CSS transition（close 時暫設 none 讓返回鍵追平 panel 平移）
-              if (typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
-                backInner = closeBtn.querySelector('.slide-in-back-square-inner');
-                backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];
-                // 兩軸都 set：洗掉上次退場殘留的另一軸位移
-                if (backInner) gsap.set(backInner, backHidden);
-              }
-            }
+            deskCard = SCCDHelpers.isDesktopLayout();
+            // 黑方塊返回鍵（只有真桌面顯示）：每次開重抽微傾角（全站統一 −4~+6，arrow-spin 管）；進退場 desk-card.js
+            const spin = closeBtn && /** @type {any} */ (closeBtn)._arrowSpin;
+            if (spin) spin.reroll();
             // 無障礙 modal：記住觸發卡片、把焦點移進 dialog（關閉時歸還）；preventScroll 避免 fixed panel focus 造成跳動
             facultyReturnFocus = /** @type {HTMLElement} */ (card);
             requestAnimationFrame(() => slideInPanel.focus({ preventScroll: true }));
@@ -543,25 +569,35 @@ export function initFacultySlideIn() {
             // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
             // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
             //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
-            enterLightboxMode();
-            const openTl = openSlideInBg({
-              overlay: slideInOverlay,
-              panel: slideInPanel,
-            });
-            // 返回鍵跟 panel 同步 clip-reveal（openSlideInBg panel 進場 offset 0.3 / DUR.medium）
-            if (openTl && backInner) {
-              openTl.fromTo(backInner, backHidden,
-                { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, clearProps: 'transform' }, 0.3);
-            }
+            enterLightboxMode({ keepHeader: deskCard });   // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）
+            if (deskCard) desk.open({ id: facultyId });
+            else openSlideInBg({ overlay: slideInOverlay, panel: slideInPanel });
           }
         });
       }
     });
   }
 
+  let closeWaiting = false;   // 等照片輪替那段走完中：重複點關閉／Esc 不疊
+  const closeResolvers = [];  // page exit 在等卡收完
+
+  // 卡開著時換頁（桌面點 logo 回首頁等）：卡跟頁面退場同拍收（同 footer 卡點 logo＝換頁與收卡並行；user 2026-10-20）
+  registerPageExit(() => new Promise((resolve) => {
+    if (!slideIn || slideIn.classList.contains('invisible')) return resolve();
+    closeResolvers.push(resolve);
+    closeSlideIn();
+  }));
   function closeSlideIn() {
     if (!slideIn) return;
-    if (slideIn.classList.contains('invisible')) return;
+    if (slideIn.classList.contains('invisible') || closeWaiting) return;
+    // 照片↔線框輪替正在滑（出或回）時被點關：先停 interval（不起下一輪），等這段走完才開始關卡（user 2026-10-20）
+    const running = facultyImgCycleTweens.filter(t => t.isActive());
+    if (running.length) {
+      if (facultyImgCycleTimer) { clearInterval(facultyImgCycleTimer); facultyImgCycleTimer = null; }
+      closeWaiting = true;
+      Promise.all(running.map(t => t.then())).then(() => { closeWaiting = false; closeSlideIn(); });
+      return;
+    }
 
     const mySeq = ++slideSeq; // close 也 ++（作廢更早的 pending close）；onComplete 過期則整段放棄
     stopFacultyImgCycle(true); // 凍在當下：露線框就停在線框、旋轉角不歸 0
@@ -569,27 +605,17 @@ export function initFacultySlideIn() {
     // deferHeaderShow：slide-in 往右滑出，header bars 立即揭露會白 bar 冒在頂部蓋住離場中的 panel → 延後到 panel 走完
     exitLightboxMode({ deferHeaderShow: true });
 
-    const closeTl = closeSlideInBg({
-      overlay: slideInOverlay,
-      panel: slideInPanel,
-      onComplete: () => {
-        if (mySeq !== slideSeq) return; // 動畫期間又開了新卡（或再次 close）→ 這次 close 已過期，別藏新 panel
-        slideIn.classList.add('invisible', 'pointer-events-none');
-        slideIn.classList.remove('pointer-events-auto');
-        slideInPanel.style.backgroundColor = '';
-        document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
-        if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
-      },
-    });
-    // 返回鍵跟 panel 一起往右滑出（user 2026-09-12：不再自己做方向 clip-reveal 退場，改跟卡片同步平移收起）。
-    // 平移外層 .slide-in-back-square（非 inner——inner 會被外層 overflow:clip 剪掉、只會消失不會跟卡片走）＝整顆隨 panel 往右；
-    // 距離＝panel 退場 x:110% 的像素量（panel 寬≠鈕寬，用 panel 寬算）。CSS transition 暫關否則追不上 GSAP 逐幀寫入。
-    // fromTo 明寫 x:0 起點：arrow-spin 直接寫 inline transform 會讓 GSAP transform cache 失準，強制從 0 起才不跳。
-    if (closeTl && closeBtn && typeof gsap !== 'undefined' && !prefersReducedMotion() && window.innerWidth >= 768) {
-      closeBtn.style.transition = 'none';
-      const travel = slideInPanel.getBoundingClientRect().width * 1.1;
-      closeTl.fromTo(closeBtn, { x: 0 }, { x: travel, duration: DUR.medium, ease: EASE.exit }, 0);
-    }
+    const onComplete = () => {
+      closeResolvers.splice(0).forEach(r => r());   // 換頁等卡收完（page exit）：過期的 close 也放行，別卡住換頁
+      if (mySeq !== slideSeq) return; // 動畫期間又開了新卡（或再次 close）→ 這次 close 已過期，別藏新 panel
+      slideIn.classList.add('invisible', 'pointer-events-none');
+      slideIn.classList.remove('pointer-events-auto');
+      slideInPanel.style.backgroundColor = '';
+      document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
+      if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
+    };
+    if (deskCard) desk.close(onComplete);
+    else closeSlideInBg({ overlay: slideInOverlay, panel: slideInPanel, onComplete });
   }
 
   // Overlay click + close button click 都關閉 slide-in
@@ -606,6 +632,7 @@ export function initFacultySlideIn() {
   document.addEventListener('keydown', onEsc);
   registerPageCleanup(() => {
     document.removeEventListener('keydown', onEsc);
+    desk.kill();   // 開卡進場中直接換頁：proxy 不會被 router 的 killTweensOf 殺掉
     stopFacultyImgCycle(true); // slide-in 開著直接換頁時 interval 不殘留（DOM 將整個換掉，視覺不用 reset）
   });
 }

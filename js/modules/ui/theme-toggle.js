@@ -288,7 +288,9 @@ function checkSlideInState() {
   //   - full lightbox 關閉（無 panel、overlay 直接淡出）：立即還原。
   // ⚠️ 白線框「該不該套」不再直接讀 class，改由 overlayLogoActive 旗標控制（mode3 filter 由 applyColorVars 依它翻、
   //    且關閉要延到 0.7s；class 的 t=0/t=0.8 兩個時間點都不合用）。翻掉 06-10「一退場就還原」與 09-08「等全消瞬間換」。
-  const overlayNow = document.body.classList.contains('lightbox-open');
+  // html.overlay-no-dim（faculty 桌面色卡，user 2026-10-20 撤 dim）：logo 底下仍是原頁面 → 當沒開 overlay、logo 不換白線框
+  const overlayNow = document.body.classList.contains('lightbox-open')
+    && !document.documentElement.classList.contains('overlay-no-dim');
   if (isSlideInOpen === overlayNow) return;
   isSlideInOpen = overlayNow;
 

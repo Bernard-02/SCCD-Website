@@ -487,7 +487,9 @@ export function initRouter() {
     // 吞掉 click 不導航，user 要先關閉面板才能離開（user 2026-06-07）。body.lightbox-open 由 enterLightboxMode 設，
     // courses / faculty slide-in 與所有 lightbox 共用 → 一條涵蓋全部。不 stopPropagation：overlay 關閉 handler 用
     // e.target.id==='courses-overlay' 比對，target 是 logo ≠ overlay 本來就不會誤觸發關閉。
-    if (document.body.classList.contains('lightbox-open') && link.closest('#site-header')) {
+    // 例外 body.lightbox-keep-header（faculty 桌面色卡）：點 logo 照常回首頁，卡片由該頁 page exit 同拍收
+    if (document.body.classList.contains('lightbox-open') && !document.body.classList.contains('lightbox-keep-header')
+      && link.closest('#site-header')) {
       e.preventDefault();
       return;
     }

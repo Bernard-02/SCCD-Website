@@ -41,6 +41,11 @@
   html.has-slide-in body.lightbox-open #site-header .mobile-menu-btn {
     pointer-events: auto;
   }
+  /* faculty 桌面色卡（不 dim、mode／menu 鈕不收，user 2026-10-20）：兩鈕放行給下面的透明 overlay＝無 hover、點了只關卡
+     （同 footer 覆蓋卡 body.footer-card-open）。雙 id 壓過上面 has-slide-in 例外 */
+  html.overlay-no-dim #site-header :is(#mode-btn, #menu-btn) {
+    pointer-events: none;
+  }
 
   /* lightbox/slide-in 期間 header 純裝飾（logo href 已被 disableLogoLinks 拔掉）：--header-pe 用 !important 蓋成 none，
      點擊穿透到 modal（header 拉高 z 蓋 slide-in 時，手機返回鍵與 mode/menu 同位）。

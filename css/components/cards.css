@@ -567,6 +567,51 @@
     .slide-in-back-square { display: none; }
   }
 
+  /* 開卡時 JS 把焦點移到 dialog（tabindex=-1）報讀；它不是互動元素 → 不畫全站 :focus-visible 外框（同 #page-content:focus） */
+  :is(#faculty-panel, #courses-detail-panel):focus { outline: none; }
+
+  /* 真桌面 faculty／curriculum 詳情＝library 灰卡同款固定色卡、不滑入（user 2026-10-20；手機／矮橫向仍是右側 slide-in）：
+     寬＝col-4 左緣～col-18 右緣（同卡片牆；--desk-col＝一欄＋gutter，20 欄 grid 同 variables.css 的 col 公式）；
+     上下同距＝logo 中線（上下同錨框）；內距同灰卡內容 lg；返回鍵中心釘色卡左下角（library next 鈕釘右上角的鏡像）。
+     進退場在 js/modules/ui/desk-card.js */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    :is(#faculty-slide-in, #courses-slide-in) {
+      --desk-col: calc((100% - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter));
+    }
+    :is(#faculty-panel, #courses-detail-panel) {
+      inset: var(--header-logo-mid) calc(var(--container-padding) + 2 * var(--desk-col)) var(--header-logo-mid) calc(var(--container-padding) + 3 * var(--desk-col));
+      width: auto;
+      transform: none;   /* 蓋 HTML translate-x-[110%]（手機 slide-in 起點；courses 是 inline、開卡 JS 寫 rotate 蓋掉） */
+    }
+    :is(#faculty-close-btn, #courses-back-btn-desktop) {
+      left: calc(var(--container-padding) + 3 * var(--desk-col));
+      bottom: calc(var(--header-logo-mid) - var(--slide-back-square-size, 3rem) / 2);
+    }
+    /* faculty：照片寬＝卡片牆圖寬（JS 量點的卡寫 --faculty-img-w） */
+    #faculty-panel > .faculty-panel-body { padding: var(--spacing-lg); }
+    #faculty-panel #faculty-profile-block { width: var(--faculty-img-w, 22%); flex-shrink: 0; }
+    /* curriculum：課名｜說明左右兩欄 3:2、gap 3xl（同 faculty 左右欄距；user 2026-10-20）；說明整欄高內捲 */
+    #courses-detail-panel > .courses-detail-inner {
+      padding: var(--spacing-lg);
+      flex-direction: row;
+      gap: var(--spacing-3xl);
+    }
+    #courses-detail-panel .courses-detail-title-sticky { flex: 3 1 0; min-width: 0; align-self: flex-start; }
+    /* 課名 box 貼字寬＝旋轉中點在課名本身中心（不是整欄中心；user 2026-10-20） */
+    #courses-detail-panel .courses-detail-title-box { width: fit-content; max-width: 100%; }
+    #courses-detail-panel .courses-detail-desc-wrapper { flex: 2 1 0; min-width: 0; }
+    /* 捲到底不另留 pb：卡片內距 lg 就是上下留白（slide-in 時代的 pb-2xl 讓底比頂多 64，user 2026-10-20）；軌道同步不內縮 */
+    #faculty-panel #faculty-detail-sections,
+    #courses-detail-panel .courses-detail-desc-wrapper { padding-bottom: 0; }
+    :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel) .list-scroll::-webkit-scrollbar-track { margin-bottom: 0; }
+    /* 進場中（JS .is-entering）scrollbar 先藏、跑完才現（user 2026-10-20）：只把 thumb 透明——寬度不變＝不跳版、照樣能捲。
+       雙 id 壓過 color.css mode3 的 !important thumb 色 */
+    :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel).is-entering .list-scroll::-webkit-scrollbar-thumb { background: transparent !important; }
+    @supports (-moz-appearance: none) {
+      :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel).is-entering .list-scroll { scrollbar-color: transparent transparent !important; }
+    }
+  }
+
   /* ===== About Works 圖片容器 ===== */
 
   .works-container {

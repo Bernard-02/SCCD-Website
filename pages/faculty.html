@@ -145,7 +145,7 @@
       <!-- overscroll-y-contain：手機在此容器內捲到頂/底時，不把捲動 chain 到背後 body（slide-in 開啟時背景 freeze）。
            lightbox-shell 的 JS input-lock 擋 cancelable wheel/touch，但 iOS 慣性(momentum)事件 non-cancelable、
            JS 擋不到 → 靠 overscroll-behavior 原生阻斷 chain（不動 body overflow，維持頁內 sticky 不跳）。 -->
-      <div class="w-full h-full px-container-padding pt-[var(--header-height,80px)] md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar">
+      <div class="faculty-panel-body w-full h-full px-container-padding pt-[var(--header-height,80px)] md:pt-4xl box-border relative flex flex-col overflow-y-auto md:overflow-hidden overscroll-y-contain no-scrollbar">
 
         <div class="faculty-detail-layout flex flex-col md:flex-row gap-xl md:gap-3xl flex-1 min-h-0 relative">
 
@@ -188,8 +188,8 @@
       </div>
     </div>
 
-    <!-- 桌面返回鍵：黑方塊立在 panel 左側空白區正中、貼底、隨機旋轉（JS 套 transform）；panel 外的 slide-in 子層、蓋在 overlay 上。
-         手機/矮橫向改用 panel 內右上 #faculty-back-btn-mobile；--slide-panel-w = panel 寬（md:w-[79.1666%]）供置中計算 -->
+    <!-- 桌面返回鍵：黑方塊中心釘色卡左下角（cards.css 真桌面段）、隨機旋轉（JS 套 transform）；panel 外的 slide-in 子層、蓋在 overlay 上。
+         手機/矮橫向改用 panel 內右上 #faculty-back-btn-mobile；--slide-panel-w 只剩 curriculum 共用 class 的預設定位在用 -->
     <button id="faculty-close-btn" aria-label="返回 Back" class="slide-in-back-square cursor-pointer" style="--slide-panel-w: 79.1666%;">
       <span class="slide-in-back-square-inner">
         <span class="icon icon-arrow-left text-white icon-l"></span>
