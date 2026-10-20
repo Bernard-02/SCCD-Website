@@ -236,8 +236,8 @@ export function bindFrameScrollSplit(section) {
  * 這裡做的事：
  *   ① 清單有沒有溢出 → host 掛 .nav-overflowing。沒溢出＝完全沿用原樣（overflow 不開、旋轉角不裁、沒有 chevron）
  *   ② chevron 點擊＝前進半窗：越過可見窗中線的第一個項目捲到頂（user 2026-10-02「只移動一半」，同 library 年份欄）；
- *      到底 disabled；chevron 水平置中於最寬那顆 btn
- *   ②' 清單一離頂＝上 chevron clip-reveal 蓋在清單盒頂（底色遮住捲過去的 btn）、回到頂收起；點＝上一批（user 2026-10-02，
+ *      到底 disabled；chevron 貼 nav 欄左緣（user 2026-10-20，原置中於最寬 btn）
+ *   ②' 清單一離頂＝上 chevron（icon＋底色小鈕，2026-10-20 撤整寬遮罩條）clip-reveal 出現在第一顆 btn 位置、回到頂收起；點＝上一批（user 2026-10-02，
  *      同 library 年份欄）。chevron 觸發的捲動看終點決定顯隱＝點擊當下就進退場。落點都讓出上 chevron 的高＝第一顆不被它蓋住
  *   ③ active btn 不在可視範圍（deep-link 進後段分頁、about scroll-spy 換段）時捲進來
  *   ④ 清單比 host 窄時（curriculum bar 只佔 2 欄）把右側裁切界補到 host 右緣（--nav-clip-extra），長 label 才不被切
@@ -255,14 +255,21 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
   more.className = 'nav-more-btn';
   more.setAttribute('aria-label', '下一批分頁 More sections');
   more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
-  // ②' 上 chevron：absolute（不佔版面＝出現/收起清單不跳），靜態位置＝host content 起點、margin 由 update 量到清單盒頂
+  // ②' 上 chevron：sticky 高 0（不佔版面＝出現/收起清單不跳），位置全由 CSS 定（lists.css：host content 起點、卡 nav line）
   const up = document.createElement('button');
   up.className = 'nav-less-btn';
   up.setAttribute('aria-label', '上一批分頁 Previous sections');
   up.inert = true;
-  up.innerHTML = '<span class="nav-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span>';  // 90＝朝上
-  const upInner = /** @type {HTMLElement} */ (up.firstElementChild);
+  up.innerHTML = '<span class="nav-less-mask"><span class="nav-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span></span>';  // 90＝朝上
+  const upMask = /** @type {HTMLElement} */ (up.firstElementChild);
+  const upInner = /** @type {HTMLElement} */ (upMask.firstElementChild);
   host.append(up, more);
+  // 捲動落點要讓出的上 chevron 高（鈕本身高 0，量 chip）＋btn 間距＝第一顆排在它下面像清單的下一顆
+  const upH = () => {
+    const g = getComputedStyle(host).getPropertyValue('--nav-btn-gap').trim();   // '0.75rem'：自訂屬性讀回不換算 px
+    const gap = parseFloat(g) * (g.endsWith('rem') ? parseFloat(getComputedStyle(document.documentElement).fontSize) : 1);
+    return upMask.offsetHeight + (gap || 0);
+  };
   if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
   let upShown = false;
   let goal = -1;   // chevron 觸發的捲動目的地（-1＝沒在捲）：上 chevron 顯隱看終點、點擊當下就進退場，不等捲完
@@ -273,9 +280,14 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     if (show === upShown) return;
     upShown = show;
     up.inert = !show;
-    // clip-reveal：鈕本身 overflow:clip 當遮罩、內層（含底色）上往下出現、下往上收起（user 2026-10-02）
-    if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
-    else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
+    // clip-reveal：遮罩（chip 本身形狀）內 chip 上往下出現、下往上收起（user 2026-10-02）；
+    // 清單頂同拍裁掉 chip 佔的那段（lists.css --nav-up-clip）。變數寫在 host、list 繼承：
+    // 寫在 list 上會被 scrollList 的 overwrite:true（同 target）殺掉、裁切卡在半途
+    const clip = `${show ? pad() + upH() : 0}px`;
+    if (typeof gsap === 'undefined') { upInner.style.transform = show ? '' : 'translateY(-100%)'; host.style.setProperty('--nav-up-clip', clip); return; }
+    const tw = { duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft };
+    gsap.to(upInner, { yPercent: show ? 0 : -100, ...tw, overwrite: true });
+    gsap.to(host, { '--nav-up-clip': clip, ...tw, overwrite: 'auto' });   // 'auto'＝只取代前一支裁切 tween，不碰 host 上別的動畫
   };
   const update = () => {
     // 比「項目自然總高」vs「host 內可用高」（版面值、與目前是否溢出態無關＝不會來回翻）。
@@ -293,24 +305,13 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     const extra = (host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight))
       - (list.clientWidth - parseFloat(ls.paddingLeft) - parseFloat(ls.paddingRight));
     list.style.setProperty('--nav-clip-extra', `${Math.max(0, extra)}px`);
-    // ② chevron 盒＝疊在最寬那顆 btn 正下方（同寬、同左緣；未旋轉版面值）→ CSS justify-content:center 讓箭頭落在它的中線。
-    //    左緣取 button 的 rect（旋轉在 inner、button 本身不轉；curriculum 的 MDES 往左凸 12 也跟得到）
-    const widest = /** @type {HTMLElement[]} */ ([...list.querySelectorAll('.anchor-nav-inner')]).reduce((a, b) => (b.offsetWidth > a.offsetWidth ? b : a));
-    more.style.width = `${widest.offsetWidth}px`;
-    const hr = host.getBoundingClientRect(), lr = list.getBoundingClientRect();
-    const wl = (widest.closest('button') || widest).getBoundingClientRect().left;
-    more.style.marginLeft = `${wl - hr.left - parseFloat(cs.paddingLeft)}px`;
-    // ②' 上 chevron 蓋滿清單盒頂整寬（左右 clearance 帶也遮），箭頭同樣置中於最寬那顆 btn
-    up.style.width = `${list.offsetWidth}px`;
-    up.style.marginTop = `${lr.top - hr.top - host.clientTop - parseFloat(cs.paddingTop)}px`;
-    up.style.marginLeft = `${lr.left - hr.left - host.clientLeft - parseFloat(cs.paddingLeft)}px`;
-    upInner.style.paddingLeft = `${wl - lr.left}px`;
-    upInner.style.paddingRight = `${list.offsetWidth - (wl - lr.left) - widest.offsetWidth}px`;
+    // ②／②' 上下 chevron 都貼 nav 欄左緣＝host content 起點，CSS 就到位、不用量（user 2026-10-20）
+    const lr = list.getBoundingClientRect();
     const a = list.querySelector('.active');
     if (a) {
       const ar = a.getBoundingClientRect();
       if (ar.bottom > lr.bottom - pad()) list.scrollTop += ar.bottom - lr.bottom + pad();
-      else if (list.scrollTop > 0 && ar.top < lr.top + pad() + up.offsetHeight) list.scrollTop = Math.max(0, list.scrollTop - (lr.top + pad() + up.offsetHeight - ar.top));
+      else if (list.scrollTop > 0 && ar.top < lr.top + pad() + upH()) list.scrollTop = Math.max(0, list.scrollTop - (lr.top + pad() + upH() - ar.top));
     }
     syncEnd();
   };
@@ -323,20 +324,20 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
   };
   more.addEventListener('click', () => {
     const box = list.getBoundingClientRect();
-    const mid = (box.top + pad() + (upShown ? up.offsetHeight : 0) + box.bottom - pad()) / 2;   // 可見窗（扣上 chevron 蓋住的）中線
+    const mid = (box.top + pad() + (upShown ? upH() : 0) + box.bottom - pad()) / 2;   // 可見窗（扣上 chevron 蓋住的）中線
     // 項目＝清單直接子層（curriculum 是「BFA 標籤＋鈕」的 group，以 group 為單位才不會切掉標籤）
     const next = /** @type {HTMLElement[]} */ ([...list.children]).find(c => c.getBoundingClientRect().top >= mid);
     const max = list.scrollHeight - list.clientHeight;
     // 落點讓出上 chevron 高（捲下去它就會出現）
-    scrollList(next ? Math.min(max, list.scrollTop + next.getBoundingClientRect().top - box.top - pad() - up.offsetHeight) : max);
+    scrollList(next ? Math.min(max, list.scrollTop + next.getBoundingClientRect().top - box.top - pad() - upH()) : max);
   });
   up.addEventListener('click', () => {
     const box = list.getBoundingClientRect();
     // 上一批＝被上 chevron 蓋住（或捲出頂）的最後一個項目，捲到它貼清單盒底。
     // 落點離頂不到上 chevron 高＝第一顆還會被它蓋住 → 直接回頂（也免小數 scrollTop 停在 1.x 讓 chevron 又冒出來）
-    const prev = /** @type {HTMLElement[]} */ ([...list.children]).reverse().find(c => c.getBoundingClientRect().top < box.top + pad() + up.offsetHeight - 1);
+    const prev = /** @type {HTMLElement[]} */ ([...list.children]).reverse().find(c => c.getBoundingClientRect().top < box.top + pad() + upH() - 1);
     const t = prev ? list.scrollTop + prev.getBoundingClientRect().bottom - box.bottom + pad() : 0;
-    scrollList(t < up.offsetHeight ? 0 : t);
+    scrollList(t < upH() ? 0 : t);
   });
   list.addEventListener('scroll', syncEnd, { passive: true });
   // 離頁退場（user 2026-10-19）：chevron 顯示中＝跟 nav btn 一起收（同 DUR.base／EASE.wipe）——下 chevron 四向隨機 clip reveal

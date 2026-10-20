@@ -99,6 +99,12 @@
     height: 100vh;
     padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
   }
+  /* about：nav 的 sticky 軌道（about.html #anchor-nav 父層 pb-6xl 192）底部留白縮到同一條線（當前頁卡上方 md）：
+     不縮的話捲到頁尾軌道底比 nav 底高 → 溢出態的 nav 被往上推 65px、鑽進 logo 底下（user 2026-10-20）。
+     pb-6xl 是桌面 footer 還在捲動流時的留白，footer 改覆蓋卡後已無作用 */
+  #about-content-wrapper div:has(> #anchor-nav) {
+    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
+  }
   /* about：nav 黏在 nav line，最高長到當前頁卡上方 md；gap 歸零（清單↔chevron 間距由 chevron margin 給，同四頁） */
   #anchor-nav.nav-overflow-host {
     max-height: calc(100vh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--spacing-md, 24px));
@@ -124,20 +130,27 @@
     padding-right: calc(var(--spacing-sm, 16px) + var(--nav-clip-extra, 0px));
     margin: calc(-1 * var(--spacing-sm, 16px));
     margin-right: calc(-1 * (var(--spacing-sm, 16px) + var(--nav-clip-extra, 0px)));
+    /* 上 chevron 出現時，清單頂「clearance＋chip＋btn 間距」這段裁掉（--nav-up-clip，JS 跟 chip 同拍 tween）：
+       捲上去的 btn 不從 chip 旁邊露出來，被裁的部分也點不到（取代原本的整寬底色遮罩條） */
+    clip-path: inset(var(--nav-up-clip, 0px) 0 0 0);
   }
   .nav-overflowing > .nav-scroll-list::-webkit-scrollbar { display: none; }
-  /* chevron：清單盒下緣、水平置中於最寬 btn（寬由 JS inline）；到底＝disabled（同 library .year-more-btn）。
-     margin-top 抵掉清單負 margin-bottom：否則 chevron 疊進清單底 clearance 帶（被 btn 蓋住、curriculum bar 還會擋點擊）。 */
-  .nav-overflowing > .nav-more-btn {
+  /* 上下 chevron＝icon＋底色的小鈕（user 2026-10-20，原上＝整寬底色條、下＝裸 icon）：底/字色同 nav btn inactive
+     （三 mode 都是 theme-bg 底＋theme-fg 字）；只有鈕本身可點、貼 nav 欄左緣（＝btn 左緣）。 */
+  .nav-overflowing > .nav-more-btn,
+  .nav-less-inner {
     display: flex;
-    justify-content: center;
+    padding: var(--spacing-xs, 8px);
+    border: none;
+    background: var(--theme-bg);
+    color: var(--theme-fg);
+  }
+  /* 下 chevron：清單盒下緣；到底＝disabled（同 library .year-more-btn）。
+     margin-top＝抵掉清單負 margin-bottom（sm，否則疊進清單底 clearance 帶被 btn 蓋住）＋btn 間距＝看起來是清單的下一顆 */
+  .nav-overflowing > .nav-more-btn {
     flex: none;
     align-self: flex-start;
-    margin-top: var(--spacing-sm, 16px);
-    padding: var(--spacing-xs, 8px) 0 0;
-    border: none;
-    background: none;
-    color: var(--theme-fg);
+    margin-top: calc(var(--spacing-sm, 16px) + var(--nav-btn-gap));
     cursor: var(--cursor-pointer);
     transition: color var(--dur-fast) ease;
   }
@@ -145,27 +158,29 @@
     color: rgba(var(--theme-fg-rgb), 0.2);
     cursor: var(--cursor-not-allowed);
   }
-  /* 上 chevron：清單離頂才 clip-reveal 出現、absolute 蓋在清單盒頂（位置/寬由 JS 量）。
-     鈕本身 overflow:clip＝遮罩；內層上 padding＝清單頂 clearance(sm) → 箭頭落在原第一顆 btn 頂，下 padding xs＝下 chevron 鏡像。 */
+  /* 上 chevron：清單離頂才 clip-reveal 出現，蓋在第一顆 btn 的位置（host content 起點）。
+     sticky top＝nav line：nav 被 sticky 容器尾端往上推（about 捲到底）時停在 nav line＝不鑽進 logo 底下（user 2026-10-20）。
+     height 0＝不佔版面（出現/收起清單不跳）；DOM 排在清單後（admission 手機靠 nav 欄 firstElementChild 抓清單）→ order -1 視覺排第一。
+     遮罩＝.nav-less-mask（鈕本身形狀）、內層 chip 上往下出現。z 4 高過清單：curriculum .courses-program-bar 帶 z-index 3 */
   .nav-overflowing > .nav-less-btn {
-    position: absolute;
-    z-index: 4;   /* 高過清單：curriculum 的 .courses-program-bar 帶 z-index 3（flex 子項＝自成疊層），1 會被 btn 蓋住看不到（user 2026-10-19） */
+    order: -1;
+    position: sticky;
+    top: var(--nav-line);
+    z-index: 4;
     align-self: flex-start;
     display: block;
+    height: 0;
     padding: 0;
     border: none;
     background: none;
-    overflow: clip;
-    color: var(--theme-fg);
     cursor: var(--cursor-pointer);
   }
-  .nav-less-inner {
-    display: flex;
-    justify-content: center;
-    box-sizing: border-box;
-    width: 100%;
-    padding: var(--spacing-sm, 16px) 0 var(--spacing-xs, 8px);
-    background: var(--theme-bg);
+  .nav-less-mask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    overflow: clip;
   }
 }
 
