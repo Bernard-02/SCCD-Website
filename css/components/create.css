@@ -165,17 +165,19 @@
   gap: 1rem;
 }
 
-/* 真桌面：UI bar 底貼 48（＝header 鈕頂 48、左下頁卡底 48，上下對稱）；display-area 置中於「頂 48 → UI bar 頂」。
-   #create-app 上延到 48（原從 header 下緣 96 起），display-area margin-block:auto 吃剩餘高；gap 0 否則範圍底差 1rem。
-   放不下（< 756 高）時 auto 歸 0、justify-content:center 平分溢出。 */
+/* 真桌面：UI bar 底距螢幕底 --create-bar-bottom（user 2026-10-20 嫌 bar 太低：48 → 64＝spacing-2xl；JS 要 parseFloat 所以寫 px 不寫 var）；
+   display-area 置中於「SCCD 中線 → UI bar 頂」＝SCCD 中線到輸入區、輸入區到 bar 同距。bar 提高 N＝上下兩段 gap 各少 N/2。
+   SCCD 中線＝--header-logo-mid（header.js GEN_LOGO_LAYOUT.SVG_TOP 置中字樣）；#create-app 頂＝中線，display-area margin-block:auto 吃剩餘高；
+   gap 0 否則範圍底差 1rem。deskScale（generate-app utils.js updateDesktopScale 讀同一個 var）可用高從「字底」算＝範圍多出 35、上下各至少留 17.5，輸入字不會壓到 SCCD。 */
 @media (min-width: 1024px) and (min-height: 501px) {
   #create-app {
-    margin-top: calc(48px - var(--header-height, 96px));
-    height: calc(100% + var(--header-height, 96px) - 48px);
+    --create-bar-bottom: 64px;
+    margin-top: calc(var(--header-logo-mid) - var(--header-height, 96px));
+    height: calc(100% + var(--header-height, 96px) - var(--header-logo-mid));
   }
   .main-container {
     padding-top: 0;
-    padding-bottom: 48px;
+    padding-bottom: var(--create-bar-bottom);
     gap: 0;
   }
   .main-container > .display-area { margin-block: auto; }

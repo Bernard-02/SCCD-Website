@@ -148,10 +148,10 @@ function updateDesktopScale() {
     s = Math.min(s, (window.visualViewport.height - 48) / 540);
   } else {
     const H = window.innerHeight;
-    s = Math.min(s, (H - 96) / 660);   // app 頂 48＋底 48 之間塞顯示區 540＋控制盒 120
-    // 輸入字（輸入框頂＝顯示區頂＋70s）跟左上 SCCD 字標（可見字右 265／底 110，＋間距 24）水平重疊時，
-    // 置中後的字頂要落在 134 以下：48 + (H−96−660s)/2 + 70s ≥ 134 → s ≤ (H−268)/520
-    if ((W - 1092 * s) / 2 < 265 + 24) s = Math.min(s, (H - 268) / 520);
+    // SCCD 字底（logo 中線＋字高 70/2）～bar 底（create.css --create-bar-bottom）之間塞得下顯示區 540＋控制盒 120。
+    // 置中範圍（create.css）從 SCCD 中線起、比這裡多 35 → 顯示區頂至少在中線＋17.5，輸入字不會跟 SCCD 字標重疊
+    const barBottom = parseFloat(getComputedStyle(app).getPropertyValue('--create-bar-bottom')) || 48;
+    s = Math.min(s, (H - (window.SCCDHelpers.headerGeom().mid + 35) - barBottom) / 660);
   }
   deskScale = Math.max(0.3, s);
   app.style.setProperty('--scale', deskScale.toFixed(3));

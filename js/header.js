@@ -382,9 +382,9 @@ if (typeof window !== 'undefined') {
  */
 export const GEN_LOGO_LAYOUT = {
   LETTER_X: [230, 545, 855, 1135],
-  SCALE: 205 / 1135,
+  SCALE: 70 / 320,  // 字高 70＝縮小態 logo（100）的 70%（user 2026-10-20；原 205/1135＝58）
   GAP: 6,
-  SVG_TOP: 0,   // 字頂＝<a> 頂＝mode/menu 鈕頂（2026-09-27 logo in-flow 頂對齊；舊版 <a> 在 -16 故補 16）
+  SVG_TOP: 15,  // 字樣在縮小態 logo 盒（100）內垂直置中＝中線對齊 mode/menu 鈕中線（user 2026-10-20 logo 改對 menu 中線）：(100 − 字高 70) / 2
 };
 
 // Typewriter timeline reference：供 restoreHeaderLogo 在 SPA 換頁時 kill
@@ -621,7 +621,7 @@ export function triggerGenerateLogo() {
   svgEl.id = 'gen-logo-svg';
   svgEl.setAttribute('viewBox', '0 0 1135 320');
   svgEl.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-  svgEl.style.cssText = `height:205px;width:205px;position:absolute;top:${GEN_LOGO_LAYOUT.SVG_TOP}px;left:0;overflow:visible;pointer-events:none;z-index:1;`;
+  svgEl.style.cssText = `height:${320 * GEN_LOGO_LAYOUT.SCALE}px;width:${1135 * GEN_LOGO_LAYOUT.SCALE}px;position:absolute;top:${GEN_LOGO_LAYOUT.SVG_TOP}px;left:0;overflow:visible;pointer-events:none;z-index:1;`;
 
   const PATHS = [
     'M120.05,320c-37.17,0-66.48-9.4-87.91-28.19C10.72,273.01,0,247.25,0,214.51h46.19c.14,20.39,6.69,36.34,19.66,47.85,12.97,11.52,31.03,17.27,54.2,17.27,21.08,0,37.97-4.47,50.66-13.42,12.69-8.95,19.04-20.98,19.04-36.1,0-11.93-4.54-21.6-13.63-29.02-9.09-7.42-24.38-13.7-45.88-18.83l-33.91-8.11c-31.35-7.49-54.2-17.93-68.56-31.31-14.36-13.38-21.53-30.83-21.53-52.33,0-18.17,4.58-34.05,13.73-47.65,9.15-13.59,22.02-24.14,38.6-31.63C75.14,3.75,94.53,0,116.72,0c33.43,0,60.03,8.74,79.79,26.22,19.77,17.48,30.13,41.34,31.11,71.57h-44.73c-1.11-17.89-7.63-31.94-19.56-42.13-11.93-10.19-27.67-15.29-47.23-15.29s-34.05,4.47-45.98,13.42c-11.93,8.95-17.89,20.43-17.89,34.43,0,11.24,4.58,20.36,13.73,27.36,9.15,7.01,24.34,13.08,45.57,18.21l33.5,7.91c31.07,7.35,53.99,17.96,68.76,31.83,14.77,13.87,22.16,31.91,22.16,54.1,0,18.59-4.79,34.82-14.36,48.69-9.57,13.87-23.03,24.62-40.36,32.25-17.34,7.63-37.73,11.44-61.17,11.44Z',
@@ -653,7 +653,7 @@ export function triggerGenerateLogo() {
     }
     logo.innerHTML = '';
     cursor.remove();   // indicator cursor 用不到
-    gsap.set(logoContainer, { width: 220, height: 80 });
+    gsap.set(logoContainer, { width: 260, height: 100 });
     return;
   }
 
@@ -704,9 +704,9 @@ export function triggerGenerateLogo() {
 
   // typewriter 完成後撐開 <a> click target 到 SCCD letter bbox：
   // #header-logo shrink 到 100x100 後 <a> 也只剩 100x100（block child 撐父層），
-  // 但 SCCD svg 視覺占 0~205 x 0~58，右半邊（C/C/D）落在 click area 外 → 點不到。
-  // 設 220x80 涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
-  tl.set(logoContainer, { width: 220, height: 80 });
+  // 但 SCCD svg 視覺占 0~248 x 15~85，右半邊（C/C/D）落在 click area 外 → 點不到。
+  // 設 260x100 涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
+  tl.set(logoContainer, { width: 260, height: 100 });
 }
 
 // ── Mode btn enter/exit anim for /create ──────────────────────

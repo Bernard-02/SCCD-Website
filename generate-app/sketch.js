@@ -1400,7 +1400,14 @@ function adjustInputFontSize() {
     }
 
     // 桌面整組縮放：字級基準 × deskScale（CSS placeholder 同乘 --scale）
-    targetFontSize = `${(parseFloat(targetFontSize) * deskScale).toFixed(1)}px`;
+    const scaled = (fs) => `${(parseFloat(fs) * deskScale).toFixed(1)}px`;
+    // 字數分級抓的是平均字寬：W／D 這類寬字母一多，同級會換到第 5 行、超出 400 框被裁（假游標跟著字尾掉到框外）
+    // → 往下一級直到放得下（最小級 68px 打滿 40 個 W 仍 ≤ 5 行 374px）
+    const tiers = [extraLargeFontSize, largeFontSize, mediumFontSize, smallFontSize];
+    let t = tiers.indexOf(targetFontSize);
+    while (t < tiers.length - 1 &&
+           countWrappedLines(inputBox.value(), scaled(tiers[t])) * parseFloat(scaled(tiers[t])) * 1.1 > 400 * deskScale) t++;
+    targetFontSize = scaled(tiers[t]);
 
     // 更新字體大小
     inputBox.style("font-size", targetFontSize);
@@ -1434,11 +1441,6 @@ function adjustTextareaHeight(fontSize) {
         fontSize = inputBox.style('font-size');
     }
 
-    // 使用 Canvas 來精確測量文字高度（不受 textarea 游標影響）
-    let canvas = document.createElement('canvas');
-    let ctx = canvas.getContext('2d');
-
-    // 設定與 textarea 相同的字體樣式
     let fontSizeNum = parseFloat(fontSize);
 
     // 讀取 line-height（可能是純數字或帶單位的字串）
@@ -1454,48 +1456,8 @@ function adjustTextareaHeight(fontSize) {
         lineHeight = parseFloat(lineHeightValue);
     }
 
-    ctx.font = `${fontSize} ${inputBox.style('font-family')}`;
-
-    // 取得 textarea 的實際寬度（textarea 沒有設定 padding，直接使用完整寬度）
-    let textareaWidth = inputBox.elt.clientWidth;
-
-    // 將文字按換行符分割
-    let lines = content.split('\n');
-    let totalLines = 0;
-
-    // 對每一行進行寬度測量，計算實際需要多少行
-    for (let line of lines) {
-        if (line.length === 0) {
-            // 空行也算一行
-            totalLines += 1;
-        } else {
-            // 測量這一行的文字寬度
-            let lineWidth = ctx.measureText(line).width;
-
-            // 如果超過容器寬度，需要計算會自動換成幾行
-            if (lineWidth > textareaWidth) {
-                // 逐字測量，找出每行能放多少字
-                let currentLineWidth = 0;
-                let currentLineCount = 1;
-
-                for (let i = 0; i < line.length; i++) {
-                    let charWidth = ctx.measureText(line[i]).width;
-                    currentLineWidth += charWidth;
-
-                    if (currentLineWidth > textareaWidth) {
-                        // 超出寬度，換行
-                        currentLineCount++;
-                        currentLineWidth = charWidth;
-                    }
-                }
-
-                totalLines += currentLineCount;
-            } else {
-                // 不需要自動換行
-                totalLines += 1;
-            }
-        }
-    }
+    // 使用 Canvas 來精確測量文字高度（不受 textarea 游標影響）
+    let totalLines = countWrappedLines(content, fontSize);
 
     // 計算總高度（行數 * 行高）
     let contentHeight = totalLines * (fontSizeNum * lineHeight);
@@ -1509,6 +1471,22 @@ function adjustTextareaHeight(fontSize) {
     updateFakeCaret();
 }
 
+// 輸入只有 A–Z 無空格＝textarea 的 break-word 逐字換行：量「本行累積字串」（含字距調整）超寬就換行
+let _lineMeasureCtx = null;
+function countWrappedLines(content, fontSize) {
+    const ctx = _lineMeasureCtx || (_lineMeasureCtx = document.createElement('canvas').getContext('2d'));
+    ctx.font = `${fontSize} ${inputBox.style('font-family')}`;
+    const w = inputBox.elt.clientWidth;   // textarea 無左右 padding
+    let total = 0;
+    for (const line of content.split('\n')) {
+        let n = 1, start = 0;
+        for (let i = 1; i <= line.length; i++) {
+            if (ctx.measureText(line.slice(start, i)).width > w) { n++; start = i - 1; }
+        }
+        total += n;
+    }
+    return total;
+}
 
 // --- 新增：角度正規化函數（將角度正規化到 -180° 到 180° 之間）---
 function normalizeAngle(angle) {
