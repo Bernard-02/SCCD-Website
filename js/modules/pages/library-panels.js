@@ -11,7 +11,7 @@ import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, fetchCmsJson } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -212,14 +212,39 @@ function makeResetBtn(ariaLabel, onClick) {
 }
 
 // 桌面 reset 空間：在下一批 chevron 正下方、貼左＝跟 chevron／選項／年份字左緣一直線（user 2026-10-19，撤 10-01 置中；
-// 同日試過放 chevron 右邊同列，user 改回上下）。按鈕＝整個空間高（點擊區），icon 齊底＝上 padding 吃掉空間高減 icon 高、底貼欄底
+// 同日試過放 chevron 右邊同列，user 改回上下）。按鈕＝整個空間高（點擊區），icon 齊底＝上 padding 吃掉空間高減 icon 高、底貼欄底。
+// 沒選取＝空間 0 高、chevron 直接貼欄底（user 2026-10-20 不預留位置）；reset 出現＝空間高 0→28 補間：空間＝遮罩、按鈕貼頂，
+// 看起來是按鈕從欄底線下方升起、同拍把 chevron 推上去（user「從下面出現推上去、不要直接蓋上去」）；收起反向沉下去。顯隱走 setResetShown
 function makeResetSlot(btn) {
   const slot = document.createElement('div');
   slot.className = 'year-reset-slot';
-  slot.style.cssText = `flex:none;height:${YEAR_RESET_SLOT_H}px;display:flex;`;
-  btn.style.cssText = `height:${YEAR_RESET_SLOT_H}px;padding:${YEAR_RESET_SLOT_H - YEAR_RESET_ICON}px 0 0;border:none;background:none;color:var(--lib-fg);cursor:var(--cursor-pointer);display:none;`;
+  slot.style.cssText = 'flex:none;display:flex;height:0;overflow:clip;';
+  btn.style.cssText = `flex:none;height:${YEAR_RESET_SLOT_H}px;padding:${YEAR_RESET_SLOT_H - YEAR_RESET_ICON}px 0 0;border:none;background:none;color:var(--lib-fg);cursor:var(--cursor-pointer);`;
+  btn.inert = true;   // 藏著（0 高）時不可點、不進 tab 順序
   slot.appendChild(btn);
+  // 沒有下一批 chevron（分類選項放得下）時 reset 直接接在最後一個選項下：btn 上 padding 8 比選項間距 16 窄 → 差額補到
+  // btn margin、空間高跟著加＝icon 仍齊底；有 chevron 不補（user 2026-10-20）。attachCatPager fit 依 chevron 顯隱寫
+  let extra = 0;
+  /** @type {any} */ (btn)._setExtra = (/** @type {number} */ px) => {
+    if (px === extra) return;
+    extra = px;
+    btn.style.marginTop = `${px}px`;
+    if (!btn.inert) { if (typeof gsap !== 'undefined') gsap.killTweensOf(slot); slot.style.height = `${YEAR_RESET_SLOT_H + px}px`; }
+  };
+  /** @type {any} */ (btn)._setShown = (/** @type {boolean} */ show) => {
+    if (btn.inert === !show) return;
+    btn.inert = !show;
+    const h = show ? YEAR_RESET_SLOT_H + extra : 0;
+    if (typeof gsap === 'undefined' || prefersReducedMotion()) { slot.style.height = `${h}px`; return; }
+    gsap.to(slot, { height: h, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
+  };
   return slot;
+}
+// reset 顯隱：桌面在 reset 空間內＝上面的推上／沉下動畫；手機（bar 內）／矮橫向（absolute）直接切 display
+function setResetShown(btn, show) {
+  if (!btn) return;
+  if (btn._setShown) btn._setShown(show);
+  else btn.style.display = show ? '' : 'none';
 }
 
 // 捲動框的上／下一批 chevron（年份欄 user 2026-10-01、分類選項 10-19 共用；樣式 library.css .year-more-btn／.year-less-btn）。
@@ -251,7 +276,9 @@ function makeScrollPager(wrap, col, getItems, labels) {
     if (show) {   // 靜態位置＝欄 content 起點 → margin 補到框頂（awards 欄頂還有 spacer p；分類框下方的年份欄還隔著分類區）
       const cr = col.getBoundingClientRect();
       up.style.width = `${wrap.offsetWidth}px`;
-      up.style.marginTop = `${wrap.getBoundingClientRect().top - cr.top - col.clientTop - parseFloat(getComputedStyle(col).paddingTop)}px`;
+      // −1：往上多蓋 1px（inner padding-top 1 補回 icon 位置）。框是合成捲動層、蓋板另一層，頂緣落在小數裝置像素
+      // （125% 縮放 118×1.25=147.5）時兩邊捨入方向不同＝蓋板上方漏 1 裝置像素的年份字（user 2026-10-20）
+      up.style.marginTop = `${wrap.getBoundingClientRect().top - cr.top - col.clientTop - parseFloat(getComputedStyle(col).paddingTop) - 1}px`;
     }
     if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
     else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
@@ -311,13 +338,14 @@ function attachCatPager(catEl, onReset) {
     requestAnimationFrame(() => requestAnimationFrame(() => els.forEach(el => chromePlay(el, Math.max(0, wait / 1000 - 0.033)))));
   };
   enterLate([up, more]);
-  // 選項放得下（沒到 1/3 欄）＝不出 chevron（user 2026-10-19；documents 只有 4 個）。判斷「沒有 chevron 時放不放得下」＝框高＋（顯示中的）chevron 高，
+  // 選項放得下（沒到 2/3 欄）＝不出 chevron（user 2026-10-19；documents 只有 4 個）。判斷「沒有 chevron 時放不放得下」＝框高＋（顯示中的）chevron 高，
   // 免 chevron 本身佔掉的高把框擠到溢出；只在結果變了才動 display（每次先藏再量會打斷 chevron 的進場 transition）。框尺寸變（panel 顯示、resize、標籤載入）才重判
   const fit = () => {
     const shown = more.style.display !== 'none';
     const fits = catEl.scrollHeight <= catEl.clientHeight + (shown ? more.offsetHeight : 0) + 1;
     if (fits !== shown) return;
     more.style.display = fits ? 'none' : '';
+    /** @type {any} */ (btn)._setExtra(fits ? Math.max(0, (parseFloat(getComputedStyle(catEl).rowGap) || 0) - (YEAR_RESET_SLOT_H - YEAR_RESET_ICON)) : 0);
     if (!fits) enterLate([more]);
   };
   const ro = new ResizeObserver(fit);
@@ -389,7 +417,7 @@ function createYearPicker(pickerEl, years, onFilter) {
 
   const updateStyles = () => {
     const hasSel = selected.size > 0;
-    resetBtn.style.display = hasSel ? '' : 'none';
+    setResetShown(resetBtn, hasSel);
     pickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
       const isSel = selected.has(b.dataset.year);
       // 選取＝維持原色，未選＝dim 0.5、disabled／當前搜尋無結果（.lib-faint）＝0.2（兩者分開，user 2026-09-28；09-29 由 0.6/0.3 調；淡入淡出靠 library.css 的 color transition）
@@ -704,13 +732,24 @@ const AWARD_REF_TYPE_LABELS = {
   album:    { en: 'Albums',    zh: '相簿' },
 };
 
+// 三個 panel 的資料進頁只抓一次、失敗＝整頁空到重整（user 2026-10-20 回報 Documents 整片 No Result）→
+//   fetchCmsJson 帶逾時（原生 fetch 弱機掛住會一直等）＋失敗隔 2s 重試一次，再失敗才交給呼叫端退空清單。
+async function fetchCmsRows(url) {
+  for (let retry = false; ; retry = true) {
+    try {
+      const rows = await fetchCmsJson(url);
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
+      return rows;
+    } catch (e) {
+      if (retry) throw e;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+}
+
 async function fetchPressData() {
   const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('CMS ' + res.status);
-  const rows = (await res.json())?.data;
-  if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-  return rows.map(mapDirectusPressRow);
+  return (await fetchCmsRows(url)).map(mapDirectusPressRow);
 }
 let _pressDataPromise = null;
 function loadPressDataCached() {
@@ -724,11 +763,7 @@ async function fetchFilesData() {
   // library_documents 目前無 images M2M 欄，深取缺 relational 欄 Directus 回 200 忽略（不炸、為日後補圖預留；
   // 會 403 整包失敗的是缺「scalar」欄，非 relational — 見 memory reference_directus_m2a_ref_title_deepfetch）。
   const url = `${CMS_API_BASE}/library_documents?fields=*,pdf.id,pdf.type,pdf.filename_disk,cover.filename_disk,images.directus_files_id.filename_disk&sort=-year,sort&limit=-1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('CMS ' + res.status);
-  const rows = (await res.json())?.data;
-  if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-  return rows.map(mapDirectusFilesRow);
+  return (await fetchCmsRows(url)).map(mapDirectusFilesRow);
 }
 let _filesDataPromise = null;
 function loadFilesDataCached() {
@@ -917,9 +952,7 @@ function spawnAwardIcon(x, y) {
 async function fetchAwardLogos() {
   try {
     const url = `${CMS_API_BASE}/library_award_logos?fields=logos.directus_files_id.filename_disk&deep[logos][_sort]=sort`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('CMS ' + res.status);
-    const logos = (await res.json())?.data?.logos;
+    const logos = (await fetchCmsJson(url))?.logos;   // 帶逾時：awards 清單要等它回來才渲染，掛住會連帶卡住整個 panel
     if (!Array.isArray(logos) || logos.length === 0) throw new Error('CMS empty');
     return logos.map(j => j?.directus_files_id?.filename_disk).filter(Boolean)
       .map(cdnUrl);   // CloudFront：離線 webp 轉檔後即 webp、SVG 亦直接 serve
@@ -1023,14 +1056,7 @@ function loadAwardsDataCached() {
   _awardsDataPromise = (async () => {
     const awardsImages = await fetchAwardLogos();
 
-    const fetchRows = async () => {
-      const url = `${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS}&sort=-year,sort&limit=-1`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('CMS ' + res.status);
-      const rows = (await res.json())?.data;
-      if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
-      return rows;
-    };
+    const fetchRows = () => fetchCmsRows(`${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS}&sort=-year,sort&limit=-1`);
 
     const cachedRows = readAwardsCache();
     if (cachedRows) {
@@ -1763,7 +1789,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const updateList = applyAwardsFilters;
       const updateBtns = () => {
         const hasSel = selectedYears.size > 0;
-        resetBtn.style.display = hasSel ? '' : 'none';
+        setResetShown(resetBtn, hasSel);
         yearPickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
           const faint = !!awardsMatchYears && !awardsMatchYears.has(b.dataset.year);   // 當前搜尋該年無結果＝0.2（同 createYearPicker）
           b.classList.toggle('lib-faint', faint);
@@ -2644,7 +2670,7 @@ async function initFilesPanel() {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       // 分類↔年份雙向：先依選取年份退選／淡化分類；有分類被退選＝年份可點範圍跟著放寬
       if (syncCatBtns(filesCatBtns, selectedCats, listEl, selYears, q)) setYearsEnabled(new Set(availYears()));
-      if (catReset) catReset.style.display = selectedCats.size ? '' : 'none';
+      setResetShown(catReset, selectedCats.size > 0);
       const isAll = selectedCats.size === 0;
       const singleCat = selectedCats.size === 1;   // 單選＝卡片下方分類 tag 冗餘（全同類）
       const matchYears = q ? new Set() : null;   // 搜尋＋分類下有結果的年份（年份鈕淡化用，見 setSearchMatch）
@@ -3063,7 +3089,7 @@ async function initAlbumPanel() {
     function applyFilters() {
       const q     = searchInput ? searchInput.value.trim().toLowerCase() : '';
       if (syncCatBtns(albumCatBtns, selectedCats, listEl, selYears, q)) setYearsEnabled(new Set(availYears()));   // 分類↔年份雙向（同 Documents）
-      if (catReset) catReset.style.display = selectedCats.size ? '' : 'none';
+      setResetShown(catReset, selectedCats.size > 0);
       const isAll = selectedCats.size === 0;
       const matchYears = q ? new Set() : null;   // 搜尋＋分類下有結果的年份（同 Documents）
       listEl.querySelectorAll('.album-year-block').forEach(block => {

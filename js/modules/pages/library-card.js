@@ -60,6 +60,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   const tabOf   = new Map();
   const colorOf = new Map();
   const baseZOf = new Map();
+  const HOVER_Z = 9;   // hover 抬到色塊最上（底層 1–3 之上）、灰卡 10 之下（user 2026-10-20）
 
   // ── 工具 ────────────────────────────────────────────────────
 
@@ -460,7 +461,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   let entrancePlayed = false;
 
   // hover 樣式（inverse mode 反轉：白底黑字，standard 黑底白字）——抽成可重用（§15.4 解鎖補發也呼叫）
-  // 只變色不動 z：留在原層、灰卡照樣蓋在上面（user 2026-10-19；原本提到 z 11 整塊浮到灰卡前）
+  // 換色不動 z；抬層另走 crossfadeZ(el, HOVER_Z)＝色塊最上、灰卡 10 之下（user 2026-10-20；10-19 曾定「留原層」、更早的 z 11 浮到灰卡前都作廢）
   function applyCardHover(el) {
     const titleEl = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
     const isInverse = document.body.classList.contains('mode-inverse');
@@ -473,7 +474,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
   //   `if (isSwitching) return` 吞掉（點擊不經 hover 所以可點）。解鎖對每張 :hover 的非 active 卡合成套 hover；mouseleave 既有 handler 復原。
   function syncHoverAfterUnlock() {
-    allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) applyCardHover(el); });
+    allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) { applyCardHover(el); crossfadeZ(el, HOVER_Z); } });
     // #3 (user 2026-09-12)：色塊變小的切分頁動畫完成後，游標若仍停在「下一分頁」箭頭上，補套下一目標色塊的黑底白字預覽
     //   （靜止游標下 mouseenter 不會重 fire；:hover pseudo-class 仍準，同上面 allEls 的判法）。
     if (nextBtnEl && !isSwitching && nextBtnEl.matches(':hover')) previewNextTarget();
@@ -507,6 +508,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       if (isSwitching || el === activeEl || el.dataset.cardPending) return;
       applyCardHover(el);
       spinCard(el);   // #4：hover 進來抽一個新角度
+      crossfadeZ(el, HOVER_Z);   // 抬到色塊最上、灰卡之下（排在換色／抽角之後＝複本抄到 hover 色與轉動中的角，淡的只有深度）
     });
     el.addEventListener('mouseleave', () => {
       // §26 bug 修：pending（縮小中/上色擦除前）的色塊必須維持灰——colorOf 在切換起手就已是新色，
@@ -514,6 +516,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       if (el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
       titleEl.style.color = '#000';
+      if (parseInt(el.style.zIndex) === HOVER_Z) crossfadeZ(el, baseZOf.get(el) ?? 1);   // 放開＝沉回原深度（點擊走 fadeToFront 15，不經此）
       // #4：離開「不」再轉（user 二輪：避免一次 hover 轉兩次）——只 enter 轉；卡片維持 hover 那次的角度到下次 hover。
     });
   }
@@ -707,6 +710,48 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 穩態 transition 依角色套用；三個套用點（進場×2＋切 tab 收尾）呼叫時 activeEl 都已是正確角色
   const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION_IDLE; };
 
+  // 換深度（hover 抬到 HOVER_Z／放開沉回／點擊抬到 15）：z-index 只能瞬切 → 複本交叉淡化（user 2026-10-20，同首頁浮卡 floating-items.js crossfadeDepth）。
+  //   本體立刻到目標 z（游標判定不變）；上行＝本體在上面從 0 淡入、複本留原深度墊底；下行＝本體直接回原深度、留在上面的複本從現值淡出。
+  //   複本逐幀抄本體 computed transform（hover 抽角的 transition 可能還在轉）；marquee 是 CSS keyframe → 複本動畫對齊本體進度，
+  //   免得淡化中字條疊兩份。同一張連續進出：上一張複本直接收、接著現值淡。殘留複本 .lib-z-ghost 由 _doSwitchTab 開頭清
+  const ghostOf = new Map();
+  function crossfadeZ(el, toZ) {
+    const fromZ = parseInt(el.style.zIndex) || 1;
+    const prev = ghostOf.get(el);
+    if (prev) { if (typeof gsap !== 'undefined') gsap.killTweensOf(prev); prev.remove(); ghostOf.delete(el); }
+    el.style.zIndex = String(toZ);
+    if (typeof gsap === 'undefined' || prefersReducedMotion() || toZ === fromZ) {
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(el, 'opacity');
+      el.style.opacity = '1';
+      return;
+    }
+    const cur = parseFloat(getComputedStyle(el).opacity);   // 中途反向：接著現值
+    const ghost = /** @type {HTMLElement} */ (el.cloneNode(true));
+    ghost.classList.add('lib-z-ghost');
+    ghost.inert = true;
+    ghost.setAttribute('aria-hidden', 'true');
+    ghost.style.pointerEvents = 'none';
+    ghost.style.transition = 'none';
+    ghost.style.zIndex = String(fromZ);
+    ghost.style.transform = getComputedStyle(el).transform;   // 複本不吃 transition → 先抄當下角，免第一幀跳到終角
+    el.after(ghost);
+    ghostOf.set(el, ghost);
+    const anims = (/** @type {Element} */ n) => n.getAnimations({ subtree: true }).filter(a => a instanceof CSSAnimation);
+    const src = anims(el);
+    anims(ghost).forEach((a, i) => { if (src[i]) a.startTime = src[i].startTime; });   // 同一條 document timeline → 對齊起點＝逐幀同步（設 currentTime 會差一幀）
+    const track = () => { ghost.style.transform = getComputedStyle(el).transform; };
+    const done = () => { ghost.remove(); if (ghostOf.get(el) === ghost) ghostOf.delete(el); };
+    if (toZ > fromZ) {
+      ghost.style.opacity = '1';
+      gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto', onUpdate: track, onComplete: done });
+    } else {
+      gsap.killTweensOf(el, 'opacity');
+      el.style.opacity = '1';
+      gsap.fromTo(ghost, { opacity: cur }, { opacity: 0, duration: DUR.fast, ease: EASE.exitSoft, onUpdate: track, onComplete: done });
+    }
+  }
+  const fadeToFront = (/** @type {HTMLElement} */ el) => crossfadeZ(el, 15);
+
   function switchTab(clickedEl) {
     if (isSwitching) return;
     isSwitching = true;
@@ -855,7 +900,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     sec.querySelectorAll('.lib-title-box, .color-rect-title').forEach(t => {
       /** @type {HTMLElement} */ (t).style.color = ''; /** @type {HTMLElement} */ (t).style.transition = '';
     });
-    sec.querySelectorAll('.lib-card-veil').forEach(v => { if (typeof gsap !== 'undefined') gsap.killTweensOf(v); v.remove(); });
+    sec.querySelectorAll('.lib-card-veil, .lib-z-ghost').forEach(v => { if (typeof gsap !== 'undefined') gsap.killTweensOf(v); v.remove(); });
     // §17.3 兜底：連點時舊 outgoing 的 cardPending 別殘留卡死 hover
     allEls.forEach(el => delete el.dataset.cardPending);
     // §12.1：作廢上一輪未觸發的 HOLD timer（isSwitching 通常已擋住連點、此為兜底＋防離頁後殘觸）；§22 wipe 出/進場的隱藏/清 clip timer 也存這裡一併作廢
@@ -873,7 +918,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const contentEl = document.getElementById('library-card-content');
     // §38 req1（user 2026-09-09）：點擊當下被點色塊 z 即刻抬到最前（原在 morph 起跑才抬）——內容退場窗它就浮最上；
     //   marquee **不**在此刻退場（原 t=0 marqueeWipeExit 被打回「一點下去就消失」）。
-    clickedEl.style.zIndex = '15';
+    fadeToFront(clickedEl);
     // §39 req1（user 2026-09-09「marquee 在放大之前就要先出場」，撤 §38「morph 起跑那刻才滑出」）：
     //   排在退場窗**尾端**＝起點 CONTENT_EXIT−MARQ_EXIT、滑 MARQ_EXIT、恰在 morph 起跑前收完——
     //   點擊後仍先捲一小段（req1 保留）、又完全不騎放大（§29 精神回歸）。timer 進 switchColorTimers＝連點作廢。

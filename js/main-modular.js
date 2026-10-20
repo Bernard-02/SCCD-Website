@@ -376,7 +376,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
         if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
         // files／album 分類選項：常駐在年份欄最上方（user 2026-10-19 拿掉 filter icon＋右側滑板）；版面見 library.css .lib-cat-col。
-        // 包一層 .lib-cat-group＝選項框＋其上下 chevron／reset（library-panels.js attachCatPager）整組最高 1/3 欄
+        // 包一層 .lib-cat-group＝選項框＋其上下 chevron／reset（library-panels.js attachCatPager）整組最高 2/3 欄
         const cat = panel.querySelector('[id$="cat-filter"]');
         const yearCol = panel.querySelector('[id$="year-picker-wrap"]')?.parentElement;
         if (cat && yearCol) {

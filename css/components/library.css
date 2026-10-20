@@ -81,14 +81,15 @@
 #lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
 #lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child > p { display: none; }
 /* files／album 分類選項＝年份欄最上方（main-modular.js 桌面把 cat-filter 搬進年份欄、欄掛 .lib-cat-col；
-   user 2026-10-19 拿掉 filter icon＋右側滑板）。選項區最高＝欄高 1/3（放不下＝區內捲），年份 wrap 本來就 flex:1＝吃剩下的高。
+   user 2026-10-19 拿掉 filter icon＋右側滑板）。選項區最高＝欄高 2/3（放不下＝區內捲），年份 wrap 本來就 flex:1＝吃剩下的高。
    欄寬＝min-content＝最長英文單字寬（現 Contributions ~91px，約年份 2.7 倍）：user 提年份兩倍（68），但有 5 個單字比 68 寬、
    單字不能斷＝會被切；min-content＝不切字的最窄，後台改標籤自動跟著變。多字標籤照常換行（英文最多兩行） */
 .lib-cat-col {
   width: min-content;
   align-items: flex-start;
 }
-/* 選項框＋上下 chevron＋reset（library-panels.js attachCatPager，同年份欄）整組最高 1/3 欄＝選項 1：年份 2（user 2026-10-19，原半欄）；
+/* 選項框＋上下 chevron＋reset（library-panels.js attachCatPager，同年份欄）＋下方 lg 間距＝最高 2/3 欄、年份（含 chevron／reset）1/3
+   （user 2026-10-20 對調；10-19 為選項 1/3、原半欄）——間距算在選項這邊，年份才真的拿滿 1/3；
    選項框吃剩下的高、放不下＝框內捲 */
 .lib-cat-group {
   flex: none;
@@ -96,9 +97,9 @@
   flex-direction: column;
   align-items: flex-start;
   width: 100%;
-  max-height: calc(100% / 3);
+  max-height: calc(100% * 2 / 3 - var(--spacing-lg));
   min-height: 0;
-  margin-bottom: var(--spacing-xl);   /* 選項↔年份（user 2026-10-19 由 lg 加大） */
+  margin-bottom: var(--spacing-lg);   /* 選項↔年份（user 2026-10-20 改回 lg；10-19 曾加大成 xl）；改這裡 max-height 同步 */
 }
 .lib-cat-col [id$="cat-filter"] {
   flex: 0 1 auto;
@@ -112,7 +113,7 @@
 }
 .lib-cat-col [id$="cat-filter"]::-webkit-scrollbar { display: none; }
 /* 捲動尾端 sentinel 也是 flex item → 抵銷它前面那格 gap，免捲到底多出一段空白 */
-.lib-cat-col [id$="cat-filter"] > .year-more-end { flex: none; margin-top: calc(-1 * var(--spacing-sm)); }
+.lib-cat-col [id$="cat-filter"] > .year-more-end { flex: none; margin-top: calc(-1 * var(--spacing-sm) - 1px); }   /* −1px＝連自己 1px 高也抵掉，框底＝最後選項底（reset 間距才剛好＝選項 gap） */
 /* 選項英中兩行（同手機 chip）；英文最多兩行、超過截斷 */
 .lib-cat-col [id$="cat-filter"] button {
   display: flex;
@@ -762,7 +763,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 .year-more-btn {
   flex: none;
   align-self: flex-start;
-  margin-top: auto;            /* 年份少、沒撐滿欄時跟 reset 空間一起貼欄底 */
+  margin-top: auto;            /* 年份少、沒撐滿欄時貼欄底；reset 出現時被它往上推（library-panels.js makeResetSlot） */
   display: flex;
   padding: var(--spacing-xs) 0 0;
   border: none;
@@ -791,6 +792,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 .year-less-inner {
   display: flex;
   justify-content: flex-start;   /* 貼左＝同下一批 chevron */
+  padding-top: 1px;              /* 1px 疊縫：鈕往上 1（library-panels.js syncUp −1）、這裡補回＝icon 不動、蓋板多蓋頂緣 */
   padding-bottom: var(--spacing-xs);
   background: var(--lib-bg);
 }
