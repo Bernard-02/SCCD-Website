@@ -122,15 +122,17 @@ function rand(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-// footer 整張卡旋轉（openFooter 的 GSAP rotation，user 2026-10-19）：散佈演算法用 gBCR 算相對位置，旋轉中讀到的是外接框＝量歪。
-// 量測期間暫時轉正、量完同步還原（同一 task 內不繪製＝不閃）。進場 tween 跑到一半也安全：下一幀 tween 自己寫回
+// footer 整張卡旋轉＋矮螢幕等比縮（openFooter 的 GSAP rotation／scale，user 2026-10-19／20）：散佈演算法用 gBCR 算相對位置，
+// 轉著／縮著讀到的是外接框＝量歪。量測期間暫時轉正、還原 1:1，量完同步復原（同一 task 內不繪製＝不閃）。
+// 進場 tween 跑到一半也安全：下一幀 tween 自己寫回
 function unrotated(el, fn) {
   const shell = /** @type {HTMLElement | null} */ (el && el.closest('.footer-shell'));
   if (!shell || typeof gsap === 'undefined') return fn();
   const rot = /** @type {number} */ (gsap.getProperty(shell, 'rotation'));
-  if (!rot) return fn();
-  gsap.set(shell, { rotation: 0 });
-  try { return fn(); } finally { gsap.set(shell, { rotation: rot }); }
+  const sc = /** @type {number} */ (gsap.getProperty(shell, 'scale'));
+  if (!rot && sc === 1) return fn();
+  gsap.set(shell, { rotation: 0, scale: 1 });
+  try { return fn(); } finally { gsap.set(shell, { rotation: rot, scale: sc }); }
 }
 
 // 旋轉後 axis-aligned bbox：w' = w·|cos θ| + h·|sin θ|, h' = h·|cos θ| + w·|sin θ|（404 散佈共用）
@@ -780,6 +782,27 @@ function reserveTabRow(tabs, area) {
   return res;
 }
 
+// 說明文字（Office Hours）整條滿寬當 obstacle（user 2026-10-20：卡片不進它那一條、只排上方＝它自己一個空間），
+// 同 tab 列的 reserveTabRow：隱形條貼區底、高＝說明文字旋轉外接框高＋卡距。目前分頁沒說明文字＝拆掉保留條
+function reserveNoteRow(note, area) {
+  let res = /** @type {HTMLElement | null} */ (area.querySelector(':scope > .footer-note-reserve'));
+  if (!note) { if (res) res.remove(); return null; }
+  if (!res) {
+    res = document.createElement('div');
+    res.className = 'footer-note-reserve';
+    res.setAttribute('aria-hidden', 'true');
+    area.appendChild(res);
+  }
+  const deg = parseFloat((note.style.transform.match(/rotate\(([-\d.]+)deg\)/) || [])[1]) || 0;
+  const bb = rotatedBBox(note.offsetWidth, note.offsetHeight, deg);
+  res.style.left = '0';
+  res.style.bottom = '0';
+  res.style.width = '100%';
+  res.style.height = `${Math.ceil(bb.h + CARD_GAP_PX)}px`;
+  res.style.pointerEvents = 'none';
+  return res;
+}
+
 // 「不跑隨機散佈、改走線性 clip-reveal」的 gate。2026-08-08 由 <768 提到 <1200（對齊 header 漢堡切點、user）：
 //   - 768–1199 = 窄桌面 hybrid（logo 靠左縮小 + 右欄由上往下線性列表，CSS 在 footer.css hybrid 段）
 //   - <768     = 完整手機版（logo 疊最上）
@@ -857,8 +880,8 @@ export async function initFooterScatter(scope, opts = {}) {
 
   // 2026-09-27 版面：上區散佈（tabs 左上、legal 右上整高、copyright 貼底）、下區 logo bar 不在 area 內。
   // legal 整條（右側整高）當一個 obstacle：卡片不進 legal 區（user 2026-09-27「他們是一個整體」）。
-  // 說明文字只擋它自己那一塊（user 2026-10-03：卡片移動空間不含它、其他空間照用）。
-  const obstacles = [reserve, privacy, note].filter(Boolean);
+  // 說明文字整條滿寬擋住（user 2026-10-20：它自己一個空間、卡片只在上方；10-03 的「只擋自己那塊」作廢）。
+  const obstacles = [reserve, privacy, reserveNoteRow(note, area)].filter(Boolean);
 
   // 初始：items 沉入 anchor 遮罩下（clip-reveal 起點；anchor opacity 從 CSS default 0 起）
   hideItemsClip(items);
@@ -874,9 +897,6 @@ export async function initFooterScatter(scope, opts = {}) {
   for (let i = 0; i < 4 && right; i++) {
     applyPlacement(fallbackLayout);
     if (fallbackLayout.length === anchors.length && verifyPlacement(area, anchors, obstacles)) break;
-    // 覆蓋卡有上限高（footer.css --footer-cap：矮螢幕不蓋到 menu 鈕）→ 到頂就不再長高，排不進只能走 fallback 疊卡
-    const cap = parseFloat(getComputedStyle(footer).maxHeight);
-    if (Number.isFinite(cap) && footer.offsetHeight >= cap - 1) break;
     right.style.minHeight = `${right.offsetHeight + 80}px`;
     grew = true;
     fallbackLayout = (await buildLayoutCache(area, anchors, obstacles))[0];
@@ -906,6 +926,7 @@ export async function initFooterScatter(scope, opts = {}) {
   }
 
   if (!prefersReducedMotion()) startShuffleLoop(area, anchors, obstacles, items, fallbackLayout);
+  if (_footerOpen) applyCardScale(footer);   // 開著時重建（resize／切分頁長高）→ 縮放比例跟著重算
 }
 
 // ── 離頁退場 + 換頁後重置（user 2026-06-07：點 footer 連結離頁時 footer 元素也做出場，過場才不硬）──
@@ -918,11 +939,26 @@ let _footerExited = false;
 
 // ── 真桌面 footer＝蓋在頁面上的卡（user 2026-10-19）────────────────────────────
 // 卡不在捲動流裡（footer.css 真桌面段 position:fixed、出生藏在視窗下）：捲到頁底再往下滾 → 卡從視窗下升起、同時從 0° 轉到
-// 這次新抽的 ±[1,2]°；往上滾／點卡上非互動處／換頁（router playFooterExit）→ 轉回 0° 沉下去。
+// 這次新抽的 ±[1,2]°；往上滾／點卡外／換頁（router playFooterExit）→ 轉回 0° 沉下去（點卡上空白處不關）。
 // header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點／往上滾＝關卡、往下滾只擋，不碰後面內容）。
 // footer:open／footer:close（document）→ header.js 關桌面 menu＋logo 縮小／還原。
 // 手機／矮橫向仍是頁尾一段（線性版 initFooterMobileReveal），不走這裡。
 const OVERLAY_HIDE_YPERCENT = 130;   // 卡底離視窗底 48，100% 不夠藏；130 連 600 高的卡都蓋過
+// 矮螢幕整張等比縮（user 2026-10-20「縮卡，空間夠就不調」）：卡的版面高 h 放不進「logo 底＋gap → 頁卡底」的可用高時
+// scale＝可用高/h（下限 0.75＝字約 10.5px），繞中心縮＋y 補償讓視覺底仍貼頁卡底 48；空間夠＝1:1、y 0。
+// 縮到下限仍放不進：保住卡頂（logo 永遠不被蓋，user 的主訴）、底邊往下沉去蓋頁卡／視窗底緣。
+// logo 底＝logo 頂（--header-logo-top，SCCDHelpers.headerGeom）＋縮小態 100（header.js shrink 終值）；開卡時 logo 一定縮到 100（footerLogoSize）
+const CARD_SCALE_MIN = 0.75;
+function applyCardScale(shell) {
+  if (typeof gsap === 'undefined') return { scale: 1, y: 0 };
+  const avail = window.innerHeight - (SCCDHelpers.headerGeom().logoTop + 100) - 24 - 48;
+  const h = shell.offsetHeight || 1;
+  const scale = Math.max(CARD_SCALE_MIN, Math.min(1, avail / h));
+  const excess = Math.max(0, scale * h - avail);   // 下限仍放不進的量 → 整張再往下沉這麼多（頂＝logo 底＋gap）
+  const y = (1 - scale) * h / 2 + excess;   // 繞中心縮會把底抬高 (1−k)h/2 → 往下補回
+  gsap.set(shell, { scale, y });
+  return { scale, y };
+}
 let _footerOpen = false;
 let _overlayBound = false;
 let _lastScrollY = 0;
@@ -947,9 +983,17 @@ function showBackdrop() {
   // 往上滾＝關；往下滾只擋掉（user 2026-10-19：開著往下滾不關——否則滾到底的連續滾輪會開→關→再開）
   b.addEventListener('wheel', (e) => { e.preventDefault(); if (e.deltaY < 0) closeFooter(); }, { passive: false });
   document.body.appendChild(b);
+  document.body.classList.add('footer-card-open');   // CSS：mode／menu 鈕放行給 backdrop、mode3 鉛筆沉到卡下
   _backdrop = b;
 }
-function hideBackdrop() { if (_backdrop) { _backdrop.remove(); _backdrop = null; } }
+function hideBackdrop() { if (_backdrop) { _backdrop.remove(); _backdrop = null; document.body.classList.remove('footer-card-open'); } }
+
+// 卡內滾輪不影響任何東西（user 2026-10-20）：不關卡、不捲後面的頁；卡內真捲得動的（tab 列橫捲）照常
+function onCardWheel(e) {
+  e.stopPropagation();
+  const axis = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? 'x' : 'y';
+  if (!hasScrollableAncestor(e.target, axis, Math.sign(axis === 'x' ? e.deltaX : e.deltaY))) e.preventDefault();
+}
 
 export function openFooter() {
   const shell = getOverlayFooter();
@@ -958,12 +1002,14 @@ export function openFooter() {
   _footerOpen = true;
   _lastScrollY = window.scrollY;
   showBackdrop();
+  shell.addEventListener('wheel', onCardWheel, { passive: false });
   document.dispatchEvent(new CustomEvent('footer:open'));
   if (shuffleCtx) scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
   const rot = (Math.random() < 0.5 ? -1 : 1) * rand(1, 2);
   gsap.killTweensOf(shell);
-  // y:0 蓋掉 CSS 出生 translateY(120%) 被 GSAP 讀成的 px；位移與旋轉同一支 tween＝同時跑
-  gsap.fromTo(shell, { y: 0, yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0 },
+  const { scale, y } = applyCardScale(shell);
+  // y 蓋掉 CSS 出生 translateY(130%) 被 GSAP 讀成的 px（＝縮放補償值，空間夠＝0）；位移與旋轉同一支 tween＝同時跑、scale 全程定值
+  gsap.fromTo(shell, { y, yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0, scale },
     { yPercent: 0, rotation: rot, duration: prefersReducedMotion() ? 0 : DUR.reveal, ease: EASE.enter, overwrite: 'auto' });
 }
 
@@ -973,6 +1019,7 @@ export function closeFooter() {
   if (!_footerOpen) return _closePromise || Promise.resolve();
   _footerOpen = false;
   hideBackdrop();
+  shell.removeEventListener('wheel', onCardWheel);
   document.dispatchEvent(new CustomEvent('footer:close'));   // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）
   stopShuffleLoop();
   gsap.killTweensOf(shell);
@@ -1003,11 +1050,7 @@ function bindFooterOverlay() {
     if (_footerOpen && y < _lastScrollY - 1) closeFooter();
     _lastScrollY = y;
   }, { passive: true });
-  // 點卡上非互動處＝關（卡外由 backdrop 接；header logo 交給 router：換頁的 playFooterExit 收卡）
-  document.addEventListener('click', (e) => {
-    const t = e.target instanceof Element ? e.target : null;
-    if (_footerOpen && t && t.closest('footer.footer-shell') && !t.closest('a, button')) closeFooter();
-  });
+  // 點卡上空白處不關（user 2026-10-20）：只有卡外（backdrop）才關；header logo 交給 router（換頁的 playFooterExit 收卡）
   // 鍵盤 Tab 進到藏著的卡＝打開（不然焦點落在畫面外）
   document.addEventListener('focusin', (e) => {
     if (!_footerOpen && SCCDHelpers.isDesktopLayout() && e.target instanceof Element && e.target.closest('footer.footer-shell')) openFooter();

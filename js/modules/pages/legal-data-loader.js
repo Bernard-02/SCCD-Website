@@ -435,6 +435,27 @@ function equalizeMapNumWidth(root) {
 
 // ── Public loaders ─────────────────────────────────────────────────────────
 
+// 真桌面一屏 frame：內容欄整條都是內容區（user 2026-10-20）——游標在欄的 x 範圍但不在框內（框上方 header 帶）
+// → 滾輪路由進框；框捲到底、或欄外左右兩側＝不攔，交給 footer 覆蓋卡。
+// 掛 document＝早於 footer-scatter 的 window listener，它看 defaultPrevented 就不開卡。
+// 四頁 inner-scroll frame 同需求由 bindFrameScrollSplit 處理（那支要 nav 欄，legal 沒有）。
+export function bindLegalColumnWheel() {
+  const box = /** @type {HTMLElement|null} */ (document.querySelector('.legal-content-col'));
+  if (!box) return;
+  const onWheel = (/** @type {WheelEvent} */ e) => {
+    if (!SCCDHelpers.isDesktopLayout() || e.ctrlKey || box.contains(/** @type {Node} */ (e.target))) return;
+    const r = box.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right) return;
+    const px = (e.deltaMode === 1 ? 33 : 1) * e.deltaY;   // Firefox 滾輪 line 制換算
+    const atEdge = px > 0 ? box.scrollTop + box.clientHeight >= box.scrollHeight - 1 : box.scrollTop <= 0;
+    if (atEdge || document.body.classList.contains('footer-card-open')) return;
+    e.preventDefault();
+    box.scrollTop += px;
+  };
+  document.addEventListener('wheel', onWheel, { passive: false });
+  registerPageCleanup(() => document.removeEventListener('wheel', onWheel));
+}
+
 // Regulations & Policy（regulations.html）：頁面說明＋學系規章（3 欄表格）一列＋政策列（隱私權等）。
 export async function loadRegAndPolicy() {
   const contentEl = document.getElementById('legal-content');

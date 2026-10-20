@@ -476,6 +476,15 @@ export function initTimeline() {
     const listContent = listView.querySelector('.tl-list-content');
     const listYears = listView.querySelector('.tl-list-years');
     const rectEls = [listRect];
+    // 卡片 inset 邊（藍底但不在清單內）也算內容區（user 2026-10-20）：滾輪路由進清單；清單到底才放行給 footer 覆蓋卡
+    listRect.addEventListener('wheel', (/** @type {WheelEvent} */ e) => {
+      if (e.ctrlKey || listYears.contains(/** @type {Node} */ (e.target))) return;
+      const px = (e.deltaMode === 1 ? 33 : 1) * e.deltaY;
+      const atEdge = px > 0 ? listYears.scrollTop + listYears.clientHeight >= listYears.scrollHeight - 1 : listYears.scrollTop <= 0;
+      if (atEdge) return;
+      e.preventDefault();
+      listYears.scrollTop += px;
+    }, { passive: false });
 
     // 矩形 clip-reveal 用外層遮罩：吃 rect 桌面定位 + overflow:clip；rect 填滿遮罩內部、退進場純位移滑動。
     // 桌面 buildStrip only。（next 鈕已移除 → 不再留 right:24 空位，卡片填滿整格）

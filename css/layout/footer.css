@@ -41,9 +41,10 @@
   }
 
   /* tabs：base 藏、各 viewport 自開——手機 <768 in-flow／768–1023 absolute 疊頂／≥1024 absolute + scatter obstacle（矮橫向見 landscape.css）。
-     .footer-tab-reserve＝JS 建的隱形滿寬頂部保留條 obstacle，只散佈版生效。 */
+     .footer-tab-reserve／.footer-note-reserve＝JS 建的隱形滿寬保留條 obstacle（頂＝tab 列、底＝說明文字），只散佈版生效。 */
   .footer-tabs,
-  .footer-tab-reserve {
+  .footer-tab-reserve,
+  .footer-note-reserve {
     display: none;
   }
   /* tab 列可左右拖動：overflow-x + 隱藏 scrollbar。觸控原生 pan、滑鼠走 footer-scatter.js makeTabsDraggable。display 由各 viewport 規則開。 */
@@ -269,7 +270,7 @@
     .footer-random > .footer-tabs .footer-tab { transform: none !important; }   /* 平板不旋轉 */
 
     /* 每張資訊卡＝半欄寬（兩欄 + 中間 xl gap）；排除 absolute tabs 與 desktop-only reserve。 */
-    .footer-random > :not(.footer-tabs, .footer-tab-reserve) {
+    .footer-random > :not(.footer-tabs, .footer-tab-reserve, .footer-note-reserve) {
       width: calc(50% - var(--spacing-xl) / 2);
     }
     /* social 排在文字之後：order 最後、跟隨 flow。
@@ -345,10 +346,7 @@
     -webkit-mask: var(--tab-mark-src) no-repeat left top / contain;
             mask: var(--tab-mark-src) no-repeat left top / contain;
   }
-  /* 無圖 mark 的 units tab：首行往下墊 = mark 高 + margin-bottom → 對齊有 mark tab 的說明文字。 */
-  .footer-tab:not(:has(.footer-tab-mark)) {
-    padding-top: calc(var(--tab-mark-h) + var(--spacing-xs));
-  }
+  /* 沒設 mark 的 tab 不留 mark 的空位（user 2026-10-20：後台拿掉 tab logo 就不該有空塊），文字直接從頂開始 */
   /* 英中各最多兩行（user 2026-10-19）：起跳寬 --tab-text-cap（各 viewport 可調），兩行裝不下由 footer-scatter.js fitTabText
      加寬、寫 --tab-text-w（英中共用同寬）。balance＝折兩行時上下等長、不留單字孤行 */
   .footer-tab .footer-tab-en,
@@ -465,7 +463,7 @@
 
     /* 頂部整條保留區（隱形滿寬 obstacle）：scatter 卡片全擋到 tab 那條之下 → tab 右邊淨空。
        沿用 `.footer-random > div` 的 absolute + opacity:0，JS reserveTabRow 設 top/width/height。 */
-    .footer-random > .footer-tab-reserve {
+    .footer-random > :is(.footer-tab-reserve, .footer-note-reserve) {
       display: block;
     }
 
@@ -538,8 +536,10 @@
     /* 整張 footer＝蓋在頁面上的一張旋轉卡（user 2026-10-19）：不在捲動流裡、fixed、出生藏在視窗下；
        footer-scatter.js openFooter 升起＋同時從 0° 轉到每次新抽的 ±[1,2]°（GSAP transform；散佈量測時暫時轉正見 unrotated）。
        0° 時的框＝左右 container padding、頂對齊第一顆 nav btn（--nav-line）、底對齊左下當前頁卡的底（48＝navigation.css #page-indicator bottom）；
-       散佈區 480 保證撐不下（矮視窗）就往上長高。z 低於 header（9999）＝logo／mode／menu 鈕都浮在卡上照常可點；
+       散佈區 480 保證撐不下（矮視窗）就往上長高。z＝全站最高、只低於 header（9999）的 logo（user 2026-10-20）；
        開卡期間 .footer-backdrop 墊在卡下吃掉卡外的滑鼠操作（點／滾＝關卡，不碰後面內容；hover 也到不了）。
+       mode／menu 鈕同在 header stacking context、不能單獨壓到卡下 → 開卡改 pointer-events:none 放行給 backdrop
+       （無 hover、default 游標、點了只關卡）；兩鈕與卡不重疊（--footer-cap）＝看起來等同在卡下。鉛筆見 mode-color-panel.css。
        ⚠️ HTML 不能帶 .relative utility（utilities 層會壓過這裡的 fixed）。 */
     .footer-shell {
       position: fixed;
@@ -547,24 +547,21 @@
       right: var(--container-padding);
       bottom: 48px;   /* ＝左下頁卡 bottom（user 2026-10-19「到動態那張卡的底」）；開卡時頁卡被蓋住 */
       z-index: 9998;
-      /* 矮螢幕上限：卡頂不越過 menu 鈕底（header 帶 --header-height 96）＋gap md（user 2026-10-19「不能重疊到 menu btn」）；
-         散佈區最小高跟著縮（下方 .footer-right），footer-scatter.js 長高迴圈到頂就停 */
-      --footer-cap: calc(100vh - var(--header-height, 96px) - var(--spacing-md) - 48px);
-      max-height: var(--footer-cap);
+      /* 矮螢幕不設上限、不長高：卡的版面高＝max(框, 內容 540+)，放不進「logo 底 148＋24 → 頁卡底 48」時由
+         footer-scatter.js applyCardScale 整張等比縮（下限 0.8），空間夠＝1:1 不動（user 2026-10-20「縮卡，空間夠就不調」） */
       transform: translateY(130%);   /* 130 非 115：底離視窗邊 48，100% 不夠藏 */
     }
     .footer-inner {
       padding: calc(var(--container-padding) / 2);   /* 卡內四周 30（user 2026-10-19 減半） */
       min-height: calc(100vh - var(--nav-line) - 48px);
     }
-    /* 最小高＝散佈 480 保證（卡 540）；視窗矮到連這都放不下時改吃上限（扣內 padding），排不進由 fallback 疊卡、不往上長過 menu 鈕 */
-    .footer-right {
-      min-height: min(480px, calc(var(--footer-cap) - var(--container-padding)));
-    }
     .footer-backdrop {
       position: fixed;
       inset: 0;
       z-index: 9997;
+    }
+    body.footer-card-open #site-header :is(#mode-btn, #menu-btn) {
+      pointer-events: none;
     }
     /* 桌面沒有 logo 列（回首頁走 header logo）；線性版（<1024／矮橫向）照舊在左上 */
     .footer-logo-area {
@@ -628,7 +625,7 @@
   /* 矮橫向 gate（含 768–1023）：tabs 版型在 landscape.css（unlayered 蓋回本檔 768–1023 段的 absolute），這裡只收 desktop-only 的 .footer-tab-reserve。
      padding-top 歸零：gate 寬落在 768–1023 時會誤吃該段 tabs 預留高（landscape.css 另給自己的 1rem）。 */
   @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
-    .footer-random > .footer-tab-reserve {
+    .footer-random > :is(.footer-tab-reserve, .footer-note-reserve) {
       display: none;
     }
     .footer-random {

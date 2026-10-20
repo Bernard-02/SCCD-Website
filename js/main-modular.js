@@ -573,7 +573,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // 網站導覽（sitemap）：無障礙聲明（accessibility_statement）+ 網站地圖（data/accessibility.json）
   const legalLoader = { regulations: 'loadRegAndPolicy', support: 'loadSupport', sitemap: 'loadSitemap' }[page];
   if (legalLoader) {
-    import('./modules/pages/legal-data-loader.js').then(m => { if (alive()) m[legalLoader](); });
+    import('./modules/pages/legal-data-loader.js').then(m => { if (alive()) { m[legalLoader](); m.bindLegalColumnWheel(); } });
   }
 
   // --- 404 Page ---

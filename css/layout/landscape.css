@@ -1405,7 +1405,7 @@
   }
   /* 卡片寬回歸內容自適應：矮橫向寬 768-1199 會誤吃平板段「每卡＝半欄寬」規則（footer.css hybrid），
      欄2 已是窄欄再對半＝地址被擠成細條逐字折行。 */
-  body .footer-random > :not(.footer-tabs, .footer-tab-reserve) {
+  body .footer-random > :not(.footer-tabs, .footer-tab-reserve, .footer-note-reserve) {
     width: auto;
     max-width: 100%;
   }

@@ -14,6 +14,9 @@
 body.lightbox-open #mode-color-panel,
 html.has-slide-in #mode-color-panel { display: none !important; }
 
+/* 桌面 footer 卡開著：沉到 backdrop（9997）下＝被卡蓋住、點不到（user 2026-10-20；本檔 unlayered，規則放這才蓋得過上面的 9998） */
+body.footer-card-open #mode-color-panel { z-index: 9996; }
+
 /* ── 滑動結構：鉛筆在遮罩內滑出；wheel 整顆從視窗右緣外滑入（裁切交給 #mode-color-panel）；微傾掛 wrapper（旋轉跟遮罩走）── */
 .mcp-pencil-mask,
 .mcp-panel-mask {
