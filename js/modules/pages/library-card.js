@@ -457,6 +457,9 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 同批卡片的 clip/幾何 → 卡片被甩到畫面邊緣（user 2026-06-27：deep-link 進場未完就點 award / 快速切分頁）。
   // 沿用 switchTab 既有 `if (isSwitching) return` guard 擋住；進場 playEntranceAnimation 收尾才解鎖。
   let isSwitching = true;
+  // 離頁退場中：卡片不再跟游標互動（user 2026-10-21）——pointer-events 擋新 hover／點擊／手指游標，
+  //   mouseleave 另看這旗標（pointer-events 一關，游標一動就補發 leave＝原本會還原色／沉層）
+  let exiting = false;
   // §28（req2）：首次進場旗標——false 期間 initColorEls 的 fonts.ready 把色塊 marquee 先藏、交 playEntranceAnimation 揭；進場收尾設 true（之後 relayout/切換不再藏）。
   let entrancePlayed = false;
 
@@ -505,7 +508,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     el.addEventListener('mouseenter', () => {
       // §17.3 hover ready gate（user 2026-09-06「色塊 ready 前 hover 無效」）：反向上色未擦完前 dataset.cardPending 擋 hover——
       //   否則 mouseenter 寫 bg 黑（被灰 overlay 蓋住看不見）＋ title 色（在 overlay 之上立刻變）＝「marquee 變了、顏色沒變」。點擊照舊可點。
-      if (isSwitching || el === activeEl || el.dataset.cardPending) return;
+      if (isSwitching || exiting || el === activeEl || el.dataset.cardPending) return;
       applyCardHover(el);
       spinCard(el);   // #4：hover 進來抽一個新角度
       crossfadeZ(el, HOVER_Z);   // 抬到色塊最上、灰卡之下（排在換色／抽角之後＝複本抄到 hover 色與轉動中的角，淡的只有深度）
@@ -513,7 +516,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     el.addEventListener('mouseleave', () => {
       // §26 bug 修：pending（縮小中/上色擦除前）的色塊必須維持灰——colorOf 在切換起手就已是新色，
       //   此處無 gate 時游標滑出＝直接把 RGB 寫進本體（「色塊變小自動填色」）。pending 中 hover 從沒套過、無需還原。
-      if (el === activeEl || el.dataset.cardPending) return;
+      if (exiting || el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
       titleEl.style.color = '#000';
       if (parseInt(el.style.zIndex) === HOVER_Z) crossfadeZ(el, baseZOf.get(el) ?? 1);   // 放開＝沉回原深度（點擊走 fadeToFront 15，不經此）
@@ -1150,6 +1153,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 時間壓短（fetch + cleanup + swap 同時跑，總體要 snappy）
 
   function playExitAnimation() {
+    exiting = true;
+    [...allEls, nextBtnEl].forEach(el => { if (el) el.style.pointerEvents = 'none'; });
     return new Promise(resolve => {
       const TITLE_DUR = DUR.fast;  // chip 先 wipe 的時長（短，作為前置動作）
       const EXIT_DUR  = DUR.fast;
@@ -1367,6 +1372,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // 點擊後 target 變 activeEl / pending → mouseleave 的 guard 同色塊本身的 handler，不會誤還原。
     nextBtnEl.addEventListener('mouseenter', previewNextTarget);
     nextBtnEl.addEventListener('mouseleave', () => {
+      if (exiting) return;   // 退場中不還原預覽（同色塊 mouseleave）
       const el = btnHoverTarget;
       btnHoverTarget = null;
       if (!el || el === activeEl || el.dataset.cardPending) return;

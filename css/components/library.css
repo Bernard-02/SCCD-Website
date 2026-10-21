@@ -593,14 +593,20 @@
 #library-awards-list .award-record-item.list-item-zebra,
 #library-press-list .press-item.list-item-zebra,
 #library-album-list .files-item.list-item-zebra {
-  background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+  --zb-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));   /* 進場長底色用（lists.css .zb-cover） */
+  background-color: var(--zb-color);
 }
 /* mode3：library 卡是「反色島」（color.css #library-card scope 把 --lib-bg remap 成與 page hue 對比的兩階灰）。
    斑馬疊色用 --lib-fg-rgb（卡內反色字）非 --theme-fg-rgb（page 對比，翻卡後疊在深卡上看不到）；alpha 用 --lib-zebra-alpha */
 body.mode-color #library-awards-list .award-record-item.list-item-zebra,
 body.mode-color #library-press-list .press-item.list-item-zebra,
 body.mode-color #library-album-list .files-item.list-item-zebra {
-  background-color: rgba(var(--lib-fg-rgb), var(--lib-zebra-alpha, 0.05));
+  --zb-color: rgba(var(--lib-fg-rgb), var(--lib-zebra-alpha, 0.05));
+}
+/* 斑馬底色進場（lists.css .zb-cover）：列本身的 transition: opacity 同特異度又後載入、會蓋掉 .zb-cover 的
+   background-size 過渡（底色瞬間長滿、transitionend 不 fire＝class 永遠不拿掉）→ 提特異度、opacity 照留 */
+#library-card-content .zb-cover {
+  transition: background-size var(--zb-dur, 0s) ease-out var(--zb-delay, 0s), opacity var(--dur-fast) ease;
 }
 #library-album-list .files-item { border-bottom: none; }
 /* press/album 左右 sm padding：斑馬底色仍滿格、內容內縮 sm */
