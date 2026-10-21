@@ -3,7 +3,7 @@
  * Activities Search Module
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
-import { hideRows, revealRows, snapRowsShown } from './list-row-reveal.js';
+import { hideRows, revealRows, snapRowsShown, clearZebraCover } from './list-row-reveal.js';
 import { setupClipReveal } from './scroll-animate.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR } from './motion.js';
@@ -27,7 +27,7 @@ function ensureFullyRendered(panel) {
 // 清 lazy 藏起的 transform / 斑馬 clip / data-pre-reveal → 讓（清空搜尋後）所有 item 直接可見可互動。
 function revealAllInstant(panel) {
   snapRowsShown(panel.querySelectorAll('.list-reveal-row'));  // 五輪：transition:none＋transform=''（零讀取，不再逐列冷觸 recalc）
-  panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => { it.style.clipPath = ''; });
+  panel.querySelectorAll('.list-item.list-item-zebra').forEach(it => clearZebraCover(/** @type {HTMLElement} */ (it)));   // 進場中藏著的斑馬底色直接到位
   panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
 }
 
@@ -73,9 +73,9 @@ function animateMatches(panel) {
 }
 
 // 八輪 Part 2：search 顯隱/重排後按「可見 DOM 序」重新交錯 zebra——原 setZebra 是建行時的 default 連續序，
-//   search 只改 display/排序、從不動 zebra → 結果會連灰/連白。順帶清殘留 inline clip（pending/被打斷 item 帶
-//   inset(100%) 會把整筆裁隱形，搜尋結果須立即完整可見）＋zbGen 換代（'s' 前綴＝作廢舊 zebra 動畫回呼，六輪機制；
-//   與 activities 'a'／admission 'd' 跨檔不撞值）。judge 可見用 style.display（applyGenericSearch 自寫的 inline、零 layout 讀）。
+//   search 只改 display/排序、從不動 zebra → 結果會連灰/連白。順帶清還藏著的斑馬底色（pending/被打斷 item 的
+//   .zb-cover，搜尋結果須立即完整可見）＋zbGen 換代（'s' 前綴＝作廢舊 zebra 動畫回呼，六輪機制；
+//   與 list-row-reveal 'r'／admission 'd' 不撞值）。judge 可見用 style.display（applyGenericSearch 自寫的 inline、零 layout 讀）。
 let _restripeZbGen = 0;
 function restripeVisibleZebra(panel) {
   // 逐子清單各自從 0 起算（同 loader 逐 container 計數；子清單＝panel 直屬子，常設多包一層 grid-12）：整 panel 連號
@@ -85,7 +85,7 @@ function restripeVisibleZebra(panel) {
     visible.forEach((it, i) => {
       const el = /** @type {HTMLElement} */ (it);
       el.classList.toggle('list-item-zebra', i % 2 === 0);
-      if (el.style.clipPath) { el.style.transition = 'none'; el.style.clipPath = ''; }
+      clearZebraCover(el);
       el.dataset.zbGen = 's' + (++_restripeZbGen);
     });
   });
@@ -94,8 +94,7 @@ function restripeVisibleZebra(panel) {
 // ── Empty State ──────────────────────────────────────────────────────────
 
 function getOrCreateEmptyState(panel) {
-  // :scope >：只認自己直屬的——畢業展引擎建在 #degree-show-list 內的那個 DOM 序在 panel 尾這個之前，
-  //   panel.querySelector 會抓成它（display:none 容器內）＝特設／常設無結果時一片空白
+  // :scope >：只認 panel 直屬的那個（別抓到子清單容器裡的）
   let el = panel.querySelector(':scope > .search-empty-state');
   if (!el) {
     el = document.createElement('div');
@@ -364,38 +363,9 @@ function hideLastSeparator(yearGroups) {
   }
 }
 
-// ── Degree Show 搜尋（卡片結構，非 list-year-group）─────────────────────────
-
-function applyDegreeShowSearch(query) {
-  const container = document.getElementById('degree-show-list');
-  if (!container) return;
-  const cards = /** @type {HTMLElement[]} */ ([...container.querySelectorAll('.degree-show-card')]);
-  const q = query.toLowerCase();
-  cards.forEach(card => {
-    if (!query) {
-      card.style.display = '';
-      return;
-    }
-    const year = card.querySelector('h5')?.textContent.toLowerCase() || '';
-    const title = [...card.querySelectorAll('h5')].map(el => el.textContent.toLowerCase()).join(' ');
-    card.style.display = (year.includes(q) || title.includes(q)) ? '' : 'none';
-  });
-
-  // Empty state
-  const anyVisible = cards.some(c => c.style.display !== 'none');
-  setEmptyState(container, query && !anyVisible);
-}
-
-// 畢業展 2026-09-29 併入展演子分頁：展演的搜尋框在「畢業展子清單可見」時改走卡片搜尋，其餘走一般清單搜尋
-function applyPanelSearch(panelId, query) {
-  const ds = document.getElementById('degree-show-list');
-  if (panelId === 'panel-exhibitions' && ds && ds.style.display !== 'none') applyDegreeShowSearch(query);
-  else applyGenericSearch(panelId, query);
-}
-
 // ── 給 section / sub-filter 切換用：換子分頁＝搜尋清空（user 2026-10-01）─────────
-// ⚠️ caller 要在「舊清單仍 display、新內容還沒畫出來」的同步段呼叫：applyPanelSearch 依當下可見子清單選引擎
-//   （畢業展卡片 vs 一般清單），而還原會 snap 全部 rows 現形，之後同步被 display 切換／setupAdmissionReveal 蓋掉＝不閃。
+// ⚠️ caller 要在「舊清單仍 display、新內容還沒畫出來」的同步段呼叫：還原會 snap 全部 rows 現形，
+//   之後同步被 display 切換／setupAdmissionReveal 蓋掉＝不閃。
 export function clearSearch(panelId) {
   const panel = document.getElementById(panelId);
   const input = /** @type {HTMLInputElement | null} */ (panel?.querySelector(`.activities-search-input[data-panel="${panelId}"]`));
@@ -405,7 +375,7 @@ export function clearSearch(panelId) {
   // 還原的 revealAllInstant 會拔光 panel 的 data-pre-reveal，但 caller 接著就是 setup＋reveal（unlockGroup 揭完才解）
   // → 鎖原樣放回：否則進場途中 item 可點、navigateToItem 的 waitForItemRevealed 立即放行＝highlight 比文字早（06-09 bug）
   const locked = [...panel.querySelectorAll('.list-item[data-pre-reveal]')];
-  applyPanelSearch(panelId, '');
+  applyGenericSearch(panelId, '');
   locked.forEach(it => it.setAttribute('data-pre-reveal', ''));
 }
 
@@ -529,7 +499,7 @@ export function initActivitiesSearch() {
     // debounce：lazy 全建 + 結果進場動畫較重，不必每次按鍵都跑；停鍵 ~140ms 才 apply（清空即時還原）
     let t = null;
     input.addEventListener('input', () => {
-      const run = () => applyPanelSearch(panelId, input.value.trim());
+      const run = () => applyGenericSearch(panelId, input.value.trim());
       clearTimeout(t);
       if (!input.value.trim()) run();          // 清空即時還原、不 debounce
       else t = setTimeout(run, 140);
@@ -544,7 +514,7 @@ export function initActivitiesSearch() {
       setTimeout(() => {
         const panelInput = /** @type {HTMLInputElement | null} */ (document.querySelector(`.activities-search-input[data-panel="panel-${section}"]`));
         if (!panelInput) return;
-        applyPanelSearch(`panel-${section}`, panelInput.value.trim());
+        applyGenericSearch(`panel-${section}`, panelInput.value.trim());
       }, 300);
     });
   });

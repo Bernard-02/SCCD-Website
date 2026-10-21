@@ -77,6 +77,46 @@ export function revealRows(rows, { dur = DUR.reveal, delay = 0, stagger = 0.06, 
   setTimeout(finish, (delay + (list.length - 1) * stagger + dur + 0.1) * 1000);
 }
 
+// 斑馬底色進場（.zb-cover，lists.css）：舊制 clip-path 裁整個 item＝連文字一起裁，底色與文字同拍進場時
+//   文字被揭露邊擋住、看起來永遠「底色先、文字才跟上」（user 2026-10-21：要一起出現、逐 item 接力）。
+//   改成底色由 background-image 長出（內容之下）：只動底色，文字照自己的遮罩同時滑入。
+//   fromTop＝由上往下長（文字從上滑入的那筆，整筆同方向）。activities／admission／library 共用。
+//   zbGen 值加 'r' 前綴＝與 admission 退場的 'd' 代不撞值（退場換代＝作廢這裡殘留的清除回呼）。
+let _zbGen = 0;
+export function coverZebra(item, fromTop = false) {
+  item.dataset.zbGen = 'r' + (++_zbGen);
+  item.style.transition = ''; item.style.clipPath = '';   // inline transition 會蓋掉 .zb-cover 的；退場殘留的 clip 一併清
+  item.style.setProperty('--zb-dur', '0s');
+  item.style.setProperty('--zb-h', '0px');
+  item.style.setProperty('--zb-pos', fromTop ? '0 -1px' : '0 calc(100% + 1px)');   // 從起點那側長；±1px 見 lists.css
+  item.classList.add('zb-cover');
+}
+export function uncoverZebra(item, dur, delay = 0) {
+  if (!item.classList.contains('zb-cover')) return;
+  const g = item.dataset.zbGen = 'r' + (++_zbGen);
+  item.style.setProperty('--zb-dur', `${dur}s`);
+  item.style.setProperty('--zb-delay', `${delay.toFixed(3)}s`);
+  item.style.setProperty('--zb-h', 'calc(100% + 2px)');
+  const clr = (e) => {
+    if (item.dataset.zbGen !== g) { item.removeEventListener('transitionend', clr); return; }
+    if (e.target !== item || e.propertyName !== 'background-size' || e.elapsedTime + 0.05 < dur) return;  // 偶發起跑即 end，同 revealRows
+    clearZebraCover(item);
+    item.removeEventListener('transitionend', clr);
+  };
+  item.addEventListener('transitionend', clr);
+  // 兜底：transitionend 沒來也照時收尾——hover 寫的 inline background 簡寫會蓋掉 background-size＝不起 transition；
+  //   dur 0 也不 fire。不收＝.zb-cover 永遠卡著、那列之後 hover 都不上色（user 2026-10-21）
+  setTimeout(() => {
+    if (item.dataset.zbGen !== g) return;
+    item.removeEventListener('transitionend', clr);
+    clearZebraCover(item);
+  }, (dur + delay) * 1000 + 100);
+}
+export function clearZebraCover(item) {
+  item.classList.remove('zb-cover');
+  ['--zb-dur', '--zb-delay', '--zb-h', '--zb-pos'].forEach(p => item.style.removeProperty(p));
+}
+
 // 退場：逐 row transform→110% 滑出（反向）。回 Promise（逾時 resolve）。fromEnd＝從尾端起 stagger。
 export function exitRows(rows, { dur = DUR.base, stagger = 0, fromEnd = false } = {}) {
   const list = Array.from(rows || []);

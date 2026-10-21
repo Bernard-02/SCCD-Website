@@ -4,16 +4,15 @@
  * 同時負責載入各區塊資料
  */
 
-import { loadExhibitionsInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil, gateListImagesUntil, releaseGatedImages } from './activities-data-loader.js';
+import { loadExhibitionsInto, loadDegreeShowListInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil, gateListImagesUntil, releaseGatedImages } from './activities-data-loader.js';
 import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
-import { loadDegreeShowListInto } from './degree-show-data-loader.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer, loadDeferredMedia } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
-import { snapRowsShown, exitRows, hideRows, revealRows } from '../ui/list-row-reveal.js';
+import { snapRowsShown, exitRows, hideRows, revealRows, clearZebraCover } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -774,9 +773,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
         if (typeof gsap !== 'undefined') {
           const rows = panel.querySelectorAll('.list-reveal-row');
           if (rows.length) snapRowsShown(rows);  // Part 1：CSS 直達終態（清 inline transform；無 GSAP）
-          // 斑馬底色 clip（setupAdmissionReveal 設的 inset(100%)）也直接到位：揭露它的 ScrollTrigger 綁 window，
-          // inner-scroll box 捲動不會驅動它 → onEnter 沒 fire 時整個 zebra item 被裁成空白且永不恢復
-          /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('.list-item.list-item-zebra')).forEach(it => { it.style.clipPath = ''; });  // P2-3：直寫清
+          // 斑馬底色遮罩（setupAdmissionReveal 蓋的）也直接到位：揭露它的 ScrollTrigger 綁 window，
+          // inner-scroll box 捲動不會驅動它 → onEnter 沒 fire 時底色永遠不出來
+          /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('.list-item.list-item-zebra')).forEach(it => clearZebraCover(it));
         }
         panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => it.removeAttribute('data-pre-reveal'));
         const filterBar = /** @type {HTMLElement | null} */ (panel.querySelector('.activities-filter-bar'));
@@ -1196,8 +1195,11 @@ function ensureDegreeShowLoaded() {
   if (!degreeShowLoad) {
     // 重試：清掉上次失敗留下的錯誤態（loader 是 beforeend append，不清會跟卡片疊在一起）
     document.querySelector('#degree-show-list > .panel-load-error')?.remove();
-    // cards 已帶 .list-reveal-row → 由 animatedSubListSwitch 的 setupAdmissionReveal + playAdmissionPanelReveal 統一進場
-    degreeShowLoad = loadDegreeShowListInto('degree-show-list').catch(err => { degreeShowLoad = null; throw err; });
+    // 走 loadListInto（同特設/常設）→ 由 animatedSubListSwitch 的 setupAdmissionReveal + playAdmissionPanelReveal 統一進場；
+    // 年份收合鈕同其他清單要 initListAccordion（idempotent）
+    degreeShowLoad = loadDegreeShowListInto('degree-show-list')
+      .then(() => initListAccordion())
+      .catch(err => { degreeShowLoad = null; throw err; });
   }
   return degreeShowLoad;
 }
@@ -1207,7 +1209,7 @@ function ensureDegreeShowLoaded() {
 function bindDegreeShowMarquee(container) {
   requestAnimationFrame(() => {
     applyMarqueeOverflow(container, '.dshow-title-line', '.dshow-title-inner');
-    container.querySelectorAll('.degree-show-card').forEach((cardEl) => {
+    container.querySelectorAll('.degree-show-card-content').forEach((cardEl) => {
       const card = /** @type {HTMLElement} */ (cardEl);
       if (card.dataset.marqueeReturnBound) return;
       card.dataset.marqueeReturnBound = '1';

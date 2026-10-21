@@ -237,7 +237,8 @@
    桌面：year col + list col 並排；手機：年份在上、list 在下堆疊（HTML order-1/order-2），chevron 換到右側。 */
 /* 桌面：年份欄固定 80px（＝寬桌面 1/12 原值）＋其餘 11 軌 1fr → 縮窄時只有 list 變窄、年份↔list gap 恆定。
    (0,2,0) 蓋過 .grid-12 的 grid-cols-12。年份文字（toggle 版含 chevron ~105px）溢出 80px 軌進 gutter 無害。
-   filter bar（tab／search）與 Permanent 外層也吃同一套軌：等寬 12 欄在窄螢幕 col 1 < 80 → 清單相對 search 右偏。 */
+   filter bar（tab／search）與 Permanent 外層也吃同一套軌：等寬 12 欄在窄螢幕 col 1 < 80 → 清單相對 search 右偏。
+   新清單自帶 .grid-12 外框的話也要加進來（畢業展卡曾自建外框漏掉＝窄螢幕偏左；10-21 起改走 loadListInto）。 */
 @media (min-width: 768px) {
   .list-year-group.grid-12,
   .activities-filter-bar > .grid-12,
@@ -341,16 +342,6 @@
   /* title 與右側 icons/chevron 之間補 gap：手機窄欄 marquee 跑時尾段才不撞 chevron */
   .list-header {
     gap: var(--spacing-sm);
-  }
-
-  /* degree-show card（zebra box）手機去 margin-left（年份已 stack 在上）；保留 HTML px-sm py-sm 內距，勿清成 0（圖會頂到邊）。 */
-  .degree-show-card-content {
-    margin-left: 0 !important;
-  }
-  /* degree-show 年份 label 與上一張卡拉開：只在「卡接卡」時 match。list 首子是 .search-empty-state，
-     故用相鄰兄弟而非 :first-child → 第一張卡不被推離 search bar。 */
-  #degree-show-list .degree-show-card + .degree-show-card .list-year-label {
-    margin-top: var(--spacing-lg);
   }
 
   /* 手機 list-header：relative 讓子層 absolute（如 activities is-pinned ::before 補口）可錨定 */
@@ -1380,13 +1371,33 @@ body.mode-color .gallery-ph > span {
   border-bottom-width: 0;
 }
 /* standard / inverse：前景色 × --list-zebra-alpha 疊色（:root 0.05、inverse.css 0.1）。
-   直接 inline rgba(var(--theme-fg-rgb), …)，不走中介 :root 變數（會 inherit 成死黑、失去 mode-aware）。 */
+   直接寫在 item 上 rgba(var(--theme-fg-rgb), …)，不走中介 :root 變數（會 inherit 成死黑、失去 mode-aware）。
+   --zb-color 給下方 .zb-cover 進場用（定義在 item 本身＝照樣 mode-aware）。 */
 :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
-  background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+  --zb-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+  background-color: var(--zb-color);
 }
 /* mode3：固定白色疊色；alpha 由 theme-toggle.js 依 hue 亮暗寫進 --list-zebra-strip（暗 0.15、亮 0.4）。 */
 body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
-  background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+  --zb-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+}
+/* 斑馬底色進場（list-row-reveal.js coverZebra／uncoverZebra）：底色改由 background-image 長出（內容之下），
+   不用 clip-path＝不裁文字，底色與文字才能同拍進場。進場期間 background-color 透明：疊一層表面色去「蓋」底色的話，
+   item 落在小數 px 時邊緣像素被畫兩次（125%／150% 縮放漏 1 裝置像素線）。非斑馬列沒有 --zb-color＝image 無效、照樣透明。
+   長滿時上下各超出 1px（JS：--zb-h calc(100% + 2px)＋--zb-pos 往外 1px）：圖塊高度捨入會讓小數 px 邊緣少畫一列，
+   拿掉 class 換回 background-color 時那列跳一下。
+   JS inline 只寫 --zb-*：字串不能含 "background"（color.css 的 .list-item[style*="background"] 會當成 hover 色翻譯）。 */
+.zb-cover {
+  background-image: linear-gradient(var(--zb-color), var(--zb-color));
+  background-repeat: no-repeat;
+  background-position: var(--zb-pos, 0 calc(100% + 1px));
+  background-size: 100% var(--zb-h, 0px);
+  transition: background-size var(--zb-dur, 0s) ease-out var(--zb-delay, 0s);
+}
+/* 透明底只在沒被 hover 時：進場途中滑鼠在列上＝hover 的 inline 色要立刻吃得到（!important 會壓掉 inline＝
+   「有的列 hover 不上色／第一列變回灰卡色」，user 2026-10-21） */
+.zb-cover:not(:hover) {
+  background-color: transparent !important;
 }
 
 /* hover 其他 item 時 list-accordion.js 移除展開項的 accent inline → 露出 zebra：sticky title 變透明會跟下方內容疊字，
@@ -1408,7 +1419,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 /* 列表底色（item / header / content）刻意不加 transition：hover 變色全站瞬切，三者都不過渡＝天然同步。 */
 
 /* ===== Degree Show 清單卡片標題 marquee =====
-   結構（degree-show-data-loader.js）：h5 > .dshow-title-line（overflow window，EN/ZH 1~2 條）> .dshow-title-inner。
+   結構（activities-data-loader.js buildDegreeShowItemHtml）：h5 > .dshow-title-line（overflow window，EN/ZH 1~2 條）> .dshow-title-inner。
    applyMarqueeOverflow 偵測溢出 → .is-overflow + 兩份 .marquee-copy + --marquee-distance/duration。桌面 hover 卡片才捲、手機自動捲。 */
 .dshow-title-line {
   display: block;
@@ -1429,7 +1440,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   100% { transform: translateX(var(--marquee-distance, -50%)); }
 }
 @media (min-width: 768px) {
-  .degree-show-card:hover .dshow-title-line.is-overflow .dshow-title-inner {
+  .degree-show-card-content:hover .dshow-title-line.is-overflow .dshow-title-inner {
     animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }

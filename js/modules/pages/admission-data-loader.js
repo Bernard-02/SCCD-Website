@@ -6,7 +6,7 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { hideRows, hideRow, revealRows, snapRowsShown, exitRows } from '../ui/list-row-reveal.js';
+import { hideRows, hideRow, revealRows, snapRowsShown, exitRows, coverZebra, uncoverZebra, clearZebraCover } from '../ui/list-row-reveal.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -118,9 +118,9 @@ export function setupAdmissionReveal(container, { hide = true, limit = 0 } = {})
   // ⚠️ 之前只翻「文字」列、box 恆由下 → 翻上的那筆變成「文字往下、底色 box 往上」一筆內兩個方向打架；
   //    副標貼近 box 下緣，讀起來像「副標跟 title 反方向」（user 2026-07-17 report，工作營 item 最明顯）。
   //    現在 box 跟文字同方向、整筆一起進場。結構列（meta/分享/chevron/分隔線）仍維持從下（非顯眼、保留原樣）。
-  // ⚠️ box clip 無條件藏（即使 hide:false 的初次載入）：文字 row 一律被 bindInteractions 的 setupClipReveal
+  // ⚠️ 底色無條件藏（即使 hide:false 的初次載入）：文字 row 一律被 bindInteractions 的 setupClipReveal
   //    藏起，底色不跟著藏 → 初次進場「灰底已在、只有文字滑入」（user 2026-06-22）；揭露一律由
-  //    playAdmissionPanelReveal 的 revealZebraBg 接（→inset(0)，兩方向都適用）。
+  //    playAdmissionPanelReveal 的 uncoverZebra 接（兩方向都適用）。
   const canFlip = hide && !prefersReducedMotion();
   // limit 時 flip/zebra 也只掃被藏的那些 item（同上，沒藏的不動＝維持終態）
   (limitedItems ? [...limitedItems] : [...container.querySelectorAll('.list-item')]).forEach(item => {
@@ -132,50 +132,26 @@ export function setupAdmissionReveal(container, { hide = true, limit = 0 } = {})
         }
       });
     }
-    if (item.classList.contains('list-item-zebra')) {
-      // fromTop → inset 底 100%（由上往下揭）；否則 inset 頂 100%（由下往上），跟文字同方向
-      // B-1：zebra 改 CSS transition → 藏一律先 transition:none 直寫（＝killTweensOf 等價物：殺 in-flight 揭/收
-      //   transition，否則設 hide 會從當前態反向 transition 走全程）；揭由 revealZebraBg 接（ease-out CSS transition）。
-      item.dataset.zbGen = 'd' + (++_zbGen);   // 六輪：換代，作廢任何殘留的 reveal clrZebra 回呼
-      item.style.transition = 'none';
-      item.style.clipPath = fromTop ? 'inset(0% 0% 100% 0%)' : 'inset(100% 0% 0% 0%)';
-    }
+    // 底色遮罩（coverZebra：只蓋底色不裁文字）；fromTop＝由上往下揭、否則由下往上，跟文字同方向
+    if (item.classList.contains('list-item-zebra')) coverZebra(item, fromTop);
   });
 }
 
-// 斑馬底色進場 clip-reveal helper（兩條 reveal 路徑共用）。
+// 斑馬底色進場目標（兩條 reveal 路徑共用）。
 // 只有 .list-item-zebra（有可見底色）才回傳 item；白底/admission item 回 null → 走純文字 reveal（原行為）。
 // ⚠️ 不能只看 groupRows[0]：每個「年份的第一個 item」的 group 開頭是年份 toggle row（在年份欄、不在任何 .list-item 內），
-//    closest('.list-item') 會是 null → 偵測不到該 item → 它 setup 時設的 clip-path:inset(100%) 永遠不揭 → 整個 item 被裁成空白。
+//    closest('.list-item') 會是 null → 偵測不到該 item → 它 setup 時蓋的底色遮罩永遠不揭。
 //    改成找「組內第一個真的在 .list-item 內的 row」。
 function zebraBgTarget(groupRows) {
   let item = null;
   for (const r of groupRows) { const it = r.closest('.list-item'); if (it) { item = it; break; } }
   return item && item.classList.contains('list-item-zebra') ? item : null;
 }
-// clip-path inset(100%→0)：底色由下往上揭。B-1：改 CSS transition（compositor 接管，主執行緒 longtask 不凍幀；
-// GSAP 完全退出 zebra）。tl/at 保留簽名相容：at＝該次 reveal 序列的起跑延遲（master-timeline 逐 group 遞增）→ 轉 transition-delay。
-// 起點（setupAdmissionReveal 設的 inset(100%)/inset(bottom 100%)）須已 commit：ScrollTrigger onEnter 隔幀 fire＝早已 commit；
-// master-timeline 由 caller 在 reveal loop 前強制一次 reflow commit → 同步設 transition+目標即可，免 rAF＝無 cross-switch race。
-// 揭完 transitionend 清 inline（防殘留 clip 影響 sticky header）；e.target 守門避免子元素冒泡誤觸。
-// 六輪 zebra generation 戳記（CSS 版 killTweensOf，同 list-row-reveal rrGen）：值加 'd' 前綴＝與 activities-data-loader
-//   的 'a' 前綴各自 counter 但跨檔不撞值（activities 退場走本檔 playAdmissionPanelExit，會蓋掉 activities reveal-IO 設的
-//   zbGen → 前綴不同保證比對必不符＝正確作廢，見 [[reference_activities_switch_ro_recalc_storm]] 六輪脈絡）。
+// 底色對齊 item 內第一列起跑：年份首項的組開頭是年份列，不對齊＝底色早一個 stagger（0.06）先動
+const zebraLead = (groupRows, item) => groupRows.findIndex(r => item.contains(r)) * 0.06;
+// 退場換代戳記（CSS 版 killTweensOf，同 list-row-reveal rrGen）：值加 'd' 前綴＝與 list-row-reveal 揭露的 'r' 代不撞值，
+//   退場寫入即作廢殘留的揭露清除回呼（見 [[reference_activities_switch_ro_recalc_storm]] 六輪脈絡）。
 let _zbGen = 0;
-function revealZebraBg(item, tl, at) {
-  const delay = at || 0;   // 四輪 Part 1：rows 退 GSAP timeline 後，直接吃 at（絕對延遲）；tl 參數保留簽名相容、已不需要
-  const g = 'd' + (++_zbGen); item.dataset.zbGen = g;   // 六輪：換代
-  item.style.transition = `clip-path ${DUR.base}s ease-out ${delay}s`;
-  item.style.clipPath = 'inset(0% 0% 0% 0%)';
-  const clear = (e) => {
-    if (item.dataset.zbGen !== g) { item.removeEventListener('transitionend', clear); return; }  // 六輪：已被接管 → 只解綁、不清 clip
-    if (e.target !== item || e.propertyName !== 'clip-path') return;
-    if (e.elapsedTime + 0.05 < DUR.base) return;   // Chromium 偶發起跑即 end（elapsedTime 0），見 list-row-reveal clr
-    item.style.transition = ''; item.style.clipPath = '';
-    item.removeEventListener('transitionend', clear);
-  };
-  item.addEventListener('transitionend', clear);
-}
 
 // 追蹤 useScrollTrigger 分支建的 once ScrollTrigger，每次 reveal 前殺掉上一輪殘留。
 // root：news 初載(useScrollTrigger:true)建的 once trigger 若沒 fire 就殘留；之後 camp→news 時
@@ -206,7 +182,7 @@ function getPanelScroller(panel) {
  * 播放整個 panel 的進場動畫
  * - useScrollTrigger=true（初次載入）：intro + 每個 list-row group 各自一個 ScrollTrigger，捲入 viewport 才 reveal
  * - useScrollTrigger=false（panel 切換）：master timeline 立即 sequential 播放
- * 逐 item：先 clip-reveal 底色（zebra item）再進文字（user 2026-06-21：底色→文字→底色→文字 交錯）。
+ * 逐 item：底色（zebra item）與文字同拍進場，item 間接力（user 2026-10-21；原 06-21「底色→文字」分階段已撤）。
  */
 export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, viewportCull = false } = {}) {
   if (!panel || typeof gsap === 'undefined') return;
@@ -215,15 +191,13 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
   // 減少動態：所有 list rows + zebra 底色直接到位，不分組、不 ScrollTrigger、不滑入。
   if (prefersReducedMotion()) {
     snapRowsShown(panel.querySelectorAll('.list-reveal-row'));  // 四輪 Part 1：直接到終態（清 inline transform）
-    panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => { /** @type {HTMLElement} */ (item).style.transition = 'none'; /** @type {HTMLElement} */ (item).style.clipPath = ''; });  // B-1：transition:none 免直寫觸發 transition
+    panel.querySelectorAll('.list-item.list-item-zebra').forEach(item => clearZebraCover(/** @type {HTMLElement} */ (item)));
     panel.querySelectorAll('.list-item[data-pre-reveal]').forEach(it => { /** @type {HTMLElement} */ (it).style.contentVisibility = ''; it.removeAttribute('data-pre-reveal'); });  // cv:auto：此路徑不走 unlockGroup，setup 的 inline visible 在此還原
     return;
   }
 
   // 分組策略：以 list-item-divider 為「list-row 群組」終止符，每組 = 年份(若有) + title + 副標/icons + chevron + divider
-  // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup / list-reveal-group 之後皆視為 list phase
-  // .list-reveal-group：無 CSS 的分組 hook，給「年份與內容是 grid 兄弟、外框非 list-year-group」的卡片
-  //   （degree-show 卡片：年份欄 col-1 的 reveal-row 沒有 .list-item 祖先，靠此讓它跟該卡內容同組進場）。
+  // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup 之後皆視為 list phase
   const allRows = /** @type {HTMLElement[]} */ ([...panel.querySelectorAll('.list-reveal-row')]);
   const intro = /** @type {HTMLElement[]} */ ([]);
   const groups = /** @type {HTMLElement[][]} */ ([]);
@@ -231,7 +205,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
   let inListPhase = false;
   for (const row of allRows) {
     if (!inListPhase) {
-      if (row.closest('.list-item') || row.closest('.list-year-group') || row.closest('.list-reveal-group')) {
+      if (row.closest('.list-item') || row.closest('.list-year-group')) {
         inListPhase = true;
       } else {
         intro.push(row);
@@ -274,9 +248,9 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
           const owners = [...new Set(groupRows.map(r => /** @type {HTMLElement | null} */ (r.closest('.list-item'))).filter(Boolean))];
           owners.forEach(it => { /** @type {HTMLElement} */ (it).style.contentVisibility = 'visible'; });
           if (owners[0]) void (/** @type {HTMLElement} */ (owners[0])).offsetHeight;
-          if (bgItem) revealZebraBg(bgItem);          // 底色先 clip-reveal
-          revealRows(groupRows, {                      // 文字晚底色 0.2s 進
-            dur: DUR.slow, delay: bgItem ? 0.2 : 0, stagger: 0.06,
+          if (bgItem) uncoverZebra(bgItem, DUR.slow, zebraLead(groupRows, bgItem));   // 底色與文字同拍同時長
+          revealRows(groupRows, {
+            dur: DUR.slow, stagger: 0.06,
             onDone: () => unlockGroup(groupRows),
           });
         },
@@ -337,29 +311,25 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
       //   hidden/mid-tween 帶非零 %（100%/-100%/76%…）→ 排除「在原點」的免每輪白寫全清單（兩單位都比對，跨 GSAP 版本穩）。
       // 四輪 Part 1：rows 改 CSS 後，有 inline transform＝還藏著（translateY(±110%)）→ snap 到終態；揭完的已清成 ''＝跳過。
       const touchedRows = offRows.filter(r => r.style.transform);
-      const touchedZebra = offZebra.filter(z => z.style.clipPath);
+      const touchedZebra = offZebra.filter(z => z.classList.contains('zb-cover'));
       if (touchedRows.length) snapRowsShown(touchedRows);   // CSS 直寫 transition:none + transform:''（無 GSAP、無 killTweensOf）
-      // B-1：zebra 不再走 GSAP → 中斷＝transition:none 直寫（殺 in-flight CSS transition），免 killTweensOf
-      if (touchedZebra.length) touchedZebra.forEach(z => { z.style.transition = 'none'; z.style.clipPath = ''; });
+      touchedZebra.forEach(z => clearZebraCover(z));
     }
 
     // PASS-2B 寫：只對可見 group 建進場 timeline（原邏輯照舊，改吃 visibleGroups）
-    // B-1：reveal 前強制一次 reflow，commit setupAdmissionReveal 的 zebra hide（transition:none + clipPath）→
-    //   revealZebraBg 才能從已提交的隱藏態同步跑 CSS transition（免 rAF＝無 cross-switch race）。單次、非逐項＝廉價。
-    void panel.offsetHeight;   // Part 1：單次 reflow commit 隱藏起點（zebra clipPath ＋ rows transform）→ 才能 transition 非 snap（免 rAF＝無 cross-switch race）
+    void panel.offsetHeight;   // 單次 reflow commit 隱藏起點（zebra 遮罩 ＋ rows transform）→ 才能 transition 非 snap（免 rAF＝無 cross-switch race）
     if (intro.length) revealRows(intro, { dur: DUR.medium, delay: 0, stagger: 0.06 });
     let cursor = intro.length ? 0.3 : 0;
     visibleGroups.forEach((groupRows) => {
       const bgItem = zebraBgTarget(groupRows);
-      if (bgItem) revealZebraBg(bgItem, null, cursor);   // 底色先 clip-reveal（delay=cursor）
-      const textAt = cursor + (bgItem ? 0.2 : 0);         // 文字晚底色 0.2s
-      revealRows(groupRows, {                             // 逐 row transition-delay = textAt + i*0.06（＝原 timeline 絕對時間位）
-        dur: DUR.slow, delay: textAt, stagger: 0.06,
+      if (bgItem) uncoverZebra(bgItem, DUR.slow, cursor + zebraLead(groupRows, bgItem));   // 底色與文字同拍同時長
+      revealRows(groupRows, {                             // 逐 row transition-delay = cursor + i*0.06（＝原 timeline 絕對時間位）
+        dur: DUR.slow, delay: cursor, stagger: 0.06,
         onDone: () => unlockGroup(groupRows),
       });
-      cursor = textAt + 0.18;  // 下一 item 起步：底色→文字→底色→文字 接力
+      cursor += 0.18;  // 下一 item 起步：逐 item 接力
     });
-    // reveal 全跑完才解除 .list-opening：cursor＝最後 group 的 textAt+0.18，實際尾巴 ≈ cursor+DUR.slow，加 buffer 從寬。
+    // reveal 全跑完才解除 .list-opening：cursor＝最後 group 起跑+0.18，實際尾巴 ≈ cursor+DUR.slow，加 buffer 從寬。
     if (dimHost) _openingTimer = setTimeout(() => dimHost.classList.remove('list-opening'), (cursor + DUR.slow + 0.3) * 1000);
   }
 }

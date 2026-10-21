@@ -134,8 +134,7 @@
               <div id="activities-search-spacer"></div>
               <div id="exhibitions-list-special"></div>
               <!-- 畢業展子清單（2026-09-29 併入展演；第一次切到才載入，activities-section-switch.js ensureDegreeShowLoaded）。
-                   統一斑馬紋（user 2026-08-17）：卡片相連無間距、box 貼齊 filter 下緣；年份 md:pt-sm、內容 .list-item px-sm py-sm
-                   在 loader 內對齊 loadListInto；斑馬灰白由 loader 全域標記 .list-item-zebra。 -->
+                   跟特設／常設同走 loadListInto（年份組／斑馬／搜尋同一套），只有 item 本體是封面卡（buildDegreeShowItemHtml）。 -->
               <div id="degree-show-list" class="flex flex-col" style="display: none;"></div>
               <!-- Permanent list 是 hideYearHeader（loader 端 flush-left）；本 panel 要對齊 search bar
                    → 用 grid-12 wrapper 把 list 推到跟 search bar 同位置（col-start-2 + pl-[41px]）。

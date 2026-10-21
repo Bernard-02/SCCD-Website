@@ -6,7 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { isHlsUrl, isDirectVideoUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { hideRows, revealRows } from '../ui/list-row-reveal.js';
+import { hideRows, revealRows, coverZebra, uncoverZebra } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
@@ -19,6 +19,7 @@ import { markProgrammaticScroll } from '../ui/activities-search.js';
 import { buildSyncedMarqueeTimeline, marqueeSpeed } from '../ui/marquee-overflow.js';
 import { loadSummerCamp } from './summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from './activities-source.js';
+import { loadDegreeShow } from './degree-show-source.js';
 // '/data/x.json' 字串在 activities 只當 section 識別字（deriveHostSection / _panelSelectorMap 等；檔案本身已刪，
 // 資料一律 Directus＋last-known-good，見 activities-source.js）；loadListInto 沒收到 data 時才 fetch url（alumni 本地資料用）
 import { sitePath } from '../ui/site-base.js';
@@ -197,10 +198,6 @@ function bindRefBtnClick(btn) {
     }
   });
 }
-
-// 六輪 zebra generation 戳記（本檔 reveal-IO 用；值加 'a' 前綴＝與 admission-data-loader 的 'd' 前綴跨檔不撞值：
-//   activities 退場走 admission 的 playAdmissionPanelExit，會以 'd' 代蓋掉這裡的 'a' 代 → 比對必不符＝正確作廢殘留 clrZebra）。
-let _zbGen = 0;
 
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
 // 對齊 library files/album 模式：random rotation 1~3°（兩邊隨機 sign），hover 歸 0
@@ -403,7 +400,7 @@ export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {})
         ${album.images.length ? `<div class="grid grid-cols-[1fr_12fr] items-center gap-x-md">
           <div aria-hidden="true"></div>
           <div class="album-gallery relative flex items-center min-w-0">
-            <button type="button" class="album-prev ${preChev ? '' : 'invisible '}absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity"${preChev ? ' style="opacity:0.5;cursor:var(--cursor-not-allowed)"' : ''}>
+            <button type="button" class="album-prev ${preChev ? '' : 'invisible '}absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60"${preChev ? ' style="opacity:0.5;cursor:var(--cursor-not-allowed)"' : ''}>
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
             <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: 8px 0;">
@@ -411,7 +408,7 @@ export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {})
                 ${thumbsHtml}
               </div>
             </div>
-            <button type="button" class="album-next ${preChev ? '' : 'invisible '}absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60 transition-opacity">
+            <button type="button" class="album-next ${preChev ? '' : 'invisible '}absolute right-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60">
               <span class="icon icon-chevron-list icon-s rotate-180"></span>
             </button>
           </div>
@@ -561,7 +558,7 @@ export function buildGalleryHtml(item, defer = false) {
   const preChev = estW > 1300;
   return `
     <div class="gallery-section px-sm pb-lg flex items-center">
-      <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60 transition-opacity" style="${preChev ? 'display:flex;opacity:0.5;cursor:var(--cursor-not-allowed)' : 'display:none'}">
+      <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60" style="${preChev ? 'display:flex;opacity:0.5;cursor:var(--cursor-not-allowed)' : 'display:none'}">
         <span class="icon icon-chevron-list icon-s"></span>
       </button>
       <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
@@ -571,7 +568,7 @@ export function buildGalleryHtml(item, defer = false) {
           ${galleryItems.join('')}
         </div>
       </div>
-      <button class="gallery-next flex-shrink-0 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60 transition-opacity" style="${preChev ? 'display:flex' : 'display:none'}">
+      <button class="gallery-next flex-shrink-0 w-[32px] h-[32px] flex items-center justify-end text-s hover:opacity-60" style="${preChev ? 'display:flex' : 'display:none'}">
         <span class="icon icon-chevron-list icon-s rotate-180"></span>
       </button>
     </div>
@@ -1477,6 +1474,7 @@ export async function loadListInto(containerId, url, options = {}) {
     data: providedData   = null,
     lazy                 = false,   // 大清單只渲染視窗內第一批，捲到底 IO 才續建（activities 大 section 開）
     onLazyBatch          = null,    // 每批捲入後回呼（重跑 accordion / year-toggle init，idempotent）
+    buildItem            = null,    // 自訂 item HTML（畢業展卡）：年份組／斑馬／搜尋／進場照共用，只換 item 本體；須是帶 data-search 的 .list-item、末尾 .list-item-divider.list-reveal-row
   } = options;
 
   const container = document.getElementById(containerId);
@@ -1573,7 +1571,7 @@ export async function loadListInto(containerId, url, options = {}) {
   const dateColMinWidth = dateColWidth || '14ch';
 
   // 逐筆 item HTML 建構器（sync／streamed 兩路共用）：只依賴 item / itemIdx / total（body 不碰年份組 scope）
-  const buildItemHtml = (item, itemIdx, total) => {
+  const buildItemHtml = buildItem || ((item, itemIdx, total) => {
       const media        = buildItemMedia(item);
       const mediaJson    = JSON.stringify(media).replace(/"/g, '&quot;');
       // 向下相容：支援舊的 reference 單一物件 → 自動轉為 array
@@ -1884,7 +1882,7 @@ export async function loadListInto(containerId, url, options = {}) {
           ${dividerHtml}
         </div>
       `;
-  };
+  });
 
   // 開一個「空」年份組骨架（year col + 空 .list-year-items），插入 container，回傳可 append item 的元素。
   // itemsHtml 改由外層逐筆 append（sync 一次灌完；streamed 分幀灌）→ 建構可切段、主執行緒不凍。
@@ -1894,7 +1892,7 @@ export async function loadListInto(containerId, url, options = {}) {
   const openYearGroup = (yearGroup, index, isLast, beforeEl = null) => {
     const yearColHtml = showYearToggle
       ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle list-year-label cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
-          <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s transition-all duration-fast rotate-90"></span></div>
+          <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s rotate-90"></span></div>
           <span class="list-reveal-row inline-block text-lg font-bold">${yearGroup.year}</span>
         </div>`
       : `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-label flex items-center order-1 pt-sm pb-md pl-xs">
@@ -2039,15 +2037,8 @@ export async function loadListInto(containerId, url, options = {}) {
           // 動畫完（rows onDone / 無 rows fallback）清掉還原 auto——item 已在視窗內、清掉不影響進行中 transition。
           it.style.contentVisibility = 'visible';
           void it.offsetHeight;
-          // 斑馬底色 clip-reveal（由下往上揭，比照 switch reveal）→ 文字 clip-reveal 滑入
-          // B-1：zebra 改 CSS transition（compositor，longtask 不凍幀）；hide 在 buildOneBatch 設好、IO 隔幀才 fire＝起點已 commit → 同步設可 transition
-          if (it.classList.contains('list-item-zebra')) {
-            const zg = 'a' + (++_zbGen); it.dataset.zbGen = zg;   // 六輪：換代（退場的 'd' 代會蓋掉、比對不符＝作廢本 clrZebra）
-            it.style.transition = `clip-path ${DUR.base}s ease-out`;
-            it.style.clipPath = 'inset(0% 0% 0% 0%)';
-            const clrZebra = (e) => { if (it.dataset.zbGen !== zg) { it.removeEventListener('transitionend', clrZebra); return; } if (e.target !== it || e.propertyName !== 'clip-path' || e.elapsedTime + 0.05 < DUR.base) return; it.style.transition = ''; it.style.clipPath = ''; it.removeEventListener('transitionend', clrZebra); };
-            it.addEventListener('transitionend', clrZebra);
-          }
+          // 斑馬底色（由下往上揭）與文字同拍同時長進場（user 2026-10-21）；遮罩在 buildOneBatch 蓋好、IO 隔幀才 fire＝起點已 commit
+          uncoverZebra(it, DUR.reveal);
           if (rows.length) { revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => { it.style.contentVisibility = ''; it.removeAttribute('data-pre-reveal'); } }); return; }  // Part 1：CSS transition
         }
         it.style.contentVisibility = '';
@@ -2074,8 +2065,8 @@ export async function loadListInto(containerId, url, options = {}) {
         const bRows = [...it.querySelectorAll('.list-reveal-row')];
         setupClipReveal(bRows, { hide: false });  // Part 1：只 wrap 遮罩
         hideRows(bRows, false);                    // CSS 藏（reveal-IO 進視窗才 revealRows）
-        // ⚠️斑馬底色也要一起藏(clip inset 100%)：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
-        if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) { it.dataset.zbGen = 'a' + (++_zbGen); it.style.transition = 'none'; it.style.clipPath = 'inset(100% 0% 0% 0%)'; }  // B-1：transition:none 直寫，揭時 revealIo 才設 CSS transition（六輪：hide 也換代）
+        // ⚠️斑馬底色也要一起藏：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
+        if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) coverZebra(it);
         if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
       });
       updateStickyTop();                                                        // 新年份組的 sticky top
@@ -2479,6 +2470,91 @@ export async function loadExhibitionsInto(options = {}) {
 export function prefetchExhibitionsData() {
   fetchActEndpoint('activities-exhibition-special').catch(() => {});
   loadPermanentExhibitions().catch(() => {});
+}
+
+// ── 畢業展子清單（展演 › 畢業展）：走 loadListInto，只換 item 本體成封面卡（user 2026-10-21「不要另外一個程式做」）──
+// 年份組／欄位對齊／斑馬／搜尋／sticky 年份／進場分組全跟特設、常設同一套；卡片＝整張連到詳情頁（不展開）。
+// 封面「載好才滑入」的隨機四向（同 POSTER_SLIDE_DIRS／library COVER_SLIDE_DIRS 語彙）
+const DS_COVER_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
+const buildDegreeShowItemHtml = (item) => {
+  const { _year: year, _color: color } = item;
+  const titleEn = item.title_en || item.titleEn || '';
+  const titleZh = item.title || item.titleZh || '';
+  const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
+  const search = [year, titleEn, titleZh].join(' ').toLowerCase().replace(/"/g, '&quot;');
+  // 無封面（後台還沒傳）→ 灰底 placeholder，縮圖塊＋標題不空掉（user 2026-08-17）。有封面烙 pending translate，
+  //   wrapper 恆 overflow-hidden＝現成遮罩。eager：卡片是首屏內容（只有 3-5 張），lazy 會讓 wrapper 高 0、進場沒位移
+  const coverHtml = item.coverImage
+    ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full" data-pending-reveal="1" style="transform: translate(${DS_COVER_DIRS[(Math.random() * 4) | 0]})">`
+    : `<div class="degree-show-img-placeholder" role="img" aria-label="Degree Show ${year}"></div>`;
+  // 整張卡＝拉伸式連結（透明 <a> absolute inset-0）：share 按鈕不能巢狀在 <a> 內（無效 HTML＋router closest('a[href]') 會誤導航）
+  //   → share 當兄弟 z-[2] 浮在 <a>(z-[1]) 之上。z-[1] 必要：reveal-row 的 clip-reveal-wrapper 進場中有 transform（暫時 stacking
+  //   context）且 DOM 在 <a> 後，純 absolute 會被蓋住點不到。share 不能 z-10：跟 sticky 篩選列同級穿出（user 2026-10-20）。
+  // 標題 flex-1 min-w-0 放「非 reveal」外層：h5 是 reveal-row 會被包 clip-reveal-wrapper，直接當 flex item 會讓 nowrap 標題撐爆手機寬；
+  //   這層也不能 overflow-hidden（setupClipReveal 會當成已建 clip 結構而跳過包 h5/share）。
+  // data-accent-hex＝hover 底色；share-modal 讀它讓分享卡同色。.list-item-divider.list-reveal-row＝逐卡進場的分組終止符。
+  return `
+    <div class="list-item degree-show-card-content relative px-sm py-sm" data-pre-reveal data-search="${search}" data-accent-hex="${color}">
+      <a href="/degree-show-detail?${detailQuery}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
+      <div class="degree-show-img-wrapper overflow-hidden mb-sm list-reveal-row">${coverHtml}</div>
+      <div class="flex items-start justify-between gap-sm">
+        <div class="flex-1 min-w-0">
+          <h5 class="list-reveal-row"><span class="dshow-title-line${titleEn && titleZh ? ' mb-en-zh-lg' : ''}"><span class="dshow-title-inner">${titleEn || titleZh}</span></span>${titleEn && titleZh ? `<span class="dshow-title-line"><span class="dshow-title-inner">${titleZh}</span></span>` : ''}</h5>
+        </div>
+        <div class="list-reveal-row relative z-[2] flex-shrink-0 self-start">
+          <button data-share-btn data-share-url="${sitePath('pages/degree-show-detail.html?' + detailQuery)}" aria-label="分享 Share" class="inline-flex items-center">
+            <span class="icon icon-share icon-s"></span>
+          </button>
+        </div>
+      </div>
+      <div class="list-item-divider list-reveal-row"></div>
+    </div>`;
+};
+
+export async function loadDegreeShowListInto(containerId, options = {}) {
+  // Directus-only（degree-show-source：失敗 → last-known-good → throw）：往上拋給 activities 子清單切換的 catch 顯示錯誤態
+  const data = await loadDegreeShow();
+  let k = 0;
+  const yearGroups = Object.entries(data)
+    .sort(([a], [b]) => Number(b) - Number(a))
+    .map(([year, entries]) => ({
+      year,
+      items: entries.map(e => ({ ...e, _year: year, _color: SCCDHelpers.ACCENT_COLORS[k++ % SCCDHelpers.ACCENT_COLORS.length] })),
+    }));
+  await loadListInto(containerId, null, {
+    data: yearGroups, buildItem: buildDegreeShowItemHtml, allowNoMedia: true,
+    panelSelector: '#panel-exhibitions', autoReveal: false, ...options,
+  });
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // 封面載好才滑入（同 activities poster）
+  container.querySelectorAll('.degree-show-img[data-pending-reveal]').forEach(el => {
+    const img = /** @type {HTMLImageElement} */ (el);
+    const reveal = () => {
+      if (!img.dataset.pendingReveal) return;
+      delete img.dataset.pendingReveal;
+      img.style.transition = 'transform var(--dur-slow) var(--ease-wipe)';
+      img.style.transform = 'translate(0%, 0%)';
+      const clr = (e) => {
+        if (e.target !== img || e.propertyName !== 'transform') return;
+        img.style.transition = ''; img.style.transform = '';
+        img.removeEventListener('transitionend', clr);
+      };
+      img.addEventListener('transitionend', clr);
+    };
+    if (img.complete && img.naturalWidth) reveal();
+    else img.addEventListener('load', reveal, { once: true });
+  });
+
+  // hover：accent 底色上整張卡（＝點擊區）。inline 才蓋得過 #activities-content-section scope 的斑馬灰
+  if (SCCDHelpers.isDesktopLayout()) {
+    container.querySelectorAll('.degree-show-card-content').forEach(el => {
+      const card = /** @type {HTMLElement} */ (el);
+      card.addEventListener('mouseenter', () => { card.style.backgroundColor = card.dataset.accentHex || ''; });
+      card.addEventListener('mouseleave', () => { card.style.backgroundColor = ''; });
+    });
+  }
 }
 
 // 其餘分頁的資料也在閒置時預暖 single-flight cache（exhibitions 已由上面預抓）：目前每個未點過的分頁
