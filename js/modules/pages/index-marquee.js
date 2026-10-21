@@ -81,7 +81,9 @@ function randomRotation() {
   return sign * (0.3 + Math.random() * 0.7);
 }
 
-export function initMarquee() {
+// gate＝首訪 intro loader 播完才建（否則在白幕底下就進場完）；回傳 Promise＝news 開始進場（或沒 news）那刻，
+// main-modular 拿它當 header／WATCH 同時進場的起點
+export function initMarquee(gate = Promise.resolve()) {
   const stack = document.getElementById('homepage-marquee-stack');
   if (!stack) return;
 
@@ -108,13 +110,14 @@ export function initMarquee() {
         return { items: [] };
       });
 
-  fetchNews()
+  return fetchNews()
     .then(async data => {
       const items = Array.isArray(data?.items) ? data.items.filter(it => it && (it.textEn || it.textZh || it.text)) : [];
       if (items.length === 0) return;
       // 後臺順序 → item._num（1-based）；item-bound，cycle 時跟著走
       items.forEach((item, i) => { item._num = i + 1; });
-      await preloadOrientations(items);
+      await Promise.all([preloadOrientations(items), gate]);
+      if (!stack.isConnected) return;
       let disposeStack = runMarqueeStack(stack, items);
       // 轉向（跨矮橫向 gate）重建 banner stack（user 2026-07-04「轉向重 run」）：
       // banner 寬 / slot 座標是 create 時以當時 viewport 算的（SCCDHelpers.isMobileLayout()/WIDTH_MOBILE()），
@@ -566,10 +569,10 @@ function runMarqueeStack(stack, items) {
   cursor = visibleCount % items.length;
 
   // 進場：initial banner clip-reveal（yPercent:100→0）stagger 揭露（同 enterBanner）。
-  // base delay 0.35 讓 news 排在 floating(0.1) 之後、iris(0.6) 之前（首頁協調進場順序）。
+  // 首頁進場順序（user 2026-10-21）：news 與 logo／header／WATCH 同時（delay 0）、floating 最後。
   if (typeof gsap !== 'undefined') {
     banners.forEach((b, i) => gsap.to(b.row, {
-      yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: 0.35 + i * 0.12,
+      yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: i * 0.12,
     }));
   }
 

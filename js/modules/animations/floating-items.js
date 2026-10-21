@@ -842,7 +842,9 @@ function revealFloatItem(item, delay) {
 
 // ── Init ────────────────────────────────────────────────────
 
-export async function initFloatingItems() {
+// gate＝首頁同時進場點（logo／header／news／WATCH，見 main-modular）：資料照樣先抓，卡等 gate 才生＋晚一拍進場＝floating 最後。
+// 生卡就開始漂＋補洞從邊緣滑進來，所以是「等 gate 才生」而不是先生好藏著
+export async function initFloatingItems(gate = Promise.resolve()) {
   const container = document.getElementById('floating-layer');
   if (!container) return;
 
@@ -854,6 +856,8 @@ export async function initFloatingItems() {
     fetchCourseTexts(),
     fetchAwardTexts(),
   ]);
+  await gate;
+  if (!container.isConnected) return;
   const categoryPools = {
     activities: mkCat(actCats.activities, 'activities'),
     summerCamp: mkCat(actCats.summerCamp, 'summerCamp'),
@@ -913,12 +917,12 @@ export async function initFloatingItems() {
 
   // 進場：initial batch stagger 揭露——圖片卡＝img/overlay 同向滑入 wrapper 遮罩（clip-reveal）、
   // 文字卡＝clip-path（色底 chip）。揭露時 RAF 已在跑＝邊漂邊揭露。
-  // base delay 0.1 讓 floating 排在 news(0.35)/iris(0.6) 之前（首頁協調進場順序）。
+  // base delay DUR.slow＝等 news／WATCH 進場走一段（iris 開滿）才接上（首頁進場順序 user 2026-10-21：floating 最後）。
   function playFloatEntrance(baseDelay) {
     if (typeof gsap === 'undefined') return;
     items.forEach((item, i) => revealFloatItem(item, baseDelay + i * 0.03));
   }
-  playFloatEntrance(0.1);
+  playFloatEntrance(DUR.slow);
 
   // 轉向（跨矮橫向 gate）重散佈（user 2026-07-04「轉向重 run 一次內容、用手機版本調整」）：
   // 舊 items 的座標是舊視窗算的（轉向後擠一邊/溢出）→ 全部清掉、以新視窗尺寸+新 totalItems()

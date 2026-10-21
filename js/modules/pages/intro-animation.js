@@ -7,13 +7,14 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
  * 1. sessionStorage 判斷是否第一次載入
  * 2. 播放 Lottie loader，header 隱藏
  * 3. 動畫結束 → overlay fade out → logo fade in → 0.5s 後 header fade in
+ * 回傳 Promise：loader 播完（overlay 開始淡出）＝首頁 news／WATCH／floating 進場起點（見 main-modular）
  */
 
 export function initIntroAnimation() {
   const overlay = document.getElementById('intro-overlay');
   const container = document.getElementById('intro-lottie');
 
-  if (!overlay || !container) return;
+  if (!overlay || !container) return Promise.resolve();
 
   // 減少動態：跳過 Lottie loader + fade 過場，直接顯示內容與 header（header 進場時 opacity:0，要補回 1）。
   if (prefersReducedMotion()) {
@@ -22,8 +23,11 @@ export function initIntroAnimation() {
     const showHeader = () => { const h = /** @type {HTMLElement|null} */ (document.querySelector('header')); if (h) { h.style.opacity = '1'; h.style.setProperty('--header-pe', 'auto'); } };   // 無淡入＝直接開互動（開關＝--header-pe，見 index.html／navigation.css header 放行規則）
     if (document.querySelector('header')) showHeader();
     else document.addEventListener('header:ready', showHeader, { once: true });
-    return;
+    return Promise.resolve();
   }
+
+  let introDone;
+  const done = new Promise(r => { introDone = r; });
 
   // 鎖定 scroll（隱藏 scrollbar）
   document.body.style.overflow = 'hidden';
@@ -42,6 +46,7 @@ export function initIntroAnimation() {
     const header = document.querySelector('header');
 
     anim.addEventListener('complete', () => {
+      introDone();
       // overlay fade out，header 同步 fade in
       const tl = gsap.timeline({
         onComplete: () => { overlay.style.display = 'none'; }
@@ -79,4 +84,5 @@ export function initIntroAnimation() {
   } else {
     document.addEventListener('header:ready', runTransition, { once: true });
   }
+  return done;
 }

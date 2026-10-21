@@ -296,8 +296,9 @@ function initWatchChars(ytCharsEl) {
         // index 首頁進場：initYTCard 標記 __entrancePending → 每字起始 _reveal=0（藏在各自框下方），等 iris 光圈開完才逐字揭露。
         // 同一 setup tick 內先前 drawLayout()(_reveal=1)→這裡改 _reveal=0 不會閃（paint 在 setup return 後才發生）。
         // 時序握手：setup 早於 iris-complete → 設好 __charsReady 等 onComplete 來 call；晚於 → onComplete 標 __entranceRequested、這裡補播。
-        // reshuffle 首次 fire 在 setup+3s、晚於 iris(~1.2s)→不會干擾進場。
+        // 進場前停 3s reshuffle（首訪 intro loader 可能比 3s 長＝藏著時換組、揭露前跳一下），進場 clipReveal 完成會重啟。
         if (ytCharsEl.__entrancePending) {
+          clearInterval(layoutInterval); layoutInterval = null;
           lastPlaced.forEach(pos => { pos._scale = 1; pos._reveal = 0; });
           drawLayout(true);
           ytCharsEl.__charsReady = true;
@@ -488,7 +489,7 @@ function initYTCardClick(ytCard, playerRef) {
 
 // ── 主入口 ────────────────────────────────────────────────────
 
-export function initYTCard() {
+export function initYTCard(entranceAt = Promise.resolve()) {
   const ytCard    = document.getElementById('homepage-yt-card');
   const ytCharsEl = document.getElementById('homepage-yt-chars');
   if (!ytCard) return;
@@ -505,15 +506,17 @@ export function initYTCard() {
 
   // iris 進場（兩段）：先開「空的」黑色光圈 circle(0%→50%)，開到 ~85% 文字塊就開始 clip-reveal 滑上（不等完全開滿）
   // → 少一段「空黑圈」死時間（見 initWatchChars 握手）。
-  // RAF-safe：float 寫 transform、clip-path 獨立。base delay 0.6 = 排在 floating(0.1)/news(0.35) 之後＝首頁最後浮現的焦點。
+  // RAF-safe：float 寫 transform、clip-path 獨立。entranceAt＝首頁同時進場點（跟 news／header 同拍、floating 之前，見 main-modular）。
   if (typeof gsap !== 'undefined') {
-    const IRIS_DELAY = 0.6;
     gsap.set(ytCard, { clipPath: 'circle(0% at 50% 50%)' });
-    gsap.to(ytCard, { clipPath: 'circle(50% at 50% 50%)', duration: DUR.slow, ease: EASE.enter, delay: IRIS_DELAY });
-    gsap.delayedCall(IRIS_DELAY + DUR.slow * 0.85, () => {
-      if (!ytCharsEl) return;
-      if (ytCharsEl.__charsReady && ytCharsEl.__clipRevealWatch) ytCharsEl.__clipRevealWatch();
-      else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（font 載入/layout 計算晚於 iris）→ setup 完成補播
+    entranceAt.then(() => {
+      if (!ytCard.isConnected) return;
+      gsap.to(ytCard, { clipPath: 'circle(50% at 50% 50%)', duration: DUR.slow, ease: EASE.enter });
+      gsap.delayedCall(DUR.slow * 0.85, () => {
+        if (!ytCharsEl) return;
+        if (ytCharsEl.__charsReady && ytCharsEl.__clipRevealWatch) ytCharsEl.__clipRevealWatch();
+        else ytCharsEl.__entranceRequested = true; // chars 還沒 ready（font 載入/layout 計算晚於 iris）→ setup 完成補播
+      });
     });
   }
 

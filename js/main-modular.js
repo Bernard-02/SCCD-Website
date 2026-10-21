@@ -114,7 +114,8 @@ export function cleanupPageModules(destPage) {
 // 給 curriculum 的 deep-link（?item= 自動捲到 section + 開 slide-in）判斷：只有從首頁卡片
 // 點進來（fromUserNav）才播這段導航動畫，refresh 視為全新頁面不重播。
 // 隱藏 intro overlay、解鎖 body scroll、顯示 header（header 尚未載入則等 header:ready）
-function revealHeaderWhenReady() {
+// headerAt：header 延到這個 Promise 才顯示（首頁＝跟 news／WATCH 同拍）；overlay／scroll 一律立刻放
+function revealHeaderWhenReady(headerAt = Promise.resolve()) {
   const overlay = document.getElementById('intro-overlay');
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
@@ -131,11 +132,10 @@ function revealHeaderWhenReady() {
     };
     requestAnimationFrame(enablePE);
   };
-  if (document.querySelector('#site-header header')) {
-    showHeader();
-  } else {
-    document.addEventListener('header:ready', showHeader, { once: true });
-  }
+  headerAt.then(() => {
+    if (document.querySelector('#site-header header')) showHeader();
+    else document.addEventListener('header:ready', showHeader, { once: true });
+  });
 }
 
 export function initPageModules(page, searchParams = new URLSearchParams(), fromUserNav = false) {
@@ -204,20 +204,28 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'index') {
     const firstVisit = !sessionStorage.getItem('sccd-intro-shown');
     if (firstVisit) sessionStorage.setItem('sccd-intro-shown', '1');
-    else revealHeaderWhenReady();
+    // 進場順序（user 2026-10-21）：logo／header、news、WATCH 同時（stage1）→ floating 最後。
+    // stage1＝news 開始進場那刻（資料＋海報量完；首訪再等 intro loader 播完、header 由 intro 自己淡入）。
+    // ponytail: news 慢於 1.2s 就不等、header／WATCH 先進（news 晚到自己進場）；import 失敗也放 header
+    let startStage1;
+    const stage1 = new Promise(r => { startStage1 = r; });
+    if (!firstVisit) revealHeaderWhenReady(stage1);
     Promise.all([
       firstVisit ? import('./modules/pages/intro-animation.js') : null,
       import('./modules/pages/index-marquee.js'),
       import('./modules/animations/floating-items.js'),
       import('./modules/pages/index-yt-card.js'),
     ]).then(([intro, marquee, floating, yt]) => {
-      if (!alive()) return;
-      if (intro) intro.initIntroAnimation();
-      marquee.initMarquee();
-      floating.initFloatingItems();
+      if (!alive()) return startStage1();
+      const introDone = intro ? intro.initIntroAnimation() : Promise.resolve();
+      Promise.race([
+        marquee.initMarquee(introDone),
+        introDone.then(() => new Promise(r => setTimeout(r, 1200))),
+      ]).then(startStage1);
+      floating.initFloatingItems(stage1);
       floating.initWatchHover();
-      yt.initYTCard();
-    });
+      yt.initYTCard(stage1);
+    }).catch(startStage1);
   }
 
   // --- About Page ---
