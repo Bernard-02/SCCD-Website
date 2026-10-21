@@ -86,6 +86,7 @@
   /* ⚠️ 不加 transition:transform：floatTick 每幀寫 rotate()，CSS transition 會低通濾波 → hover 回正延遲；
      回正平滑由 JS setHold 的 _hold tween 提供 */
   .prog-tilt { transform-origin: center; }
+  #program-structure .is-jump { cursor: var(--cursor-pointer); }   /* 後台有選「點擊跳到 Programs 分頁」的方塊（about-structure.js） */
   .prog-box-en { margin-bottom: var(--space-en-zh-lg); }   /* 英中距 = btn */
   .prog-box-en,
   .prog-box-zh {
@@ -126,7 +127,7 @@
   @media (min-width: 1800px) { .prog-top { width: max-content; } }
 
   /* ── Term 期程 + Degree 學位 兩張說明卡（about-structure.js）──
-     hover tree chip → 展開對應 degree 那張卡的 bar（is-open，openBar/closeBar）；整卡黑底、bar 透明疊上（旋轉不漏 1px 縫）。
+     bar 全部常駐（10-21）；hover tree chip ↔ bar 雙向 lineage 上色；整卡黑底、bar 透明疊上（旋轉不漏 1px 縫）。
      桌面定位右下角；進場＝cascade 尾端 clip-reveal、SPA 離頁 clip 收 */
   .prog-legend-stack {
     position: absolute;                        /* 掛在 #program-structure（relative），捲動物理帶走＝免調離場 timing */
@@ -169,11 +170,11 @@
     width: max-content;
     max-width: 28rem;
     background: var(--theme-fg);
-    overflow: hidden;                          /* 開合 width tween 中途卡窄於 bar 內容 → 卡緣裁掉（平滑 wipe） */
+    overflow: hidden;                          /* 裁掉 bar .seam-guard 外擴 1px（hover 上色時不溢出卡緣） */
     visibility: hidden;                        /* 預設藏（避免 async render 前後閃現）；JS clip-reveal / reduce 各自接管 */
     /* 旋轉走 transform:rotate（about-structure.js，navChipHidden 讀它）；clip-path/translate 由 GSAP inline 驅動 */
   }
-  .prog-legend-bars { display: flex; flex-direction: column; }   /* 只有 is-open 的 bar 顯示（單一 degree） */
+  .prog-legend-bars { display: flex; flex-direction: column; }
   .prog-legend-head,
   .prog-legend-bar {
     padding: 6px 8px 5px;                      /* = 全站 nav btn / atlas 說明卡 padding */
@@ -186,14 +187,12 @@
     white-space: nowrap;
     font-weight: var(--font-weight-bold);
   }
-  /* bar 平常 display:none（不占寬、卡貼 title）；hover/tap 對應 degree 才展開＝JS 開合 height 0↔auto（openBar/closeBar）。
-     ⚠️ 不掛 transition:height——height 由 GSAP 每幀寫，雙重平滑會 lag */
+  /* 說明文字 regular（head 維持 bold）；hover 時 JS inline 上色，同 .prog-box */
   .prog-legend-bar {
-    display: none;
+    display: flex;
     flex-direction: column;
-    overflow: hidden;
     white-space: nowrap;
-    font-weight: var(--font-weight-bold);
+    font-weight: var(--font-weight-regular);
     /* 勿加 color/bg transition（hover 瞬切，同 .prog-box） */
   }
   .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }   /* 英中距＝s 字級 token（同 atlas name） */
@@ -226,7 +225,8 @@
     .prog-top { display: contents; }
     .prog-titled { position: relative; z-index: 1; }
     /* SCAIDC 與上方兩組列的距離（連結段 absolute 後無 in-flow gap）；此 margin 同時是左直綫的可見長度 */
-    .prog-top > .prog-titled:last-child { order: 3; margin-top: var(--prog-level-gap); }
+    /* :not(:first-child)＝只有一個 root（後台刪掉 TBA）時 DCD 不被當成 SCAIDC 排到最後 */
+    .prog-top > .prog-titled:last-child:not(:first-child) { order: 3; margin-top: var(--prog-level-gap); }
     /* 連結段＝左側直綫（SCCD 底→SCAIDC 頂）：absolute，top/height 由 JS layoutMobileLink 量測；進退場 scaleY 從頂端長下去 */
     .prog-seg--link {
       position: absolute;
@@ -276,9 +276,7 @@
       flex-shrink: 0;                      /* 橫排下 bar 長也不擠壓 head */
     }
     .prog-legend-head > span:first-child { margin-bottom: var(--space-en-zh-s); }
-    /* 展開「向右延伸」：卡內橫排（head 左、bar 右）；開合＝bar xPercent 從 head 後緣滑出（bars 容器當遮罩）＋卡寬 tween 同拍
-       （about-structure.js openBar/closeBar 手機分支） */
+    /* 卡內橫排：head 左、bars 右（bars 上下疊） */
     .prog-legend { flex-direction: row; }
-    .prog-legend-bars { overflow: hidden; }   /* bar 滑出/滑回的 clip 遮罩（防滑行時蓋到 head） */
   }
 }

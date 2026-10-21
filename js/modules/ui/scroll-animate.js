@@ -80,6 +80,16 @@ export function ensureCardMask(el) {
   el.dataset.cardMasked = '1';
 }
 
+// 大色卡隨機微傾 ±0.5–1.5°（faculty 詳情卡 desk-card 同款）
+export const randomCardTilt = () => +((Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random())).toFixed(2);
+// 說明色卡微傾（about program/works、DSD event box；user 2026-10-21）：轉的是貼身遮罩不是卡——裁切邊跟著卡斜、
+// 卡在遮罩內 x/yPercent 平移＝沿傾斜軸 clip-reveal。只真桌面（手機/矮橫向走內捲盒、不轉）；每張卡進頁抽一次
+export function tiltCardMask(el) {
+  if (!el || !SCCDHelpers.isDesktopLayout()) return;
+  ensureCardMask(el);
+  /** @type {HTMLElement} */ (el.parentElement).style.rotate = `${randomCardTilt()}deg`;
+}
+
 // ── 4 向 clip-reveal 藏定位（遮罩內本體 xPercent/yPercent 滑出）全站唯一來源 ─────────────
 // ±110 過衝非 100：剛好 100% 邊緣貼遮罩，dpr 非整數會漏一排像素（實色進場前露細線）。
 // 每次回傳新物件：gsap.set/to 會把預設值（duration 0、delay…）寫回傳入的 vars，共用同一份物件會跨 caller 互相污染。
@@ -110,20 +120,23 @@ export function ensureIconClipWrap(iconEl) {
   return wrap;
 }
 
-const _ICON_REVEAL_DIRS = [{ yPercent: -100 }, { yPercent: 100 }, { xPercent: -100 }, { xPercent: 100 }];
+// ±110＝多滑 10% 防 1px 殘線（同 revealHidden）；遮罩一律貼 icon 自己的大小（ensureIconClipWrap／HTML 寫死的 wrap 都是）
+const _ICON_REVEAL_DIRS = [{ yPercent: -110 }, { yPercent: 110 }, { xPercent: -110 }, { xPercent: 110 }];
 // 隨機四向：滑出遮罩 → 換 icon class → 同向滑入（= hide 的時間反向，連續不跳）
 // duration＝每半段秒數（總長 ×2）；預設 0.4（mcp cap 鈕）、桌面漢堡鈕傳 DUR.fast 讓總長貼齊選項收起
 // delay 掛在滑出 tween 上（非 delayedCall）＝下一次呼叫的 killTweensOf 殺得到還沒開跑的 swap
+// newClass 也可傳函式＝藏好時呼叫（<img> 換 src 用：/create mode 鈕）
 export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0 } = {}) {
   if (!iconEl) return;
-  if (typeof gsap === 'undefined') { if (newClass) iconEl.className = newClass; return; }
+  const apply = () => { if (typeof newClass === 'function') newClass(); else if (newClass) iconEl.className = newClass; };
+  if (typeof gsap === 'undefined') { apply(); return; }
   ensureIconClipWrap(iconEl);
   const dir = _ICON_REVEAL_DIRS[Math.floor(Math.random() * 4)];
   gsap.killTweensOf(iconEl);
   gsap.to(iconEl, {
     ...dir, duration, delay, ease: 'power2.out', overwrite: true,
     onComplete: () => {
-      if (newClass) iconEl.className = newClass;
+      apply();
       gsap.fromTo(iconEl, dir,
         { xPercent: 0, yPercent: 0, duration, ease: 'power2.out', clearProps: 'transform', overwrite: true });
     },

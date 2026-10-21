@@ -14,9 +14,9 @@
 
 import { registerPageExit } from './page-exit.js';
 import { registerPageCleanup } from './page-cleanup.js';
-import { ensureCardMask, fitCardToText, revealHidden } from './scroll-animate.js';
+import { ensureCardMask, fitCardToText, revealHidden, navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from './scroll-animate.js';
 import { pauseVideoEl } from './pause-offscreen-video.js';
-import { EASE } from './motion.js';
+import { DUR, EASE } from './motion.js';
 
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
@@ -350,7 +350,7 @@ export function initBFADivisionToggle() {
       if (active) centerMobilePill(active.getAttribute('data-division'));
     };
     bfaPill.addEventListener('transitionend', done);
-    fallback = setTimeout(done, 600); // transition 被打斷/無實際變化時的保底
+    fallback = setTimeout(done, 2 * DUR.medium * 1000 + 100); // transition 被打斷/無實際變化時的保底（收合要等鈕先滑出＝2 段）
   }
 
   // ─── Set active btn ────────────────────────────────────────
@@ -508,11 +508,13 @@ export function initBFADivisionToggle() {
               window.SCCD_setDivisionActive('bfa', false);  // 首次進 works → Design Fundamental
             }
           }
+          window.SCCD_animateBfaChips?.(true);   // setActive 之後：藏起位移吃到新角度
         },
         onLeaveBack: () => {
           window.SCCD_classContext = 'info';
           mobileNav.classList.remove('is-works-context');
           document.getElementById('class-buttons-sticky')?.classList.remove('is-works-context');
+          window.SCCD_animateBfaChips?.(false);
           recenterAfterBfaToggle(); // 先設 pending 壓住即時置中，收合後依最終佈局重新置中（bfa/非 bfa active 皆修）
           const active = document.querySelector('.mobile-division-btn.active');
           if (active?.getAttribute('data-division') === 'bfa') {
@@ -569,6 +571,27 @@ export function initBFADivisionToggle() {
       registerPageCleanup(() => { io.disconnect(); sentinel.remove(); });
     }
   }
+
+  // ─── Design Fundamental（works-only）鈕進退場＝clip-reveal（user 10-21：原本 wrap clip-path 擦除）──
+  // 空間收展仍是 CSS（wrap／手機 pill 的 max-width 補間推開旁邊，見 buttons.css / variables.css / landscape.css）：
+  //   進＝先撐空間、撐完（delay --dur-medium）鈕才從自己框邊滑進；退＝鈕先滑出、CSS transition-delay 等它再收空間。
+  // 呼叫點＝切 is-works-context 的地方（桌面 class-buttons-sticky.js、手機本檔 works ScrollTrigger）。
+  window.SCCD_animateBfaChips = function (show) {
+    if (typeof gsap === 'undefined') return;
+    document.querySelectorAll('#class-buttons-sticky .class-division-btn[data-division="bfa"], #mobile-division-nav .mobile-division-btn--bfa > .anchor-nav-inner')
+      .forEach((el) => {
+        if (!el.getClientRects().length) return;   // 這個視口沒顯示的那份（桌面／手機各一份）
+        gsap.killTweensOf(el);
+        el.style.transition = 'none';   // Tailwind transition-all 會追 GSAP 每幀值（同 class-buttons-sticky chip 進退場）
+        if (show) {
+          gsap.set(el, navChipHidden(el, pickNavDir(el)));
+          gsap.to(el, { ...NAV_CHIP_SHOWN, duration: DUR.medium, ease: EASE.wipe, delay: DUR.medium,
+            clearProps: 'clipPath,translate', onComplete: () => { el.style.transition = ''; } });
+        } else {
+          gsap.fromTo(el, { ...NAV_CHIP_SHOWN }, { ...navChipHidden(el, pickNavDir(el)), duration: DUR.medium, ease: EASE.wipe });
+        }
+      });
+  };
 
   // ─── 暴露給其他模組的 helper ─────────────────────────────────
   // class-buttons-sticky.js 在離開 works context 時若 active=bfa 會呼叫此 helper 切回 animation

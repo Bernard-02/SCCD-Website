@@ -572,21 +572,23 @@
   }
 
   /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（.is-works-context）才展開（對齊桌面 .class-division-bfa-wrap）。
-     收起時負 margin 不佔 gap。收合用 clip-path（非 overflow:hidden）：inset 四邊留 -12px 給 active pill 旋轉，免裁角。 */
+     收起時負 margin 不佔 gap、visibility 藏。pill 內 .anchor-nav-inner 進退場＝clip-reveal（SCCD_animateBfaChips，user 10-21 撤擦除）：
+     進＝空間先撐、撐完才滑進；退＝先滑出、空間等 --dur-medium 再收。 */
   #mobile-division-nav .mobile-division-btn--bfa {
     max-width: 0;
     pointer-events: none;
+    visibility: hidden;
     margin-right: calc(-1 * var(--spacing-md));
-    clip-path: inset(-12px calc(100% + 12px) -12px -12px);
-    transition: max-width var(--dur-medium) var(--ease-standard),
-                margin-right var(--dur-medium) var(--ease-standard),
-                clip-path var(--dur-medium) var(--ease-standard);
+    transition: max-width var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                margin-right var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                visibility 0s linear var(--dur-medium);
   }
   #mobile-division-nav.is-works-context .mobile-division-btn--bfa {
     max-width: 320px;
     pointer-events: auto;
+    visibility: visible;
     margin-right: 0;
-    clip-path: inset(-12px -12px -12px -12px);
+    transition-delay: 0s;
   }
 
   /* BFA 學士班 label（mobile）：桌面 absolute 浮在 btn 上方，mobile 改 in-flow 免被 nav overflow-y 裁掉。

@@ -138,6 +138,7 @@ export function initClassButtonsSticky() {
         // 之後每次滑進 works 都重新換色（保留當前 active division，只換色+旋轉，避開 works 封鎖綫）
         window.SCCD_recolorActiveDivision();
       }
+      window.SCCD_animateBfaChips?.(true);   // Design Fundamental 鈕 clip-reveal 進場（setActive 之後＝吃到新角度）
     },
 
     onLeaveBack: () => {
@@ -146,8 +147,9 @@ export function initClassButtonsSticky() {
       const activeBtn = document.querySelector('.class-division-btn.active');
       const wasBfaActive = activeBtn?.getAttribute('data-division') === 'bfa';
 
-      // 移除 is-works-context，CSS transition 自然 reverse clip-path（左→右揭露的反向）
+      // 移除 is-works-context：Design Fundamental 鈕先 clip-reveal 滑出，CSS 再收空間（transition-delay）
       classButtonsEl.classList.remove('is-works-context');
+      window.SCCD_animateBfaChips?.(false);
       const stickyWrapper = document.getElementById('class-info-sticky-wrapper');
       if (stickyWrapper) stickyWrapper.classList.remove('is-works-active');
       // 圖文恢復互動

@@ -17,7 +17,7 @@ import { loadAboutVision, loadAboutClasses, loadAboutWorks } from './about-sourc
 import { YT_API_KEY } from '../../../config/api.js';
 import { isNavSpinDesktop } from '../../ui/section-switch-helpers.js';
 import { registerPageExit } from '../../ui/page-exit.js';
-import { setupClipReveal, playClipReveal, playRevealExit } from '../../ui/scroll-animate.js';
+import { setupClipReveal, playClipReveal, playRevealExit, tiltCardMask } from '../../ui/scroll-animate.js';
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
 // 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
@@ -225,6 +225,7 @@ function initClassHighlight() {
     const color = SCCDHelpers.getRandomAccentColor();
     /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-class-hl]')).forEach(el => {
       el.style.background = color;
+      tiltCardMask(el);
     });
   });
 }
@@ -237,6 +238,7 @@ function initWorksHighlight() {
     const color = SCCDHelpers.getRandomAccentColor();
     /** @type {NodeListOf<HTMLElement>} */ (panel.querySelectorAll('[data-works-hl]')).forEach(el => {
       el.style.background = color;
+      tiltCardMask(el);
     });
   });
 }

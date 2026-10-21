@@ -1200,23 +1200,21 @@
     display: none;
   }
   /* BFA/Design Fundamental wrap 收合改垂直：buttons.css 的 max-width:0 + 負 margin-right 配橫排，直排下寬 0 仍佔一行高 + gap
-     → 換 max-height + margin-bottom 負 gap。溢出 btn 用 clip-path 裁——不能用 overflow:hidden（以 border box 為界，
-     會裁掉展開後旋轉 chip 凸出的角）；clip-path 帶 -12px clearance、收合態 bottom calc(100%+12px) 全遮。
+     → 換 max-height + margin-bottom 負 gap。收合態藏法（visibility）與鈕的 clip-reveal、先撐後揭／先滑出後收的時序同 buttons.css。
      展開 class 同桌面（#class-buttons-sticky.is-works-context）。⚠️ buttons.css 該段改動時同步。 */
   #class-buttons-sticky .class-division-bfa-wrap {
     max-width: none;
     max-height: 0;
     margin-right: 0;
     margin-bottom: -12px;       /* = 直排 gap，收起時不佔 gap */
-    clip-path: inset(-12px -12px calc(100% + 12px) -12px);
-    transition: max-height var(--dur-medium) var(--ease-standard),
-                margin-bottom var(--dur-medium) var(--ease-standard),
-                clip-path var(--dur-medium) var(--ease-standard);
+    transition: max-height var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                margin-bottom var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                visibility 0s linear var(--dur-medium);
   }
   #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
     max-height: 8rem;
     margin-bottom: 0;
-    clip-path: inset(-12px);
+    transition-delay: 0s;
   }
   /* 右側內容欄：site-container 左 padding 讓給左欄 tabs（頂部避讓在 wrapper） */
   body #class-info-area {

@@ -169,8 +169,8 @@
             </div>
           </div>
           <!-- Term 期程（上）+ Degree 學位（下）＝兩個獨立說明卡（user 2026-09-11：各自旋轉、上下堆疊、卡內上下 layout）。
-               平常只留 title 殼，hover tree chip → 展開「對應 degree」的內容（about-structure.js setBar）。
-               Term bar 由後台 program_nodes.termEn/termZh 建（老師可客製）；Degree 名硬編（bfa/mdes/bdes，bdes=BPAIDC；要 CMS 化再接 ui_labels）。
+               bar 全部常駐（10-21）；hover tree chip ↔ bar 雙向上色（about-structure.js）。
+               bar＝後台 program_terms／program_degrees 兩表（排序＝上下順序），只列有被班級（program_nodes.term／degree）選到的。
                stack 桌面 absolute 右下、手機 in-flow 樹底；兩卡各自隨機微旋轉（皆 about-structure.js / .css）。 -->
           <div class="prog-legend-stack" data-degree-legend>
             <!-- Term 期程（上）：bar 由 JS 從後台 term 建，依 degree（bfa/mdes/bdes） -->

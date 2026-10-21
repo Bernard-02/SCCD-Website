@@ -287,26 +287,25 @@
     background: transparent;
   }
 
-  /* BFA btn wrapper：is-works-context 時 clip-path 左→右揭露；四邊留 -40px 旋轉 clearance；
-     BFA btn 在 class 模式由 JS 強制 0° 免超出 clip */
+  /* BFA（Design Fundamental，works-only）btn wrapper：只管「空間」——is-works-context 時 max-width 撐開推旁邊。
+     鈕本身進退場＝clip-reveal（bfa-division-toggle.js SCCD_animateBfaChips；user 10-21 撤原本 clip-path 左→右擦除）：
+     進＝空間先撐（delay 0）、撐完鈕才滑進；退＝鈕先滑出、空間等 --dur-medium 再收。收合態 visibility 藏（不靠 clip）。 */
   .class-division-bfa-wrap {
     max-width: 0;
     overflow: visible;
     pointer-events: none;
+    visibility: hidden;
     /* 抵消 flex gap（容器 gutter+sm，見 about.html #class-buttons-sticky row）。⚠️ gap 改動要同步這裡，否則收起時整排左/右偏 */
     margin-right: calc(-1 * (var(--spacing-gutter) + var(--spacing-sm)));
-    /* right calc(100% + 40px)：連左側 -40px clearance 也裁掉，免 max-width:0 時殘留一條可見區 */
-    clip-path: inset(-40px calc(100% + 40px) -40px -40px);
-    transition: max-width var(--dur-medium) var(--ease-standard),
-                margin-right var(--dur-medium) var(--ease-standard),
-                clip-path var(--dur-medium) var(--ease-standard);
+    transition: max-width var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                margin-right var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                visibility 0s linear var(--dur-medium);
   }
-
-  /* 展開：clip-path 左→右揭露 */
   #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
     max-width: 320px;
     pointer-events: auto;
+    visibility: visible;
     margin-right: 0;
-    clip-path: inset(-40px -40px -40px -40px);
+    transition-delay: 0s;
   }
 }

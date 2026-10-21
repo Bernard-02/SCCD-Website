@@ -16,7 +16,6 @@ import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir, randomRevealDir } from '../.
 import { randomSpinAngle } from '../../ui/arrow-spin.js';
 import { DUR, EASE } from '../../ui/motion.js';
 import { loadProgramNodes } from './program-nodes-source.js';
-import { loadUiLabels } from '../../ui/ui-labels.js';
 import { escapeHtml as esc } from '../../ui/escape-html.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -32,6 +31,7 @@ const parseTranslate = (el) => {
 
 // labelKey → 每盒 max-width 微調 class（CSS 對特定文字長度調斷行寬，見 about-structure.css）；
 // 純視覺 tuning、與文字綁定；新節點無對應 class＝吃預設 --prog-chip-max。
+// labelKey 在後台已隱藏（10-21 簡化欄位）：只剩這裡用，老師新增的節點沒有＝吃預設寬。
 const BOX_MOD = {
   'about.program.dcd': 'prog-box--dcd',
   'about.program.bpaidc': 'prog-box--bpaidc',
@@ -41,48 +41,40 @@ const BOX_MOD = {
 };
 
 // ── 從後台 program_nodes render tree HTML（結構同原硬編、供既有互動邏輯沿用）──
-// 樹名走 program_nodes.nameEn/nameZh（獨立於下方 division nav 的 ui_labels，2026-09-11 解耦）；空才退回 ui_labels。
-// ⚠️ 不掛 data-label-key＝applyUiLabels 不會覆寫樹名（decouple 的關鍵）；labelKey 只在 JS 端用於 degree/BOX_MOD 對照。
-function boxHtml(node, labels, tilt, extra = '') {
-  const row = labels[node.labelKey] || {};
-  const en = node.nameEn || row.en || '';
-  const zh = node.nameZh || row.zh || '';
+// 樹名＝program_nodes.nameEn/nameZh（10-21 拿掉 ui_labels 退回：後台是唯一來源）。
+function boxHtml(node, tilt, extra = '') {
   const mod = BOX_MOD[node.labelKey] ? ' ' + BOX_MOD[node.labelKey] : '';
-  const div = node.divisionKey ? ` data-division="${esc(node.divisionKey)}"` : '';
-  return `<div class="prog-box${tilt ? ' prog-tilt' : ''}${extra ? ' ' + extra : ''}${mod}" data-node-id="${esc(node.id)}"${div}>`
-    + `<span class="prog-box-en">${esc(en)}</span>`
-    + `<span class="prog-box-zh" lang="zh-Hant">${esc(zh)}</span>`
+  return `<div class="prog-box${tilt ? ' prog-tilt' : ''}${extra ? ' ' + extra : ''}${mod}" data-node-id="${esc(node.id)}">`
+    + `<span class="prog-box-en">${esc(node.nameEn || '')}</span>`
+    + `<span class="prog-box-zh" lang="zh-Hant">${esc(node.nameZh || '')}</span>`
     + `</div>`;
 }
-function nodeHtml(node, childrenOf, labels) {
+function nodeHtml(node, childrenOf) {
   const kids = childrenOf(node.id);
-  const kidsHtml = kids.length ? `<div class="prog-children">${kids.map((k) => nodeHtml(k, childrenOf, labels)).join('')}</div>` : '';
-  return `<div class="prog-node"><div class="prog-row">${boxHtml(node, labels, true)}</div>${kidsHtml}</div>`;
+  const kidsHtml = kids.length ? `<div class="prog-children">${kids.map((k) => nodeHtml(k, childrenOf)).join('')}</div>` : '';
+  return `<div class="prog-node"><div class="prog-row">${boxHtml(node, true)}</div>${kidsHtml}</div>`;
 }
-// 頂層黑底標準字塊：只在「有實際 wordmark 圖」時畫——上傳檔優先；無檔但 wordmark=sccd → 本地 SCCD svg（CSS 預設 mask）。
-// 其餘（如 scaidc 尚無真 logo）整塊不畫（user 2026-09-11：沒上傳 logo 就不渲染那區塊，別借 SCCD 占位）。
+// 頂層黑底標準字塊：只在後台有上傳 wordmark 圖時畫（沒上傳＝整塊不畫，user 2026-09-11）
 function acronymHtml(node) {
-  if (!node.wordmarkUrl && node.wordmark !== 'sccd') return '';
-  const style = node.wordmarkUrl
-    ? ` style="-webkit-mask-image:url('${esc(node.wordmarkUrl)}');mask-image:url('${esc(node.wordmarkUrl)}')"`
-    : '';
+  if (!node.wordmarkUrl) return '';
+  const url = esc(node.wordmarkUrl);
   // seam-guard 補丁已退場（2026-09-15 根解）：hover 上色改畫整條 .prog-titled 單一畫布（見 paint()），
   // 無拼接邊＝無縫可衛；外擴 ring 反而在接縫處造成上下緣一階，勿加回
-  return `<span class="prog-acronym"><span class="prog-acronym-mark"${style}></span></span>`;
+  return `<span class="prog-acronym"><span class="prog-acronym-mark" style="-webkit-mask-image:url('${url}');mask-image:url('${url}')"></span></span>`;
 }
-function renderTree(nodes, labels) {
+function renderTree(nodes) {
   const byParent = new Map();
   nodes.forEach((n) => { const p = n.parent || null; if (!byParent.has(p)) byParent.set(p, []); byParent.get(p).push(n); });
   const childrenOf = (id) => (byParent.get(id) || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0));
   const roots = childrenOf(null);
   // 頂列：各 root 一條 .prog-titled（有 wordmark 才加黑底標準字塊）；root 之間插 .prog-seg--link
   // 頂 chip 不再掛 .seam-guard（2026-09-15 根解：hover 色畫在 titled 整條、色塊透明，無縫可衛）
-  const top = roots.map((r) => `<div class="prog-titled prog-tilt">${acronymHtml(r)}${boxHtml(r, labels, false)}</div>`)
+  const top = roots.map((r) => `<div class="prog-titled prog-tilt">${acronymHtml(r)}${boxHtml(r, false)}</div>`)
     .join('<div class="prog-seg prog-seg--link"></div>');
   // 子樹掛在「有子的第一個 root」下方（現況 DCD；BPAIDC 無子）＝.prog-children--root 的定位對象
   const rootWithKids = roots.find((r) => childrenOf(r.id).length);
   const rootChildrenHtml = rootWithKids
-    ? `<div class="prog-children prog-children--root">${childrenOf(rootWithKids.id).map((k) => nodeHtml(k, childrenOf, labels)).join('')}</div>`
+    ? `<div class="prog-children prog-children--root">${childrenOf(rootWithKids.id).map((k) => nodeHtml(k, childrenOf)).join('')}</div>`
     : '';
   return '<svg class="prog-lines" aria-hidden="true"></svg>'
     + `<div class="prog-top">${top}</div>`
@@ -96,10 +88,10 @@ export async function initProgramStructure() {
   const progTree = root.querySelector('.prog-tree');
   if (!roots) return;
 
-  // 不吃硬編：從後台 program_nodes（自我參照 parent 表層級）+ ui_labels（文字）動態 render tree
-  const [nodeList, labels] = await Promise.all([loadProgramNodes(), loadUiLabels()]);
+  // 不吃硬編：從後台 program_nodes（自我參照 parent 表層級）動態 render tree
+  const { nodes: nodeList, terms, degrees } = await loadProgramNodes();
   if (!root.isConnected || !Array.isArray(nodeList) || !nodeList.length) return;   // await 期間離頁 / 無資料則不動
-  roots.innerHTML = renderTree(nodeList, labels);
+  roots.innerHTML = renderTree(nodeList);
 
   const svg = root.querySelector('.prog-lines');
   const rootChildren = root.querySelector('.prog-children--root');
@@ -139,39 +131,34 @@ export async function initProgramStructure() {
   // 色塊改黑（user 2026-09-04「原本 rgb 改成黑色」）：不再隨機三原色，chip 底色由 CSS 走 var(--theme-fg)。
   // 點擊 tree 捲到 division 內容的效果已移除（user 2026-09-09）：chip 純 hover 互動、不再導覽。
 
-  // ── hover 上色（lineage 模型）：hover 一顆 chip → 該 chip + **所有母層(祖先)＋所有子層(子孫)** 同色，並展開右下說明卡「對應 degree」的 Term+Degree bar。
-  //   顏色由「該 chip 所屬 degree」決定（bfa/mdes/bdes 各一色，每次進頁洗牌），tree 與說明卡 bar 同色；
-  //   degree 走 labelKey 對照往上找第一個 degree 祖先（CMS id 是 UUID、labelKey 才跨 CMS/fallback 穩定）。
-  //   hover 動畫/創媒/BFA → 展開 BFA 期程+學位；碩士 → MDes；BPAIDC → BDes；SCCD(dcd，無 degree) → tree 仍上色（隨機）但不展開任何 bar。
-  //   說明卡平常只留 title 殼（Term 期程 / Degree 學位），hover 才展開內容（user 2026-09-11）；層級由 NODES 的 parent 定義（後台 program_nodes）。
+  // ── hover 上色（lineage 模型）：hover 一顆 chip → 該 chip + **所有母層(祖先)＋所有子層(子孫)** 同色，
+  //   lineage 內班級節點選的 Term/Degree bar 也同色（bar 掛在 NODES[id].bars，lineage 一起帶）。
+  //   顏色由「該 chip 所屬班級」決定（每個班級一色，每次進頁洗牌）；SCCD(dcd，無班級) → 隨機一色、整棵＋全部 bar。
+  //   班級節點＝後台有選期程或學位的節點（10-21：term/degree 改成兩張設定表＋班級下拉選）。
   const rndAccent = () => SCCDHelpers.getRandomAccentColor();
-  const DEGREE_BY_LABELKEY = { 'about.group.bfa': 'bfa', 'about.program.mdes': 'mdes', 'about.program.bpaidc': 'bdes' };
-  // degree↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內三 degree 仍各自穩定一色（hover/tap/legend 共用此 map）
-  const shuffledAccent = [...SCCDHelpers.ACCENT_COLORS].sort(() => Math.random() - 0.5);
-  const DEGREE_COLOR = { bfa: shuffledAccent[0], mdes: shuffledAccent[1], bdes: shuffledAccent[2] };
-  // Term 期程 / Degree 學位 bar 都從後台建（掛在 degree 節點的 termEn/termZh、degreeEn/degreeZh），依 degree
-  //   key（bfa/mdes/bdes）；空＝不建該 bar。head「Term 期程 / Degree 學位」殼仍硬編在 about.html。
-  //   （2026-09-11：degree 名原硬編、現改吃後台＝老師可編，同 term 手法；bdes 掛在 bpaidc 節點。）
-  const buildLegendBars = (cardSel, enField, zhField) => {
+  const ordered = [];   // 樹的閱讀序（DFS、同層依 sort）＝班級配色序
+  const walk = (pid) => nodeList.filter((n) => (n.parent || null) === pid).sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    .forEach((n) => { ordered.push(n); walk(n.id); });
+  walk(null);
+  const classNodes = ordered.filter((n) => n.term || n.degree);
+  // 班級↔色不固定 rgb 順序、每次進頁洗牌（user 09-10）；同一次瀏覽內各班級穩定一色（hover/tap/legend 共用此 map）
+  const shuffledAccent = SCCDHelpers.shuffle([...SCCDHelpers.ACCENT_COLORS]);
+  const CLASS_COLOR = Object.fromEntries(classNodes.map((n, i) => [n.id, shuffledAccent[i % shuffledAccent.length]]));
+  // Term 期程 / Degree 學位 bar：全部常駐（user 10-21）；項目與上下順序＝後台「期程／學位」表的拖曳排序，
+  //   沒被任何班級選到的不顯示（刪掉班級＝它的 bar 自動消失）；多個班級選同一項＝共用一條 bar。
+  //   head「Term 期程 / Degree 學位」殼仍硬編在 about.html。
+  const buildLegendBars = (cardSel, items, field) => {
     const box = root.querySelector(`${cardSel} .prog-legend-bars`);
     if (!box) return;
-    const byDeg = {};
-    nodeList.forEach((n) => { const d = DEGREE_BY_LABELKEY[n.labelKey]; if (d && (n[enField] || n[zhField])) byDeg[d] = { en: n[enField] || '', zh: n[zhField] || '' }; });
-    box.innerHTML = ['bfa', 'mdes', 'bdes'].filter((d) => byDeg[d]).map((d) =>
-      `<div class="prog-legend-bar seam-guard" data-degree="${d}"><span class="prog-legend-en">${esc(byDeg[d].en)}</span><span class="prog-legend-zh" lang="zh-Hant">${esc(byDeg[d].zh)}</span></div>`
-    ).join('');
+    box.innerHTML = items.map((it) => {
+      const ids = classNodes.filter((n) => n[field] === it.id).map((n) => n.id);
+      return ids.length
+        ? `<div class="prog-legend-bar seam-guard" data-node-ids="${esc(ids.join(' '))}"><span class="prog-legend-en">${esc(it.nameEn || '')}</span><span class="prog-legend-zh" lang="zh-Hant">${esc(it.nameZh || '')}</span></div>`
+        : '';
+    }).join('');
   };
-  buildLegendBars('.prog-legend--term', 'termEn', 'termZh');
-  buildLegendBars('.prog-legend--degree', 'degreeEn', 'degreeZh');
-  // legendBars[deg] = { degree, term }：hover/tap 對應 degree 時展開＋上色。
-  // 兩卡「同時」展開/收起（user 2026-09-15，推翻 09-11 的 degree 先 term 後 sequential）；
-  //    barsOf() 仍顯式排 [degree, term]（closest 判卡別分 slot，不靠 querySelectorAll 順序）。
-  const legendBars = {};
-  root.querySelectorAll('.prog-legend-bar').forEach((el) => {
-    const slot = legendBars[el.dataset.degree] || (legendBars[el.dataset.degree] = { degree: null, term: null });
-    slot[el.closest('.prog-legend--term') ? 'term' : 'degree'] = el;
-  });
-  const barsOf = (deg) => { const s = legendBars[deg]; return s ? [s.degree, s.term].filter(Boolean) : []; };
+  buildLegendBars('.prog-legend--term', terms, 'term');
+  buildLegendBars('.prog-legend--degree', degrees, 'degree');
   // Term / Degree 是兩張獨立說明卡（user 2026-09-11：各自旋轉、桌面上下堆疊）；各自 clip-reveal + rndRot。
   const legendEls = [...root.querySelectorAll('.prog-legend')];
   // 旋轉走 transform:rotate（navChipHidden 讀它算旋轉後位移向量），非個別 rotate 屬性——否則 clip-reveal 位移不跟角度轉；
@@ -188,19 +175,21 @@ export async function initProgramStructure() {
       el.style.visibility = 'visible';   // reduce/無 gsap：in-flow 靜態直接可見（捲動物理帶走，無 fixed 外溢問題）
     });
   }
-  // NODES 由後台資料建（id → {parent, labelKey, el}）：層級全走 program_nodes 的 parent，不再硬編選擇器
+  // NODES 由後台資料建（id → {parent, el, bars}）：層級全走 program_nodes 的 parent，不再硬編選擇器
   const NODES = {};
-  nodeList.forEach((n) => { NODES[n.id] = { parent: n.parent || null, labelKey: n.labelKey, el: null }; });
+  nodeList.forEach((n) => { NODES[n.id] = { parent: n.parent || null, el: null, bars: [], tab: n.tab }; });
   roots.querySelectorAll('.prog-box[data-node-id]').forEach((el) => {
     const id = el.getAttribute('data-node-id');
     if (NODES[id]) NODES[id].el = el;
   });
-  // 往上（含自身）找第一個 degree 節點；dcd/SCCD 找不到＝null（→ 不展開任何 bar）
-  function degreeOf(id) {
-    for (let p = id; p && NODES[p]; p = NODES[p].parent) {
-      const d = DEGREE_BY_LABELKEY[NODES[p].labelKey];
-      if (d) return d;
-    }
+  const bars = [...root.querySelectorAll('.prog-legend-bar')];
+  bars.forEach((el) => {
+    el._nodeIds = el.dataset.nodeIds.split(' ').filter((id) => NODES[id]);
+    el._nodeIds.forEach((id) => NODES[id].bars.push(el));
+  });
+  // 往上（含自身）找第一個班級節點 id；dcd/SCCD 找不到＝null（→ 隨機色）
+  function classOf(id) {
+    for (let p = id; p && NODES[p]; p = NODES[p].parent) if (CLASS_COLOR[p]) return p;
     return null;
   }
   // hover 上色：mode3 無 rgb（user 2026-09-10）→ 改翻反色（fg-inverse 底＋fg 字，strict B/W）；mode1/2 用 degree 色。
@@ -223,131 +212,6 @@ export async function initProgramStructure() {
     el.style.removeProperty('background');
     el.style.removeProperty('color');
   };
-  // 展開/收起「對應 degree」的 term+degree bar：由上往下推出＝GSAP 開合 height 0↔auto（overflow:hidden，
-  //   比照 activities accordion，user 2026-09-11）。平常 bar display:none（不占寬、卡貼 title 殼），
-  //   hover/tap 該 degree 才展開內容。⚠️ height 由 GSAP 每幀寫、CSS 不掛 transition:height（免雙重平滑 lag）。
-  // ⭐卡「長度」也 ease（user 2026-09-11：degree title 展開/收起別硬縮）：卡右緣固定（stack flex-end）、
-  //   左緣隨長度平滑。root cause＝`.prog-legend` width:max-content，bar display:none↔flex 當下寬度瞬跳
-  //   （收起＝只 head 短、展開＝含長 degree 名）→ 對卡本身顯式 tween width 與 height 同拍。
-  //   Wc＝收起寬（只 head）＝head.offsetWidth；We＝展開寬（含 bar）＝display:flex 後 card.offsetWidth。
-  const LEG_DUR = 0.42;         // 開啟：≈ --dur-base，對齊 accordion 開合手感
-  const LEG_DUR_CLOSE = 0.3;    // 收合：較短（user 2026-09-15「離開 hover 直接收」）——out ease 減速尾在 0.42s 下
-                                // 末段 ~7px 色條爬行 ~150ms 像殘影；0.3s 尾巴縮到無感、仍平滑非 snap
-  function widthTween(card, head, from, to, ease, dur = LEG_DUR, onDone) {
-    if (!card || !head) { if (onDone) onDone(); return; }
-    gsap.killTweensOf(card);   // 先殺舊 tween 再 bail：否則舊 tween 之後 onComplete 清 width＝瞬跳
-    if (Math.abs(to - from) < 0.5) { card.style.width = ''; if (onDone) onDone(); return; }   // 差 <0.5px（bar 比 head 窄）＝免動
-    gsap.fromTo(card, { width: from }, { width: to, duration: dur, ease, onComplete: () => { card.style.width = ''; if (onDone) onDone(); } });
-  }
-  // 手機（<768）：卡內橫排（CSS），展開＝向右延伸——不跑 bar 高度 accordion，只 tween 卡寬，
-  // bar 全高直接進場、由卡 overflow:hidden 從左往右揭（user 2026-09-15）。跨 gate 轉向靠 orientation-reload。
-  const isLegendMobile = () => window.matchMedia('(max-width: 767px)').matches;
-  function openBar(el, color, onDone) {
-    const card = el.closest('.prog-legend');
-    const head = card && card.querySelector('.prog-legend-head');
-    el.classList.add('is-open');
-    paint(el, color);
-    // 切 degree（收前一個→開下一個）時，前一輪 width tween 可能還掛著 inline width：不先清掉，
-    // 下面 We 會量到 stale 中間寬、且舊 tween onComplete 清 width 時卡片瞬跳到自然寬（「寬度很硬」根因，
-    // user 2026-09-15）。→ 先記「當下視覺寬」當起點，殺舊 tween＋清 inline，再量真展開寬。
-    const w0 = card ? card.offsetWidth : 0;    // 當下視覺寬（可能是前一輪 tween 中間值）＝tween 起點
-    if (card && willAnimate) { gsap.killTweensOf(card); card.style.width = ''; }
-    el.style.display = 'flex';
-    const we = card ? card.offsetWidth : 0;    // display:flex 已套＋inline 已清→真展開寬（含 bar）
-    if (!willAnimate) { el.style.height = ''; if (card) card.style.width = ''; if (onDone) onDone(); return; }
-    if (isLegendMobile()) {   // 手機：兩段式（user 2026-09-15「參考桌面 atlas 職業 chip」）——
-      // phase 1 卡寬先撐開（遮罩窗就位、bar 藏在 xPercent:-100）→ phase 2 bar 延遲 0.3s 滑入。
-      // 同拍版（寬與滑入同動）被打回：窗緣與 bar 同時動＝看不出「揭露」。時序抄 atlas show dir='top'。
-      gsap.killTweensOf(el);
-      if (card) gsap.killTweensOf(card);
-      const tl = gsap.timeline({ onComplete: onDone || undefined });
-      tl.set(el, { xPercent: -100 }, 0);
-      if (card && Math.abs(we - w0) >= 0.5) {
-        tl.fromTo(card, { width: w0 }, { width: we, duration: 0.3, ease: 'power2.out',
-          onComplete: () => { card.style.width = ''; } }, 0);
-      } else if (card) { card.style.width = ''; }
-      tl.to(el, { xPercent: 0, duration: 0.4, ease: 'power2.out', clearProps: 'transform' }, 0.3);
-      return;
-    }
-    gsap.killTweensOf(el);
-    // padding 跟 height 一起 tween（user 2026-09-15「收起分兩段」對稱側）：border-box 下 height:0 只能縮到剩
-    // padding 高（6+5 色條）→ open 從 0 padding 長出、close 收到全 0，onComplete 清 inline 回 CSS 值。
-    // ⚠️目標高在「padding 還是 CSS 自然值」的此刻先量死（offsetHeight 含 padding）——不能用 height:'auto'：
-    //   GSAP 解析 auto 時 fromTo 起手已把 padding 設 0，量到的 auto 少 11px → tween 停在矮 11px、
-    //   onComplete 清 inline 才彈到全高（user「沒有完全撐起、下一刻才完全打開」）
-    const cs = getComputedStyle(el);
-    const PT = parseFloat(cs.paddingTop) || 0, PB = parseFloat(cs.paddingBottom) || 0;
-    const H = el.offsetHeight;   // display:flex 已套、padding 未動＝真展開全高
-    gsap.fromTo(el, { height: 0, paddingTop: 0, paddingBottom: 0 },
-      { height: H, paddingTop: PT, paddingBottom: PB, duration: LEG_DUR, ease: 'power2.out',
-        onComplete: () => { el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; if (onDone) onDone(); } });
-    widthTween(card, head, w0, we, 'power2.out');   // 當下視覺寬→展開寬（fromTo 先套 w0＝同 tick 不閃）
-  }
-  function closeBar(el, onDone) {
-    const card = el.closest('.prog-legend');
-    const head = card && card.querySelector('.prog-legend-head');
-    const we = card ? card.offsetWidth : 0;    // 當前寬（bar 仍 display:flex）
-    // ⚠️收起寬不能量 head.offsetWidth：卡是 flex column、head 被拉伸到展開卡寬（=we）→ bail「免動」
-    //   ＝收合從來沒建 width tween、高度收完 display:none 瞬跳（user 2026-09-15「還是很硬」真根因）。
-    //   改「暫藏 bar 量卡自然寬再還原」——同步翻轉、無中間 paint，量到真收起寬。
-    let wc = we;
-    if (card) {
-      const prevDisp = el.style.display;
-      const prevW = card.style.width;
-      el.style.display = 'none';
-      card.style.width = '';
-      wc = card.offsetWidth;
-      el.style.display = prevDisp || 'flex';
-      card.style.width = prevW;
-    }
-    el.classList.remove('is-open');
-    if (!willAnimate) { el.style.display = 'none'; if (card) card.style.width = ''; unpaint(el); if (onDone) onDone(); return; }
-    if (isLegendMobile()) {   // 手機：兩段式反向（atlas hide dir='top'）——bar 先滑出（0.4s power2.in）、
-      // 0.4s 起卡寬再收回（0.3s）；全收完才 display:none + 清 transform（中途 hide 會讓滑出被截斷）。
-      gsap.killTweensOf(el);
-      if (card) gsap.killTweensOf(card);
-      const tl = gsap.timeline({ onComplete: () => {
-        el.style.display = 'none'; gsap.set(el, { clearProps: 'transform' }); unpaint(el);
-        if (card) card.style.width = '';
-        if (onDone) onDone();
-      } });
-      tl.to(el, { xPercent: -100, duration: 0.4, ease: 'power2.in' }, 0);
-      if (card && Math.abs(we - wc) >= 0.5) {
-        tl.fromTo(card, { width: we }, { width: wc, duration: 0.3, ease: 'power2.in' }, 0.4);
-      }
-      return;
-    }
-    gsap.killTweensOf(el);
-    // ease 三輪（user 2026-09-15）：power2.in＝變化全擠末幀（感知 snap）→ inOut＝開頭慢（「卡在畫面上慢一點」才動）
-    // → 定案 power2.out＝一移開立刻收、平滑落地；中途卡窄於 bar 的溢出交給 .prog-legend overflow:hidden 裁。
-    // padding 一起收到 0（user「收起分兩段、剩一點色塊」＝border-box height:0 殘留 6+5 padding 色條，
-    // 高度早到底、色條掛到 tween 完 display:none 才消失）；onComplete 清 inline 回 CSS 值
-    gsap.to(el, { height: 0, paddingTop: 0, paddingBottom: 0, duration: LEG_DUR_CLOSE, ease: 'power2.out',
-      onComplete: () => { el.style.display = 'none'; el.style.height = ''; el.style.paddingTop = ''; el.style.paddingBottom = ''; unpaint(el); if (onDone) onDone(); } });
-    widthTween(card, head, we, wc, 'power2.out', LEG_DUR_CLOSE);   // 展開寬→收起寬，與高度同 ease 同拍
-  }
-  // ── 說明卡顯示協調（user 2026-09-11，比照 atlas hover 卡判斷）──
-  //  ① 連續 hover「同一 degree」（＝同內容）→ 不收不開（legendDeg 相同 no-op），免收起再打開的閃爍。
-  //  ② hover「不同 degree」→ 先收上一個、收完才開下一個（避免兩卡寬度不同時同時開合＝跳兩次）。
-  //  legend 只顯示真 degree（bfa/mdes/bdes）；SCCD 無 degree → showLegend(null)＝收起。
-  let legendDeg = null;   // 目前顯示的 degree（null＝收起）
-  // 兩卡並行：全部同時開/收，全數 onComplete 才算完（user 2026-09-15「term 跟 degree 同時展開」）
-  function runAll(els, action, onDone) {
-    let n = els.length;
-    if (!n) { if (onDone) onDone(); return; }
-    els.forEach((el) => action(el, () => { if (!--n && onDone) onDone(); }));
-  }
-  function openDeg(deg) { if (deg) runAll(barsOf(deg), (el, next) => openBar(el, DEGREE_COLOR[deg], next)); }
-  function closeDeg(deg, onDone) { runAll(barsOf(deg), (el, next) => closeBar(el, next), onDone); }
-  function showLegend(deg) {
-    if (deg === legendDeg) return;              // 同內容：不收不開
-    const prev = legendDeg;
-    legendDeg = deg;
-    if (!prev) { openDeg(deg); return; }        // 沒開過 → 直接開（deg=null 則 no-op）
-    closeDeg(prev, () => { if (legendDeg === deg) openDeg(deg); });  // 先收前一個、收完開下一個（期間又切走則不開）
-  }
-  // 只重畫已展開 bar 的顏色（不重播開合動畫）：給 mode 切換重畫用（見 onThemeChanged）
-  const repaintBars = (deg, color) => barsOf(deg).forEach((el) => { if (el.classList.contains('is-open')) paint(el, color); });
   function lineage(id) {
     const ids = new Set([id]);
     for (let p = NODES[id].parent; p && NODES[p]; p = NODES[p].parent) ids.add(p);          // 祖先鏈（NODES[p] 守衛防 stale parent）
@@ -356,7 +220,7 @@ export async function initProgramStructure() {
       const n = stack.pop();
       Object.keys(NODES).forEach((k) => { if (NODES[k].parent === n && !ids.has(k)) { ids.add(k); stack.push(k); } });  // 子孫
     }
-    return [...ids].map((k) => NODES[k].el).filter(Boolean);
+    return [...ids].flatMap((k) => [NODES[k].el, ...NODES[k].bars]).filter(Boolean);
   }
   // hover 定住（像 atlas）：_hold 0→1 平滑 tween，floatTick 每幀乘 (1-_hold)＝角度回正＋位移停在 rest；
   //   放開 tween 回 0＝float 續飄（時間軸沒停＝無相位跳）。目標＝該色塊所屬 .prog-tilt（頂層＝整條 .prog-titled）。
@@ -382,68 +246,62 @@ export async function initProgramStructure() {
       },
     });
   }
+  // 互動單位：tree chip（頂層＝整條 .prog-titled，含 SCCD 標準字皆可觸發；子層＝色塊本身）
+  //   ＋說明卡 bar（反向 hover：bar → 選它的班級們的 lineage，user 10-21 加回；共用 bar＝多個班級一起亮、取第一個班級色）。
+  const units = [];
+  Object.entries(NODES).forEach(([id, node]) => {
+    if (node.el) units.push({ el: node.parent === null ? (node.el.closest('.prog-titled') || node.el) : node.el, ids: [id], chip: node.el.closest('.prog-tilt') });
+  });
+  // 點擊跳 Programs 分頁（user 10-21）：後台 programTab 有選、且頁上真有該分頁的圖文 panel 才可點（bfa／舊 key 不綁）。
+  //   先切分頁（instant，畫面外）再走 Programs nav 鈕的 click＝同一套捲動落點＋nav 立即 active＋anchor-jumping 旗標。
+  const jumpToTab = (key) => {
+    window.SCCD_setDivisionActive?.(key);
+    const btn = [...document.querySelectorAll('.anchor-nav-btn[data-target="class-info-anchor"]')].find((b) => b.offsetParent);
+    if (btn && !btn.classList.contains('active')) btn.click();
+    else document.getElementById('class-info-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  units.forEach((u) => {
+    const tab = NODES[u.ids[0]].tab;
+    if (!tab || !document.querySelector(`.class-info-panel[data-division="${CSS.escape(tab)}"]`)) return;
+    u.tab = tab;
+    u.el.classList.add('is-jump');
+    u.el.setAttribute('role', 'link');
+    u.el.tabIndex = 0;
+    u.el.addEventListener('keydown', (e) => { if (e.key === 'Enter') jumpToTab(tab); });
+  });
+  bars.forEach((bar) => { if (bar._nodeIds.length) units.push({ el: bar, ids: bar._nodeIds, chip: null }); });
+  const colorOf = (id) => { const c = classOf(id); return c ? CLASS_COLOR[c] : rndAccent(); };   // SCCD 無班級→隨機
+  const lineageAll = (ids) => ids.flatMap(lineage);   // 重複元素重畫無害（paint 冪等）
   if (window.matchMedia('(hover: hover)').matches) {
-    // 說明卡收起排 grace timer（③）：移到別顆 chip 會被下個 mouseenter 取消 → 同 degree 不收（①）、不同 degree 走 showLegend 先收後開（②）。
-    // tree lineage 上色與 setHold 仍每顆即時（各節點 lineage 不同、視覺照舊）；只有右下說明卡走 degree 協調。
-    let legLeaveTimer = 0;
-    Object.entries(NODES).forEach(([id, node]) => {
-      if (!node.el) return;
-      // 頂層 DCD/BPAIDC 的 hover 目標＝整條 .prog-titled（含 SCCD 標準字皆可觸發）；子層＝色塊本身
-      const unit = node.parent === null ? (node.el.closest('.prog-titled') || node.el) : node.el;
-      const deg = degreeOf(id);
-      unit.addEventListener('mouseenter', () => {
-        const color = deg ? DEGREE_COLOR[deg] : rndAccent();   // degree 決定色；SCCD 無 degree→隨機（原邏輯）
-        lineage(id).forEach((b) => paint(b, color));   // 整條 lineage 只變色（照舊續飄）
-        clearTimeout(legLeaveTimer);
-        showLegend(deg);                               // 同 degree no-op、不同 degree 先收後開（不再收起再打開）
-        setHold(node.el.closest('.prog-tilt'), 1);   // 只有當下 hover 那顆停飄（user 2026-09-09）；角度改抽新角（下行）
-        spinChip(node.el.closest('.prog-tilt'));
+    units.forEach(({ el, ids, chip, tab }) => {
+      if (tab) el.addEventListener('click', () => jumpToTab(tab));
+      el.addEventListener('mouseenter', () => {
+        const color = colorOf(ids[0]);
+        lineageAll(ids).forEach((b) => paint(b, color));
+        if (chip) { setHold(chip, 1); spinChip(chip); }   // 只有當下 hover 那顆 chip 抽新角（bar 不轉）
       });
-      unit.addEventListener('mouseleave', () => {
-        lineage(id).forEach(unpaint);
-        setHold(node.el.closest('.prog-tilt'), 0);
-        clearTimeout(legLeaveTimer);
-        legLeaveTimer = setTimeout(() => showLegend(null), 80);   // 離 tree 才收；移到別顆會被其 mouseenter 取消
+      el.addEventListener('mouseleave', () => {
+        lineageAll(ids).forEach(unpaint);
+        if (chip) setHold(chip, 0);
       });
     });
-    // 反向 hover（說明卡 row → tree）已移除（user 2026-09-11：有 term 就不做反向 hover）。
   } else {
-    // 觸控（無 hover）：tap tree chip → 展開對應 degree 的 term+degree bar＋lineage 上色；點別顆＝切換、再點同顆＝還原。
+    // 觸控（無 hover）：tap chip / bar → lineage 上色；點別顆＝切換、再點同顆＝還原。可跳分頁的 chip＝tap 直接跳（不上色）。
     // 元素在 #page-content 內、SPA swap 即解綁（theme:changed 是 window 級、例外走 registerPageCleanup）。
-    let tapped = null;   // { key, id, deg, color }
-    const clearTap = () => {
-      if (!tapped) return;
-      lineage(tapped.id).forEach(unpaint);
-      tapped = null;
-    };
-    const bindTap = (el, key, id, deg, colorOf) => {
-      el.addEventListener('click', () => {
-        const same = tapped && tapped.key === key;
-        clearTap();                              // 清前一顆 tree 上色
-        if (same) { showLegend(null); return; }  // 再點同顆＝收起
-        const color = colorOf();
-        lineage(id).forEach((b) => paint(b, color));
-        tapped = { key, id, deg, color };
-        showLegend(deg);                         // 不同 degree 自動先收後開（同 degree no-op）；SCCD(deg=null)＝收起
-      });
-    };
+    let tapped = null;   // { el, ids, color }
+    units.forEach(({ el, ids, tab }) => el.addEventListener('click', () => {
+      const same = tapped && tapped.el === el;
+      if (tapped) lineageAll(tapped.ids).forEach(unpaint);
+      if (tab) { tapped = null; jumpToTab(tab); return; }
+      tapped = same ? null : { el, ids, color: colorOf(ids[0]) };
+      if (tapped) lineageAll(ids).forEach((b) => paint(b, tapped.color));
+    }));
     // tap 後切 mode 的殘留修（user 09-10）：tap 上色是 inline !important（壓 mode3 rest 規則的必要之惡）、
     // color.css 蓋不掉 → 切到 mode3 會殘留 accent。theme:changed 時用 paint() 依「當下 mode」重畫
-    // tapped 狀態（mode3 翻反色、mode1/2 還原存的 degree 色）；mode3 hue loop 也發此事件（200ms throttle）、重畫冪等便宜。
-    const onThemeChanged = () => {
-      if (!tapped) return;
-      lineage(tapped.id).forEach((b) => paint(b, tapped.color));
-      repaintBars(tapped.deg, tapped.color);   // 只重畫色、不重播開合（mode3 hue loop 200ms 也發此事件）
-    };
+    // tapped 狀態（mode3 翻反色、mode1/2 還原存的班級色）；mode3 hue loop 也發此事件（200ms throttle）、重畫冪等便宜。
+    const onThemeChanged = () => { if (tapped) lineageAll(tapped.ids).forEach((b) => paint(b, tapped.color)); };
     window.addEventListener('theme:changed', onThemeChanged);
     registerPageCleanup(() => window.removeEventListener('theme:changed', onThemeChanged));
-    Object.entries(NODES).forEach(([id, node]) => {
-      if (!node.el) return;
-      const unit = node.parent === null ? (node.el.closest('.prog-titled') || node.el) : node.el;
-      const deg = degreeOf(id);
-      bindTap(unit, `n:${id}`, id, deg, () => (deg ? DEGREE_COLOR[deg] : rndAccent()));
-    });
-    // 反向 tap（說明卡 row → tree）已移除（同上：有 term 就不做反向）。
   }
 
   // 分層（cascade 順序 + 連綫父/子對應）
@@ -503,9 +361,27 @@ export async function initProgramStructure() {
     const cx = (el) => { const r = restRect(el); return r.left + r.width / 2; };
     rootChildren.style.marginLeft = `${(cx(dcd) - (cx(bfa) + cx(mdes)) / 2).toFixed(2)}px`;
     const bpaidc = tier0[1];
-    if (!progTree || !bpaidc) return;
+    if (!progTree) return;
     // 內容區＝樹容器（col-4~18，2026-09-27 由 col-6~20 改）
     const box = progTree.parentElement.getBoundingClientRect();
+    const nav = document.getElementById('anchor-nav');
+    const limit = Math.max(box.left, (nav ? nav.getBoundingClientRect().right : 0) + 16);
+    if (!bpaidc) {
+      // 單一 root（後台刪掉 TBA，10-21）：樹的中軸（root 中心＝斜綫分岔點）對齊 col-4～18 中線（user 10-21；
+      // 不用整棵外框中心——MDES 往右凸，外框置中會讓 root 偏右）。下面的右移邏輯是給右側有第二個 root 用的。
+      // 矮桌面（1280×720、1366×768）常駐說明卡會跟同高度帶的方塊撞 → 往左讓，最多讓到 nav 右側 24（可越過 col-4）。
+      const rs = chips.map(restRect);
+      const minL = Math.min(...rs.map((r) => r.left));
+      // 逐卡判（Term 卡窄、Degree 卡寬，用整個 stack 外框會多讓）；卡的 layout 位置用 offset 量＝不吃進場 translate
+      const leg = legendStack ? legendStack.getBoundingClientRect() : null;
+      const cards = leg ? legendEls.map((c) => ({ left: leg.left + c.offsetLeft, top: leg.top + c.offsetTop, bottom: leg.top + c.offsetTop + c.offsetHeight })) : [];
+      const legendCap = Math.min(Infinity, ...cards.flatMap((c) =>
+        rs.filter((r) => r.bottom > c.top && r.top < c.bottom).map((r) => c.left - 24 - (r.left + r.width))));
+      const navLimit = (nav ? nav.getBoundingClientRect().right : 0) + 24;
+      const push = Math.max(navLimit - minL, Math.min((box.left + box.right) / 2 - cx(dcd), legendCap));
+      progTree.style.transform = `translateX(${push.toFixed(2)}px)`;
+      return;
+    }
     const br = restRect(bpaidc);
     const bpaidcRight = br.left + br.width;
     // viewRoom＝BPAIDC 還能右移多少不越過「視窗右緣−RIGHT_MARGIN」（保證不裁）；contentRoom＝不越過 col-18 右緣
@@ -513,8 +389,6 @@ export async function initProgramStructure() {
     const contentRoom = Math.max(0, box.right - bpaidcRight);
     // ① 左界：tier2 左緣至少到 col-4 左緣（窄視窗 col-4 比 nav 還左時仍保底閃 nav）。窄視窗樹比內容區寬 →
     //    寧可右側吃進 col-19~20（viewRoom 封頂）也不壓左側 nav
-    const nav = document.getElementById('anchor-nav');
-    const limit = Math.max(box.left, (nav ? nav.getBoundingClientRect().right : 0) + 16);
     const leftEdge = tier2.length ? Math.min(...tier2.map((b) => restRect(b).left)) : Infinity;
     const navPush = leftEdge < limit ? Math.min(limit - leftEdge, viewRoom) : 0;
     // ② 大螢幕才右移：≥1600 且右側還在 col-18 內才推
@@ -556,7 +430,7 @@ export async function initProgramStructure() {
   const LINE_LEN_K = 1.2;     // 綫長＝最高 box 高 × 此倍數（調綫長改這裡）
   function layoutLineLengths() {
     const levelBoxes = [...root.querySelectorAll('.prog-children')];
-    if (!links[0] || !legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
+    if (!legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
       levelBoxes.forEach((c) => { c.style.marginTop = ''; });
       lineLen = 0;
       return;
@@ -592,7 +466,7 @@ export async function initProgramStructure() {
     L = Math.max(L, minLen);
     // 不超過 L：層距被框壓扁時兩端留白不小於 GAP
     lineLen = Math.min(L, LINE_LEN_K * Math.max(...[...root.querySelectorAll('.prog-box')].map((b) => b.offsetHeight)));
-    links[0].style.width = `${Math.max(lineLen, linkBaseW).toFixed(2)}px`;
+    if (links[0]) links[0].style.width = `${Math.max(lineLen, linkBaseW).toFixed(2)}px`;   // 單一 root 沒有連結橫綫
     gapsFor(L).forEach((g, i) => lv[i].boxes.forEach((b) => { b.style.marginTop = `${g.toFixed(2)}px`; }));
     reserveHeights();   // 子列 margin 變了 → 重量父節點佔位高
   }

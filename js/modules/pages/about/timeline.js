@@ -11,7 +11,7 @@ import { bindArrowSpin } from '../../ui/arrow-spin.js';
 import { bindNavBtnHover, navHoverColor } from '../../ui/section-switch-helpers.js';
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
-import { revealHidden } from '../../ui/scroll-animate.js';
+import { revealHidden, randomCardTilt } from '../../ui/scroll-animate.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -490,6 +490,8 @@ export function initTimeline() {
     // 桌面 buildStrip only。（next 鈕已移除 → 不再留 right:24 空位，卡片填滿整格）
     const rectMask = document.createElement('div');
     rectMask.style.cssText = 'position:absolute; top:0; bottom:0; left:0; right:0; overflow:clip;';
+    // 卡片隨機微傾（真桌面，同說明色卡 tiltCardMask）：轉遮罩＝矩形沿傾斜軸滑
+    if (SCCDHelpers.isDesktopLayout()) rectMask.style.rotate = `${randomCardTilt()}deg`;
     listRect.parentNode.insertBefore(rectMask, listRect);
     rectMask.appendChild(listRect);
     listRect.style.cssText += ';top:0; bottom:0; left:0; right:0;'; // 填滿遮罩（蓋掉 CSS right:24px）
