@@ -374,6 +374,7 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
 
     // 刷新 ScrollTrigger，確保新內容載入、高度改變後，觸發位置能正確更新
     requestAnimationFrame(() => {
+      const yBeforeRefresh = window.scrollY;
       if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
       // ⚠️ refresh() 內部會把 ScrollTrigger 快取的「上一頁捲動位置」還原到新頁（避免 refresh 造成跳動）。
       // SPA 換頁時這個快取是上一頁的舊值（如 about 捲到 2700），在較矮的新頁（index 只有 hero+footer）
@@ -386,6 +387,9 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
         pinFooter();
         scrollWindowNoSnap(0, { onComplete: resetFooterAfterExit });
       } else if (!isDeepLinkNav) scrollToTop();
+      // deep-link 不 reset（目標頁自己捲），但 refresh 還原的舊頁位置要撤掉：從捲到一半的頁帶 ?section= 過來（DSD 返回鈕）
+      // 會直接落在舊 scrollY（被新頁高夾住）、跳過「頂部→hero→往下捲」（user 2026-10-21：要跟瀏覽器上一頁一樣）
+      else if (window.scrollY !== yBeforeRefresh) window.scrollTo(0, yBeforeRefresh);
     });
 
   } catch (err) {
@@ -460,6 +464,16 @@ export function navigateTo(url, { fromFooter = false } = {}) {
   return loadPage(route, search, true, fromFooter);
 }
 
+// 點下去的連結跟著退場（頁面退場／footer 卡沉下／menu 收）：途中保持點擊當下的 hover 樣子，換完頁才放（user 2026-10-21）。
+// 凍在 go() 之前：navigateTo 一進來就換 nav .active、起跑退場。只在有 hover 的桌面：手機 menu 點下去要立刻現 active 色
+function holdLinkUntil(link, go) {
+  if (!SCCDHelpers.isDesktopLayout() || !window.matchMedia('(hover: hover)').matches) return go();
+  SCCDHelpers.holdHover(link);
+  const done = go();
+  Promise.resolve(done).finally(() => SCCDHelpers.releaseHover(link));
+  return done;
+}
+
 // ── 事件綁定 ──────────────────────────────────────────────────
 export function initRouter() {
   // head 的 icon 是相對路徑：pushState 換目錄後瀏覽器會重新解析（首頁 images/… → /pages/images/… 404）。
@@ -514,12 +528,12 @@ export function initRouter() {
       e.preventDefault();
       const samePage = resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page;
       // 真桌面 footer 是覆蓋卡（footer-scatter.js）：同頁＝收卡；別頁＝一般換頁（loadPage 的 playFooterExit 收卡、新頁從頂開始）
-      if (SCCDHelpers.isDesktopLayout()) { if (samePage) closeFooter(); else navigateTo(url.href); return; }
+      if (SCCDHelpers.isDesktopLayout()) { holdLinkUntil(link, () => (samePage ? closeFooter() : navigateTo(url.href))); return; }
       if (samePage) scrollWindowNoSnap(0);
       else navigateTo(url.href, { fromFooter: true });
       return;
     }
-    const handled = navigateTo(url.href);
+    const handled = holdLinkUntil(link, () => navigateTo(url.href));
     if (handled) e.preventDefault();
   });
 

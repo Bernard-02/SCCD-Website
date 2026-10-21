@@ -131,6 +131,31 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return { logoTop, mid, btnTop: mid - 24, btnBottom: mid + 24 };
   };
 
+  // 點了會退場的鈕／連結：退場途中保持 hover 樣子（user 2026-10-21，同 header menu 鈕）。退場起跑當下把 el＋子孫的
+  // computed 底色／字色凍成 inline !important——鈕滑出游標底下、游標移開（:hover 與 mouseleave 拆色）都不掉色；
+  // 收完 releaseHover 還原。svg 內部不凍（Lottie logo 節點上百、色走 fill）。已凍著再呼叫＝沿用第一次（退場中途又被
+  // 關一次時游標可能已離開）→ 每條會中斷退場的路徑（重開等）都要先 release。
+  // ⚠️ 凍住期間別處用非 important 寫同屬性會蓋掉凍結值（CSSOM 規則）→ release 時那格留新值、不還原舊值
+  const HOLD_PROPS = ['background-color', 'color'];
+  Helpers.holdHover = function(el) {
+    if (!el || el._hoverHold) return;
+    const nodes = /** @type {HTMLElement[]} */ ([el, ...el.querySelectorAll(':not(svg *)')]);
+    const frozen = nodes.map(n => { const cs = getComputedStyle(n); return HOLD_PROPS.map(p => cs.getPropertyValue(p)); });
+    const saved = nodes.map(n => HOLD_PROPS.map(p => [n.style.getPropertyValue(p), n.style.getPropertyPriority(p)]));
+    nodes.forEach((n, i) => HOLD_PROPS.forEach((p, j) => n.style.setProperty(p, frozen[i][j], 'important')));
+    el._hoverHold = () => nodes.forEach((n, i) => HOLD_PROPS.forEach((p, j) => {
+      if (n.style.getPropertyPriority(p) !== 'important' || n.style.getPropertyValue(p) !== frozen[i][j]) return;
+      const [v, pr] = saved[i][j];
+      if (v) n.style.setProperty(p, v, pr); else n.style.removeProperty(p);
+    }));
+  };
+  Helpers.releaseHover = function(el) {
+    const release = el && el._hoverHold;
+    if (!release) return;
+    delete el._hoverHold;
+    release();
+  };
+
   // Fisher–Yates 原地洗牌、回傳同一陣列（要保留來源順序／來源是 frozen 時先 [...arr] 複製）
   Helpers.shuffle = function(arr) {
     for (let i = arr.length - 1; i > 0; i--) {

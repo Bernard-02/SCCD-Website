@@ -211,17 +211,8 @@ function settleBtnCycle(bar) {
   if (!state) return;
   btnCycles.delete(bar);
   state.swap();
-  unfreezeBarColors(bar);
+  SCCDHelpers.releaseHover(bar);
   clearBarMask(bar);
-}
-function freezeBarColors(bar) {
-  const inner = /** @type {HTMLElement | null} */ (bar.firstElementChild);
-  bar.style.setProperty('background', getComputedStyle(bar).backgroundColor, 'important');
-  inner?.style.setProperty('color', getComputedStyle(inner).color, 'important');
-}
-function unfreezeBarColors(bar) {
-  bar.style.removeProperty('background');
-  /** @type {HTMLElement | null} */ (bar.firstElementChild)?.style.removeProperty('color');
 }
 /** @param {HTMLElement} bar @param {() => void} swap */
 export function cycleHeaderBtn(bar, swap) {
@@ -237,6 +228,7 @@ export function cycleHeaderBtn(bar, swap) {
     || gsap.getProperty(bar, 'x') || gsap.getProperty(bar, 'y')
     || gsap.getTweensOf(bar).some(t => t.isActive() && ('x' in t.vars || 'y' in t.vars))) {
     swap();
+    SCCDHelpers.releaseHover(bar);   // mode 鈕點擊時先凍了（theme-toggle）
     return;
   }
   const s = state || { phase: 'out', swap };
@@ -249,7 +241,7 @@ export function cycleHeaderBtn(bar, swap) {
     if (mask) { mask.style.overflow = 'clip'; lendCssRotToMask(bar, mask); }
     bar.style.transition = 'none';
   }
-  freezeBarColors(bar);
+  SCCDHelpers.holdHover(bar);
   const off = barHideOffset(pickBarDir(bar), bar, mask || bar);
   // onComplete 都先驗「狀態還是這個 cycle」：in-tween 最後一幀再點＝新 out-tween 建好但同 tick 舊 in-tween 先完成、
   // 它的 onComplete 會把新狀態刪掉＋清遮罩（鈕露在遮罩外滑、再點就繞過狀態機 icon 對不上；trace 實抓 2026-10-20）
@@ -258,7 +250,7 @@ export function cycleHeaderBtn(bar, swap) {
     onComplete: () => {
       if (btnCycles.get(bar) !== s) return;
       s.swap();
-      unfreezeBarColors(bar);
+      SCCDHelpers.releaseHover(bar);
       s.phase = 'in';
       const from = barHideOffset(pickBarDir(bar), bar, mask || bar);
       gsap.fromTo(bar, { x: from.x, y: from.y }, {
@@ -877,6 +869,9 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
     indCard.innerHTML = cardKey === 'degree-show-detail' ? ''
       : label ? `<span>${label[0]}</span> <span>${label[1]}</span>`
       : header.querySelector('a.mobile-nav-link.active')?.innerHTML || '';
+    // 只抄字不抄樣式：點選項換頁時 router holdLinkUntil 把選項連子孫凍成 inline !important hover 色（黑字），
+    // 此刻正凍著 → 抄過來＝黑底黑字、看不到字（user 2026-10-21）
+    indCard.querySelectorAll('[style]').forEach(n => n.removeAttribute('style'));
     /** @type {HTMLElement} */ (indCard.parentElement).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
     revealCard = !!indCard.innerHTML && typeof gsap !== 'undefined';
     if (revealCard) gsap.set(indCard, { ...indDir, overwrite: true });   // 先藏，下一幀看位置再決定
@@ -1188,13 +1183,9 @@ export function initHeader() {
       // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
       const isGenerate = currentPage === 'generate' || currentPage === 'create';
       if (isDesktop.matches) {
-        if (isLibrary || isAtlas || isLegal) {
+        // /create 冷載入（含刪除動畫前 reload）也直接 100：沒有「上一頁」可縮，從 180 縮＝大變小（user 2026-10-21）
+        if (isLibrary || isAtlas || isLegal || isGenerate) {
           gsap.set(logo, { width: 100, height: 100 });
-        } else if (isGenerate) {
-          // SCCD 完成態旗標在（打完字後 reload）→ 直接 100，避免 fireGenLogo instant 路徑接手前閃一幀 180 大 Lottie
-          let genDone = false;
-          try { genDone = sessionStorage.getItem(GEN_DONE_KEY) === '1'; } catch (e) { /* ignore */ }
-          gsap.set(logo, genDone ? { width: 100, height: 100 } : { width: 180, height: 180 });
         } else {
           gsap.set(logo, { width: 180, height: 180 });
           gsap.to(logo, {

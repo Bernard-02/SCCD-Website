@@ -28,6 +28,8 @@ interface SCCDHelpersAPI {
   rerollAngle<T extends number | string>(gen: () => T, prev: number | string | undefined): T;
   headerGeom(): { logoTop: number; mid: number; btnTop: number; btnBottom: number };
   shuffle<T>(arr: T[]): T[];
+  holdHover(el: HTMLElement | null | undefined): void;
+  releaseHover(el: HTMLElement | null | undefined): void;
 
   // 站台路徑
   siteBase: string;
@@ -59,6 +61,7 @@ interface HTMLElement {
   __fadeInWatch?: (opts?: any) => void | Promise<void>;
   __resetWatchAlpha?: () => void;
   _baseRot?: number;
+  _hoverHold?: () => void;
 }
 
 // ===== CDN 全域 library（type: any 避免過度約束）=====

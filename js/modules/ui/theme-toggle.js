@@ -389,6 +389,9 @@ function bindToggleBtns() {
       // atlas 渲染/intro 完成前 gate（main-modular 掛、atlas.js 解）：pointer-events CSS 擋滑鼠，
       // 這裡再擋鍵盤 Enter / 程式 click() 等繞過 pointer-events 的觸發
       if (document.body.classList.contains('atlas-mode-gate')) return;
+      // 桌面鈕點擊當下就凍 hover 色（user 2026-10-21）：View Transition 一起跑 hit-test 全落 <html>＝:hover 立刻掉，
+      // 等 commitMode（VT update callback）裡 cycleHeaderBtn 才凍＝凍到一般色。cycleHeaderBtn 換 icon 那刻放
+      SCCDHelpers.holdHover(/** @type {HTMLElement | null} */ (btn.closest('#mode-btn')));
       const current = sessionStorage.getItem(STORAGE_KEY) || 'standard';
       const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
       setSiteMode(next);
@@ -577,7 +580,8 @@ function commitMode(mode, autoStartColorLoop, animateIcon = false) {
   document.querySelectorAll('[data-header-mode-icon]').forEach(el => {
     const set = () => { el.className = iconCls; };
     const bar = /** @type {HTMLElement | null} */ (el.closest('#mode-btn'));
-    if (animateIcon && bar && el.className !== iconCls) cycleHeaderBtn(bar, set); else set();
+    if (animateIcon && bar && el.className !== iconCls) cycleHeaderBtn(bar, set);
+    else { set(); SCCDHelpers.releaseHover(bar); }   // 沒跑 cycle（reduced-motion 等）：點擊時凍的色放掉
   });
 
   document.body.classList.remove('mode-standard', 'mode-inverse', 'mode-color');
