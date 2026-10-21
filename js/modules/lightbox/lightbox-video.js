@@ -67,7 +67,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
     b.className = 'lb-video-ink';
     b.setAttribute('aria-label', label);
     b.style.cssText = 'color:#000;background:none;border:none;padding:0;line-height:1;flex-shrink:0;';
-    b.innerHTML = `<span class="icon ${icon} icon-l"></span>`;
+    b.innerHTML = `<span class="icon ${icon}"></span>`;   // size＝lightbox.css 影片 UI icon 28
     return b;
   };
 
@@ -80,12 +80,13 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   // 初始 icon 依 autoplay 決定：autoplay(lightbox) 播放中→pause icon；autoplay:false(inline dshow)→停在首幀→play icon
   // （updatePlayIcon 只在 play/pause/ended event 才跑，不初始化就會停在寫死值 → inline 暫停卻顯示 pause icon，user 2026-08-17）
   const playBtn = mkIconBtn(autoplay ? 'icon-pause' : 'icon-play', '播放／暫停 Play/Pause');
-  playBtn.style.width = '1.5rem';
+  playBtn.style.display = 'flex';   // 寬＝icon（舊固定寬在左邊多墊空白，user 2026-10-21）
+  playBtn.classList.add('lb-video-play');   // icon 尺寸另算（lightbox.css：墨跡跟音量同高）
   centerBlock.appendChild(playBtn);
 
   // 時間軸：track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑直線上下伸出 5px 標位置（同 WATCH）
   const progTrack = document.createElement('div');
-  progTrack.className = 'lb-video-ink-bg';
+  progTrack.className = 'lb-video-ink-bg lb-video-track';   // lb-video-track＝hover 整組淡（icon.css）
   // cursor 用自製系統的 var：inline keyword `pointer` spec 1000 會壓掉 cursor.css、顯示系統手（user 2026-10-01 DSD 回報）
   progTrack.style.cssText = 'flex:1;height:4px;background:#000;position:relative;min-width:0;cursor:var(--cursor-pointer);';
   const progFill = document.createElement('div');
@@ -111,7 +112,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   const muteBtn = mkIconBtn('icon-volume', '靜音／取消靜音 Mute/Unmute');
   volWrap.appendChild(muteBtn);
   const volTrack = document.createElement('div');
-  volTrack.className = 'lb-video-ink-bg';
+  volTrack.className = 'lb-video-ink-bg lb-video-track';
   volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s var(--ease-wipe);height:4px;background:#000;position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
   const volFill = document.createElement('div');
   volFill.className = 'lb-video-ink-bg';
@@ -125,11 +126,12 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   volWrap.appendChild(volTrack);
   centerBlock.appendChild(volWrap);
 
-  // 全螢幕（獨立色塊，同 WATCH 區塊 3）
+  // 全螢幕（獨立色塊，同 WATCH 區塊 3）：按鈕撐滿色塊＝整塊都是鈕、hover 整塊反色（lightbox.css .lb-video-fs-block，user 2026-10-21）
   const fsBlock = document.createElement('div');
-  fsBlock.className = 'lb-video-block';
-  fsBlock.style.cssText = `background:${accent};padding:0 1rem;height:3rem;display:flex;align-items:center;flex-shrink:0;`;
+  fsBlock.className = 'lb-video-block lb-video-fs-block';
+  fsBlock.style.cssText = `background:${accent};width:3rem;height:3rem;display:flex;align-items:center;flex-shrink:0;`;   // 正方形（user 2026-10-21）
   const fsBtn = mkIconBtn('icon-full-screen', '全螢幕 Fullscreen');
+  fsBtn.style.cssText += 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;';
   fsBlock.appendChild(fsBtn);
   controls.appendChild(fsBlock);
 
@@ -191,7 +193,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
 
   // ── 播放/暫停 ────────────────────────────────────────────────
   function updatePlayIcon() {
-    playBtn.firstElementChild.className = `icon ${video.paused ? 'icon-play' : 'icon-pause'} icon-l`;
+    playBtn.firstElementChild.className = `icon ${video.paused ? 'icon-play' : 'icon-pause'}`;
   }
   const toggle = () => { video.paused ? tryPlay() : video.pause(); };
   video.addEventListener('click', toggle);
@@ -232,7 +234,7 @@ export function createLightboxVideo(url, accent = '#00FF80', { autoplay = true }
   let volHover = false;
   function updateMuteIcon() {
     const cls = (video.muted || video.volume === 0) ? 'icon-mute' : video.volume < 0.5 ? 'icon-volume-half' : 'icon-volume';
-    muteBtn.firstElementChild.className = `icon ${cls} icon-l`;
+    muteBtn.firstElementChild.className = `icon ${cls}`;
   }
   function setVolume(p) {
     video.volume = p;

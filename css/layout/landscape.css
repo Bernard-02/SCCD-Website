@@ -817,12 +817,12 @@
   }
   /* 全螢幕鈕＝正方形 44×44（同 mobileCloseBtn） */
   body #video-block-fullscreen {
-    width: 44px;
+    width: 44px !important;   /* 桌面 inline 3rem 正方形 → 這裡 44 */
     padding: 0 !important;
     justify-content: center;
     flex: none;
   }
-  /* 按鈕 tap 區至少 44 高（icon 置中）；play 的 inline width:1.5rem 被 min-width 蓋掉 */
+  /* 按鈕 tap 區至少 44 高（icon 置中）；play 寬＝icon，這裡 min-width 撐到 tap 區 */
   body #video-block-center button,
   body #video-block-fullscreen button {
     min-width: 2.25rem;

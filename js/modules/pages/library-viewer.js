@@ -10,6 +10,8 @@ import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_FONTS, PDFJS_WASM } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { revealHidden } from '../ui/scroll-animate.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ function ensurePdfModal() {
       <!-- chevron 對齊 logo 左/右邊（var(--container-padding)）= 跟 back btn 同 column -->
       <!-- 用 aria-disabled 不用原生 disabled：Chrome 對原生 disabled 強制預設箭頭、CSS cursor 無效
            （同 activities-lightbox chevron；到底時要顯示 not-allowed 游標，user 2026-08-23）。turnPage 有 guard，點擊本就 no-op -->
-      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <button id="pdf-prev-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <!-- zoom stage：overflow:hidden 容器，transform 套在 .pdf-canvas-row 上做 zoom + pan -->
@@ -81,8 +83,9 @@ function ensurePdfModal() {
         </div>
         <!-- 右上角 minimap（press + documents 全部開檔都有，user 2026-08-23）：當前頁縮圖＋壓暗標示目前可視範圍。
              只在「頁面被視窗裁切」時顯示（整頁可見時藏）；翻頁/縮放/拖曳都同步。
-             放 zoom-stage 而非 canvas-row → 不吃 zoom/pan，始終固定。pointer-events:none 不擋拖曳 -->
-        <div class="pdf-corner-thumb" style="position:absolute;top:0;right:0;width:clamp(56px,12vw,88px);z-index:25;pointer-events:none;display:none;overflow:hidden;">
+             放 zoom-stage 而非 canvas-row → 不吃 zoom/pan，始終固定。
+             在 minimap 上拖＝拖可視框（navigator，user 2026-10-21；按在框外先跳過去再拖），不是拖頁面 -->
+        <div class="pdf-corner-thumb" style="position:absolute;top:0;right:0;width:clamp(56px,12vw,88px);z-index:25;cursor:var(--cursor-grab);display:none;overflow:hidden;">
           <!-- inner 做 clip-reveal 進出場（yPercent 滑動）；外層 .pdf-corner-thumb overflow:hidden = reveal clip 罩。
                ⚠️inner 也要 overflow:hidden：spotlight 是 rect 的 box-shadow 0 0 0 9999px，若只靠外層裁，滑動時
                巨大陰影會一直填滿「不動的外層」→ 縮圖主體滑走、黑色壓暗留在原地（拆成兩塊，user 2026-08-23）。
@@ -95,7 +98,7 @@ function ensurePdfModal() {
           </div>
         </div>
       </div>
-      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button id="pdf-next-btn" class="absolute text-white w-[44px] h-[44px] flex items-center justify-center hover:opacity-60 aria-disabled:opacity-20 aria-disabled:hover:opacity-20 aria-disabled:cursor-not-allowed" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -120,26 +123,26 @@ function ensurePdfModal() {
       <div class="pdf-title absolute" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;"></div>
       <!-- Share btn：排在 title 之後（鏡像 album lightbox）。caller 帶 shareUrl（library press/files）才顯示；
            data-share-url 由 open-pdf handler 設、全站 share-modal.js [data-share-btn] delegation 接管（QR + 複製）。
-           圖示＝返回鍵那顆粗箭頭旋轉 135° 指右上 ↗（與 album share btn 一致，user 2026-06-15）。-->
+           圖示＝icon-share（與 album share btn、畢業展詳情頁分享鈕一致，user 2026-10-21）。-->
       <button class="pdf-share-btn absolute" data-share-btn aria-label="分享 Share" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;">
         <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
-          <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
+          <span class="icon icon-share"></span>
         </span>
       </button>
       <span id="pdf-page-info" class="text-s"></span>
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
-        <button id="pdf-zoom-out" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
-          <span class="icon icon-zoom-out icon-m"></span>
+        <button id="pdf-zoom-out" class="lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
+          <span class="lb-zoom-pill"><span class="icon icon-zoom-out icon-m"></span></span>
         </button>
         <span id="pdf-zoom-pct" class="text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button id="pdf-zoom-in" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
-          <span class="icon icon-zoom-in icon-m"></span>
+        <button id="pdf-zoom-in" class="lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
+          <span class="lb-zoom-pill"><span class="icon icon-zoom-in icon-m"></span></span>
         </button>
         <!-- Fit Page ↔ Fit Width 雙態 toggle；icon 顯示「下一個動作」：預設 Fit Page → 顯示 fit_width（點了切滿寬）-->
-        <button id="pdf-fit-toggle" class="p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit / zoom toggle">
-          <span class="icon icon-fit-width icon-m"></span>
+        <button id="pdf-fit-toggle" class="lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit / zoom toggle">
+          <span class="lb-zoom-pill"><span class="icon icon-fit-width icon-m"></span></span>
         </button>
       </div>
     </div>`;
@@ -223,6 +226,14 @@ export function initPdfViewer() {
   refUi.btnEl.style.left = '4rem';
   (bottomBarEl || modal).appendChild(refUi.btnEl);    // ref btn 進 bar → 跟 back/title/頁碼/zoom 同一水平線
   modal.appendChild(refUi.popoverEl);                 // popover 仍掛 modal（full overlay；positionPopover 用 viewport rect 算）
+  // 鈕 hover 抽角（全站 arrow-spin：hover 抽新角、離開保持；user 2026-10-21）：角度寫在會轉的那層（pill 鈕＝內層 pill、
+  // zoom／chevron＝鈕本身）；開檔時的初始角走 _arrowSpin.commit（renderBackPill）。aria-disabled 不轉
+  [[backBtn, backPill], [shareBtnEl, sharePillEl], [refUi.btnEl, refUi.btnEl.querySelector('.lightbox-ref-btn-pill')],
+    [zoomOutBtn], [zoomInBtn], [fitToggleBtn], [prevBtn], [nextBtn]].forEach(([btn, rot = btn]) => {
+    if (!btn || !rot) return;
+    const off = () => navDisabled(btn);
+    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !off() });
+  });
 
   let pdfDoc   = null;
   let curPage  = 1;
@@ -504,11 +515,31 @@ export function initPdfViewer() {
       if (fitIcon) {
         // icon 顯示「下一個動作」（user 2026-06-03）：在 Fit Width → fit_to_viewport（點了回 Fit Page）；
         // 否則（Fit Page / 手動 zoom）→ fit_width（點了切 Fit Width）
-        const w = isFitWidth();
-        fitIcon.classList.toggle('icon-fit-viewport', w);
-        fitIcon.classList.toggle('icon-fit-width', !w);
+        setFitIcon(fitIcon, isFitWidth());
       }
     }
+  }
+
+  // 點 fit 鈕換 icon＝pill 出場→換→進場（clip-reveal 隨機四向，遮罩＝鈕本身；同 header 鈕換 icon，user 2026-10-21）。
+  // 只有點擊才動畫（click handler 包 fitIconAnimate）；滾輪/翻頁/開檔照舊瞬換。出場中再變＝換的那刻套最新狀態。
+  let fitIconWant = null, fitIconAnimate = false, fitIconOut = false;
+  function setFitIcon(icon, w) {
+    if (w === fitIconWant) return;
+    fitIconWant = w;
+    const apply = () => {
+      icon.classList.toggle('icon-fit-viewport', fitIconWant);
+      icon.classList.toggle('icon-fit-width', !fitIconWant);
+    };
+    if (fitIconOut) return;
+    const pill = icon.parentElement;
+    if (!fitIconAnimate || typeof gsap === 'undefined') { apply(); return; }
+    fitIconOut = true;
+    gsap.killTweensOf(pill);
+    gsap.to(pill, { ...revealHidden(), duration: DUR.base, ease: EASE.exit, onComplete: () => {
+      fitIconOut = false;
+      apply();
+      gsap.fromTo(pill, revealHidden(), { xPercent: 0, yPercent: 0, duration: DUR.base, ease: EASE.enter });
+    } });
   }
 
   function clampPan() {
@@ -813,10 +844,11 @@ export function initPdfViewer() {
       return;
     }
     const bg = resolvePillColor(color);
+    // pill min-height＝英中兩行高：只有單語也不縮、字置中於方塊中線（同 album，user 2026-10-21）
     // 結構：pill > window(overflow:hidden) > track > unit(EN+ZH column-stacked)
     // EN+ZH 為單一 marquee unit 同步捲動（不是兩行各自 marquee 失同步）；max-width 防 Press 長標題撐爆 layout
     titleEl.innerHTML = `
-      <span class="pdf-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
+      <span class="pdf-title-pill" style="display:inline-flex;flex-direction:column;justify-content:center;min-height:calc(11px + var(--font-size-s) * 2.4);background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${smallRot()}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
         <span class="pdf-title-window" style="display:block;overflow:hidden;">
           <span class="pdf-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
             <span class="pdf-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">
@@ -865,7 +897,11 @@ export function initPdfViewer() {
     if (!backPill) return;
     const bg = resolvePillColor(color);
     backPill.style.background = bg;
-    backPill.style.transform  = `rotate(${smallRot()}deg)`;
+    modal.style.setProperty('--lb-pill-bg', bg);   // zoom 鈕同底色（lightbox.css .lb-zoom-btn）
+    // 開檔角度：返回＋zoom 三鈕各抽小角度、其餘端正；走 commit 讓 hover 抽角從現角算
+    /** @type {any} */ (backBtn)?._arrowSpin?.commit(smallRot());
+    [zoomOutBtn, zoomInBtn, fitToggleBtn].forEach(b => /** @type {any} */ (b)?._arrowSpin?.commit(smallRot()));
+    [shareBtnEl, refUi.btnEl, prevBtn, nextBtn].forEach(b => /** @type {any} */ (b)?._arrowSpin?.commit(0));
     // ref btn 共用同 accent；旋轉角度 0（避免兩 pill 同時亂轉視覺雜訊）
     refUi.setColor(bg);
   }
@@ -900,10 +936,13 @@ export function initPdfViewer() {
       backPill.style.height = '44px'; backPill.style.width = '44px';
       if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
       if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
+      modal.style.setProperty('--lb-btn-h', '44px');
       return;
     }
     // offsetHeight 含 padding，跟 visual bbox 一致（rotation 不影響 offsetHeight）
     const h = /** @type {HTMLElement} */ (pill).offsetHeight;
+    // 底部列高＝左側鈕高（lightbox.css 真桌面底部列，同 album 縮圖列）
+    if (h > 0) modal.style.setProperty('--lb-btn-h', `${h}px`);
     if (h > 0) {
       const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
       backPill.style.height = h + 'px'; backPill.style.width = w + 'px';
@@ -1045,9 +1084,14 @@ export function initPdfViewer() {
   }
 
   // （2026-07-04 起 ref btn 跳轉不再 await 此函式：關閉 fadeout 與 SPA 換頁並行，統一 ref timing）
+  /** @type {HTMLElement | null} */
+  let heldBtn = null;
   function closeModal() {
     openToken++;   // 作廢還在路上的開場（close 後才回來的 getDocument 不得畫上）
     stopColorLoader();   // 停載入色塊循環 + 揭露 tween
+    // 點返回／ref 鈕關＝淡出途中保持它的 hover 色（user 2026-10-21，同 header menu 鈕）；收完才放
+    heldBtn = /** @type {HTMLElement | null} */ (modal.querySelector(':is(button, a):hover'));
+    SCCDHelpers.holdHover(heldBtn);
     modal.style.opacity = '0';
     // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver
     // 自動把 logo 切回 standard/inverse/wireframe（依當前 mode）
@@ -1058,6 +1102,7 @@ export function initPdfViewer() {
     }
     return new Promise(resolve => {
       setTimeout(() => {
+        SCCDHelpers.releaseHover(heldBtn);
         modal.style.display = 'none';
         touchMode = null;        // 清手機觸控手勢狀態
         // pdf.js 6.x：doc proxy 沒有 destroy（headless 實測 undefined、每次關檔 throw 中斷後續 reset）
@@ -1086,6 +1131,7 @@ export function initPdfViewer() {
   document.addEventListener('sccd:open-pdf', async (e) => {
     const { pdfUrl, title, color, references, shareUrl, watermark, cover, maxCanvasDim, coverAspect, autoRead } = e.detail || {};
     if (!pdfUrl) return;
+    SCCDHelpers.releaseHover(heldBtn);   // 淡出中重開
     wantWatermark = !!watermark;
     allowAutoRead = !!autoRead;   // 只有 press 帶 autoRead → 首開閱讀縮放；documents 等不帶 → 恆 Fit Page
     // 右上角 minimap：所有開檔都有（press + documents，user 2026-08-23；detail.cornerThumb 旗標已退役）。
@@ -1217,8 +1263,10 @@ export function initPdfViewer() {
     fitToggleBtn.addEventListener('click', () => {
       // 雙態切換（user 2026-06-02）：Fit Page（整頁）↔ Fit Width（滿寬）。
       // 在 Fit Width → 回 Fit Page；其他（Fit Page / 手動 zoom）→ 切 Fit Width。icon 由 updateZoomUI 換。
+      fitIconAnimate = true;
       if (isFitWidth()) resetToFit(true);
       else applyFitWidth(true);   // 切 Fit Width：對齊頁面頂端（非 stage 中心放大）
+      fitIconAnimate = false;
     });
   }
 
@@ -1241,17 +1289,41 @@ export function initPdfViewer() {
     }
   }, { passive: false });
 
+  // minimap 拖曳＝拖可視框：游標（扣掉按下時離框中心的偏移）在縮圖上的比例＝可視範圍中心在頁面上的比例。
+  // 按在框外偏移=0 → 框中心先跳到游標下。框被頁邊裁時 clampPan 會擋住，框停在邊上。
+  let thumbDrag = null;   // { r: 縮圖 rect, ox, oy }
+  function moveThumbView(e) {
+    const { r, ox, oy } = thumbDrag;
+    zoom.tx = fitDims.w * zoom.scale * (0.5 - (e.clientX - ox - r.left) / r.width);
+    zoom.ty = fitDims.h * zoom.scale * (0.5 - (e.clientY - oy - r.top) / r.height);
+    clampPan();
+    applyZoom(false);
+  }
+
   // Drag pan（只在 canPan 時啟動）
   stageEl.addEventListener('mousedown', (e) => {
     const canPan = zoom.scale > fitScale() + 0.001;
     if (!canPan || e.button !== 0) return;
     isDragging = true;
+    e.preventDefault();
+    if (cornerThumbEl && cornerThumbInner && cornerThumbRect && cornerThumbEl.contains(/** @type {Node} */ (e.target))) {
+      const v = cornerThumbRect.getBoundingClientRect();
+      const inBox = e.clientX >= v.left && e.clientX <= v.right && e.clientY >= v.top && e.clientY <= v.bottom;
+      thumbDrag = {
+        r: cornerThumbInner.getBoundingClientRect(),
+        ox: inBox ? e.clientX - (v.left + v.width / 2) : 0,
+        oy: inBox ? e.clientY - (v.top + v.height / 2) : 0,
+      };
+      cornerThumbEl.style.cursor = 'var(--cursor-grabbing)';
+      moveThumbView(e);
+      return;
+    }
     dragStart = { x: e.clientX, y: e.clientY, tx: zoom.tx, ty: zoom.ty };
     rowEl.style.cursor = 'var(--cursor-grabbing)';
-    e.preventDefault();
   });
   window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
+    if (thumbDrag) { moveThumbView(e); return; }
     zoom.tx = dragStart.tx + (e.clientX - dragStart.x);
     zoom.ty = dragStart.ty + (e.clientY - dragStart.y);
     clampPan();
@@ -1260,6 +1332,8 @@ export function initPdfViewer() {
   window.addEventListener('mouseup', () => {
     if (!isDragging) return;
     isDragging = false;
+    thumbDrag = null;
+    if (cornerThumbEl) cornerThumbEl.style.cursor = 'var(--cursor-grab)';
     const canPan = zoom.scale > fitScale() + 0.001;
     rowEl.style.cursor = canPan
       ? 'var(--cursor-grab)'
@@ -1271,8 +1345,10 @@ export function initPdfViewer() {
   });
 
   document.addEventListener('keydown', (e) => {
-    if (!pdfDoc || modal.style.display === 'none') return;
+    if (modal.style.display === 'none') return;
+    // Esc（含點 logo 補發的那顆）載入中也要能關：pdfDoc 還沒到；closeModal 的 openToken++ 會作廢還在路上的開場
     if (e.key === 'Escape') { closeModal(); return; }
+    if (!pdfDoc) return;
     // 上下左右：圖未填滿 stage 時翻頁；可 pan 時 pan（scroll direction：按右=往右看，圖往左移）
     const isArrow = e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp';
     const canPan = zoom.scale > fitScale() + 0.001;

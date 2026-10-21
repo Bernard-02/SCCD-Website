@@ -24,8 +24,7 @@ const closeWaiters = [];
 // 已 prefetch 過的 URL — 避免同一個 share btn 被 hover/touch 多次重複 fetch
 const prefetchedUrls = new Set();
 
-// mode1/2 卡片底色隨機三原色，跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor：
-// 同三原色 + 不重複上次邏輯）確保永不 drift；mode3(color) 維持白底。
+// 返回鍵的三原色（不在 list 時的靜止色／hover 色），跟 list hover 共用同一 source（SCCDHelpers.getRandomAccentColor）
 function randomAccent() {
   return SCCDHelpers.getRandomAccentColor();
 }
@@ -69,8 +68,7 @@ function prefetchQr(url) {
 // HTML markup 注入 body —— 取代過往寫死在 pages/activities.html
 // SPA router 只替換 <main> 內容；HTML 寫在 main 外的 component 永遠不會被 swap 過去，
 // 改由 JS 注入到 document.body 一次（idempotent），所有頁面共用同一份 DOM
-// 內層卡片 color:#000 強制黑字，避免 body.mode-inverse / .mode-color 下全域 p/icon 變白色
-// 卡片背景寫死白色，跟著 mode 變白字 = 白底白字消失
+// 卡片字色由 openShareLightbox 依黑/白卡寫在卡片上、子元素 inline color:inherit（蓋掉 mode-inverse / mode-color 的全域 p/icon 色）
 const LIGHTBOX_HTML = `
   <div id="share-lightbox" style="display:none; position:fixed; inset:0; z-index:9999; background:transparent; align-items:center; justify-content:center;">
     <!-- stage＝卡片（ensureCardMask 包遮罩）＋角上返回鍵共用的傾斜層：隨機傾角套這層（見 openShareLightbox），
@@ -85,16 +83,16 @@ const LIGHTBOX_HTML = `
         <img id="share-qr-img" src="" alt="QR Code" style="width:200px;height:200px;display:block;opacity:0;transition:opacity 0.25s ease;mix-blend-mode:multiply;">
       </div>
       <div style="display:flex; justify-content:center; gap: var(--spacing-xl);">
-        <button id="share-copy-qr-btn" aria-label="複製 QR Code 圖片 Copy QR Code image" style="line-height:1; color:#000;">
+        <button id="share-copy-qr-btn" aria-label="複製 QR Code 圖片 Copy QR Code image" style="line-height:1; color:inherit;">
           <span class="icon icon-copy icon-xl"></span>
         </button>
-        <button id="share-download-btn" aria-label="下載 QR Code Download QR Code" style="line-height:1; color:#000;">
+        <button id="share-download-btn" aria-label="下載 QR Code Download QR Code" style="line-height:1; color:inherit;">
           <span class="icon icon-download icon-xl"></span>
         </button>
       </div>
       <div style="display:flex; align-items:center; gap: var(--spacing-sm); width:200px; margin: 0 auto;">
-        <p id="share-url-text" class="text-s" style="flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:#000;"></p>
-        <button id="share-url-copy-btn" aria-label="複製連結 Copy Link" style="flex:none; line-height:1; color:#000;">
+        <p id="share-url-text" class="text-s" style="flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:inherit;"></p>
+        <button id="share-url-copy-btn" aria-label="複製連結 Copy Link" style="flex:none; line-height:1; color:inherit;">
           <span class="icon icon-copy icon-l"></span>
         </button>
       </div>
@@ -104,7 +102,7 @@ const LIGHTBOX_HTML = `
          平移做四向 clip-reveal。黑底白箭頭＝同 slide-in 返回鍵（user 2026-10-01 四改；原反色白底黑箭頭已撤） -->
     <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:48px; height:48px; margin:-24px 0 0 -24px; padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
       <span id="share-back-inner" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:#000; color:#fff;">
-        <span class="icon icon-arrow-left icon-l"></span>
+        <span class="icon icon-arrow-left icon-xl"></span>
       </span>
     </button>
     </div>
@@ -116,7 +114,17 @@ function injectHtml() {
   document.body.insertAdjacentHTML('beforeend', LIGHTBOX_HTML);
 }
 
-function openShareLightbox(url, bg) {
+/** @param {string} c computed rgb(a) 字串 */
+const isDark = (c) => {
+  const [r, g, b] = (c.match(/[\d.]+/g) || ['255', '255', '255']).map(Number);
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+};
+
+/**
+ * @param {string} cardBg 卡片底（黑或白，可為 var()）
+ * @param {string} backBg 返回鍵底＝當前 list 色（可為 var()）
+ */
+function openShareLightbox(url, cardBg, backBg) {
   const lightbox = document.getElementById('share-lightbox');
   const card = document.getElementById('share-lightbox-card');
   if (!lightbox || !card) return;
@@ -124,11 +132,24 @@ function openShareLightbox(url, bg) {
   // 本次開啟隨機挑一個滑入方向；卡片 + QR 共用，close 反推同方向出場
   revealDir = randomRevealDir();
 
-  // 卡片底色（文字始終黑）：
-  //   bg 明確帶入（library share btn 帶 title 渲染色）→ 直接用，讓卡片跟 title 同色
-  //   否則 mode3(color) 維持白；mode1/2 隨機三原色（同 list hover source）
-  card.style.background = bg
-    || (document.body.classList.contains('mode-color') ? '#fff' : randomAccent());
+  // 卡片黑或白（user 2026-10-21，取代三原色卡）：字／icon 跟著反色；黑卡上 QR 反相＋screen 去背（白卡照舊 multiply）。
+  // 下載／複製的 QR 一律原白底黑碼，不受影響
+  card.style.background = cardBg;
+  const cardColor = getComputedStyle(card).backgroundColor;
+  const cardDark = isDark(cardColor);
+  card.style.color = cardDark ? '#fff' : '#000';
+  const qrEl = /** @type {HTMLImageElement} */ (document.getElementById('share-qr-img'));
+  qrEl.style.filter = cardDark ? 'invert(1)' : '';
+  qrEl.style.mixBlendMode = cardDark ? 'screen' : 'multiply';
+  // 返回鍵＝當前 list 色；跟卡片同色（mode3 lightbox：白 pill＋白卡）就取反，不然半顆融進卡片
+  const inner = document.getElementById('share-back-inner');
+  if (inner) {
+    inner.style.background = backBg;
+    if (getComputedStyle(inner).backgroundColor === cardColor) inner.style.background = cardDark ? '#fff' : '#000';
+    backIdle.bg = inner.style.background;
+    backIdle.fg = isDark(getComputedStyle(inner).backgroundColor) ? '#fff' : '#000';
+    paintBackIdle();
+  }
 
   // share-lightbox 在 boot 時就 inject（DOM 早於 lazy 建立的 album lightbox）→ 同 z-9999 下會被後者蓋住；
   // 開啟時 re-append 到 body 尾端，確保疊在已開的 lightbox 之上（從 lightbox 內 share btn 點開的情境）
@@ -199,6 +220,12 @@ function openShareLightbox(url, bg) {
   }
 }
 
+const backIdle = { bg: '#000', fg: '#fff' };   // 這次開啟的返回鍵靜止色（openShareLightbox 算）
+function paintBackIdle() {
+  const inner = document.getElementById('share-back-inner');
+  if (inner) { inner.style.background = backIdle.bg; inner.style.color = backIdle.fg; }
+}
+
 function closeShareLightbox() {
   const lightbox = document.getElementById('share-lightbox');
   const card = document.getElementById('share-lightbox-card');
@@ -207,6 +234,7 @@ function closeShareLightbox() {
 
   const finish = () => {
     closing = false;
+    paintBackIdle();
     lightbox.style.display = 'none';
     if (shareOpen) {
       shareOpen = false;
@@ -286,13 +314,18 @@ export function initShareModal() {
   if (closeBtn) {
     closeBtn.addEventListener('click', closeShareLightbox);
     bindArrowSpin(closeBtn, (d) => { closeBtn.style.transform = `rotate(${d}deg)`; });
+    // 收的途中（closing）不理進出＝點下去滑出游標底下時保持 hover 色（user 2026-10-21，同 header menu 鈕）；收完 finish 才回黑
     if (backInner && window.matchMedia('(hover: hover) and (min-width: 768px)').matches) {
       closeBtn.addEventListener('mouseenter', () => {
+        if (closing) return;
         const m3 = document.body.classList.contains('mode-color');
-        backInner.style.background = m3 ? 'var(--theme-fg-inverse)' : randomAccent();
+        // 靜止＝list 色 → hover 換另一個三原色（不跟靜止同色，比 computed 值）；mode3 無三原色 → 翻 fg-inverse 底
+        const idleRgb = getComputedStyle(backInner).backgroundColor;
+        if (m3) backInner.style.background = 'var(--theme-fg-inverse)';
+        else do { backInner.style.background = randomAccent(); } while (getComputedStyle(backInner).backgroundColor === idleRgb);
         backInner.style.color = m3 ? 'var(--theme-fg)' : '#000';
       });
-      closeBtn.addEventListener('mouseleave', () => { backInner.style.background = '#000'; backInner.style.color = '#fff'; });
+      closeBtn.addEventListener('mouseleave', () => { if (!closing) paintBackIdle(); });
     }
   }
 
@@ -320,14 +353,17 @@ export function initShareModal() {
   document.addEventListener('click', (e) => {
     const btn = /** @type {HTMLElement} */ (e.target).closest('[data-share-btn]');
     if (!btn) return;
-    // 卡片底色優先序：① data-share-bg（library viewer / album 帶 title 渲染色）
-    // ② list-item 當前 hover/open 色（.list-header 或 degree-show 卡的 dataset.accentHex）→ 卡片跟 hover 同色
-    // ③ 都沒有走 openShareLightbox 內 mode 隨機規則。mode-color 下 list 視覺是 strict B/W（非 accentHex），
-    //    不讀 accentHex，交回既有白卡邏輯。
-    const listBg = document.body.classList.contains('mode-color')
-      ? undefined
-      : /** @type {HTMLElement | null} */ (btn.closest('.list-header, .degree-show-card-content'))?.dataset.accentHex;
-    openShareLightbox(computeShareUrl(btn), btn.dataset.shareBg || listBg);
+    // 卡片黑或白、跟後面那層反差（user 2026-10-21）：lightbox 黑底上＝白；mode3 開著的 list＝theme-fg 底 → 取反；
+    // 其餘＝theme-fg（mode1 黑／mode2 白）。var() 字串＝mode3 hue 變亮暗時跟著翻
+    const m3 = document.body.classList.contains('mode-color');
+    const inLightbox = !!btn.closest('#activities-lightbox, #pdf-viewer-modal');
+    const cardBg = inLightbox ? '#fff' : (m3 ? 'var(--theme-fg-inverse)' : 'var(--theme-fg)');
+    // 返回鍵＝當前 list 色：① data-share-bg（lightbox 標題 pill 色）② mode3 list＝theme-fg（strict B/W）
+    // ③ list-item 當前 hover/open 色（.list-header／degree-show 卡的 dataset.accentHex）④ 不在 list＝隨機三原色
+    const listBg = btn.dataset.shareBg
+      || (m3 ? 'var(--theme-fg)' : /** @type {HTMLElement | null} */ (btn.closest('.list-header, .degree-show-card-content'))?.dataset.accentHex)
+      || randomAccent();
+    openShareLightbox(computeShareUrl(btn), cardBg, listBg);
   });
 
   // Hover prefetch — 桌面 user hover 過後 QR 已在 HTTP cache，點擊瞬間 onload 即觸發

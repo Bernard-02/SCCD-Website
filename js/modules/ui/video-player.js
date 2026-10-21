@@ -491,8 +491,8 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   function updatePlayIcon() {
     const icon = playBtn?.firstElementChild;
     if (!icon) return;
-    // size 由 HTML 上 .icon-l class 控制（兩態同 tier，避免 toggle 時 container 高度跳動）
-    icon.className = video.paused ? 'icon icon-play icon-l' : 'icon icon-pause icon-l';
+    // size 由 lightbox.css（影片 UI icon 28）控制（兩態同 tier，避免 toggle 時 container 高度跳動）
+    icon.className = video.paused ? 'icon icon-play' : 'icon icon-pause';
   }
 
   playBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlay(); });
@@ -621,13 +621,13 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   function updateMuteIcon() {
     const icon = /** @type {HTMLElement | null | undefined} */ (muteBtn?.firstElementChild);
     if (!icon) return;
-    // mute / volume-half / volume 三態自製 SVG（size 由 .icon-l 控）
+    // mute / volume-half / volume 三態自製 SVG（size 由 lightbox.css 控）
     if (video.muted || video.volume === 0) {
-      icon.className = 'icon icon-mute icon-l';
+      icon.className = 'icon icon-mute';
     } else if (video.volume < 0.5) {
-      icon.className = 'icon icon-volume-half icon-l';
+      icon.className = 'icon icon-volume-half';
     } else {
-      icon.className = 'icon icon-volume icon-l';
+      icon.className = 'icon icon-volume';
     }
     icon.style.fontSize = '';
   }

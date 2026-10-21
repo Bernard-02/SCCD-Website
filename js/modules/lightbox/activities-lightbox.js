@@ -10,6 +10,7 @@ import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 let lightboxEl = null;
 // 防 double-open（user 2026-06-22 報「打開 press lightbox 有時 header 整個消失」）：openLightbox 是 async，
@@ -25,6 +26,8 @@ let openSeq = 0;
 // 用實際 enter 過與否配對，openCount 永遠平衡
 let lbEntered = false;
 let closeHideTimer = null;  // close 的 300ms 隱藏 timer；fadeout 中重開要取消，否則新內容被舊 timer 藏掉
+/** @type {HTMLElement | null} */
+let heldBtn = null;         // 淡出中凍住 hover 色的鈕（closeLightbox）
 let mainEl = null;
 let thumbsEl = null;
 let titleEl = null;
@@ -95,7 +98,7 @@ function ensureLightbox() {
            z-index:30 必要：chevron 在 alb-main 之前的 DOM siblings，下層；alb-main / zoomStage w-full h-full 蓋在上面 → 不拉 z 點不到
            infinity loop（user 2026-08-28）：navigate() 環狀取餘、到底回頭 → chevron 恆可點；
            aria-disabled:* 樣式保留（single media 之外恆 false；改 disabled 行為時仍可用） -->
-      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-prev absolute text-white w-[44px] h-[44px] flex items-center justify-center hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="left: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m"></span>
       </button>
       <div class="alb-main flex items-center justify-center w-full h-full"></div>
@@ -105,7 +108,7 @@ function ensureLightbox() {
       <div class="alb-watermark-clip" aria-hidden="true" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:20;display:none;">
         <div class="alb-watermark" style="position:absolute;"></div>
       </div>
-      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center transition-opacity hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
+      <button class="alb-next absolute text-white w-[44px] h-[44px] flex items-center justify-center hover:opacity-60 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:hover:opacity-50" style="right: var(--container-padding, 1.5rem); z-index: 30;">
         <span class="icon icon-chevron-lightbox icon-m rotate-180"></span>
       </button>
     </div>
@@ -130,8 +133,8 @@ function ensureLightbox() {
              data-share-url 由 openLightbox 設、全站 share-modal.js 的 [data-share-btn] delegation 接管點擊（QR + 複製）。-->
         <button class="alb-share" data-share-btn aria-label="分享 Share" style="display: none;">
           <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
-            <!-- 用返回鍵那顆粗箭頭（icon-arrow-left ←），旋轉 135° 指向右上 ↗ 當分享（比 icon-share 細箭頭粗，user 2026-06-15）-->
-            <span class="icon icon-arrow-left icon-m" style="transform: rotate(135deg);"></span>
+            <!-- 同畢業展詳情頁分享鈕的 icon-share（user 2026-10-21 統一；箭頭照 menu 格線重畫後兩者同粗，06-15「share 比較細」不再成立）-->
+            <span class="icon icon-share"></span>
           </span>
         </button>
       </div>
@@ -139,16 +142,16 @@ function ensureLightbox() {
       <!-- overflow-x:auto 會讓 overflow-y 被瀏覽器隱式設成 auto，沒 padding 上下 outline 會被 clip 掉 -->
       <div class="alb-thumbs flex items-center gap-sm" style="max-width: min(80vw, 960px); overflow-x: auto;"></div>
       <div class="alb-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 12px;">
-        <button class="alb-zoom-out p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
-          <span class="icon icon-zoom-out icon-m"></span>
+        <button class="alb-zoom-out lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
+          <span class="lb-zoom-pill"><span class="icon icon-zoom-out icon-m"></span></span>
         </button>
         <span class="alb-zoom-pct text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
-        <button class="alb-zoom-in p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
-          <span class="icon icon-zoom-in icon-m"></span>
+        <button class="alb-zoom-in lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
+          <span class="lb-zoom-pill"><span class="icon icon-zoom-in icon-m"></span></span>
         </button>
         <!-- Fit-to-window 按鈕（user 2026-06-02）：點下去切到 fit；已在 fit 時 disabled -->
-        <button class="alb-fit-toggle p-2 transition-opacity hover:opacity-60 aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit to window">
-          <span class="icon icon-fit-viewport icon-m"></span>
+        <button class="alb-fit-toggle lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Fit to window">
+          <span class="lb-zoom-pill"><span class="icon icon-fit-viewport icon-m"></span></span>
         </button>
       </div>
     </div>
@@ -180,6 +183,16 @@ function ensureLightbox() {
     topbarEl.insertBefore(refUi.btnEl, titleEl);
   }
   lightboxEl.appendChild(refUi.popoverEl);
+
+  // 鈕 hover 抽角（全站 arrow-spin：hover 抽新角、離開保持；user 2026-10-21）：角度寫在會轉的那層（pill 鈕＝內層 pill、
+  // zoom／chevron＝鈕本身）；開啟時的初始角走 _arrowSpin.commit（renderBackButton）。aria-disabled 不轉
+  [[lightboxEl.querySelector('.alb-close'), closePillEl], [shareBtnEl, sharePillEl],
+    [refUi.btnEl, refUi.btnEl.querySelector('.lightbox-ref-btn-pill')],
+    [zoomOutBtn], [zoomInBtn], [fitToggleBtn], [prevBtn], [nextBtn]].forEach(([btn, rot = btn]) => {
+    if (!btn || !rot) return;
+    const off = () => btn.getAttribute('aria-disabled') === 'true';
+    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !off() });
+  });
 
   prevBtn.addEventListener('click', () => navigate(-1));
   nextBtn.addEventListener('click', () => navigate(1));
@@ -555,7 +568,7 @@ function renderMain(index) {
   // outline-offset:2px 讓 border 跟圖邊緣有 2px gap，視覺上明顯獨立框出來
   thumbsEl.querySelectorAll('.alb-thumb').forEach((th, i) => {
     if (i === index) {
-      th.style.outline = '2px solid #fff';
+      th.style.outline = '2px solid var(--lb-pill-bg, #fff)';   // 框色＝鈕底色（user 2026-10-21）
       th.style.outlineOffset = '2px';
     } else {
       th.style.outline = '';
@@ -664,7 +677,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   mediaList.forEach((item, i) => {
     const btn = document.createElement('button');
     btn.className = 'alb-thumb flex-shrink-0 overflow-hidden transition-opacity';
-    btn.style.height = '48px';
+    btn.style.height = 'var(--lb-btn-h, 48px)';   // ＝左側鈕高（syncCloseBtnHeight 寫）
     const img = document.createElement('img');
     img.alt = '';
     img.draggable = false; // 防原生 image drag 干擾（拖選圖片）
@@ -730,6 +743,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   renderMain(startIndex);
 
   clearTimeout(closeHideTimer);  // fadeout 中重開：取消舊 close 的隱藏 timer，否則 300ms 後把新內容藏掉
+  SCCDHelpers.releaseHover(heldBtn);
   lightboxEl.style.display = 'flex';
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
@@ -785,9 +799,12 @@ function resolvePillColor(color) {
 function renderBackButton(color) {
   if (!closePillEl) return;
   const bg = resolvePillColor(color);
-  const rot = SCCDHelpers.getRandomRotation();
   closePillEl.style.background = bg;
-  closePillEl.style.transform = `rotate(${rot}deg)`;
+  lightboxEl.style.setProperty('--lb-pill-bg', bg);   // zoom 鈕同底色（lightbox.css .lb-zoom-btn）
+  // 開啟角度：返回鍵隨機、zoom 三鈕各自小角度（同 title pill 幅度）、其餘端正；走 commit 讓 hover 抽角從現角算
+  lightboxEl.querySelector('.alb-close')?._arrowSpin?.commit(SCCDHelpers.getRandomRotation());
+  [zoomOutBtn, zoomInBtn, fitToggleBtn].forEach(b => b?._arrowSpin?.commit(getTitleRotation()));
+  [shareBtnEl, refUi?.btnEl, prevBtn, nextBtn].forEach(b => b?._arrowSpin?.commit(0));
 }
 
 // Share btn（library album 專用）：caller 帶 shareUrl 才顯示，套全站 share modal（[data-share-btn] delegation）。
@@ -822,9 +839,12 @@ function syncCloseBtnHeight() {
     closePillEl.style.height = '44px'; closePillEl.style.width = '44px';
     if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
     if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
+    lightboxEl.style.setProperty('--lb-btn-h', '44px');
     return;
   }
   const h = /** @type {HTMLElement} */ (pill).offsetHeight;
+  // 縮圖高＋zoom 列高跟著左側鈕高（user 2026-10-21）
+  if (h > 0) lightboxEl.style.setProperty('--lb-btn-h', `${h}px`);
   if (h > 0) {
     const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
     closePillEl.style.height = h + 'px'; closePillEl.style.width = w + 'px';
@@ -850,11 +870,12 @@ function renderTitle(title, color) {
   }
   const bg = resolvePillColor(color);
   const rot = getTitleRotation();
+  // pill min-height＝英中兩行高（padding 11＋2 行×1.2）：只有單語也不縮、字置中於方塊中線，左側鈕跟著不變矮（user 2026-10-21）
   // 結構：pill > window(overflow:hidden) > track(inline-block nowrap) > unit(column-flex EN+ZH)
   // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
   // 不是兩行各自 marquee 害 EN/ZH 互不同步
   titleEl.innerHTML = `
-    <span class="alb-title-pill" style="display:inline-block;background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
+    <span class="alb-title-pill" style="display:inline-flex;flex-direction:column;justify-content:center;min-height:calc(11px + var(--font-size-s) * 2.4);background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
       <span class="alb-title-window" style="display:block;overflow:hidden;">
         <span class="alb-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
           <span class="alb-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">
@@ -907,6 +928,9 @@ function closeLightbox() {
   if (iframeEl) iframeEl.src = '';
   // 立即 destroy（不等 300ms fadeout）：影片聲音不能陪淡出
   if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
+  // 點返回／ref 鈕關＝淡出途中保持它的 hover 色（user 2026-10-21，同 header menu 鈕）；收完才放
+  heldBtn = /** @type {HTMLElement | null} */ (lightboxEl.querySelector(':is(button, a):hover'));
+  SCCDHelpers.holdHover(heldBtn);
   lightboxEl.style.opacity = '0';
   if (lbEntered) { exitLightboxMode(); lbEntered = false; }
   // 停 title marquee tween 避免關閉後仍在背景 rAF 跑
@@ -914,6 +938,7 @@ function closeLightbox() {
     titleEl.querySelectorAll('.alb-title-track').forEach(el => gsap.killTweensOf(el));
   }
   closeHideTimer = setTimeout(() => {
+    SCCDHelpers.releaseHover(heldBtn);
     lightboxEl.style.display = 'none';
     mainEl.innerHTML = '';
     // 清 zoom refs（fit/drag flags 等下次 renderMain 會重置）

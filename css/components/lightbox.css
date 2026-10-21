@@ -71,6 +71,77 @@
   }
 }
 
+/* lightbox 內 pill 鈕（返回／分享／ref）icon padding 同 header menu 鈕（48 盒 32 icon＝四邊 8，user 2026-10-21）：
+   pill 寬由 JS 跟 title pill 高同步（min(44, h)，單行縮正方形）→ icon 跟著 pill 寬 −16、正方形 */
+.alb-close-pill .icon,
+.alb-share-pill .icon,
+.pdf-back-pill .icon,
+.pdf-share-pill .icon,
+.lightbox-ref-btn-pill .icon {
+  width: calc(100% - 16px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+/* 自訂影片 UI 的單鈕色塊（WATCH 返回／全螢幕、lightbox 影片全螢幕）：鈕撐滿色塊，hover＝整塊反色、不只淡 icon
+   （user 2026-10-21）。底色改在色塊本身（不在鈕上疊一層＝旋轉斜邊不會漏一圈原色）；底色/字色是 JS inline → !important。
+   mode3 色塊是 theme-fg（color.css）→ hover 翻 fg-inverse 底 fg 字 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  body:not(.mode-color) :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover {
+    background: #000 !important;
+  }
+  body:not(.mode-color) :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover button {
+    color: #fff !important;
+  }
+  body.mode-color :is(#video-block-close, #video-block-fullscreen, .lb-video-block.lb-video-fs-block):hover {
+    background: var(--theme-fg-inverse) !important;
+  }
+  body.mode-color :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover button {
+    color: var(--theme-fg) !important;
+  }
+}
+
+/* 影片 UI 的播放／音量／全螢幕 icon 28（返回鍵維持 icon-xl 32；user 2026-10-21「剩下三個再小一點」）。矮橫向同值 */
+:is(#video-play-btn, #video-mute-btn, #video-fullscreen-btn, .lb-video-ink) .icon {
+  font-size: 1.75rem;
+}
+/* 播放／暫停圖案頂滿框（墨跡高 100%）、音量只佔 80% → 框縮到 80%＝兩者墨跡同高（user 2026-10-21「跟音量的一樣」） */
+:is(#video-play-btn, .lb-video-play) .icon {
+  font-size: calc(1.75rem * 0.8);
+}
+
+/* lightbox 內鈕 hover 抽角的補間（arrow-spin 寫 inline rotate，user 2026-10-21）；
+   opacity 一起列＝保留 chevron／zoom 的 Tailwind transition-opacity（本規則 unlayered 會整串蓋掉它） */
+.alb-close-pill, .alb-share-pill, .pdf-back-pill, .pdf-share-pill, .lightbox-ref-btn-pill,
+.lb-zoom-btn, .alb-prev, .alb-next, #pdf-prev-btn, #pdf-next-btn {
+  transition: transform var(--dur-fast) var(--ease-standard), opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* zoom − ＋ fit 鈕＝左側 pill 同底色的縮小版（36 盒＝icon 20＋四邊 8，pill 是 44；user 2026-10-21）
+   底色由 JS 寫在 lightbox 根元素的 --lb-pill-bg（跟返回鈕同一處、同 resolvePillColor）。
+   鈕本身＝遮罩（overflow 裁、JS 寫隨機角）→ 內層 pill 換 icon 時 clip-reveal 進出場，遮罩跟著鈕轉 */
+.lb-zoom-btn {
+  display: inline-flex;
+  overflow: hidden;
+}
+.lb-zoom-pill {
+  display: inline-flex;
+  padding: 8px;
+  background: var(--lb-pill-bg, #00FF80);
+  color: #000;
+}
+/* ＋ → fit 間距＝左側 title → share 的 20（PILL_GAP / .alb-topbar gap）：容器 gap 12 ＋ 8 */
+#pdf-fit-toggle,
+.alb-fit-toggle {
+  margin-left: 8px;
+}
+@media (min-width: 1024px) and (min-height: 501px) {
+  .lb-zoom-btn:not([aria-disabled="true"]):hover .lb-zoom-pill {
+    background: #000;
+    color: #fff;
+  }
+}
+
 /* lightbox 內 pill 鈕（返回／分享／ref）hover＝黑底白 icon（同 ref chip）
    底色/字色由 JS inline 寫 → !important；真桌面才 hover（觸控 tap 會黏住） */
 @media (min-width: 1024px) and (min-height: 501px) {
@@ -307,6 +378,36 @@
   }
   #pdf-viewer-modal .lightbox-ref-stack { align-items: stretch; }
   #pdf-viewer-modal .lightbox-ref-card { width: 100%; }
+}
+
+/* 真桌面底部控制列（user 2026-10-21）：方塊底＝左下當前頁卡底（48，navigation.css #page-indicator bottom）；
+   列頂到大圖區的距離不變（30＝album pt-md 24＋縮圖列 outline 預留 6），列變高＝大圖區讓。
+   列高 --lb-btn-h＝左側鈕高（JS sync*BtnHeight 寫）；方塊同高 → 底對齊＝中線對齊 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #activities-lightbox .alb-thumbs-wrap {
+    padding-bottom: 42px;   /* 48 − 縮圖列下 6 */
+  }
+  #activities-lightbox .alb-topbar,
+  #activities-lightbox .alb-zoom-controls,
+  #pdf-viewer-modal .pdf-back-btn,
+  #pdf-viewer-modal .pdf-ref-btn,
+  #pdf-viewer-modal .pdf-title,
+  #pdf-viewer-modal .pdf-share-btn,
+  #pdf-viewer-modal .pdf-zoom-controls {
+    top: auto !important;
+    bottom: 48px !important;
+    transform: none !important;
+  }
+  #activities-lightbox .alb-zoom-controls,
+  #pdf-viewer-modal .pdf-zoom-controls {
+    height: var(--lb-btn-h, 44px);
+  }
+  /* PDF 無縮圖列：上下 padding 直接給 30／48，中間＝一列鈕高（頁碼 items-center 落在列中線） */
+  #pdf-viewer-modal .pdf-bottom-bar {
+    padding-top: 30px;
+    padding-bottom: 48px;
+    min-height: calc(78px + var(--lb-btn-h, 44px)) !important;
+  }
 }
 
 /* 真桌面：大圖區左右邊＝col-4 左緣（同內頁內容起點），右邊對稱停 col-17 右緣
