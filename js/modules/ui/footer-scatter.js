@@ -732,7 +732,7 @@ function fitTabText(footer) {
 // tab 列可左右拖動（未來 tab 多、超出寬度時）：滑鼠按住拖曳捲 scrollLeft；觸控走原生 overflow-x pan（不攔）。
 // 無 chevron、無可見 scrollbar（CSS 隱藏）。拖動（moved）後 capture 攔 click 免誤切 tab。persistent + dataset guard 防重綁。
 // ⚠️ 寬度夠（無溢出）時不啟動拖曳（user 2026-08-11）——pointerdown 當下檢查 scrollWidth，免得拖曳態誤攔 click。
-function makeTabsDraggable(tabs) {
+export function makeTabsDraggable(tabs) {
   if (!tabs || tabs.dataset.dragBound) return;
   tabs.dataset.dragBound = '1';
   let down = false, startX = 0, startScroll = 0, moved = false;

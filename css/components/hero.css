@@ -243,19 +243,36 @@
     /* max-content：撐到最長一行；否則 inline-flex column 縮成 min-content 逐字斷行 */
     width: max-content;
     max-width: calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) * 3 / 20 + 2 * var(--spacing-gutter));
+    /* 窄視窗 cap 比長英文單字窄（Communication ~170px）→ 字溢出、被外層 clip-path -12px 切掉。
+       斷點＋dash 由 JS 插 soft hyphen（softHyphenate）；break-word 兜底（短字仍放不下時硬斷、不溢出） */
+    overflow-wrap: break-word;
   }
+  /* 英中 span 是 column flex 子項＝寬度至少 min-content（整個長單字）→ 不 cap 就不會斷、照樣溢出 */
+  #sticky-title-chip .sticky-chip-inner > span { max-width: 100%; }
 
   /* DSD detail 返回鈕（沿用 .sticky-chip）：left 對齊 container-padding（同 hero 標題 / logo 左緣）；bottom 64＝atlas-layout-btn 32 的兩倍 */
-  #degree-show-back-btn {
+  /* 分享鈕（返回鈕右邊、同款：left +48 鈕＋16 gap）跟返回鈕共用定位／遮罩／hover 規則 */
+  #degree-show-back-btn,
+  #degree-show-share-btn {
     position: fixed;
     left: var(--container-padding, 60px);
     bottom: 64px;
     z-index: 50;
     pointer-events: auto;
     cursor: var(--cursor-pointer);
+    /* hover 轉角在這層（遮罩同層＝跟著轉，user 2026-10-21）：繞中心、補 transform 過渡（delay 由 JS 逐項給，第三項＝0） */
+    transform-origin: center;
+    transition: clip-path var(--dur-medium) var(--ease-wipe), translate var(--dur-medium) var(--ease-wipe), transform var(--dur-fast) var(--ease-standard);
+  }
+  #degree-show-share-btn {
+    left: calc(var(--container-padding, 60px) + 64px);
+    border: none;
+    padding: 0;
+    background: transparent;
   }
 
   #degree-show-back-btn .sticky-chip-inner,
+  #degree-show-share-btn .sticky-chip-inner,
   #degree-show-ref-btn .sticky-chip-inner {
     /* strict B/W（fg/fg-inverse 三 mode 都不跟 hue 飄，同 atlas-layout-inner）；48×48＋icon 32 對齊 atlas layout btn；hover 只旋轉 inner */
     display: flex;
@@ -270,10 +287,10 @@
     transition: transform var(--dur-fast) var(--ease-standard);
   }
 
-  /* Ref btn：left = container-padding + back btn 48 + gap 16；clip-reveal 由 JS（setupStickyAndHeroChips titleChips）與 back btn 同步 */
+  /* Ref btn：分享鈕右邊（container-padding + 2×(48 + gap 16)）；clip-reveal 由 JS（setupStickyAndHeroChips titleChips）與 back btn 同步 */
   #degree-show-ref-btn {
     position: fixed;
-    left: calc(var(--container-padding, 60px) + 64px);
+    left: calc(var(--container-padding, 60px) + 128px);
     bottom: 64px;
     z-index: 50;
     pointer-events: auto;
@@ -301,8 +318,8 @@
   /* 返回鈕 hover 上色＝黑方塊 icon 鈕家族（同 lists.css .tl-icon-btn-inner 段；user 2026-10-20）：JS bindNavBtnHover 掛 data-nav-hover
      ＋--nav-hover（桌面才掛）；mode1/2 隨機三原色底黑 icon、mode3 翻反色。瞬切（inner transition 只列 transform） */
   @media (hover: hover) and (min-width: 768px) {
-    body:not(.mode-color) #degree-show-back-btn[data-nav-hover]:hover .sticky-chip-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
-    body.mode-color #degree-show-back-btn[data-nav-hover]:hover .sticky-chip-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
+    body:not(.mode-color) :is(#degree-show-back-btn, #degree-show-share-btn)[data-nav-hover]:hover .sticky-chip-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+    body.mode-color :is(#degree-show-back-btn, #degree-show-share-btn)[data-nav-hover]:hover .sticky-chip-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
   }
 
   /* Ref popover chip strict B/W：bg 放 chip 不放 card（card 透明）——chip 靠 margin:-1px 0 垂直重疊，旋轉邊才不漏下層 card bg 1px 細縫；

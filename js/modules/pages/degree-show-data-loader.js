@@ -1,12 +1,12 @@
 /* global gsap, ScrollTrigger */
 /**
  * Degree Show Data Loader
- * 負責讀取 Degree Show JSON 資料並渲染列表與詳情頁
+ * 畢業展詳情頁（degree-show-detail）。列表在 activities 展演 › 畢業展，走 activities-data-loader loadDegreeShowListInto（loadListInto）
  */
 
 import { initHeroAnimation } from './hero-animation.js';
 import { initHeroMobileSync } from './hero-mobile-sync.js';
-import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden, ensureCardMask, fitCardToText } from '../ui/scroll-animate.js';
+import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden, ensureCardMask, fitCardToText, tiltCardMask } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { SECTION_LABELS } from './activities-data-loader.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
@@ -18,15 +18,12 @@ import { DUR, EASE } from '../ui/motion.js';
 import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
 import { createLightboxVideo } from '../lightbox/lightbox-video.js';
 import { loadDegreeShow } from './degree-show-source.js';
-import { sitePath } from '../ui/site-base.js';
 import { escapeHtml } from '../ui/escape-html.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
 import { countryName } from '../../data/country-names.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
-
-// 七輪：分頁封面「載好才滑入」的隨機四向（同 activities POSTER_SLIDE_DIRS / library COVER_SLIDE_DIRS 語彙）
-const POSTER_SLIDE_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
+import { makeTabsDraggable } from '../ui/footer-scatter.js';
 
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
 // 上限，色卡實際寬仍會撐到 max-width（短末行右側空一大塊 accent 底）；用 Range 量 wrapped lines 取最寬行寫回
@@ -64,140 +61,6 @@ function separateHeroTitles() {
   separateStacked(
     document.getElementById('text-title-en')?.closest('.hero-text-cn-wrapper'),
     document.getElementById('text-title')?.closest('.hero-title-wrapper'));
-}
-
-export async function loadDegreeShowListInto(containerId) {
-  // Directus-only（degree-show-source.js：失敗 → last-known-good → throw）。放 try 外＝資料層全失敗往上拋，
-  // 由 activities switchToSection 的 catch 顯示 .panel-load-error 錯誤態（與其他 section 一致）；渲染錯誤仍就地吞。
-  const data = await loadDegreeShow();
-  try {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    const shows = Object.entries(data)
-      .sort(([a], [b]) => Number(b) - Number(a))
-      .flatMap(([year, entries]) => entries.map((item, itemIndex) => ({
-        year,
-        item,
-        showYear: itemIndex === 0,
-      })));
-
-    shows.forEach(({ year, item, showYear }, idx) => {
-      const color = SCCDHelpers.ACCENT_COLORS[idx % SCCDHelpers.ACCENT_COLORS.length];
-      const titleEn = item.title_en || item.titleEn || '';
-      const titleZh = item.title || item.titleZh || '';
-      const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
-      // 無 coverImage（如後台還沒傳封面）→ 灰底 placeholder，卡片仍有縮圖塊 + 標題不空掉（user 2026-08-17）
-      // 七輪：有封面時烙 pending translate（載好才滑入，同 activities poster）；wrapper .degree-show-img-wrapper 恆 overflow-hidden＝現成遮罩。
-      const dir = POSTER_SLIDE_DIRS[(Math.random() * 4) | 0];
-      const coverHtml = item.coverImage
-        ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full" data-pending-reveal="1" style="transform: translate(${dir})">`
-        : `<div class="degree-show-img-placeholder" role="img" aria-label="Degree Show ${year}"></div>`;
-      // .list-reveal-row 讓 setupAdmissionReveal + playAdmissionPanelReveal 接管進場
-      //   → 跟 description / search bar 同一條 stagger timeline，無 hardcoded delay
-      // img loading="eager"：cards 是首屏內容（degree-show panel 只有 3-5 張），lazy 會讓 wrapper
-      //   render 時高度為 0 → clip-reveal 的 yPercent:100 = 0px 沒位移 = 視覺殘影
-      //   eager 保證 layout 立刻可量
-      // 比照 admission：年份欄＝獨立 label（非互動），斑馬列＝唯一 hover + click 單元（user 2026-08-17）。
-      // 外框從 <a> 改 <div>（不再整個 grid 含年份都可點）；<a href> 只包內容斑馬列＝點擊區＝hover 區＝視覺列。
-      // .list-reveal-group 留在外 <div>：年份 col-1 的 .list-reveal-row 沒 .list-item 祖先，靠此 hook 跟該卡內容
-      //   同組併入 list phase（見 admission-data-loader playAdmissionPanelReveal 分組）。
-      const html = `
-        <div class="grid-12 items-start degree-show-card list-reveal-group" style="--card-color: ${color}">
-          <!-- 年份：桌面 md:pt-sm md:pl-xs 對齊 loadListInto 年份文字（filter 下 269）；
-               手機 -8px 淨得 12px（card grid 20px row-gap − 8）、md:mb-0（年份與縮圖同排）。
-               獨立 label 不進 <a>（比照 admission 年份欄非點擊）。 -->
-          ${showYear ? `
-            <div class="col-span-12 md:col-start-1 md:col-span-1 list-year-label mb-[-8px] md:mb-0 md:pt-sm md:pl-xs">
-              <h5 class="list-reveal-row">${year}</h5>
-            </div>
-          ` : ''}
-          <!-- 內容＝斑馬紋列（.list-item）＝點擊連結：套 activities panel 逐項 clip-reveal——圖 wrapper 與標題各自
-               .list-reveal-row 且**必須在 .list-item 內**才會成組被 revealZebraBg 揭；否則斑馬(偶數)卡
-               clip-path:inset(100%) 永不揭＝整卡空白。末尾 .list-item-divider 當分組終止符。
-               見 memory reference_activities_zebra_reveal_grouping_trap。
-               外層由 <a> 改 <div>：share 按鈕不能巢狀在 <a> 內（button-in-anchor 無效 HTML + router
-               closest('a[href]') 會誤導航）。改用「拉伸式連結」——透明 <a> absolute inset-0 覆蓋整卡當點擊區，
-               share 按鈕當兄弟以 z-[2] 浮在其上。 -->
-          <!-- data-accent-hex＝該卡 hover 底色（--card-color）；share-modal 讀它讓分享卡跟 hover 同色
-               （同 list-header.dataset.accentHex 機制；mode-color 下 share-modal 自動略過→白卡）。 -->
-          <div class="degree-show-card-content list-item relative col-span-12 md:col-start-2 md:col-span-11 px-sm py-sm md:ml-[41px]" data-accent-hex="${color}">
-            <!-- z-[1]：reveal-row 被 .clip-reveal-wrapper 包住，reveal 中殘留 transform（＝暫時 stacking context），且在 DOM
-                 晚於本 <a> → 純 absolute（z auto）會被它們蓋在下面、點標題不導航。給正 z 提到它們之上、仍低於 share(z-[2])。 -->
-            <a href="/degree-show-detail?${detailQuery}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
-            <div class="degree-show-img-wrapper overflow-hidden mb-sm list-reveal-row">
-              ${coverHtml}
-            </div>
-            <div class="flex items-start justify-between gap-sm">
-              <!-- 標題可縮的 flex item ＝這層 flex-1 min-w-0（**不是** reveal-row）：h5 的 .list-reveal-row 被
-                   setupClipReveal 包一層 clip-reveal-wrapper（overflowX:visible、無 min-width），若讓 h5 直接當 flex item，
-                   那個 wrapper 會變成 flex item→nowrap 標題把整列撐爆手機 viewport。把 flex-1/min-w-0 移到「非 reveal」外層，
-                   wrapper 退回普通 block child、.dshow-title-line 自帶 overflow:hidden 收 marquee。⚠️ 這層不能加 overflow-hidden：
-                   會讓 setupClipReveal 認定「父層已建 clip 結構」而跳過包 h5/share＝進場失效、share 提早現身。 -->
-              <div class="flex-1 min-w-0">
-                <h5 class="list-reveal-row"><span class="dshow-title-line${titleEn && titleZh ? ' mb-en-zh-lg' : ''}"><span class="dshow-title-inner">${titleEn || titleZh}</span></span>${titleEn && titleZh ? `<span class="dshow-title-line"><span class="dshow-title-inner">${titleZh}</span></span>` : ''}</h5>
-              </div>
-              <!-- share 包成獨立 .list-reveal-row（比照 activities：跟標題同步 clip-reveal、不提早現身）；
-                   relative z-[2] 浮在 stretched <a> 之上（否則點按鈕落在覆蓋層＝導頁）；不能用 z-10：跟 sticky 篩選列（z-10）同級、DOM 在後
-                   ＝卡片捲到篩選列底下時分享鈕畫在篩選列上面（user 2026-10-20）。data-share-url 帶該屆詳情頁絕對網址。 -->
-              <div class="list-reveal-row relative z-[2] flex-shrink-0 self-start">
-                <button data-share-btn data-share-url="${sitePath('pages/degree-show-detail.html?' + detailQuery)}" aria-label="分享 Share" class="inline-flex items-center">
-                  <span class="icon icon-share icon-s"></span>
-                </button>
-              </div>
-            </div>
-            <!-- list-reveal-row 必要：playAdmissionPanelReveal 的分組迴圈只走 .list-reveal-row，
-                 靠 divider 當每張卡的終止符。漏這 class → 全部卡併成一組、只有首張斑馬卡被 revealZebraBg
-                 揭開，後面的斑馬卡（如 2003）永遠卡在 clip-path:inset(100%)＝整條裁掉看不到也點不到。
-                 divider 本身在 #activities-content-section 內 display:none，加 class 不產生可見滑動。 -->
-            <div class="list-item-divider list-reveal-row"></div>
-          </div>
-        </div>
-      `;
-      container.insertAdjacentHTML('beforeend', html);
-    });
-
-    // 斑馬紋灰白交替（同 loadListInto activities-data-loader.js:1469）：全域計數標記偶數 .list-item；
-    // 每張 card 一個 .list-item → 逐年交替。CSS 只在 #activities-content-section 上色，degree-show panel 在其內故生效。
-    container.querySelectorAll('.list-item').forEach((el, i) => el.classList.toggle('list-item-zebra', i % 2 === 0));
-
-    // 七輪：封面載好才滑入（抄 activities poster 小段；wrapper 恆 overflow-hidden＝遮罩、無 hover rotate 故無組合契約、rot 恆空）。
-    container.querySelectorAll('.degree-show-img[data-pending-reveal]').forEach(el => {
-      const img = /** @type {HTMLImageElement} */ (el);
-      const reveal = () => {
-        if (!img.dataset.pendingReveal) return;
-        delete img.dataset.pendingReveal;
-        img.style.transition = 'transform var(--dur-slow) var(--ease-wipe)';
-        img.style.transform = 'translate(0%, 0%)';
-        const clr = (e) => {
-          if (e.target !== img || e.propertyName !== 'transform') return;
-          img.style.transition = ''; img.style.transform = '';
-          img.removeEventListener('transitionend', clr);
-        };
-        img.addEventListener('transitionend', clr);
-      };
-      if (img.complete && img.naturalWidth) reveal();
-      else img.addEventListener('load', reveal, { once: true });
-    });
-
-    // Hover：accent 底色套在斑馬列本身，觸發區＝整條斑馬列（＝點擊連結區，比照 admission list-header 整列 hover）。
-    // 用 inline style 設底色：斑馬灰 bg 是 #activities-content-section 下 ID scope（specificity 高），inline 才蓋得過。
-    if (window.innerWidth >= 768) {
-      container.querySelectorAll('.degree-show-card').forEach(card => {
-        const content = /** @type {HTMLElement | null} */ (card.querySelector('.degree-show-card-content'));
-        const color = getComputedStyle(card).getPropertyValue('--card-color').trim();
-        if (!content) return;
-        content.addEventListener('mouseenter', () => { content.style.backgroundColor = color; });
-        content.addEventListener('mouseleave', () => { content.style.backgroundColor = ''; });
-      });
-    }
-
-    // 不在 loader 內 setup/play reveal — activities-section-switch 統一用 setupAdmissionReveal +
-    // playAdmissionPanelReveal 處理整個 panel（含 description / search bar / cards），維持跟其他
-    // list panel（admission / activities / workshops 等）一致的進場時序，無 hardcoded delay 0.8s 等待
-  } catch (error) {
-    console.error('Error loading degree show data:', error);
-  }
 }
 
 export async function loadDegreeShowDetail() {
@@ -256,6 +119,12 @@ export async function loadDegreeShowDetail() {
       if (mYearEl) mYearEl.textContent = year;
       setHeroTitle(mTitleEnEl, data.title_en);
       setHeroTitle(mTitleZhEl, data.title);
+
+      // Hero 圖：只吃後台 heroImage；沒上傳＝桌面 banner／手機 bg 整塊不渲染（空 img＝破圖框，user 2026-10-21）。
+      // 必須在 initHeroMobileSync 前填：它把桌面 img src 抄到手機 bg（原本在後面填＝手機永遠抄到空 src）
+      const heroImg = /** @type {HTMLImageElement | null} */ (document.getElementById('hero-img'));
+      if (!data.heroImage) document.querySelectorAll('.hero-banner, .hero-mobile-bg').forEach(el => el.remove());
+      else if (heroImg) heroImg.src = data.heroImage;
 
       // 桌面 → 手機 hero DOM clone：必須在 initHeroAnimation 之前
       // （hero-animation 對 [data-hero-hl] 套色時手機 chip 內容已要在）
@@ -409,13 +278,6 @@ export async function loadDegreeShowDetail() {
           kvBox.classList.remove('has-kv');
           kvImg.removeAttribute('src');
         }
-      }
-
-      // Hero Image：只吃後台 heroImage；沒有＝不顯示（HTML 不放佔位圖，user 2026-10-04）
-      const heroImg = /** @type {HTMLImageElement | null} */ (document.getElementById('hero-img'));
-      if (heroImg) {
-        if (data.heroImage) heroImg.src = data.heroImage;
-        else heroImg.style.visibility = 'hidden';
       }
 
       // Per-event galleries：桌面一屏 tab 切換、手機每 event 一段（renderEventGalleries）
@@ -749,7 +611,9 @@ function setupNextProject(prev, next) {
   [document.getElementById('prev-link'), document.getElementById('next-link')].forEach(link => {
     if (!link) return;
     link.style.overflow = 'clip';
-    link.style.transform = `rotate(${localRot()}deg)`;
+    const deg = localRot();
+    link.dataset.rot = String(deg);   // hover 轉正、離開換新角（setupHover）要跟這個角比
+    link.style.transform = `rotate(${deg}deg)`;
   });
 
   // Labels：rotation 各自隨機（init 時固定）；底色 cardColor 改為每次 mouseenter 重新挑
@@ -798,7 +662,7 @@ function setupNextProject(prev, next) {
     labels.style.right = placement.right || '';
     labels.style.top = placement.top || '';
     labels.style.bottom = placement.bottom || '';
-    requestAnimationFrame(() => keepLabelsInViewport(labels));
+    keepLabelsInViewport(labels);   // 同步量：caller 已把 link 瞬設到終態 0°（hover 轉正），等 rAF 會量到補間中的角度
   };
   ['prev', 'next'].forEach(key => {
     LABEL_IDS.forEach(id => {
@@ -911,6 +775,10 @@ function setupNextProject(prev, next) {
       myLink.style.zIndex = '3';
       if (otherLink) otherLink.style.zIndex = '1';
       shownLabelsKey = myKey;
+      // 海報 hover 轉正（全站卡片圖片規則，user 2026-10-21）：先瞬設 0° 讓下方 labels 定位在終態角度量，
+      // 同一幀再從原角補間回 0（中間沒有 paint＝不閃）
+      const fromRot = gsap.getProperty(myLink, 'rotation');
+      gsap.set(myLink, { rotation: 0, overwrite: true });
 
       // 每次 hover 重新挑 cardColor（不一定每次都一樣），同步套到 3 個 chip
       // 同時每次 hover 重新 random 旋轉角度（chip 此時 clip-path 還是 hidden，新角度會在 reveal 時直接呈現）
@@ -964,10 +832,14 @@ function setupNextProject(prev, next) {
       void otherClip.offsetHeight;
       otherClip.style.transition = 'clip-path var(--dur-medium) var(--ease-wipe)';
       otherClip.style.clipPath = dir.shown;
+      gsap.fromTo(myLink, { rotation: fromRot }, { rotation: 0, duration: DUR.fast, ease: EASE.enterSoft });
     });
 
     myLink.addEventListener('mouseleave', () => {
       if (shownLabelsKey === myKey) shownLabelsKey = null;
+      const deg = SCCDHelpers.rerollAngle(localRot, myLink.dataset.rot);   // 離開換新角（跟上次靜止角差 ≥1°）
+      myLink.dataset.rot = String(deg);
+      gsap.to(myLink, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft, overwrite: true });
       if (myLabels) {
         const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('p'));
         chips.forEach((chip) => {
@@ -1072,10 +944,15 @@ function eventBoxesHtml(ev) {
   const stack = (...parts) => { const h = parts.join(''); return h && `<div class="flex flex-col gap-xs">${h}</div>`; };
   const guests = (Array.isArray(ev.guests) ? ev.guests : [])
     .map(g => pair(fmtGuestLine(g.nameEn, g.akaEn || g.akaZh, g.country, false), fmtGuestLine(g.nameZh, g.akaZh || g.akaEn, g.country, true)));
+  // 城市／國家接在地點後面的括號裡、不另起一行（user 2026-10-21）；英文半形 ( )、中文全形（）同講者國名
+  const withCity = (loc, city, zh) => {
+    const l = escapeHtml(loc || ''), c = escapeHtml(city || '');
+    return l && c ? (zh ? `${l}（${c}）` : `${l} (${c})`) : (l || c);
+  };
   return [
     ev.time ? `<p class="font-bold">${escapeHtml(ev.time)}</p>` : '',
     stack(...guests),
-    stack(pair(escapeHtml(ev.locationEn || ''), escapeHtml(ev.location || '')), pair(escapeHtml(ev.cityEn || ''), escapeHtml(ev.city || ''))),
+    pair(withCity(ev.locationEn, ev.cityEn, false), withCity(ev.location, ev.city, true)),
   ].filter(Boolean).map(h => `<div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">${h}</div>`).join('');
 }
 
@@ -1093,7 +970,7 @@ function buildDesktopEventTabs(root, items) {
   section.innerHTML = `
     <div class="dsd-event-tabs-row site-container relative z-10">
       <div class="grid-20">
-        <div class="md:col-start-4 md:col-span-17 flex flex-wrap items-center gap-[calc(var(--spacing-gutter)+var(--spacing-sm))]">
+        <div class="md:col-start-4 md:col-span-17 dsd-event-tabs-scroller flex items-center gap-[calc(var(--spacing-gutter)+var(--spacing-sm))]">
           ${items.map(it => `<button type="button" class="class-division-btn font-bold text-left">${line(it.en)}${line(it.zh)}</button>`).join('')}
         </div>
       </div>
@@ -1119,9 +996,22 @@ function buildDesktopEventTabs(root, items) {
   rowRO.observe(row);
   registerPageCleanup(() => rowRO.disconnect());
 
+  // tab 單排往右延伸出視窗（CSS .dsd-event-tabs-scroller）：滑鼠按住左右拖、觸控板原生橫捲（同 footer tab 列）
+  const scroller = /** @type {HTMLElement} */ (section.querySelector('.dsd-event-tabs-scroller'));
+  makeTabsDraggable(scroller);
+  // 點到被左右裁掉一截的 tab → 捲到整顆露出（只動 scroller 自己的 scrollLeft、不連帶垂直）
+  const revealTab = (btn) => {
+    const s = scroller.getBoundingClientRect(), b = btn.getBoundingClientRect(), cs = getComputedStyle(scroller);
+    const over = b.right - (s.right - parseFloat(cs.paddingRight));
+    const under = b.left - (s.left + parseFloat(cs.paddingLeft));
+    const delta = over > 0 ? over : Math.min(under, 0);
+    if (delta) scroller.scrollTo({ left: scroller.scrollLeft + delta, behavior: 'smooth' });
+  };
+
   const tabs = /** @type {HTMLElement[]} */ (Array.from(section.querySelectorAll('.class-division-btn')));
   const panels = /** @type {HTMLElement[]} */ (Array.from(section.querySelectorAll('.class-info-panel')));
   const boxes = panels.map(p => /** @type {HTMLElement[]} */ (Array.from(p.querySelectorAll('[data-class-hl]'))));
+  boxes.flat().forEach(tiltCardMask);
   // textHlEl:null＝slideshow 只管圖；三塊 box 的進退場在下面自己做
   // 圖往右延伸到視窗邊（user 2026-10-20，容器右緣推出去見 variables.css）：5 格（左緣 0～96% 容器寬）＝最後一格必定伸出視窗；
   //   圖不夠 5 張就只放實際張數（不重複同一張）。adaptiveSlots 只看格數，位置照容器寬重算
@@ -1197,6 +1087,7 @@ function buildDesktopEventTabs(root, items) {
     btn.addEventListener('mouseleave', () => { if (i !== activeIdx) paint(btn, ''); });
     btn.addEventListener('click', () => {
       if (i === activeIdx) return;   // 點已 active 的無效
+      revealTab(btn);
       const color = btn.dataset.color || SCCDHelpers.getRandomAccentColor();   // 沿用 hover 預覽色
       activeIdx = i;
       tabs.forEach(b => { b.classList.toggle('active', b === btn); if (b !== btn) paint(b, ''); });
@@ -1846,6 +1737,22 @@ function snugChipWidth(inner) {
   if (outer) outer.style.transform = savedTransform;  // 還原旋轉
 }
 
+// 窄視窗長英文字要斷且帶 dash（user 2026-10-21）：只有「單字比色卡寬上限還寬」才在「子音＋母音」前插 soft hyphen
+// （Com-mu-ni-ca-tion，前留 2、後留 3 字母）。放得下的字不插：瀏覽器斷字是貪婪的，插了連 Design 都會被斷成 De-sign。
+// 不用 CSS hyphens:auto＝Windows Chrome 實測不斷字。ponytail: 粗略音節規則、子音群會斷錯（Int-ros-pec-tion），不夠準再換斷字字典庫
+const SYLLABLE_BREAK = /(?<=[a-z]{2})(?=[b-df-gj-np-tv-z][aeiouy][a-z])/gi;
+/** @param {HTMLElement} el @param {string} text */
+function hyphenateOverflowWords(el, text) {
+  const inner = el.closest('.sticky-chip-inner');
+  if (!inner) return;
+  const cs = getComputedStyle(inner);
+  const avail = parseFloat(cs.maxWidth) - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx || !(avail > 0)) { el.textContent = text; return; }
+  ctx.font = getComputedStyle(el).font;
+  el.textContent = text.replace(/\S+/g, (w) => (ctx.measureText(w).width > avail ? w.replace(SYLLABLE_BREAK, '\u00AD') : w));
+}
+
 // 每張 chip 隨機旋轉，整卡隨機 accent 底色
 /** @param {{ title?: string, title_en?: string }} data */
 function setupStickyAndHeroChips(data, year) {
@@ -1858,14 +1765,14 @@ function setupStickyAndHeroChips(data, year) {
   const titleChip = document.getElementById('sticky-title-chip');
   const titleEnEl = document.getElementById('sticky-title-en');
   const titleZhEl = document.getElementById('sticky-title');
-  // 返回按鈕跟 sticky title 同步 fade（同 trigger 範圍），只有顯示時可點
+  // 返回按鈕跟 sticky title 同步 reveal（同 trigger 範圍；上下屆段 title 收、它留著），只有顯示時可點
   const backBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-back-btn'));
-  if (backBtn) {
-    bindNavBtnHover(backBtn);   // hover 隨機三原色＝黑方塊 icon 鈕家族（CSS 在 hero.css）
-    // hover 抽新角、離開保持（全站 arrow-spin；user 2026-10-20，原 CSS :hover 固定 15° 離開彈回）。轉 inner：外層 transform 是 JS 的隨機底角
-    const inner = /** @type {HTMLElement | null} */ (backBtn.querySelector('.sticky-chip-inner'));
-    if (inner) bindArrowSpin(backBtn, (/** @type {number} */ d) => { inner.style.transform = `rotate(${d}deg)`; });
-  }
+  // 分享鈕（user 2026-10-21）：返回鈕右邊、同組（同款 hover／遮罩／顯隱）；share-modal 預設網址會砍 ?query → 明寫本頁網址
+  const shareBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-share-btn'));
+  if (shareBtn) shareBtn.dataset.shareUrl = window.location.href;
+  const backGroup = /** @type {HTMLElement[]} */ ([backBtn, shareBtn].filter(Boolean));
+  const isBackLike = (/** @type {Element} */ c) => backGroup.includes(/** @type {HTMLElement} */ (c));
+  backGroup.forEach(b => bindNavBtnHover(b));   // hover 隨機三原色＝黑方塊 icon 鈕家族（CSS 在 hero.css）
   // Ref btn：setupRefBtn 已決定是否 display:none（無 refs 時整顆消失）；display:none 時不加進 titleChips 陣列
   const refBtnEl = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-ref-btn'));
   const refBtn = (refBtnEl && refBtnEl.style.display !== 'none') ? refBtnEl : null;
@@ -1894,13 +1801,23 @@ function setupStickyAndHeroChips(data, year) {
   if (yearInner) /** @type {HTMLElement} */ (yearInner).style.background = cardColor; // year box 跟 title 同底色（user 2026-08-18）
   titleChip.style.transform = `rotate(${randRot()}deg)`;
   if (yearChip) yearChip.style.transform = `rotate(${randRot()}deg)`;
-  if (backBtn) backBtn.style.transform = `rotate(${randRot()}deg)`;
+  backGroup.forEach(b => {
+    // hover 抽新角、離開保持（全站 arrow-spin）。角度全在外層（同 clip-path 那層）＝遮罩永遠是方塊自己旋轉後的形狀
+    // （user 2026-10-21；原本 hover 角轉 inner、遮罩停在底角）
+    const base = randRot();
+    b.style.transform = `rotate(${base}deg)`;
+    bindArrowSpin(b, (/** @type {number} */ d) => { b.style.transform = `rotate(${d}deg)`; }, { initial: base });
+  });
   if (refBtn) refBtn.style.transform = `rotate(${randRot()}deg)`;
 
   // chip 寬度貼齊文字（左右 padding 對稱）：title 在 fonts.ready 後量（字型未載完量錯寬）。
   // resize 重量（max-width col-span-4 隨 viewport 變、JS 鎖的是定 px 會 stale）。
-  if (titleInner) (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => snugChipWidth(titleInner));
-  const resnugChips = () => { if (titleInner) snugChipWidth(titleInner); };
+  // 先斷長字再量寬：hyphenateOverflowWords 換掉文字後 snugChipWidth 才量得到新行寬
+  const resnugChips = () => {
+    hyphenateOverflowWords(titleEnEl, data.title_en || '');
+    if (titleInner) snugChipWidth(titleInner);
+  };
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(resnugChips);
   window.addEventListener('resize', resnugChips);
   registerPageCleanup(() => window.removeEventListener('resize', resnugChips));
 
@@ -1919,21 +1836,26 @@ function setupStickyAndHeroChips(data, year) {
   };
   const bufHidden = (el, dir) => ({ clipPath: BUF_CLIP[dir], translate: navChipHidden(el, dir).translate });
 
-  // titleChips = [titleChip, backBtn, refBtn]：三者描述段 reveal、next-project 段 collapse 全程同步
+  // titleChips = [year, title, back, share, ref]：描述段 reveal、next-project 段 collapse 全程同步
   // refBtn 若 setupRefBtn 已 hide（無 refs）則不加入
   const titleChips = [];
   if (yearChip && yearChip.style.display !== 'none') titleChips.push(yearChip); // 年份在最上、reveal 由上往下起
   titleChips.push(titleChip);
-  if (backBtn) titleChips.push(backBtn);
+  titleChips.push(...backGroup);
   if (refBtn) titleChips.push(refBtn);
+  // 返回／分享鈕遮罩＝自己的方塊（不帶 -12 buffer：它 hover 轉的是外層、角不會凸出遮罩）；其餘 chip 照舊 buffered
+  const chipClip = (chip, visible) => isBackLike(chip)
+    ? (visible ? NAV_CHIP_SHOWN.clipPath : navChipHidden(chip, 'bottom').clipPath)
+    : (visible ? SHOWN : HIDDEN);
   // 初始藏定位：CSS 已給 clip HIDDEN，補 translate hidden 讓「第一次」reveal 也滑入（非只原地 wipe）。
   // 'bottom' 用高度算位移 → 不受後續 snugChipWidth 改寬影響。title/back/ref 群統一由下往上滑（成組節奏一致）。
-  titleChips.forEach(chip => { chip.style.translate = bufHidden(chip, 'bottom').translate; });
+  titleChips.forEach(chip => { chip.style.translate = bufHidden(chip, 'bottom').translate; chip.style.clipPath = chipClip(chip, false); });
 
   function setChipsState(chips, visible, stagger = 0.08) {
     chips.forEach((chip, i) => {
-      chip.style.transitionDelay = `${i * stagger}s`;
-      chip.style.clipPath = visible ? SHOWN : HIDDEN;
+      // 返回鈕多一條 transform（hover 轉角）過渡：delay 只給 clip/translate，hover 轉角不延遲
+      chip.style.transitionDelay = isBackLike(chip) ? `${i * stagger}s, ${i * stagger}s, 0s` : `${i * stagger}s`;
+      chip.style.clipPath = chipClip(chip, visible);
       chip.style.translate = visible ? NAV_CHIP_SHOWN.translate : bufHidden(chip, 'bottom').translate;
     });
   }
@@ -1948,6 +1870,7 @@ function setupStickyAndHeroChips(data, year) {
   const descSection = ['dsd-desc-section', 'video-outer-section', 'event-galleries-root', 'documentary-outer-section']
     .map(id => document.getElementById(id)).find(el => el && el.offsetHeight > 0) || null;
   let cardShown = false;
+  let backShown = false;   // 返回鈕在上下屆段（card 已收）仍留著 → 獨立狀態
 
   // hero 文字「只進場一次（load 由 hero-animation 動一次）然後就 stay、跟著頁面自然捲走」（user 2026-06-08）。
   // 不再收/展 hero（原本 instant visibility 切換會在 sticky 出現時讓 hero「跳一下消失」= user 不要的）。
@@ -1959,10 +1882,11 @@ function setupStickyAndHeroChips(data, year) {
   function showCard() {
     if (cardShown) return;
     cardShown = true;
+    backShown = true;
     card.style.visibility = 'visible';
     gsap.to(card, { opacity: 1, duration: DUR.fast, ease: EASE.enterSoft, overwrite: true });
     // backBtn / refBtn clip-path 收起時不該被點到 — show 時立即 visible 讓 hit-test 開啟
-    if (backBtn) backBtn.style.visibility = 'visible';
+    backGroup.forEach(b => { b.style.visibility = 'visible'; });
     if (refBtn) refBtn.style.visibility = 'visible';
     // sticky chip reveal（hero 不再收/展，trigger 已延後到 hero 捲離 → 不會重疊）
     if (stickyRevealTimer) { clearTimeout(stickyRevealTimer); stickyRevealTimer = null; }
@@ -1971,12 +1895,14 @@ function setupStickyAndHeroChips(data, year) {
       setChipsState(titleChips, true);
     }, STICKY_REVEAL_DELAY_MS);
   }
-  function hideCard() {
-    if (!cardShown) return;
+  // keepBack：往下進上下屆段＝title/year/ref 收、返回鈕留著（user 2026-10-21）；往上回 hero 才連它一起收
+  function hideCard(keepBack = false) {
+    if (!cardShown && (keepBack || !backShown)) return;
     cardShown = false;
+    if (!keepBack) backShown = false;
     // 取消 pending sticky reveal — 避免「showCard 排好延遲、user 快速 scroll 回去」期間 reveal 仍會 fire
     if (stickyRevealTimer) { clearTimeout(stickyRevealTimer); stickyRevealTimer = null; }
-    setChipsState(titleChips, false);
+    setChipsState(keepBack ? titleChips.filter(c => !isBackLike(c)) : titleChips, false);
     // ref btn 跟著 clip-collapse 消失 → open 中的 ref popover 一起收起（不留在原位）
     if (refBtn && typeof (/** @type {any} */ (refBtn)._closeRefPopover) === 'function') {
       /** @type {any} */ (refBtn)._closeRefPopover();
@@ -1990,9 +1916,9 @@ function setupStickyAndHeroChips(data, year) {
       onComplete: () => { if (!cardShown) card.style.visibility = 'hidden'; },
     });
     // backBtn / refBtn clip-path collapse 完成（0.5s + 最後 chip stagger delay 0.16s ≈ 0.66s）→ 設 hidden 阻擋 hit-test
-    if (backBtn) {
+    if (backGroup.length) {
       setTimeout(() => {
-        if (!cardShown && backBtn) backBtn.style.visibility = 'hidden';
+        if (!backShown) backGroup.forEach(b => { b.style.visibility = 'hidden'; });
       }, 700);
     }
     if (refBtn) {
@@ -2007,8 +1933,9 @@ function setupStickyAndHeroChips(data, year) {
   // title/back/ref chip 一起 clip-path collapse（沿用 setChipsState 的 CSS clip 收合），
   // 回 Promise 讓 router await（clip 0.6s + 末 chip stagger ≈ 0.66s → 700ms）；沒顯示則 no-op。
   registerPageExit(() => {
-    if (!cardShown) return Promise.resolve();
-    setChipsState(titleChips, false);
+    const chips = cardShown ? titleChips : (backShown ? backGroup : []);
+    if (!chips.length) return Promise.resolve();
+    setChipsState(chips, false);
     return new Promise(res => setTimeout(res, 700));
   });
 
@@ -2027,9 +1954,9 @@ function setupStickyAndHeroChips(data, year) {
       endTrigger: nextProjectSection,
       end: 'top center',        // next-project top 過 viewport center → sticky 全收
       onEnter: showCard,
-      onLeave: hideCard,
+      onLeave: () => hideCard(true),
       onEnterBack: showCard,
-      onLeaveBack: hideCard,
+      onLeaveBack: () => hideCard(),
     });
   }
 }

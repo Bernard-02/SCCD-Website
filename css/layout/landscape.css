@@ -1494,6 +1494,7 @@
      ① 桌面 sticky info card / 返回鍵 / ref 鍵 / next-project overlap stage 全藏（JS setupStickyAndHeroChips 已 isMobileView 早退不填內容）。 */
   #sticky-info-card,
   #degree-show-back-btn,
+  #degree-show-share-btn,
   #degree-show-ref-btn,
   #next-project-section > #next-project-stage {
     display: none;

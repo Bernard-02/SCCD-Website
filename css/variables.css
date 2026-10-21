@@ -256,10 +256,13 @@
   }
   /* box 欄寬上限＝col 4～col 8（15 欄內容區的 5 欄＋4 gap，user 2026-10-20）；box 比它窄就貼字（fitCardToText）→ 欄寬＝最寬那塊。
      三塊總高超過框＝整欄內捲 */
+  /* box 微傾（tiltCardMask ±1.5°）斜角會被內捲盒裁 → 四邊留 xs 旋轉空間、等值負 margin 拉回＝視覺位置不變（同 tab 列） */
   .dsd-event-boxes {
     flex: 0 1 auto;
-    max-width: calc((100% - 14 * var(--spacing-gutter)) * 5 / 15 + 4 * var(--spacing-gutter));
-    max-height: var(--dsd-area-h);
+    max-width: calc((100% - 14 * var(--spacing-gutter)) * 5 / 15 + 4 * var(--spacing-gutter) + 2 * var(--spacing-xs));
+    max-height: calc(var(--dsd-area-h) + 2 * var(--spacing-xs));
+    padding: var(--spacing-xs);
+    margin: calc(-1 * var(--spacing-xs));
     overflow-y: auto;
     overflow-x: hidden;   /* fitCardToText 的 +1px 防折行會比欄寬多 1px → 不擋就冒橫向捲軸 */
     display: flex;
@@ -273,8 +276,20 @@
   .dsd-event-tabs-section .class-info-panel .division-images {
     margin-right: calc(-1 * (var(--container-padding) + 2 * ((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter))));
   }
-  /* 長名換行（同 about 分組鈕 max-width 折行），免一排擠出畫面 */
-  .dsd-event-tabs-section .class-division-btn { max-width: 260px; }
+  /* tab 單排往右無限延伸（user 2026-10-21）：不折行、右緣推到視窗邊被裁，滑鼠拖／觸控板橫捲（JS makeTabsDraggable）。
+     overflow-x 連帶裁 y → 上下左留旋轉角空間（tab ≤260 寬、最大 6° 角凸 ~14px）、等值負 margin 拉回＝視覺位置不變；
+     右 padding＝container padding＝捲到底最後一顆停在 col 20 右緣。overflow-y:hidden＝隱藏態 tab 上下位移不生直向捲程（否則吃滾輪） */
+  .dsd-event-tabs-scroller {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    padding: var(--spacing-md) var(--container-padding) var(--spacing-md) var(--spacing-md);
+    margin: calc(-1 * var(--spacing-md)) calc(-1 * var(--container-padding)) calc(-1 * var(--spacing-md)) calc(-1 * var(--spacing-md));
+  }
+  .dsd-event-tabs-scroller::-webkit-scrollbar { display: none; }
+  /* 長名在 260 內折行；不壓窄（壓窄＝字折更多行），多的往右排出去 */
+  .dsd-event-tabs-section .class-division-btn { max-width: 260px; flex-shrink: 0; }
 }
 .class-img {
   position: absolute;

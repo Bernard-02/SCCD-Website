@@ -131,6 +131,16 @@
       </span>
     </a>
 
+    <!-- 分享鈕：返回鈕右邊、同款（user 2026-10-21）；全站 share-modal（[data-share-btn]）接管，
+         data-share-url 由 JS 寫本頁網址（預設推算會砍掉 ?query＝丟掉是哪一屆） -->
+    <button type="button" id="degree-show-share-btn" data-share-btn
+            class="sticky-chip hidden md:block"
+            aria-label="分享 Share">
+      <span class="sticky-chip-inner">
+        <span class="icon icon-share"></span>
+      </span>
+    </button>
+
     <!-- Ref 按鈕：back btn 右邊；點擊展開 ref chip list（論壇 / 工作營 / 講座 等 non-exhibition events 的 refs）
          JS 在 loadDegreeShowDetail 內 setupRefBtn 動態填 popover；無 refs → 整顆 hidden
          結構 / 樣式跟 back btn 一樣（sticky-chip + strict B/W），clip-reveal 由 setupStickyAndHeroChips 同步控
