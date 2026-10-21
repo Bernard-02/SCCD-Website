@@ -388,7 +388,12 @@ function openCourseSlideIn(card, onOpened) {
   deskMode = SCCDHelpers.isDesktopLayout();
   const titleDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2);
   const titleBox = /** @type {HTMLElement|null} */ (panel.querySelector('.courses-detail-title-box'));
-  if (titleBox) titleBox.style.transform = deskMode ? `rotate(${titleDeg.toFixed(2)}deg)` : '';
+  if (titleBox) {
+    titleBox.style.transform = deskMode ? `rotate(${titleDeg.toFixed(2)}deg)` : '';
+    // 轉後的頂／底角留在卡片內距內（user 2026-10-21）：上下各讓出旋轉外擴量（offsetWidth/Height＝未旋轉尺寸）
+    const t = Math.abs(titleDeg) * Math.PI / 180, w = titleBox.offsetWidth, h = titleBox.offsetHeight;
+    titleBox.style.marginBlock = deskMode ? `${((h * Math.cos(t) + w * Math.sin(t) - h) / 2).toFixed(2)}px` : '';
+  }
   [enT, zhT].forEach(el => {
     if (!el) return;
     el.style.transform = deskMode ? '' : `rotate(${titleDeg}deg)`;
@@ -396,21 +401,6 @@ function openCourseSlideIn(card, onOpened) {
     el.style.display = 'block';
     el.style.width = 'fit-content';
   });
-
-  // desc 貼「旋轉後 title 實際底邊」而非未旋轉 layout 底：正角旋轉讓 ZH 標題右下角下沉、吃掉桌面 flex gap（md:gap-lg 2rem）。
-  // 量 ZH 旋轉後 bbox 底 − sticky 容器 layout 底 = 下沉量，補進 desc margin-top → 視覺 gap 仍 = 旋轉底 + 該 flex gap。
-  // 只桌面（gap-lg 生效）；手機/矮橫向 title 自帶 padding-bottom，且 inline margin 會蓋掉 landscape override → 清空。
-  const descWrap = panel.querySelector('.courses-detail-desc-wrapper');
-  if (descWrap) {
-    const isDesktopLayout = SCCDHelpers.isDesktopLayout();
-    const sticky = zhT && zhT.closest('.courses-detail-title-sticky');
-    if (isDesktopLayout && sticky) {
-      const dip = zhT.getBoundingClientRect().bottom - sticky.getBoundingClientRect().bottom;
-      descWrap.style.marginTop = dip > 0.5 ? `${dip}px` : '';
-    } else {
-      descWrap.style.marginTop = '';
-    }
-  }
 
   const panelBg = accent || 'white';
   panel.style.backgroundColor = panelBg;

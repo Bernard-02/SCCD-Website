@@ -117,18 +117,19 @@
     }
   }
 
-  /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative、left -12px 保留往左凸的位置），每顆 chip 之間一律全站
+  /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative），每顆 chip 之間一律全站
      --nav-btn-gap（bar／group HTML 皆 md:gap-[var(--nav-btn-gap)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
      矮橫向（landscape.css）／直向手機（absolute、JS --courses-bar-padtop）各有規則，min-height 501 排除矮橫向。 */
+  /* 第一層（BFA 小標題、MDES）貼 logo 框左緣（＝欄左緣 0）、第二層組別鈕內縮 12（user 2026-10-21；原第一層 -12 外凸、組別貼 logo） */
   @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
       position: relative;
       bottom: auto;
+      left: 0;
     }
-    /* MDES 跟「BFA 小標題」同層（BFA 底下兩顆組別才是第二層）→ 左緣對齊小標題的 -12 */
-    .courses-program-bar > .courses-program-btn[data-program="mdes"] {
+    .courses-program-group > .courses-program-btn {
       position: relative;
-      left: -12px;
+      left: 12px;
     }
   }
 
@@ -368,9 +369,7 @@
   #courses-overlay {
     transition: opacity var(--dur-fast) ease;
   }
-  #courses-detail-panel {
-    transition: background var(--dur-fast) ease;
-  }
+  /* panel 底色不設 transition：開卡才寫 accent，過渡＝白→卡片色淡入（user 2026-10-21 要取消） */
   .courses-detail-title-en,
   .courses-detail-title-zh,
   .courses-detail-desc-en,

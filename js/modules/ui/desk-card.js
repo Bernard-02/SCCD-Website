@@ -8,13 +8,11 @@
  */
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
-import { randomRevealDir, navChipHidden, NAV_CHIP_SHOWN } from './scroll-animate.js';
+import { randomRevealDir, revealHidden, navChipHidden, NAV_CHIP_SHOWN, randomCardTilt } from './scroll-animate.js';
+import { registerPageCleanup } from './page-cleanup.js';
 
-// 返回鍵 inner clip-reveal：每次開隨機四向滑入、退場沿原方向滑回
-const BACK_DIRS = [
-  { xPercent: 0, yPercent: 100 }, { xPercent: 0, yPercent: -100 },
-  { xPercent: 100, yPercent: 0 }, { xPercent: -100, yPercent: 0 },
-];
+// 返回鍵 inner clip-reveal：每次開隨機四向滑入、退場沿原方向滑回。
+// 隱藏量用 revealHidden 的 ±110：±100＝內層邊緣剛好貼遮罩邊，鈕會旋轉 → 抗鋸齒留一條 1px（user 2026-10-21）
 // 類與類之間錯開（user 2026-10-20：一類同拍整批進、類內不逐列錯開）
 const BLOCK = 0.25;
 
@@ -68,63 +66,137 @@ function clipSlide(tl, el, show, vars, pos) {
  */
 export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => false }) {
   let tl = null;   // proxy tween 不在 DOM 上 → killTweensOf 殺不到，自留 ref 顯式 kill
-  let backHidden = BACK_DIRS[0];
+  let backDir = 'bottom';
   const enteredIds = new Set();   // 本次造訪已完整進場過的項目
   const backInner = () => backBtn && /** @type {HTMLElement|null} */ (backBtn.querySelector('.slide-in-back-square-inner'));
-  const kill = () => { if (tl) { tl.kill(); tl = null; } };
+  const kill = () => { if (tl) { tl.kill(); tl = null; } ro?.disconnect(); ro = null; };
+  // 卡外連點只吃第一下（user 2026-10-21）：收卡後同一串連點（e.detail ≥ 2）穿到底下的卡片會又開一張、再被關＝像卡住
+  // → 捕獲階段吞掉；下一次單擊（detail 1）才恢復
+  let swallowBurst = false;
+  const onClickCapture = (e) => {
+    if (!swallowBurst) return;
+    if (e.detail > 1) { e.stopPropagation(); e.preventDefault(); } else swallowBurst = false;
+  };
+  document.addEventListener('click', onClickCapture, true);
+  registerPageCleanup(() => document.removeEventListener('click', onClickCapture, true));
+  /** @type {ResizeObserver|null} */
+  let ro = null;
+  // 返回鍵中心＝色卡轉後的左下角：top 釘未旋轉的卡底（卡垂直置中、高隨內容）；translate 補旋轉位移
+  // （offsetWidth/Height＝未旋轉尺寸）；寫 translate、不碰 arrow-spin 的 transform
+  function placeBack(deg) {
+    if (!backBtn) return;
+    backBtn.style.top = `${panel.offsetTop + panel.offsetHeight - backBtn.offsetHeight / 2}px`;
+    const t = deg * Math.PI / 180, hw = panel.offsetWidth / 2, hh = panel.offsetHeight / 2;
+    backBtn.style.translate = `${(-hw * (Math.cos(t) - 1) - hh * Math.sin(t)).toFixed(2)}px ${(-hw * Math.sin(t) + hh * (Math.cos(t) - 1)).toFixed(2)}px`;
+  }
+
+  // 捲動框自製 thumb（cards.css 真桌面段藏原生）：原生 scrollbar 不能位移＝做不了 clip-reveal 進場（user 2026-10-21）。
+  // 外層 .desk-scroll-thumb＝遮罩、跟捲動位置走；內層＝色條、做 clip-reveal。首次開卡才建（手機不走 open）
+  const scroller = /** @type {HTMLElement|null} */ (panel.querySelector('.list-scroll'));
+  /** @type {HTMLElement|null} */ let thumb = null;
+  /** @type {HTMLElement|null} */ let thumbInner = null;
+  let thumbH = 0;
+  function placeThumb() {
+    if (!thumb || !scroller) return;
+    const ch = scroller.clientHeight, sh = scroller.scrollHeight;
+    thumb.style.display = sh > ch + 1 ? '' : 'none';
+    if (sh <= ch + 1) return;
+    thumbH = Math.max(40, ch * ch / sh);
+    let x = 0, y = 0;   // 捲動框在卡內的位置（offset 系＝未旋轉座標）
+    for (let el = /** @type {HTMLElement|null} */ (scroller); el && el !== panel; el = /** @type {HTMLElement|null} */ (el.offsetParent)) { x += el.offsetLeft; y += el.offsetTop; }
+    thumb.style.left = `${x + scroller.offsetWidth - thumb.offsetWidth}px`;
+    thumb.style.top = `${y + scroller.scrollTop / (sh - ch) * (ch - thumbH)}px`;
+    thumb.style.height = `${thumbH}px`;
+  }
+  function ensureThumb() {
+    if (thumb || !scroller) return;
+    thumb = document.createElement('div');
+    thumb.className = 'desk-scroll-thumb';
+    thumbInner = document.createElement('div');
+    thumbInner.className = 'desk-scroll-thumb-inner';
+    thumb.append(thumbInner);
+    panel.append(thumb);
+    scroller.addEventListener('scroll', placeThumb, { passive: true });
+    // 拖拉＝原生 thumb 行為：位移換算成捲動量
+    thumb.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      thumb.setPointerCapture(e.pointerId);
+      const y0 = e.clientY, s0 = scroller.scrollTop;
+      const move = (ev) => {
+        scroller.scrollTop = s0 + (ev.clientY - y0) * (scroller.scrollHeight - scroller.clientHeight) / (scroller.clientHeight - thumbH);
+      };
+      const up = () => ['pointermove', 'pointerup', 'pointercancel'].forEach((t, i) => thumb.removeEventListener(t, i ? up : move));
+      thumb.addEventListener('pointermove', move);
+      thumb.addEventListener('pointerup', up);
+      thumb.addEventListener('pointercancel', up);
+    });
+  }
 
   /** @param {{ id?: string, onOpened?: () => void }} [opts] */
   function open({ id, onOpened } = {}) {
     kill();
+    SCCDHelpers.releaseHover(backBtn);   // 收到一半又開：上次退場凍的 hover 色放掉
     document.documentElement.classList.add('has-slide-in', 'overlay-no-dim');
     clearClip(panel);   // 上次退場留下的位移先清再量
     // 色卡微傾 ±0.5–1.5°、每次開重抽（user 2026-10-20）；文字跟卡平行不另轉。clip-reveal 從 transform 讀角度、沿傾斜軸滑
-    const deg = +((Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random())).toFixed(2);
+    const deg = randomCardTilt();
     panel.style.transform = `rotate(${deg}deg)`;
-    // 返回鍵中心跟著轉後的左下角走：CSS 定位的是未旋轉的角（offsetWidth/Height＝未旋轉尺寸）；寫 translate、不碰 arrow-spin 的 transform
-    if (backBtn) {
-      const t = deg * Math.PI / 180, hw = panel.offsetWidth / 2, hh = panel.offsetHeight / 2;
-      backBtn.style.translate = `${(-hw * (Math.cos(t) - 1) - hh * Math.sin(t)).toFixed(2)}px ${(-hw * Math.sin(t) + hh * (Math.cos(t) - 1)).toFixed(2)}px`;
+    placeBack(deg);
+    ensureThumb();
+    if (scroller) scroller.scrollTop = 0;   // caller 也會歸零；先歸零才量得到 thumb 頂位
+    placeThumb();
+    // 卡高＝內容高（cards.css）：照片／字型晚到、視窗高變＝卡底跟著動 → 返回鍵重釘；內文高變 → thumb 重算
+    if (!ro && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => { placeBack(deg); placeThumb(); });
+      ro.observe(panel);
+      if (panel.parentElement) ro.observe(panel.parentElement);
+      if (scroller) [...scroller.children].forEach(c => ro.observe(c));
     }
     const blocks = getBlocks().map(b => /** @type {HTMLElement[]} */ (b.filter(Boolean))).filter(b => b.length);
     blocks.flat().forEach(clearClip);   // 進場中途被關留下的殘值
     const animate = typeof gsap !== 'undefined' && !prefersReducedMotion();
     const bi = backInner();
-    backHidden = BACK_DIRS[Math.floor(Math.random() * BACK_DIRS.length)];   // 也是這次退場方向
-    if (bi && typeof gsap !== 'undefined') gsap.set(bi, animate ? backHidden : { xPercent: 0, yPercent: 0 });
+    backDir = randomRevealDir();   // 也是這次退場方向
+    if (bi && typeof gsap !== 'undefined') gsap.set(bi, animate ? revealHidden(backDir) : { xPercent: 0, yPercent: 0 });
+    // 內容逐類分批只在這次造訪「該項目」第一次開卡跑，之後內容已在卡裡、跟著色卡一起揭（user 2026-10-20）；
+    // scrollbar 同理：再開＝跟著色卡揭、不另進場（user 2026-10-21）
+    const firstOpen = !enteredIds.has(id);
+    // thumb 不論現在要不要顯示都先藏好：內文晚到才需要捲時，它也是跟著這次的 tween 進來
+    if (thumbInner && typeof gsap !== 'undefined') gsap.set(thumbInner, animate && firstOpen ? revealHidden() : { xPercent: 0, yPercent: 0 });
     if (!animate) { onOpened?.(); return; }
 
-    // 內容逐類分批只在這次造訪「該項目」第一次開卡跑，之後內容已在卡裡、跟著色卡一起揭（user 2026-10-20）
-    const seq = enteredIds.has(id) ? [] : blocks;
+    const seq = firstOpen ? blocks : [];
     enteredIds.add(id);
     // 同 tick（paint 前）藏好：caller 剛拿掉 invisible。同一類的文字共用一個上下方向（整批像一塊進來）
     hideNow(panel, randomRevealDir());
     seq.forEach(b => { const v = vDir(); b.forEach(el => hideNow(el, isFourWay(el) ? randomRevealDir() : v)); });
-    // 捲動框 scrollbar 進場跑完才現（cards.css .is-entering 把 thumb 透明：寬度不變＝不跳版、照樣能捲）
-    panel.classList.add('is-entering');
     const enter = { duration: DUR.medium, ease: EASE.enter };
     const all = [panel, ...seq.flat()];
     // 完成才清 clip：留著 inset(0%…) 旋轉元素邊緣會失去抗鋸齒
     tl = gsap.timeline({ onComplete: () => {
       all.forEach(clearClip);
-      panel.classList.remove('is-entering');
       tl = null;
       onOpened?.();
     } });
     clipSlide(tl, panel, true, enter, 0);
     let at = DUR.medium;   // 色卡揭完才進內容（非首開 seq 空＝返回鍵緊接色卡）
     seq.forEach(b => { b.forEach(el => clipSlide(tl, el, true, enter, at)); at += BLOCK; });
-    if (bi) tl.fromTo(bi, backHidden, { xPercent: 0, yPercent: 0, ...enter, clearProps: 'transform' }, at);
+    // 返回鍵與 scrollbar 同拍最後進（scrollbar 等內容進完才現，user 2026-10-20）
+    if (bi) tl.fromTo(bi, revealHidden(backDir), { xPercent: 0, yPercent: 0, ...enter, clearProps: 'transform' }, at);
+    if (thumbInner && firstOpen) tl.to(thumbInner, { xPercent: 0, yPercent: 0, ...enter }, at);
   }
 
   /** @param {() => void} [onDone] 收完（caller 藏 slide-in、清底色、還焦點） */
   function close(onDone) {
     kill();
+    swallowBurst = true;
+    // 點返回鍵關＝它滑出游標底下時保持 hover 色（user 2026-10-21，同 header menu 鈕）；點卡外／ESC 關＝凍到的就是一般色
+    SCCDHelpers.holdHover(backBtn);
     const done = () => {
       tl = null;
-      panel.classList.remove('is-entering');   // 進場中途被關：scrollbar 藏到收完
+      SCCDHelpers.releaseHover(backBtn);
       panel.style.transform = '';               // 傾斜角下次開再抽（收完才清＝退場沿傾斜軸）
-      if (backBtn) backBtn.style.translate = '';
+      if (backBtn) { backBtn.style.translate = ''; backBtn.style.top = ''; }
       document.documentElement.classList.remove('has-slide-in', 'overlay-no-dim');
       onDone?.();
     };
@@ -134,7 +206,7 @@ export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => fa
     // 色卡用 DUR.medium：power3.in 前半幾乎不動，DUR.fast 實際只動 ~0.2s＝像閃一下沒動畫
     const bi = backInner();
     tl = gsap.timeline({ onComplete: done });
-    if (bi) tl.to(bi, { ...backHidden, duration: DUR.fast, ease: EASE.exit, overwrite: true }, 0);
+    if (bi) tl.to(bi, { ...revealHidden(backDir), duration: DUR.fast, ease: EASE.exit, overwrite: true }, 0);
     clipSlide(tl, panel, false, { duration: DUR.medium, ease: EASE.exit }, DUR.fast);
   }
 

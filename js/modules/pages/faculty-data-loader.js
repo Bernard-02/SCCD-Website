@@ -257,7 +257,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     return `
     <div class="faculty-card group cursor-pointer p-[6px]" data-category="${item.type}" data-faculty-id="${item.id}" data-img-dir="${imgDir}" style="--card-color: ${color}; --init-deg: ${initDeg}deg">
       <div class="faculty-card-image-mask mb-md">
-        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative"${imgHtml ? '' : ' style="background: var(--lib-bg)"'}>
+        <div class="faculty-card-image-wrapper overflow-hidden aspect-[4/5] relative"${!imgHtml ? ' style="background: var(--lib-bg)"' : item.imageRatio ? ` style="aspect-ratio: ${item.imageRatio}"` : ''}>
           ${imgHtml}
         </div>
       </div>

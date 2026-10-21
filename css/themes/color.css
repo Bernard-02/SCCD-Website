@@ -453,11 +453,9 @@ body.mode-color .legal-reg-unit {
   }
 }
 
-/* ===== Courses Slide-in：panel bg 跟 body hue cycle（非 strict B/W），字 theme-fg =====
-   transition:none：courses.css 的 background transition 會讓 panel 落後 body */
+/* ===== Courses Slide-in：panel bg 跟 body hue cycle（非 strict B/W），字 theme-fg ===== */
 body.mode-color #courses-detail-panel {
   background: var(--theme-bg) !important;
-  transition: none !important;
 }
 
 body.mode-color .courses-detail-title-en,
@@ -535,6 +533,18 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
   }
   body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
     background: var(--theme-fg-inverse) !important;
+  }
+  /* 返回鍵釘卡角：卡＝theme-fg → 鈕翻 inverse，否則黑卡上黑鈕（user 2026-10-21）；hover 翻回 theme-fg。
+     本檔 unlayered 會蓋掉 cards.css（@layer）的 mode3 hover → hover 也在這寫 */
+  body.mode-color :is(#faculty-close-btn, #courses-back-btn-desktop) > .slide-in-back-square-inner { background: var(--theme-fg-inverse); }
+  body.mode-color :is(#faculty-close-btn, #courses-back-btn-desktop) > .slide-in-back-square-inner .icon { color: var(--theme-fg); }
+  @media (hover: hover) {
+    body.mode-color :is(#faculty-close-btn, #courses-back-btn-desktop)[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--theme-fg); }
+    body.mode-color :is(#faculty-close-btn, #courses-back-btn-desktop)[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: var(--theme-fg-inverse); }
+  }
+  /* 色卡自製 thumb（desk-card.js）：同字色 */
+  body.mode-color :is(#faculty-panel, #courses-detail-panel) .desk-scroll-thumb-inner {
+    background: var(--theme-fg-inverse);
   }
   body.mode-color #faculty-panel .theme-invert {
     filter: var(--theme-invert-filter, invert(0)) invert(1);

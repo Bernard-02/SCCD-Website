@@ -249,20 +249,16 @@ export function initFacultySlideIn() {
     `;
   }
 
-  // 包一個 section 區塊（左標題 + 右內容）；items 為空就回空字串不渲染
-  // 桌面：左標題 md:sticky md:top-0，sticky reference 是右欄獨立 scroll container 上緣；
-  // 加 bg-white 蓋住 scroll 經過時下方 row 的字（否則 sticky title 半透疊字）；
-  // self-start 避免 flex stretch 讓 title col 等高失去 sticky；
-  // h6 leading-none 把 line-height 壓成 font-size 讓字頂貼 col top，跟右側 row p2 文字頂部對齊
-  // row 間距改由 .faculty-rows 父層 gap 控制（無 row 自身 padding-bottom）→ 標題 col 不需 md:pb-4 補償，
-  // sticky 失效時標題與最後一個 row 自然都在 content 底對齊（user 2026-06-09 桌機也改 gap）
+  // 包一個 section 區塊（標題在上 + rows 在下，同 about history 清單卡；user 2026-10-21 撤掉桌面左標題欄）；items 為空就回空字串不渲染
+  // 桌面：標題 md:sticky md:top-0 釘右欄捲容器頂、bg＝卡片色蓋住捲過的 row；
+  // 標題↔rows 間距用 md:pb-sm（不用 gap）→ 留白屬於 sticky 盒，釘住時捲過的字不貼標題
   function buildSection(titleEn, titleZh, items, renderRow) {
     if (!Array.isArray(items) || items.length === 0) return '';
     const rows = items.map(renderRow).join('');
     return `
-      <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
-        <div class="faculty-section-title-col w-full md:w-[20%] mb-xs md:mb-0 md:sticky md:top-0 md:self-start md:z-[1]">
-          <h3 class="text-base text-black whitespace-nowrap leading-none md:pt-1">${titleEn} ${titleZh}</h3>
+      <div class="flex flex-col gap-xs md:gap-0">
+        <div class="faculty-section-title-col w-full mb-xs md:mb-0 md:pb-sm md:sticky md:top-0 md:z-[1]">
+          <h3 class="text-base text-black whitespace-nowrap leading-none">${titleEn} ${titleZh}</h3>
         </div>
         <div class="flex-1 faculty-rows">
           ${rows}
@@ -290,8 +286,8 @@ export function initFacultySlideIn() {
   function buildContactSection(contact) {
     if (!contact) return '';
     return `
-      <div class="flex flex-col md:flex-row gap-xs md:gap-sm">
-        <div class="w-full md:w-[25%] mb-xs md:mb-0">
+      <div class="flex flex-col gap-xs md:gap-sm">
+        <div class="w-full mb-xs md:mb-0">
           <h3 class="text-s text-black">Contact 聯絡</h3>
         </div>
         <div class="flex-1">
@@ -477,6 +473,10 @@ export function initFacultySlideIn() {
           html += buildSection('Awards', '榮譽', data.awards, renderAwardRow);
         }
         sectionsContainer.innerHTML = html;
+        // 桌面年份 sticky 釘在標題下緣（cards.css）；各 section 標題單行等高，量第一個。offsetHeight 不受色卡傾斜影響
+        // （手機 <768 下方 measureProfile 會用 gBCR 覆寫成手機值）
+        const firstTitle = sectionsContainer.querySelector('.faculty-section-title-col');
+        if (firstTitle && slideInPanel) slideInPanel.style.setProperty('--faculty-title-h', `${firstTitle.offsetHeight}px`);
 
         // （lead 已移出 scroll 容器當 header → section title/年份 sticky 直接釘 scroll 頂 top:0，
         //   不再需要 --faculty-lead-h offset 量測；lead↔Education 1rem 走 #faculty-detail-lead 的 md:mb-sm）
@@ -570,7 +570,7 @@ export function initFacultySlideIn() {
             // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
             //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
             enterLightboxMode({ keepHeader: deskCard });   // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）
-            if (deskCard) desk.open({ id: facultyId });
+            if (deskCard) { deskClosing = false; desk.open({ id: facultyId }); }
             else openSlideInBg({ overlay: slideInOverlay, panel: slideInPanel });
           }
         });
@@ -579,6 +579,8 @@ export function initFacultySlideIn() {
   }
 
   let closeWaiting = false;   // 等照片輪替那段走完中：重複點關閉／Esc 不疊
+  // 色卡收場中：再點卡外／Esc 不重來（重來＝kill 後從頭排、返回鍵那段重跑＝卡停一下再動；user 2026-10-21，同 courses-map deskClosing）
+  let deskClosing = false;
   const closeResolvers = [];  // page exit 在等卡收完
 
   // 卡開著時換頁（桌面點 logo 回首頁等）：卡跟頁面退場同拍收（同 footer 卡點 logo＝換頁與收卡並行；user 2026-10-20）
@@ -589,7 +591,7 @@ export function initFacultySlideIn() {
   }));
   function closeSlideIn() {
     if (!slideIn) return;
-    if (slideIn.classList.contains('invisible') || closeWaiting) return;
+    if (slideIn.classList.contains('invisible') || closeWaiting || deskClosing) return;
     // 照片↔線框輪替正在滑（出或回）時被點關：先停 interval（不起下一輪），等這段走完才開始關卡（user 2026-10-20）
     const running = facultyImgCycleTweens.filter(t => t.isActive());
     if (running.length) {
@@ -606,6 +608,7 @@ export function initFacultySlideIn() {
     exitLightboxMode({ deferHeaderShow: true });
 
     const onComplete = () => {
+      deskClosing = false;
       closeResolvers.splice(0).forEach(r => r());   // 換頁等卡收完（page exit）：過期的 close 也放行，別卡住換頁
       if (mySeq !== slideSeq) return; // 動畫期間又開了新卡（或再次 close）→ 這次 close 已過期，別藏新 panel
       slideIn.classList.add('invisible', 'pointer-events-none');
@@ -614,7 +617,7 @@ export function initFacultySlideIn() {
       document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
       if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
     };
-    if (deskCard) desk.close(onComplete);
+    if (deskCard) { deskClosing = true; desk.close(onComplete); }
     else closeSlideInBg({ overlay: slideInOverlay, panel: slideInPanel, onComplete });
   }
 

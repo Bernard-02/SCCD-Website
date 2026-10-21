@@ -43,8 +43,8 @@ html::-webkit-scrollbar {
   }
 }
 
-/* slide-in 開啟時隱藏 thumb（panel 從右進場會擋到） */
-html.has-slide-in #custom-scrollbar-thumb {
+/* slide-in 開啟時隱藏 thumb（panel 從右進場會擋到）；真桌面不 dim 的色卡（overlay-no-dim）照常顯示（user 2026-10-21） */
+html.has-slide-in:not(.overlay-no-dim) #custom-scrollbar-thumb {
   display: none !important;
 }
 

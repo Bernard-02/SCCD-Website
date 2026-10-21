@@ -25,6 +25,8 @@ let _formerPromise = null;
 function mapRow(r) {
   const item = { ...r, type: r.facultyType, image: cdnUrl(r.image) };
   item.hasRealPhoto = !!r.image;
+  // 照片比例先從後台檔案寬高拿：卡片出生就是對的框，不用等 lazy 圖載完才從 4:5 縮（字會跳，user 2026-10-21）
+  item.imageRatio = r.image?.width && r.image?.height ? `${r.image.width} / ${r.image.height}` : '';
   item.placeholders = {
     standard: cdnUrl(r.placeholderStandard) || null,                 // 白底(標準) ← generator Standard
     inverse: cdnUrl(r.placeholderInverse) || null,                   // 黑底(反白) ← generator Inverse
@@ -35,7 +37,7 @@ function mapRow(r) {
 }
 
 // 深取這些檔案欄位的 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL。fields=* 保留全部 scalar。
-const FACULTY_FIELDS = '*,image.filename_disk,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk';
+const FACULTY_FIELDS = '*,image.filename_disk,image.width,image.height,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk';
 
 export function getFacultyData() {
   if (!_promise) {

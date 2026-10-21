@@ -346,13 +346,14 @@
   .faculty-grid-row > span {
     min-width: 0;
   }
-  /* 首欄（年份）sticky（桌面）：捲詳情時當前最上 entry 的年份釘在頂端，sticky 容器＝該 row → 逐 entry 接力。
+  /* 首欄（年份）sticky（桌面）：捲詳情時當前最上 entry 的年份釘在 section 標題下緣，sticky 容器＝該 row → 逐 entry 接力。
+     top＝標題高（JS 量）−1px：微疊進標題底（標題 z 較高）消 sub-pixel 縫。
      align-self:start：align-items:baseline 會把首欄擺到 baseline，sticky 要從 row 頂開始才接力順。
      background：釘住時遮住下方捲過的內容（值＝panel 卡片色，與 section title col 同 var）。 */
   @media (min-width: 768px) {
     .faculty-grid-row > span:first-child {
       position: sticky;
-      top: 0;
+      top: calc(var(--faculty-title-h, 1px) - 1px);
       align-self: start;
       background: var(--faculty-panel-bg, transparent);
     }
@@ -602,20 +603,32 @@
 
   /* 真桌面 faculty／curriculum 詳情＝library 灰卡同款固定色卡、不滑入（user 2026-10-20；手機／矮橫向仍是右側 slide-in）：
      寬＝col-4 左緣～col-18 右緣（同卡片牆；--desk-col＝一欄＋gutter，20 欄 grid 同 variables.css 的 col 公式）；
-     上下同距＝logo 中線（上下同錨框）；內距同灰卡內容 lg；返回鍵中心釘色卡左下角（library next 鈕釘右上角的鏡像）。
+     高＝內容高、上限＝上下各留 logo 中線（上下同錨框）、垂直置中畫面（user 2026-10-21）；內距同灰卡內容 lg；
+     返回鍵中心釘色卡左下角（library next 鈕釘右上角的鏡像；卡高隨內容變 → top 由 desk-card.js 量卡底寫入）。
      進退場在 js/modules/ui/desk-card.js */
   @media (min-width: 1024px) and (min-height: 501px) {
     :is(#faculty-slide-in, #courses-slide-in) {
       --desk-col: calc((100% - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter));
     }
+    /* top/bottom 0 ＋ height fit-content ＋ margin auto＝貼內容高且垂直置中；超過 max-height 就由內層捲動框內捲（flex column 讓內層能縮） */
     :is(#faculty-panel, #courses-detail-panel) {
-      inset: var(--header-logo-mid) calc(var(--container-padding) + 2 * var(--desk-col)) var(--header-logo-mid) calc(var(--container-padding) + 3 * var(--desk-col));
+      inset: 0 calc(var(--container-padding) + 2 * var(--desk-col)) 0 calc(var(--container-padding) + 3 * var(--desk-col));
       width: auto;
+      height: fit-content;
+      max-height: calc(100% - 2 * var(--header-logo-mid));
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
       transform: none;   /* 蓋 HTML translate-x-[110%]（手機 slide-in 起點；courses 是 inline、開卡 JS 寫 rotate 蓋掉） */
+    }
+    :is(#faculty-panel > .faculty-panel-body, #courses-detail-panel > .courses-detail-inner) {
+      height: auto;
+      flex: 0 1 auto;
+      min-height: 0;
     }
     :is(#faculty-close-btn, #courses-back-btn-desktop) {
       left: calc(var(--container-padding) + 3 * var(--desk-col));
-      bottom: calc(var(--header-logo-mid) - var(--slide-back-square-size, 3rem) / 2);
+      bottom: auto;
     }
     /* faculty：照片寬＝卡片牆圖寬（JS 量點的卡寫 --faculty-img-w） */
     #faculty-panel > .faculty-panel-body { padding: var(--spacing-lg); }
@@ -633,13 +646,23 @@
     /* 捲到底不另留 pb：卡片內距 lg 就是上下留白（slide-in 時代的 pb-2xl 讓底比頂多 64，user 2026-10-20）；軌道同步不內縮 */
     #faculty-panel #faculty-detail-sections,
     #courses-detail-panel .courses-detail-desc-wrapper { padding-bottom: 0; }
-    :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel) .list-scroll::-webkit-scrollbar-track { margin-bottom: 0; }
-    /* 進場中（JS .is-entering）scrollbar 先藏、跑完才現（user 2026-10-20）：只把 thumb 透明——寬度不變＝不跳版、照樣能捲。
-       雙 id 壓過 color.css mode3 的 !important thumb 色 */
-    :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel).is-entering .list-scroll::-webkit-scrollbar-thumb { background: transparent !important; }
-    @supports (-moz-appearance: none) {
-      :is(#faculty-slide-in #faculty-panel, #courses-slide-in #courses-detail-panel).is-entering .list-scroll { scrollbar-color: transparent transparent !important; }
+    /* 捲動框原生 scrollbar 換成 desk-card.js 自製 thumb：原生的不能位移＝做不了 clip-reveal 進場（user 2026-10-21）。
+       原生 10px 軌道改由 padding-right 讓出（thumb 疊在這條上）＝文字寬不變 */
+    :is(#faculty-panel, #courses-detail-panel) .list-scroll { scrollbar-width: none; }
+    :is(#faculty-panel, #courses-detail-panel) .list-scroll::-webkit-scrollbar { width: 0 !important; }
+    #faculty-panel .list-scroll { padding-right: 10px; }
+    #courses-detail-panel .courses-detail-desc-wrapper { padding-right: calc(var(--spacing-md) + 10px); }
+    /* 外層＝遮罩（自身形狀、跟捲動位置走），內層＝色條（clip-reveal 位移）；寬 10＝原生／全域 thumb */
+    .desk-scroll-thumb {
+      position: absolute;
+      width: 10px;
+      overflow: clip;
+      z-index: 2;
+      cursor: var(--cursor-default);
+      touch-action: none;
+      user-select: none;
     }
+    .desk-scroll-thumb-inner { width: 100%; height: 100%; background: #000; }
   }
 
   /* ===== About Works 圖片容器 ===== */
