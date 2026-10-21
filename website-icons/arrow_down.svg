@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 176 176">
+<svg id="_圖層_1" data-name="圖層 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
   <defs>
     <style>
       .cls-1 {
         fill: none;
         stroke: #000;
         stroke-miterlimit: 10;
-        stroke-width: 28px;
+        stroke-width: 20px;
       }
     </style>
   </defs>
-  <polyline class="cls-1" points="159.94 79.74 87.94 151.74 15.94 79.74"/>
-  <line class="cls-1" x1="87.94" y1="7.74" x2="87.94" y2="151.74"/>
+  <polyline class="cls-1" points="141.929 72.929 80 134.858 18.071 72.929"/>
+  <line class="cls-1" x1="80" y1="11" x2="80" y2="134.858"/>
 </svg>

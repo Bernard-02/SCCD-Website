@@ -201,6 +201,14 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   background: currentColor;
   pointer-events: none;
 }
+/* hover 色條＝框線＋indicator 淡到「0.6 的實色」、瞬間（同沒底色 icon 鈕，icon.css；user 2026-10-21）。
+   一律實色不半透明（同 --list-zebra-strip 預混實色）：框線底下墊 #f33 會透紅、indicator 會透出漸層 →
+   兩者都用「fg 60% 混 capsule 底（展開中＝fg-inverse）」＝視覺同 0.6 疊在 capsule 上；同色也免 indicator 伸進框線那 1px 疊兩次變深。
+   color-mix 在這裡 OK：hover 瞬間不補間（color-mix 跟 legacy 色 transition 會走 Oklab 插值，見 465de63） */
+@media (hover: hover) {
+  .mcp-bar:hover { --mcp-bar-line: color-mix(in srgb, currentColor 60%, var(--theme-fg-inverse, #fff)); border-color: var(--mcp-bar-line); }
+  .mcp-bar:hover .mcp-bar-ind { background: var(--mcp-bar-line); }
+}
 .mcp-cap-play,
 .mcp-cap-toggle {
   display: flex;

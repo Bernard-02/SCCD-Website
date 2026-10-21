@@ -53,6 +53,32 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
   body.mode-color .footer-social-icon:hover .icon.footer-social-glyph::after { background: #fff; filter: none; mix-blend-mode: difference; }
 }
 
+/* 沒底色的 icon 鈕 hover＝icon 降到 0.6、瞬間不 fade（同 lightbox／album 翻頁 chevron 的 hover:opacity-60；user 2026-10-21）。
+   有底色的（黑方塊／色 pill／sticky chip／ref chip／atlas 箭頭／nav 上下 chevron）各有自己的 hover、不列；
+   新增沒底色的 icon 鈕＝把 selector 補進來，且 icon 身上別掛 opacity 過渡（transition-all 也算）。只給真滑鼠：觸控 sticky hover 會黏住 */
+@media (hover: hover) and (min-width: 768px) {
+  [data-share-btn]:hover > .icon,                 /* activities／DSD 清單分享（icon 直接子層＝沒 pill 那種） */
+  .list-header-toggle:hover .icon,                /* 清單展開 chevron（activities／admission／legal） */
+  .list-year-toggle:hover .icon,
+  .award-ref-toggle:hover .icon,
+  :is(.year-more-btn, .year-less-btn, .year-reset-btn):not(:disabled):hover .icon,
+  .lib-toolbar .library-sort-btn:hover .icon,
+  .lib-toolbar label.icon-search:hover,           /* label 本身就是 icon（mask 掛在 label 上） */
+  /* 影片 UI 的返回／全螢幕不在這：整塊都是鈕、hover 整塊反色（lightbox.css） */
+  :is(#video-play-btn, #video-mute-btn, .lb-video-ink:not(.lb-video-fs-block *)):hover .icon,
+  :is(#share-copy-qr-btn, #share-download-btn, #share-url-copy-btn):hover .icon,
+  :is(.mcp-play, .mcp-cap-play):hover .icon,       /* mode3 背景色面板 play/pause */
+  .mcp-cap.is-active .mcp-cap-toggle:hover .icon { /* 展開中的收合 chevron（收起時＝鉛筆圓鈕、有底，走 .mcp-cap:hover 反色） */
+    opacity: 0.6;
+  }
+  /* 影片 custom UI 的進度／音量條（WATCH＋lightbox 影片）：hover＝線＋fill＋thumb 整組淡 0.6（同 mcp 色條，user 2026-10-21）。
+     整組合成一次＋底下是不透明 pill（三 mode 皆實色）＝像素同預混實色，thumb 蓋線處不疊兩次。
+     /create slider 同款在 create.css；mcp 色條內有漸層只能淡框線＝改寫實色（mode-color-panel.css） */
+  :is(#video-progress-track, #video-volume-track, .lb-video-track):hover {
+    filter: opacity(0.6);
+  }
+}
+
 /* size tier（footer social 另走 --icon-hero）：
    XL 32px＝share modal 等強調主操作；L 24px＝主控按鈕（video player / header toggle）；M 20px＝lightbox / arrow / chevron / zoom；
    S 16px＝list-item inline；XS 14px＝search / sort-arrow 等輔助 */
