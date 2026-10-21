@@ -998,8 +998,10 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
    每欄一子欄、每筆一列：教師＝名稱｜職稱、合作單位＝名稱（國家）｜類型 兩欄；主持／就職＝名稱（國家）一欄。
    國家副標（.atlas-sub-country）藏起、改由名稱內的 .atlas-list-cc 後綴顯示。星雲節點與 ghost 量高都吃這組（皆 .atlas-list-item） */
 .atlas-list-cc { display: none; }
-/* 外層＝遮罩（inline-block＋overflow:hidden）、內層換形落地才滑入（atlas.js）；pre＝保住開頭空格「 (TW)」 */
-#atlas-list-view.atlas-list-single .atlas-list-cc {
+/* 外層＝遮罩（inline-block＋overflow:hidden）、內層換形落地才滑入（atlas.js）；pre＝保住開頭空格「 (TW)」。
+   -always＝老師本人國家：list 兩種模式都顯示（user 2026-10-21） */
+#atlas-list-view.atlas-list-single .atlas-list-cc,
+#atlas-list-view .atlas-list-cc-always {
   display: inline-block;
   overflow: hidden;
   vertical-align: top;

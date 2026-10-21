@@ -352,6 +352,7 @@ export async function initAtlas(options = {}) {
       _titleEn: useOcc ? (o.occupationEn || '') : (t.titleEn || ''),
       _titleZh: useOcc ? (o.occupationZh || '') : (t.titleZh || ''),
       _countryCode: (Array.isArray(f.occupations) && f.occupations[0]?.country) || t.country || '',
+      _nameCountry: f.country || '',   // 老師本人國家（後台頂層「國家」欄，user 2026-10-21）→ 名字後（國家）
     });
   });
 
@@ -372,7 +373,7 @@ export async function initAtlas(options = {}) {
       labelEn: 'Former Faculty', labelZh: '離職教師',
       detail: `曾任職於本系${years}${field ? '，' + field + '領域' : ''}。`,
       groups: [], cityKey: null,
-      _titleEn: f.titleEn || '', _titleZh: f.titleZh || '', _countryCode: f.country || '',
+      _titleEn: f.titleEn || '', _titleZh: f.titleZh || '', _countryCode: f.titleCountry || '', _nameCountry: f.country || '',
     });
   });
 
@@ -1146,7 +1147,7 @@ export async function initAtlas(options = {}) {
       const inner = document.createElement('span');
       inner.className = 'atlas-marquee-inner';
       inner.textContent = text;
-      if (suffix) inner.appendChild(mkListCc(suffix));
+      if (suffix) inner.appendChild(mkListCc(suffix, cc?.always));
       el.appendChild(inner);
       return el;
     };
@@ -2178,15 +2179,18 @@ export async function initAtlas(options = {}) {
     if (nameEl) {
       nameEl.innerHTML = '';
       nameEl.style.marginBottom = ''; // 重置回 CSS 預設 10px；co/em 有國家時下面覆寫成貼齊國家的窄距
+      // 老師＝名字後接（本人國家），同 list（user 2026-10-21）；其他類的國家在卡身另列、不接名字
+      const nc = listCountrySuffix(item);
+      const ncOn = nc && nc.always;
       if (item.textEn) {
         const en = document.createElement('div');
-        en.textContent = item.textEn;
+        en.textContent = item.textEn + (ncOn ? nc.en : '');
         nameEl.appendChild(en);
       }
       if (item.textZh && item.textZh !== item.textEn) {
         const zh = document.createElement('div');
         zh.className = 'atlas-detail-name-zh';
-        zh.textContent = item.textZh;
+        zh.textContent = item.textZh + (ncOn ? nc.zh : '');
         nameEl.appendChild(zh);
       }
     }
@@ -4041,21 +4045,23 @@ export async function initAtlas(options = {}) {
   }
 
   // list 單列模式（.atlas-list-single）：主持／就職／合作單位的國家改（）接在名稱右邊（user 2026-10-20）；
-  // 名稱只有英文＝（TW 台灣）。後綴 span 藏在 marquee inner 裡（marquee 量寬算進去），只在單列模式顯示（atlas.css）
-  /** @param {any} item @returns {{en: string, zh: string} | null} */
+  // 名稱只有英文＝（TW 台灣）。後綴 span 藏在 marquee inner 裡（marquee 量寬算進去），只在單列模式顯示（atlas.css）。
+  // 老師＝本人國家（後台 faculty 頂層「國家」，user 2026-10-21）、always＝list 兩種模式都顯示＋hover 卡名字也接
+  /** @param {any} item @returns {{en: string, zh: string, always: boolean} | null} */
   function listCountrySuffix(item) {
     const cat = getItemCat(item);
-    const code = item._countryCode;
-    if (!code || (cat !== 'alumni' && cat !== 'partners')) return null;
+    const always = cat === 'faculty';
+    const code = always ? item._nameCountry : item._countryCode;
+    if (!code || (!always && cat !== 'alumni' && cat !== 'partners')) return null;
     const up = String(code).toUpperCase(), zh = countryName(code, 'zh');
     const hasEn = !!item.textEn, hasZh = !!(item.textZh && item.textZh !== item.textEn);
-    return { en: hasZh ? ` (${up})` : ` (${up} ${zh})`, zh: hasEn ? `（${zh}）` : `（${up} ${zh}）` };
+    return { en: hasZh ? ` (${up})` : ` (${up} ${zh})`, zh: hasEn ? `（${zh}）` : `（${up} ${zh}）`, always };
   }
   /** 外層＝遮罩、內層滑動：換形飛行時藏著，落地跟副標同刻揭露（user 2026-10-20）
-   * @param {string} text */
-  function mkListCc(text) {
+   * @param {string} text @param {boolean} [always] 不限單列模式（老師） */
+  function mkListCc(text, always = false) {
     const s = document.createElement('span');
-    s.className = 'atlas-list-cc';
+    s.className = always ? 'atlas-list-cc atlas-list-cc-always' : 'atlas-list-cc';
     const inner = document.createElement('span');
     inner.textContent = text;
     s.appendChild(inner);
@@ -4323,7 +4329,7 @@ export async function initAtlas(options = {}) {
       const enInner = document.createElement('span');
       enInner.className = 'atlas-marquee-inner';
       enInner.textContent = item.textEn;
-      if (cc) enInner.appendChild(mkListCc(cc.en));
+      if (cc) enInner.appendChild(mkListCc(cc.en, cc.always));
       en.appendChild(enInner);
       nameEl.appendChild(en);
     }
@@ -4333,7 +4339,7 @@ export async function initAtlas(options = {}) {
       const zhInner = document.createElement('span');
       zhInner.className = 'atlas-marquee-inner';
       zhInner.textContent = item.textZh;
-      if (cc) zhInner.appendChild(mkListCc(cc.zh));
+      if (cc) zhInner.appendChild(mkListCc(cc.zh, cc.always));
       zh.appendChild(zhInner);
       nameEl.appendChild(zh);
     }

@@ -4,7 +4,7 @@
  * status: active/former，2026-08-04 起取代舊的 faculty_fulltime/parttime/admin/former 四個 collection）。
  * getFacultyData() 只回 status=active（給 faculty 卡片頁 + atlas 在職教師用，type 欄＝facultyType，
  * 對齊舊 shape 不用大改下游）；getFormerFacultyData() 回 status=former，攤平成舊 faculty_former 的
- * nameEn/nameZh/titleEn/titleZh/country shape 給 atlas-source.js 用（atlas.js 讀法不用改）。
+ * nameEn/nameZh/titleEn/titleZh/titleCountry shape（＋頂層 country）給 atlas-source.js 用。
  * cache 確保一次進頁只打一次後台。
  *
  * 後台是唯一來源：失敗（CORS / 斷網 / 5xx / 空資料）→ 回 []（不再退本地 JSON，user 2026-10-04），
@@ -70,7 +70,8 @@ async function _fetchFormerFacultyData() {
   return rows.map(r => {
     const t = (Array.isArray(r.titles) && r.titles[0]) || {};
     // akaEn/akaZh：離職教師別名（在職教師不帶進前台，只 atlas 離職者以括號顯示；同 guest aka 規則）
-    return { id: r.id, sort: r.sort, nameEn: r.nameEn || '', nameZh: r.nameZh || '', akaEn: r.akaEn || '', akaZh: r.akaZh || '', titleEn: t.titleEn || '', titleZh: t.titleZh || '', country: t.country || '' };
+    // country＝老師本人國家（頂層欄，同在職 row）；titleCountry＝職稱（單位）國家，舊資料還掛在 titles 上
+    return { id: r.id, sort: r.sort, nameEn: r.nameEn || '', nameZh: r.nameZh || '', akaEn: r.akaEn || '', akaZh: r.akaZh || '', titleEn: t.titleEn || '', titleZh: t.titleZh || '', titleCountry: t.country || '', country: r.country || '' };
   });
 }
 
