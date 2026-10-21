@@ -79,7 +79,7 @@ function drawColorRing() {
   colorPickerCanvas.noStroke();
   colorPickerCanvas.circle(centerX, centerY, innerRadius * 2);
 
-  // 兩圈 border 顏色 = box 內 fg（box bg = --lib-bg → border = --lib-fg）
+  // 兩圈 border＋indicator 顏色 = box 內 fg（box bg = --lib-bg → border = --lib-fg）
   // box 淺灰 → fg 黑 / box 深灰 → fg 白；三 mode 統一從 #colorpicker-box computed style 讀 color
   // computedStyle.color 反映 .control-box 的 color: var(--lib-fg) cascade 結果
   let borderShade = 255;
@@ -92,14 +92,32 @@ function drawColorRing() {
       borderShade = parseInt(match[0], 10) > 127 ? 255 : 0;
     }
   }
-  colorPickerCanvas.noFill();
-  colorPickerCanvas.stroke(borderShade);
-  colorPickerCanvas.strokeWeight(1.8);
-  colorPickerCanvas.circle(centerX, centerY, outerRadius * 2); // 外圈
-  colorPickerCanvas.circle(centerX, centerY, innerRadius * 2); // 內圈
-
-  // 繪製 indicator
-  drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius);
+  // 兩圈 border＋indicator（從內圈到外圈的線，-HALF_PI＝從頂部起算）同一個 path、一次 stroke：
+  // 粗度皆 1.8（user 2026-06-22：indicator＝邊框厚度）
+  const angle = _p5.map(selectedHue, 0, 360, 0, _p5.TWO_PI) - _p5.HALF_PI;
+  const path = new Path2D();
+  path.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+  path.moveTo(centerX + innerRadius, centerY);
+  path.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
+  path.moveTo(centerX + Math.cos(angle) * innerRadius, centerY + Math.sin(angle) * innerRadius);
+  path.lineTo(centerX + Math.cos(angle) * outerRadius, centerY + Math.sin(angle) * outerRadius);
+  // hover 色環＝框線＋indicator 淡成「0.6 的實色」、瞬間（同 mode-color-panel 色條，user 2026-10-21）：
+  // 先把線的位置挖空（destination-out）再畫 0.6 alpha＝線底下透的是盒底而非色帶＝同預混實色；
+  // 一次 stroke＝indicator 跟內外圈交接處不疊兩次變深。每幀重畫，hover 直接讀 :hover
+  const hovered = colorPickerCanvas.elt.matches(':hover');
+  const ctx = colorPickerCanvas.drawingContext;
+  ctx.save();
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'butt';   // ＝p5 SQUARE
+  if (hovered) {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.strokeStyle = '#000';
+    ctx.stroke(path);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  ctx.strokeStyle = `rgba(${borderShade}, ${borderShade}, ${borderShade}, ${hovered ? 0.6 : 1})`;
+  ctx.stroke(path);
+  ctx.restore();
 }
 
 // 手機版：繪製橫向漸變色條
@@ -208,36 +226,6 @@ function drawColorBarIndicator(w, h, circleRadius) {
     colorPickerCanvas.strokeWeight(2);
     colorPickerCanvas.circle(leftX, y, circleRadius * 2);
   }
-}
-
-// 繪製 indicator（線段，黑色）- 桌面版色環用
-function drawColorPickerIndicator(centerX, centerY, outerRadius, innerRadius) {
-  if (!colorPickerCanvas) return;
-
-  // 計算角度
-  let angle = _p5.map(selectedHue, 0, 360, 0, _p5.TWO_PI) - _p5.HALF_PI; // -HALF_PI 從頂部開始
-
-  // 計算線段的起點和終點（從內圈到外圈）
-  let x1 = centerX + _p5.cos(angle) * innerRadius;
-  let y1 = centerY + _p5.sin(angle) * innerRadius;
-  let x2 = centerX + _p5.cos(angle) * outerRadius;
-  let y2 = centerY + _p5.sin(angle) * outerRadius;
-
-  // Indicator 與 wheel border 同源：都取 #colorpicker-box 的 --lib-fg（淺灰底→黑 / 深灰底→白）
-  let indicatorShade = 255;
-  const pickerBox = document.getElementById('colorpicker-box');
-  if (pickerBox) {
-    const fg = getComputedStyle(pickerBox).color;
-    const match = fg.match(/\d+/g);
-    if (match && match.length >= 3) {
-      indicatorShade = parseInt(match[0], 10) > 127 ? 255 : 0;
-    }
-  }
-  colorPickerCanvas.stroke(indicatorShade);
-  // 粗度 = 色環「邊框」厚度（user 2026-06-22：跟 drawColorRing 兩圈 border 的 1.8 同步，非環帶厚度）
-  colorPickerCanvas.strokeWeight(1.8);
-  colorPickerCanvas.strokeCap(_p5.SQUARE);
-  colorPickerCanvas.line(x1, y1, x2, y2);
 }
 
 // ── 點擊（非拖）→ hue tween 過去（2026-07-15，對齊 mode-color-panel 的點擊行為）──

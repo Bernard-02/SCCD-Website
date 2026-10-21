@@ -199,16 +199,9 @@ function updateRotateIcon() {
 
   // 更新桌面版 icon
   if (rotateIcon) {
-    rotateIcon.attribute('src', desktopIconSrc);
-    // 添加或移除 play-icon class
-    let rotateButton = _p5.select('.custom-button-rotate');
-    if (rotateButton) {
-      if (desktopIsPlayIcon) {
-        rotateButton.addClass('play-icon');
-      } else {
-        rotateButton.removeClass('play-icon');
-      }
-    }
+    // 添加或移除 play-icon class：換圖藏好時才切
+    const rotateButton = _p5.select('.custom-button-rotate');
+    swapIconSrc(rotateIcon.elt, desktopIconSrc, () => { if (rotateButton) rotateButton.elt.classList.toggle('play-icon', desktopIsPlayIcon); });
   }
 
   // 更新手機版 icon
@@ -248,7 +241,7 @@ function updateIconsForMode() {
 
   // 更新桌面版圖標
   if (customIcon) customIcon.attribute('src', customIconSrc);
-  if (colormodeIcon) colormodeIcon.attribute('src', colormodeIconSrc);
+  if (colormodeIcon) swapIconSrc(colormodeIcon.elt, colormodeIconSrc);
   if (randomImg) randomImg.attribute('src', randomIconSrc);
   if (resetImg) resetImg.attribute('src', resetIconSrc);
   // 只在下載動畫未執行時更新下載按鈕icon（避免干擾動畫）
@@ -297,15 +290,10 @@ function updateColorWheelIcon() {
     : panelIcon(`Play${suffix}`);
 
   // 更新桌面版 icon
+  // 添加或移除 is-play class（Play 狀態光學右移）：換圖藏好時才切
   if (colorWheelPlayIcon && colorWheelPlayButton) {
-    colorWheelPlayIcon.attribute('src', iconSrc);
-
-    // 添加或移除 is-play class（Play 狀態向右移 1px）
-    if (isColorWheelRotating) {
-      colorWheelPlayButton.removeClass('is-play');
-    } else {
-      colorWheelPlayButton.addClass('is-play');
-    }
+    const isPlay = !isColorWheelRotating;
+    swapIconSrc(colorWheelPlayIcon.elt, iconSrc, () => colorWheelPlayButton.elt.classList.toggle('is-play', isPlay));
   }
 
   // 更新手機版 Color Wheel Play icon
@@ -313,6 +301,19 @@ function updateColorWheelIcon() {
   if (mobileColorWheelPlayIcon) {
     mobileColorWheelPlayIcon.attribute('src', iconSrc);
   }
+}
+
+// 桌面 icon 換圖（mode 鈕、色環 play/pause、▶❚❚）＝clip-reveal 滑出遮罩 → 換 src → 同向滑入
+// （全站 clipRevealIconSwap，create-app.js 橋接；遮罩寫在 create.html；user 2026-10-21）。
+// 每幀都可能被叫：dataset.target 記目標，同目標不重跑；進頁第一次直接設（不播）。
+// onSwap＝藏好時一起做的事（play 光學右移 class：先切會看到舊 icon 跳一下才滑出）；連點＝前一輪被殺、只跑最新那次
+function swapIconSrc(img, src, onSwap) {
+  if (img.dataset.target === src) return;
+  const first = !img.dataset.target;
+  img.dataset.target = src;
+  const apply = () => { img.setAttribute('src', src); if (onSwap) onSwap(); };
+  if (first || typeof window.sccdClipRevealIconSwap !== 'function') { apply(); return; }
+  window.sccdClipRevealIconSwap(img, apply);
 }
 
 // 獲取模式圖標路徑（mode_1 / mode_2 / mode_3 對應三種模式；

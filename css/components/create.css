@@ -97,8 +97,10 @@
   --button-icon-size: calc(48px * var(--scale)); /* Custom/Auto/Standard/Inverse 按鈕內的 icon */
 
   --slider-width: calc(315px * var(--scale));
-  --slider-height: calc(3px * var(--scale));
-  --slider-thumb-size: calc(13px * var(--scale));
+  /* slider＝影片 custom UI 款（lightbox-video.js）：4px 方角實心線＋4×14 直條 thumb（user 2026-10-21） */
+  --slider-height: calc(4px * var(--scale));
+  --slider-thumb-width: calc(4px * var(--scale));
+  --slider-thumb-size: calc(14px * var(--scale));
   --slider-gap: calc(8px * var(--scale));
   --slider-label-font-size: calc(0.8rem * var(--scale));
 }
@@ -474,6 +476,12 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   background-color: transparent; /* 蓋掉 .control-box 各 mode 淡疊底（特異度 2 id） */
 }
 
+/* 三塊微傾（角度 JS 寫 --ctl-rot，create-app.js tiltControlBoxes；user 2026-10-21）：個別 rotate 屬性、不進 transform transition。
+   色環盒＝膠囊右半的疊層，跟膠囊同角度、繞「膠囊中心」轉才合成一塊：本盒左緣＝膠囊左＋R（膠囊寬 R＋108），
+   膠囊中心＝左＋(R＋108)/2 → 對本盒左緣 (108−R)/2 */
+.control-panel > .control-box { rotate: var(--ctl-rot, 0deg); }
+#colorpicker-box { transform-origin: calc((108px * var(--scale) - var(--rotation-box-min-height)) / 2) 50%; }
+
 /* 色環 reveal：膠囊先長完，色環才由上/下 clip-reveal 升起（遮罩＝色環自己的圓，動畫期間 overflow:clip）。
    位移由 ui-state.js GSAP 驅動，勿掛 CSS transition（會跟 GSAP inline transform 互搶）。 */
 
@@ -696,10 +704,28 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   flex-shrink: 0;
 }
 
-/* play_pause_create.svg 三角形光學中心偏左 → 右移 3px 對齊盒視覺中心 */
-.custom-button-rotate img {
+/* play_pause_create.svg 三角形光學中心偏左 → 右移 3px 對齊盒視覺中心。
+   框＝鈕內寬 × 40（非 --button-icon-size 方框）：▶／❚❚ 正方 glyph contain＝40×40（滿 48 太搶）、▶❚❚ 寬扁 272×160 吃滿內寬
+   （桌面 60×35；48 方框只剩 28 高）→ 三態視覺高接近（user 2026-10-21）；三態同框、鈕是盒高正方形＝切換時寬不跳 */
+/* 右移 3px 掛在換圖遮罩上（create.html）：掛 img 會被遮罩 overflow:clip 切掉右緣 3px */
+.custom-button-rotate [data-icon-clip-wrap] {
   position: relative;
   left: 3px;
+}
+/* ▶ 單獨狀態（JS .play-icon，換圖藏好時才切）：play_create.svg (0,0)(0,160)(128,80) 靠畫布左緣、右空 32 →
+   光學置中＝三角形重心對框中心：右移 (80−42.7)/160＝23.3% glyph 寬（40×40）≈ 9.3px（user 2026-10-21 嫌 3px 太左） */
+.custom-button-rotate.play-icon [data-icon-clip-wrap] {
+  left: calc(40px * var(--scale) * 0.233);
+}
+/* img＝glyph 自己的大小（不撐滿 60×40 框再 contain）：換圖遮罩貼著它＝滑動距離＝icon 本身（user 2026-10-21 嫌 ▶／❚❚ 動太多）。
+   SVG 只有 viewBox 沒寬高＝無固有尺寸 → 高要寫定值、寬 auto 吃比例：▶／❚❚ 正方＝40×40；▶❚❚ 255:150＝68 超內寬 →
+   夾到 60（contain 等比＝圖案 60×35、框 60×40）。寬上限用 cqw（鈕＝size container，寬由盒高×aspect 決定、不看內容）：
+   寫 % 會跟貼身遮罩互相依賴＝算成 0 */
+.custom-button-rotate { container-type: inline-size; }
+.custom-button-rotate img {
+  width: auto;
+  height: calc(40px * var(--scale));
+  max-width: 100cqw;
 }
 
 /* --- 個別按鈕尺寸 --- */
@@ -779,7 +805,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   appearance: none;
   width: var(--slider-width);
   height: var(--slider-height);
-  border-radius: var(--slider-height);
+  border-radius: 0;
   background: #e6e6e6;
   outline: none;
   transition: none; /* 不過渡：免切換時顏色延遲 */
@@ -789,9 +815,9 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 .custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: var(--slider-thumb-size);
+  width: var(--slider-thumb-width);
   height: var(--slider-thumb-size);
-  border-radius: 50%;
+  border-radius: 0;
   cursor: var(--cursor-pointer);
   border: none;
   background: #e6e6e6;
@@ -799,9 +825,9 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 }
 
 .custom-slider::-moz-range-thumb {
-  width: var(--slider-thumb-size);
+  width: var(--slider-thumb-width);
   height: var(--slider-thumb-size);
-  border-radius: 50%;
+  border-radius: 0;
   cursor: var(--cursor-pointer);
   border: none;
   background: #e6e6e6;
@@ -871,6 +897,22 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
 .custom-slider:not(.enabled)::-moz-range-thumb {
   pointer-events: none;
+}
+
+/* 桌面 control bar 全部控件 hover＝整顆淡 0.6、瞬間（同影片進度條／mcp 色條，user 2026-10-21「全部都要，不只 slider」）。
+   色環的框線＋indicator 是 canvas 畫的，在 color-picker.js drawColorRing。
+   filter:opacity 不用 opacity：slider／icon 的 opacity 有 dur-fast 過渡（三階 active/未選/disabled 切換），hover 要瞬間；
+   掛在 button 不掛 img：img 自己有 filter:invert（依 mode 反色），寫在 img 會蓋掉。整組合成一次＝像素同預混實色。
+   mode 鈕＝hover icon 本身才淡（鈕＝icon 大小；盒仍整盒可點，user 2026-10-21）；下載盒 hover 盒就算；
+   custom／▶❚❚ 只有 active（100%）才淡，未選（50%）維持 hover 回 100%（上方規則） */
+@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+  #create-app .control-box .custom-slider.enabled:hover,
+  #create-app #colormode-box:not(.disabled) #colormode-button:hover,
+  #create-app #save-box:not(.disabled):hover #save-button:not(:disabled),
+  #create-app .control-box :is(.colorwheel-play-button, #random-button, #reset-button):not(:disabled):hover,
+  #create-app .control-box :is(.custom-button-custom, .custom-button-rotate).active:not(:disabled):hover {
+    filter: opacity(0.6);
+  }
 }
 
 /* --- 滑桿標籤 / 角度輸入框 --- */
@@ -1178,17 +1220,21 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     min-width: 0;
     max-width: 100%;
     height: 3px;
+    border-radius: 3px;
   }
 
+  /* 手機維持圓點 thumb（觸控好抓）；桌面 control bar 是影片 UI 直條款 */
   .mobile-custom-angle-controls .custom-slider::-webkit-slider-thumb {
     width: 14px;
     height: 14px;
+    border-radius: 50%;
     box-shadow: none;
   }
 
   .mobile-custom-angle-controls .custom-slider::-moz-range-thumb {
     width: 14px;
     height: 14px;
+    border-radius: 50%;
     box-shadow: none;
   }
 

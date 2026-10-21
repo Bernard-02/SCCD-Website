@@ -119,6 +119,8 @@ let currentStrokeColor; // 記錄當前的描邊顏色（lerp 的起點）
 let colorPickerIndicatorX = 0; // 指示器 X 位置 (0-1)
 let colorPickerIndicatorY = 0.5; // 指示器 Y 位置 (0-1)
 let colorPickerDragging = false;
+// 桌面 control bar 進場（create-app.js playControlBarEntrance）跑完才 true：之前（mode3 進頁）色環不另播 reveal、跟膠囊一起進
+let controlBarRevealed = false;
 
 // --- Color Wheel 動畫相關 ---
 let isColorWheelRotating = false; // Color wheel 是否正在旋轉

@@ -79,7 +79,11 @@ ROTATE FOR BEST EXPERIENCE</div>
                 <!-- 第一組：顏色模式 (單個循環按鈕) -->
                 <div class="control-box" id="colormode-box">
                     <button class="custom-button custom-button-colormode" id="colormode-button">
-                        <img id="colormode-icon" src="../website-icons/mode_1.svg" alt="Color Mode">
+                        <!-- icon 換圖 clip-reveal 遮罩＝icon 圖案自己的圓（user 2026-10-21）：160 格線外圈半徑 72＝45%，
+                             46%＝留 ~0.5px 給反鋸齒邊。data-icon-clip-wrap＝scroll-animate ensureIconClipWrap 認得、不再另包 -->
+                        <span data-icon-clip-wrap="1" style="display:flex; width:100%; height:100%; clip-path:circle(46%); line-height:0;">
+                            <img id="colormode-icon" src="../website-icons/mode_1.svg" alt="Color Mode">
+                        </span>
                     </button>
                 </div>
 
@@ -91,7 +95,10 @@ ROTATE FOR BEST EXPERIENCE</div>
                         <!-- 色環 clip-reveal 位移層（canvas 由 JS 建在這層、play 鈕也在這層）：container 圓形當遮罩，只動這層 -->
                         <div id="colorpicker-reveal" class="wheel-reveal">
                             <button id="colorwheel-play-button" class="colorwheel-play-button">
-                                <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                                <!-- play/pause 換圖 clip-reveal 遮罩＝icon 自己的大小（貼 img、鈕置中；user 2026-10-21「box 應該是自己的 size」） -->
+                                <span data-icon-clip-wrap="1" style="display:flex; overflow:clip; line-height:0;">
+                                    <img id="colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -135,7 +142,10 @@ ROTATE FOR BEST EXPERIENCE</div>
 
                     <!-- Auto 按鈕 -->
                     <button class="custom-button custom-button-rotate">
-                        <img id="rotate-icon" src="../website-icons/play_pause_create.svg" alt="Auto Rotate">
+                        <!-- ▶／❚❚／▶❚❚ 換圖 clip-reveal 遮罩＝當下 icon 自己的大小（貼 img、鈕置中；光學右移掛這層，見 create.css） -->
+                        <span data-icon-clip-wrap="1" style="display:flex; max-width:100%; overflow:clip; line-height:0;">
+                            <img id="rotate-icon" src="../website-icons/play_pause_create.svg" alt="Auto Rotate">
+                        </span>
                     </button>
                 </div>
 

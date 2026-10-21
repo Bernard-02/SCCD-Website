@@ -114,7 +114,8 @@ function updateUI() {
                 // 桌面（user 2026-10-01，比照 mode3 鉛筆）：mode 鈕膠囊先長完（dur-medium），
                 //   色環＋play 才在原位由上/下隨機 clip-reveal 升起。遮罩＝色環自己的圓（container 圓角＋overflow clip，
                 //   不被膠囊直邊切；clip 只在動畫期間掛，常駐會裁 play 鈕 focus 外框）
-                if (colorPickerContainer && entering && typeof gsap !== 'undefined') {
+                //   mode3 進頁（control bar 進場還沒跑完）＝不另播、跟膠囊同一 unit 進（user 2026-10-21）
+                if (colorPickerContainer && entering && controlBarRevealed && typeof gsap !== 'undefined') {
                     const growDur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-medium')) || 0.5;
                     const wheel = colorPickerContainer.elt, h = wheel.offsetHeight || 72;
                     wheel.style.overflow = 'clip';

@@ -27,9 +27,10 @@ import {
   getStoredMode,
 } from '../ui/theme-toggle.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { setupClipReveal } from '../ui/scroll-animate.js';
+import { setupClipReveal, clipRevealIconSwap, randomCardTilt } from '../ui/scroll-animate.js';
 import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT, animateHeaderModeBtnShow } from '../../header.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { sitePath } from '../ui/site-base.js';
 
 const ASSET_BASE = sitePath('generate-app');
@@ -45,6 +46,91 @@ window.sccdSetColorHue = setColorHue;              // color wheel drag → 寫�
 window.sccdStartColorLoop = startSiteColorLoop;    // Play btn
 window.sccdStopColorLoop = stopSiteColorLoop;      // Pause btn
 window.sccdIsColorLoopRunning = isColorLoopRunning; // Play/Pause icon 切換判斷
+window.sccdClipRevealIconSwap = clipRevealIconSwap; // mode 鈕換 icon 的 clip-reveal（generate-app utils.js swapModeIcon）
+window.sccdPlayControlBarEntrance = (onDone) => playControlBarEntrance(onDone); // sketch.js setup 末尾
+
+// ── 桌面 control bar 進退場共用 ──
+const desktopControlBoxes = () => Array.from(document.querySelectorAll('.control-panel > .control-box'))
+  .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);   // 非 mode3 的 colorpicker-box display:none
+
+// 每盒包一層自身形狀的遮罩（尺寸＋圓角；圓 mode 鈕圓遮罩、mode3 膠囊兩半拼回膠囊）：盒在自己的形狀裡滑出、
+// 不撞 panel 的直邊（user 2026-10-01）。先全部量完再包（讀寫分離）；marginLeft（mode3 colorpicker 的負 margin）
+// 搬到遮罩、盒本身歸 0。包進遮罩後盒也脫離 `.control-panel > *` 的 transform transition（不跟 GSAP 每幀打架）
+function wrapInShapeMasks(boxes) {
+  // 盒的微傾（--ctl-rot，見 tiltControlBoxes）借給遮罩：遮罩＝盒自己的形狀＋角度＋旋轉中心（斜邊不被直邊切），
+  // 盒在裡面轉回 0、沿斜軸滑。先讀角度，再歸零量未旋轉的框（旋轉中量 rect＝外接框、偏大）
+  const rots = boxes.map(el => getComputedStyle(el).rotate);
+  // 量之前讓進行中的 transition 跳終值：mode3 SPA 進頁時膠囊寬還在長（class 晚一幀才套），
+  // 量到半途＝遮罩比膠囊窄、進場時右端被切（headless 實測 199 vs 228）。恢復後值沒變＝不會重播
+  boxes.forEach(el => { el.style.transition = 'none'; el.style.rotate = '0deg'; });
+  const shapes = boxes.map((el, i) => {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    return { w: r.width, h: r.height, radius: cs.borderRadius, ml: cs.marginLeft, rot: rots[i], origin: cs.transformOrigin };
+  });
+  boxes.forEach(el => { el.style.transition = ''; });
+  return boxes.map((box, i) => {
+    const s = shapes[i];
+    const mask = document.createElement('div');
+    mask.style.cssText = `width:${s.w}px;height:${s.h}px;flex-shrink:0;overflow:clip;border-radius:${s.radius};margin-left:${s.ml};rotate:${s.rot};transform-origin:${s.origin};`;
+    box.parentElement.insertBefore(mask, box);
+    mask.appendChild(box);
+    box.style.marginLeft = '0';
+    return mask;
+  });
+}
+
+// 三塊 control box 隨機微傾（user 2026-10-21「稍微加一點、不需要太多」＝說明卡同款 ±0.5–1.5°），每次進頁抽。
+// mode3 色環盒疊在膠囊右半＝同一塊：沿用膠囊的角度、繞膠囊中心轉（transform-origin 在 create.css）
+function tiltControlBoxes() {
+  let capsuleRot = '';
+  document.querySelectorAll('.control-panel > .control-box').forEach(box => {
+    const deg = box.id === 'colorpicker-box' && capsuleRot ? capsuleRot : `${randomCardTilt()}deg`;
+    if (box.id === 'colormode-box') capsuleRot = deg;
+    /** @type {HTMLElement} */ (box).style.setProperty('--ctl-rot', deg);
+  });
+}
+
+// y-reveal 方向：±110 overshoot（memory feedback_clip_reveal_hidden_overshoot_to_110 sub-pixel 殘影防護）；
+// y 軸只有上下兩向，以「相鄰 item 不同方向」排（[+,-,+] 或 [-,+,-]），起始正負隨機翻
+const alternatingYPercent = (n) => {
+  const startSign = Math.random() < 0.5 ? 1 : -1;
+  return Array.from({ length: n }, (_, i) => (i % 2 === 0 ? startSign : -startSign) * 110);
+};
+
+// mode3：colormode-box＋右側延伸的 colorpicker-box(wheel) 視覺上是一整塊＝同一 unit：同方向、同時動（user 2026-06-24）。
+// 否則 alternating 會給相鄰兩盒上下相反方向、看起來像分開兩盒。非 mode3（colorpicker 不在 boxes）＝不分組
+function controlBarMotion(boxes) {
+  const pickerIdx = boxes.findIndex(el => el.id === 'colorpicker-box');
+  const grouped = pickerIdx > 0;   // colorpicker 顯示且前面有 colormode-box（DOM 緊鄰）
+  const unitIndex = (i) => (grouped && i >= pickerIdx ? i - 1 : i);
+  const unitDirs = alternatingYPercent(grouped ? boxes.length - 1 : boxes.length);
+  return { yDirs: boxes.map((_, i) => unitDirs[unitIndex(i)]), delay: (i) => unitIndex(i) * 0.05 };
+}
+
+// 桌面 control bar 進場＝退場的反向（user 2026-10-21「不是用 fade」）：各盒在自身形狀遮罩內 ±110 → 0。
+// mode3 進來＝色環跟膠囊同一 unit 進、不另播色環 reveal（onDone 前 ui-state.js 的 controlBarRevealed＝false 擋掉）。
+// 完成後拆遮罩（常駐會擋 mode3 膠囊長寬 transition）；離頁退場遇到進行中＝cancel 直接收尾再退
+let cancelControlBarEntrance = null;
+function playControlBarEntrance(onDone) {
+  tiltControlBoxes();
+  const boxes = desktopControlBoxes();
+  if (typeof gsap === 'undefined' || prefersReducedMotion() || !boxes.length) { onDone?.(); return; }
+  const masks = wrapInShapeMasks(boxes);
+  const { yDirs, delay } = controlBarMotion(boxes);
+  gsap.set(boxes, { yPercent: (i) => yDirs[i] });
+  const finish = () => {
+    cancelControlBarEntrance = null;
+    masks.forEach(mask => {
+      const box = /** @type {HTMLElement | null} */ (mask.firstElementChild);
+      if (box && mask.parentElement) { box.style.marginLeft = ''; box.style.rotate = ''; mask.parentElement.insertBefore(box, mask); }
+      mask.remove();
+    });
+    gsap.set(boxes, { clearProps: 'transform' });
+    onDone?.();
+  };
+  const tween = gsap.to(boxes, { yPercent: 0, duration: DUR.medium, ease: EASE.enter, stagger: delay, onComplete: finish });
+  cancelControlBarEntrance = () => { tween.kill(); finish(); };
+}
 
 // 載入順序不能改，後面檔案依賴前面定義的 global var/function
 const SCRIPTS = [
@@ -184,12 +270,11 @@ function playCreateExitAnimation(destinationRoute) {
       document.querySelector('.input-container'),          // 輸入框
       document.querySelector('#desktop-canvas-container'), // 繪製的 logo
     ];
-    // control-panel 內 .control-box，filter 掉非 wireframe mode 隱藏的 #colorpicker-box
+    // control-panel 內 .control-box，filter 掉非 wireframe mode 隱藏的 #colorpicker-box；
+    // 進場還在跑（盒還包在進場遮罩裡）＝先收尾拆遮罩再量
+    cancelControlBarEntrance?.();
     controlBarParent = document.querySelector('.control-panel');
-    controlBarItems = controlBarParent
-      ? Array.from(controlBarParent.querySelectorAll(':scope > .control-box'))
-          .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null)
-      : [];
+    controlBarItems = desktopControlBoxes();
   }
   layoutItems = layoutItems.filter(Boolean);
 
@@ -241,22 +326,9 @@ function playCreateExitAnimation(destinationRoute) {
     });
   }
 
-  // 桌面 controlBar mask＝每個盒自己的形狀（尺寸＋圓角；圓 mode 鈕圓遮罩、mode3 膠囊兩半拼回膠囊），
-  // 盒在自己的形狀裡滑出、不撞 panel 的直邊（user 2026-10-01）。先全部量完再包（讀寫分離）；
-  // marginLeft（mode3 colorpicker 的負 margin）搬到遮罩，盒本身歸 0。SPA 隨即 innerHTML 替換 → 不需 restore
+  // 桌面 controlBar mask＝每個盒自己的形狀（wrapInShapeMasks）。SPA 隨即 innerHTML 替換 → 不需 restore
   if (!isMobile && controlBarItems.length > 0) {
-    const shapes = controlBarItems.map(el => {
-      const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-      return { w: r.width, h: r.height, radius: cs.borderRadius, ml: cs.marginLeft };
-    });
-    controlBarItems.forEach((el, i) => {
-      const box = /** @type {HTMLElement} */ (el), s = shapes[i];
-      const mask = document.createElement('div');
-      mask.style.cssText = `width:${s.w}px;height:${s.h}px;flex-shrink:0;overflow:clip;border-radius:${s.radius};margin-left:${s.ml};`;
-      box.parentElement.insertBefore(mask, box);
-      mask.appendChild(box);
-      box.style.marginLeft = '0';
-    });
+    wrapInShapeMasks(controlBarItems);
   }
   // 手機：parent overflow-y:clip 攔截 yPercent 移出 box 的部分
   // overflow-x:visible 保留 rotation-group 等 x 軸 expand 元素
@@ -269,14 +341,6 @@ function playCreateExitAnimation(destinationRoute) {
   // 防退場 anim 期間 user 還能點 control panel 觸發 sketch.js handler
   const createApp = document.getElementById('create-app');
   if (createApp) createApp.style.pointerEvents = 'none';
-
-  // y-reveal 方向：±110 overshoot（memory feedback_clip_reveal_hidden_overshoot_to_110
-  // sub-pixel 殘影防護）；y 軸只有 up/down 兩方向，N items 不可能完全 distinct，
-  // 以「相鄰 item 不同方向」原則排（[+,-,+] 或 [-,+,-]），起始正負隨機翻
-  const alternatingYPercent = (n) => {
-    const startSign = Math.random() < 0.5 ? 1 : -1;
-    return Array.from({ length: n }, (_, i) => (i % 2 === 0 ? startSign : -startSign) * 110);
-  };
 
   return new Promise((resolve) => {
     let resolved = false;
@@ -305,21 +369,15 @@ function playCreateExitAnimation(destinationRoute) {
     //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，parent overflow-y:clip 當 mask
     //    先退場：stagger 0.05s（接近同時）、dur 0.55s → 最後一個約 0.65s 結束
     if (controlBarItems.length > 0) {
-      // mode3：colormode-box + 右側延伸的 colorpicker-box(wheel) 視覺上是一整塊 → 退場當「一個 unit」
-      //   同方向、同時間移動（user 2026-06-24）。否則 alternating 會給相鄰兩盒上下相反方向、看起來像分開兩盒。
-      //   pickerIdx===-1（非 mode3，colorpicker display:none 被 offsetParent filter 掉）時不分組＝原行為。
-      const pickerIdx = controlBarItems.findIndex(el => el.id === 'colorpicker-box');
-      const grouped = pickerIdx > 0; // colorpicker 顯示且前面有 colormode-box（DOM 緊鄰）
-      const unitIndex = (i) => (grouped && i >= pickerIdx ? i - 1 : i); // wheel 併進 mode-btn 那個 unit
-      const unitDirs = alternatingYPercent(grouped ? controlBarItems.length - 1 : controlBarItems.length);
-      const yDirs = controlBarItems.map((_, i) => unitDirs[unitIndex(i)]);
+      // mode3 mode 鈕＋色環＝同一 unit（controlBarMotion）；同 unit 同 delay → 同時起步
+      const { yDirs, delay } = controlBarMotion(controlBarItems);
       tl.fromTo(controlBarItems,
         { yPercent: 0 },
         {
           yPercent: i => yDirs[i],
           duration: DUR.medium,
           ease: EASE.exit,
-          stagger: i => unitIndex(i) * 0.05, // 同 unit 同 delay → wheel 與 mode-btn 同時起步
+          stagger: delay,
           overwrite: 'auto',
         },
         0
@@ -475,6 +533,7 @@ function runCreateApp() {
 }
 
 export function cleanupCreatePage() {
+  cancelControlBarEntrance = null;   // DOM 隨換頁整個換掉，不用收尾
   if (typeof window.cleanupCreateApp === 'function') {
     window.cleanupCreateApp();
   }

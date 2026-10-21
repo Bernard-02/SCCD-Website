@@ -751,6 +751,13 @@ function setup() {
 
   // 初始化頁面載入動畫
   pageLoadStartTime = _p5.millis();
+  // 桌面 control bar 進場＝clip-reveal（create-app.js；取代原本跟 logo 一起的 opacity fade，user 2026-10-21）。
+  // 放 updateUI 之後＝各盒顯隱（mode3 色環盒）已定；第一幀 draw 才把 panel opacity 設 1＝盒已藏在遮罩外不閃
+  if (!isMobileMode && typeof window.sccdPlayControlBarEntrance === 'function') {
+    window.sccdPlayControlBarEntrance(() => { controlBarRevealed = true; });
+  } else {
+    controlBarRevealed = true;
+  }
   // CSS 已經將所有元素預設為 opacity: 0，這裡不需要重複設定
   // placeholder 的 opacity 由 logoOpacity 變數控制，在 draw() 中處理
 
@@ -987,9 +994,10 @@ function draw() {
   if (inputContainer && !isMobileMode) inputContainer.style('opacity', inputBoxOpacity.toString());
   // Canvas 容器跟隨 logo 透明度
   if (canvasContainer) canvasContainer.style('opacity', logoOpacity.toString());
-  // 控制面板
+  // 控制面板：桌面不淡入、進場走 clip-reveal（setup 末尾 sccdPlayControlBarEntrance）；
+  // 仍每幀寫 1＝手機進頁後轉成桌面版也看得到（CSS 預設 opacity 0）
   let controlPanel = _p5.select('.control-panel');
-  if (controlPanel && !isMobileMode) controlPanel.style('opacity', controlPanelOpacity.toString());
+  if (controlPanel && !isMobileMode) controlPanel.style('opacity', '1');
 
   // 手機版：輸入框區域的滑入動畫
   let mobileInputArea = _p5.select('.mobile-input-area');
@@ -1834,6 +1842,7 @@ function resetCreateAppUserState() {
   inputBoxOpacity = 0;
   logoOpacity = 0;
   controlPanelOpacity = 0;
+  controlBarRevealed = false;   // 下次進頁 mode3 色環照樣跟膠囊一起進
   // Placeholder alpha：user 上次 session 打過字 → targetPlaceholderAlpha=0, placeholderAlpha lerp 到 0
   // 殘留下 session 重進 letters=[] 走 placeholder 分支，但 drawPlaceholder lerp(0, 0) 永遠 0 → 看不到
   // 必須兩個都 reset 回 255，讓新 session 從 placeholder 顯示開始（user 2026-05-31 反饋）
