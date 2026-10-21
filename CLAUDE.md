@@ -63,7 +63,8 @@
 │   ├── SPA-接-Directus-Headless-最佳實踐.md   # 後台架構權威文件（⚠️前台部署部分過時，以「前台上線流程」為準）
 │   ├── 前台上線流程-S3-CloudFront.md          # 前台正式上線（S3+CloudFront）權威文件
 │   ├── 橫向手機版最佳實踐.md    # 矮橫向 RWD 的原理與業界慣例
-│   └── 動畫盤點表.md ＋ 無障礙稽核與改進清單.md
+│   ├── 動畫盤點表.md ＋ 無障礙稽核與改進清單.md
+│   └── PDF-上傳前處理-object-streams.md      # library documents 開書慢治本：pikepdf 重存→S3 覆蓋→invalidation（腳本 scripts/optimize-pdfs-objstm.py）
 └── package.json                # scripts：build:css / watch:css / check:ts
 ```
 
