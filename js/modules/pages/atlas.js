@@ -2169,7 +2169,7 @@ export async function initAtlas(options = {}) {
     const bg = SCCDHelpers.getRandomAccentColor();
     const rot = (Math.random() * 6 - 3).toFixed(2);
     detail.style.backgroundColor = bg;
-    detail.style.color = '#000000';
+    detail.style.color = 'var(--color-black)';
     // 旋轉消費規則在 mask（clip 跟著旋轉角）→ var 設在 mask；無 mask fallback 設回 detail
     (detailMask || detail).style.setProperty('--atlas-detail-rot', `${rot}deg`);
     if (headEl) { headEl.innerHTML = ''; headEl.classList.remove('has-content'); }   // 黑頭逐卡重填（國家卡無 head）
@@ -2234,8 +2234,10 @@ export async function initAtlas(options = {}) {
         for (const s of titleProbes) { const w = s.offsetWidth; if (w > titleW) titleW = w; }
         for (const s of catProbes) { const w = s.offsetWidth; if (w > catW) catW = w; }
         meas.remove();
-        // 16=左右 padding(8+8)、12=row gap；+2 防 marquee 臨界誤判
-        const contentW = Math.max(240, Math.ceil(titleW + catW + 12 + 16 + 2));
+        // 左右 padding 讀 body 實值（--card-pad-s，改 token 不用回來改）、12=row gap；+2 防 marquee 臨界誤判
+        const bcs = getComputedStyle(detail.querySelector('.atlas-detail-body') || detail);
+        const padX = (parseFloat(bcs.paddingLeft) || 0) + (parseFloat(bcs.paddingRight) || 0);
+        const contentW = Math.max(240, Math.ceil(titleW + catW + 12 + padX + 2));
         const dw = `min(${contentW}px, 380px, 100vw - 152px)`;
         detail.style.width = dw;
         detail.style.minWidth = dw;
@@ -2454,7 +2456,7 @@ export async function initAtlas(options = {}) {
     span.classList.add('atlas-square-open');
     const st = { w: w1, h: h1, r: 0 };
     countryTween = gsap.to(st, {
-      w: w0, h: h0, r: rot0, duration: 0.3, ease: EASE.exitSoft,
+      w: w0, h: h0, r: rot0, duration: DUR.fast, ease: EASE.exitSoft,
       onUpdate: () => setSquareFrame(span, st.w, st.h, st.r),
       onComplete: () => { countryTween = null; restore(); },
     });
@@ -3186,17 +3188,16 @@ export async function initAtlas(options = {}) {
     const m = /rotate\((-?[\d.]+)deg\)/.exec(el.style.transform || '');
     const th = m ? parseFloat(m[1]) * Math.PI / 180 : 0;
     const cos = Math.cos(th), sin = Math.sin(th);
+    // +toFixed 去尾零：GSAP 3.14 補間 translate 的終點含 "0.00px"／"-3.20px" 這類尾零字串會整段不補、末幀才跳
+    //（＝clip 照收、本體不動＝職業 chip 跟標題之間拉出縫；list 版 chip 本身 θ=0 → y 恆 "0.00px" 必中，user 2026-10-26）
+    const px = (n) => `${+n.toFixed(2)}px`;
     if (dirKey === 'left') {
       const w = el.offsetWidth || 0;
-      return `${(-w * cos).toFixed(2)}px ${(-w * sin).toFixed(2)}px`;
+      return `${px(-w * cos)} ${px(-w * sin)}`;
     }
     const h = el.offsetHeight || 0;
-    return `${(h * sin).toFixed(2)}px ${(-h * cos).toFixed(2)}px`;
+    return `${px(h * sin)} ${px(-h * cos)}`;
   }
-  // padding 自然值（與 CSS 一致）— 2-phase reveal 的 Phase 1 layout-push tween target
-  const CAREER_PAD_TOP = 6;
-  const CAREER_PAD_BOTTOM = 5;
-  const CAREER_PAD_HORIZONTAL = 8;  // 左右各 8px（CSS padding: 6px 8px 5px）— fitWidth 計算 chip 內容寬時用
 
   /**
    * @param {HTMLElement} el
@@ -3206,6 +3207,12 @@ export async function initAtlas(options = {}) {
    *   給 list view label-col 用，避免每次 rotate 寬度跳動）；dir＝滑入方向（map 'left'、list 'top'）
    */
   function createCareerController(el, enEl, zhEl, opts) {
+    // padding 自然值＝該 chip 字級的字卡內距 token（map 職業 s、list 職業 xs；variables.css --card-pad-*）——
+    // 2-phase reveal 的 Phase 1 layout-push tween target＋fitWidth 算內容寬。讀 :root 不讀 el（list chip 此刻還沒進 DOM、之後 inline 會被補間改掉）
+    const [CAREER_PAD_V, CAREER_PAD_HORIZONTAL] = getComputedStyle(document.documentElement)
+      .getPropertyValue(el.classList.contains('atlas-list-col-career') ? '--card-pad-xs' : '--card-pad-s')
+      .trim().split(/\s+/).map(parseFloat);
+    const CAREER_PAD_TOP = CAREER_PAD_V, CAREER_PAD_BOTTOM = CAREER_PAD_V;
     const noFit = !!(opts && opts.noFit);
     const dirKey = (opts && opts.dir) || 'left';
     const dirCfg = CAREER_DIRS[dirKey];
@@ -3894,7 +3901,7 @@ export async function initAtlas(options = {}) {
     gsap.to(progress, {
       value: visible ? 1 : 0,
       duration: DUR.micro,
-      ease: visible ? 'power2.out' : 'power2.in',
+      ease: visible ? EASE.enterSoft : EASE.exitSoft,
       overwrite: true,
       onUpdate: () => {
         const v = progress.value;
@@ -4111,6 +4118,22 @@ export async function initAtlas(options = {}) {
   // 手機逐 item 實高（ghost pre-measure 時填入，與 listGrouped[cat] 同序）→ 變高分頁用
   const ITEM_HEIGHTS_PER_CAT = /** @type {Record<string, number[]>} */ ({});
 
+  // 桌面「標題→第一列」與「最後一列→箭頭」留白等寬（user 2026-10-26「加總分一半」）：slot 高 ITEM_H 兼列距、常比內容實高大，
+  // 多出的 slack（含 .atlas-list-item padding-bottom 10 的隱形底）全落在最後一列底 → 整欄往下推 slack/2（--list-top-pad，
+  // items padding-top；host/employ 連第一列標題卡一起推＝CSS 吃同一個 var）。ghost 量到實高才有值、之前 0
+  const ITEM_CONTENT_H = /** @type {Record<string, number>} */ ({});
+  const ITEM_PAD_BOTTOM = 10;   // atlas.css .atlas-list-item padding-bottom
+  // 桌面欄標題帶高（Alumni 欄頭＝四欄同高；renderList syncAlumniColW 用 body 上的畫面外複本量）：
+  // ⚠️ 不能現場 offsetHeight——pre-render 時 list 還 display:none 會量到 0
+  let listHeadH = 0;
+  /** @param {HTMLElement} col @param {string} cat */
+  function applyListTopPad(col, cat) {
+    const key = itemHKey(cat);
+    const content = ITEM_CONTENT_H[key];
+    const pad = (!isMobileAtlas && content) ? Math.max(0, ((ITEM_H_PER_CAT[key] || 0) - content + ITEM_PAD_BOTTOM) / 2) : 0;
+    col.style.setProperty('--list-top-pad', `${pad}px`);
+  }
+
   // 直向手機 alumni tab：host/employ 左右並排（grid span 1 各半寬）→ 每欄只排單一 sub-col，
   // chevron nav 各自跨自己那半欄（user 2026-07-06）；CSS 手機 media block grid-column 規則同步。
   // 橫向 gate 不適用（一次只顯示一個 subgroup、全寬 3 欄）
@@ -4156,8 +4179,9 @@ export async function initAtlas(options = {}) {
   /** @param {string} cat @param {HTMLElement} [col] 手機用實際欄高當預算（可省略 → 公式 fallback） */
   function calcListPageSize(cat, col) {
     const headerH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--header-height').trim()) || 80;
-    // 標題區佔用：titleblock chip (~31) + col gap (~16) + rotation 餘量 (~5) ≈ 52
-    const TITLEBLOCK_H = 52;
+    // 標題區佔用：欄標 chip 高 + col gap (16) + rotation 餘量 (5)。手機＝一行 chip ~31 → 52；
+    // 桌面主欄標 10-26 改 map chip 同款兩行（~55）→ 量 Alumni 欄頭實高（四欄的標題帶同高：faculty/partners 兩行 chip、host 欄頭、employ 吃 --alumni-head-h）
+    const TITLEBLOCK_H = (!isMobileAtlas && listHeadH) ? listHeadH + 16 + 5 : 52;
     if (isMobileAtlas) {
       // 手機：底部 = 三分類 tab + 最底 layout btn 兩層 bar。
       // 128 = #atlas-list-view 手機 bottom（CSS 同步：btn 16+48 + tab ~40 + 呼吸）；
@@ -4199,11 +4223,13 @@ export async function initAtlas(options = {}) {
     const listTop = (listCs && parseFloat(listCs.top)) || headerH + 64;
     const containerH = chevronBottomY - listTop - TITLEBLOCK_H - CHEVRON_BAND;
     const itemH = ITEM_H_PER_CAT[itemHKey(cat)] || 84;
+    // 主持／就職標題卡佔第一列（user 2026-10-26；CSS titleblock min-height=--list-item-h）：slot 數、列高、間距跟別欄同一套算，items 少排一列
+    const reserved = (cat === 'host' || cat === 'employ') ? 1 : 0;
     // 下限 1（原 3）：矮螢幕硬塞 3 列會擠出欄底、壓到切換鈕（user 2026-10-20）
-    const rowsPerCol = Math.max(1, Math.floor(containerH / itemH));
-    const leftover = Math.max(0, containerH - (rowsPerCol * itemH));
-    const gap = rowsPerCol > 1 ? leftover / (rowsPerCol - 1) : 0;
-    return { rowsPerCol, gap, itemH };
+    const slots = Math.max(1 + reserved, Math.floor(containerH / itemH));
+    const leftover = Math.max(0, containerH - (slots * itemH));
+    const gap = slots > 1 ? leftover / (slots - 1) : 0;
+    return { rowsPerCol: slots - reserved, gap, itemH };
   }
 
   // ── 單一節點換形（2026-08-25 單一節點遮罩架構）──────────────────────
@@ -4402,6 +4428,7 @@ export async function initAtlas(options = {}) {
       // 每格高度透過 CSS var 同步給 .atlas-list-item 與 .atlas-list-nav-item 的 min-height
       // → col2 nav 佔 1 個 slot，與 col1 最後一個 item 底部對齊
       col.style.setProperty('--list-item-h', `${sizeInfo.itemH}px`);
+      applyListTopPad(col, cat);
     }
 
     const allItems = listGrouped[cat];
@@ -4552,6 +4579,8 @@ export async function initAtlas(options = {}) {
           listView.removeChild(ghost);
           const pre = ITEM_H_PER_CAT[itemHKey(cat)] || 84;
           if (maxH > pre + 2) ITEM_H_PER_CAT[itemHKey(cat)] = Math.ceil(maxH);
+          ITEM_CONTENT_H[itemHKey(cat)] = Math.ceil(maxH);
+          applyListTopPad(col, cat);   // 不重渲染也要套（CSS var 直接推）
           // 手機：存逐 item 實高 → renderListPage 改走變高分頁（calcMobilePages）
           if (isMobileAtlas) ITEM_HEIGHTS_PER_CAT[cat] = heights;
           if (maxH > pre + 2 || isMobileAtlas) {
@@ -4670,7 +4699,7 @@ export async function initAtlas(options = {}) {
   // 手機＝對齊 logo 左緣（container padding）。
   // 範圍擺不下兩子欄 → 單列模式：4 欄＋欄距 3xl/xl/3xl(96+48+96，atlas.css)，兩子欄各 ≥150＋子欄距 sm(16) ⇒ 欄 ≥316 ⇒ list ≥ 4×316＋240＝1504。
   // 回傳單列模式有沒有變
-  const LIST_TWO_SUBCOL_MIN_W = 1504;
+  const LIST_TWO_SUBCOL_MIN_W = 1440;   // 8 子欄×150＋欄距 64+48+64（10-26 外側兩道 3xl→2xl）＋4 欄內子欄距 16×4
   function layoutListBox() {
     if (isMobileAtlas) {
       const siteContainer = /** @type {HTMLElement|null} */ (document.querySelector('.site-container'));
@@ -4736,21 +4765,30 @@ export async function initAtlas(options = {}) {
     // em-* items（系友就職企業 mock）已在 items 陣列、走 alumni cat → _listSubGroup='employ' → 自動進 listGrouped.employ
     // 不再需要這裡額外 push placeholder（之前繞 items 陣列直接餵 listGrouped 的 pattern 已 deprecate）
 
+    // 主欄標（教師／系友／合作單位）文字＝map view 分類 chip 同一份（#atlas-filter 的 data-label-key 由後台 ui_labels 填；
+    // user 2026-10-26「list 的 title 要跟 map view 一致」）；每次切 list 都重跑 renderList＝晚到的 label 也會跟上。主持／就職同 map 子 chip 一行
+    /** @param {string} key @param {{en:string, zh:string}} fallback */
+    const filterLabel = (key, fallback) => {
+      const b = filterEl && filterEl.querySelector(`[data-filter="${key}"]`);
+      const en = (b && b.querySelector('.atlas-filter-en')?.textContent?.trim()) || '';
+      const zh = (b && b.querySelector('.atlas-filter-zh')?.textContent?.trim()) || '';
+      return (en || zh) ? { en, zh } : fallback;
+    };
     const CAT_LABELS = {
-      faculty:  { en: 'Professors', zh: '教師' },
+      faculty:  filterLabel('faculty', { en: 'Professors', zh: '教師' }),
       host:     { en: 'Hosting',    zh: '主持'     },
       employ:   { en: 'Employment', zh: '就職'     },
-      partners: { en: 'Partners',   zh: '合作單位' },
+      partners: filterLabel('partners', { en: 'Partners', zh: '合作單位' }),
     };
-    const ALUMNI_GROUP_LABEL = { en: 'Alumni', zh: '系友' };
+    const ALUMNI_GROUP_LABEL = filterLabel('alumni', { en: 'Alumni', zh: '系友' });
 
     // 切 list view → 舊 listCareerCtrl 已過期（DOM 即將被 innerHTML='' 清掉）→ 先 destroy
     if (listCareerCtrl) { listCareerCtrl.destroy(); listCareerCtrl = null; }
 
-    /** @param {{en:string, zh:string}} label */
-    function makeTitleEl(label) {
+    /** @param {{en:string, zh:string}} label @param {boolean} [stack] 主欄標＝map chip 同款 EN 上 ZH 下兩行（atlas.css .is-stack） */
+    function makeTitleEl(label, stack = false) {
       const titleEl = document.createElement('div');
-      titleEl.className = 'atlas-list-col-title';
+      titleEl.className = stack ? 'atlas-list-col-title is-stack' : 'atlas-list-col-title';
       const enSpan = document.createElement('span');
       enSpan.className = 'atlas-list-col-title-en';
       enSpan.textContent = label.en;
@@ -4764,6 +4802,7 @@ export async function initAtlas(options = {}) {
 
     /** @param {string} cat @param {{en:string, zh:string}} label */
     function buildCol(cat, label) {
+      const stack = cat === 'faculty' || cat === 'partners';
       const col = document.createElement('div');
       col.className = 'atlas-list-col';
       col.dataset.category = cat;
@@ -4775,7 +4814,7 @@ export async function initAtlas(options = {}) {
 
       const titleWrapper = document.createElement('div');
       titleWrapper.className = 'atlas-list-col-title-wrapper';
-      titleWrapper.appendChild(makeTitleEl(label));
+      titleWrapper.appendChild(makeTitleEl(label, stack));
       titleblock.appendChild(titleWrapper);
 
       col.appendChild(titleblock);
@@ -4795,7 +4834,7 @@ export async function initAtlas(options = {}) {
     // Faculty
     const facultyCol = buildCol('faculty', CAT_LABELS.faculty);
     listView.appendChild(facultyCol);
-    renderListPage(facultyCol, 'faculty', listPageState.faculty || 0, true);
+    // 第一次 render 延到 syncAlumniColW 量完欄頭高（listHeadH）之後，否則教師欄的列數／列距用退回值 52 算、跟其他三欄對不齊
 
     // Alumni group（user 09-01「alumni 下面就是 hosting、右邊 employ」）：移除獨立 label 欄，
     //   Alumni 系友 label + 一行職業chip 直接掛在 **host 欄頂端**當欄頭 → host list 緊接其下、employ 在右側。
@@ -4810,10 +4849,14 @@ export async function initAtlas(options = {}) {
 
     const masterTitleWrapper = document.createElement('div');
     masterTitleWrapper.className = 'atlas-list-col-title-wrapper';
-    masterTitleWrapper.appendChild(makeTitleEl(ALUMNI_GROUP_LABEL));
+    masterTitleWrapper.appendChild(makeTitleEl(ALUMNI_GROUP_LABEL, true));
     labelCol.appendChild(masterTitleWrapper);
-    // Alumni label 掛 host 欄頂端（buildCol 建的 titleblock 已 absolute 貼欄底、items 為 flex:1）→ 插在最前＝欄頭
-    hostCol.insertBefore(labelCol, hostCol.firstChild);
+    // Alumni label 掛 host 欄頂端＝欄頭。桌面再包一層不旋轉的 .atlas-list-alumni-head（flex row）：右邊接職業 chip、固定 gap
+    // （user 2026-10-26；兩顆各自旋轉，不能把 chip 直接塞進會轉的 labelCol——寬 300+ 的列轉 3° 右端就掉 15px）。
+    // 手機沒有欄頭（CSS 藏 labelCol）→ 不包 head（空 flex 殼仍吃 col gap 16，會把標題推下去）
+    const alumniHead = isMobileAtlas ? null : document.createElement('div');
+    if (alumniHead) { alumniHead.className = 'atlas-list-alumni-head'; alumniHead.appendChild(labelCol); }
+    hostCol.insertBefore(alumniHead || labelCol, hostCol.firstChild);
 
     // 職業chip → employ 欄頂端、靠右對齊 employ 欄右緣（user 09-01「移到右邊、對齊 employ col、對齊右邊」）；
     //   slot absolute 貼 employ 頂右不佔 items 流（employ 仍靠 padding-top 對齊）；旋轉角度較小（randDeg 減半）
@@ -4833,34 +4876,57 @@ export async function initAtlas(options = {}) {
     careerListEl.style.height = '0';
     careerListEl.style.paddingTop = '0';
     careerListEl.style.paddingBottom = '0';
-    careerSlot.appendChild(careerListEl);
-    // noFit：職業chip 一行（EN+ZH 同行）→ fitWidth 逐 child 取 max(EN,ZH)≠sum 會裁；改吃 CSS width:max-content
-    listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan, { dir: 'top', noFit: true });
-    employCol.insertBefore(careerSlot, employCol.firstChild);
+    // noFit：吃 CSS width:max-content（兩行 nowrap）
+    if (alumniHead) {
+      // 桌面＝星雲版做法（user 2026-10-26「職業 chip 改成跟 map 的一樣」）：貼在 Alumni 標題右邊（gap 0）、塞進會轉的 labelCol
+      //   ＝跟標題同角度一體剛性旋轉；dir 'left'＝從標題後方左→右 clip-reveal、輪播換職業也往左收回再滑出（取代各自旋轉＋四向）
+      careerListEl.style.marginTop = '0';
+      labelCol.appendChild(careerListEl);
+      listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan, { dir: 'left', noFit: true });
+    } else {
+      // 手機／矮橫向：employ 欄頂右 slot（CSS .atlas-list-career-slot absolute）、mask 上下收展＋四向輪播
+      careerSlot.appendChild(careerListEl);
+      employCol.insertBefore(careerSlot, employCol.firstChild);
+      listCareerCtrl = createCareerController(careerListEl, careerEnSpan, careerZhSpan, { dir: 'top', noFit: true });
+    }
 
     listView.appendChild(hostCol);
     listView.appendChild(employCol);
-    // 單列模式的主持／就職欄寬＝就職標題卡＋一個箭頭寬的間距＋箭頭＋nav 右側 5px 旋轉餘量（user 2026-10-20；CSS 吃 --alumni-col-w）。
+    // 單列模式的主持／就職欄寬＝就職標題卡寬（user 2026-10-26「系友兩欄再小、外側兩欄再大」；10-20 版還加兩個箭頭寬，
+    // 那時標題卡跟箭頭在欄底同一列，現在標題卡在第一列、箭頭獨佔欄底）。CSS 吃 --alumni-col-w。
     // 量畫面外的複本：此刻 list 可能還 display:none；字型晚到再量一次
     const syncAlumniColW = () => {
       const title = employCol.querySelector(':scope > .atlas-list-col-titleblock .atlas-list-col-title');
       if (!title) return;
       const probe = document.createElement('div');
-      probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;display:flex;';
-      const nav = document.createElement('button');
-      nav.className = 'atlas-list-nav-btn';
-      probe.append(title.cloneNode(true), nav);
+      probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;display:flex;align-items:flex-start;';
+      // 欄頭高（listHeadH／--alumni-head-h：employ 標題卡 margin-top、calcListPageSize 標題帶）也在這裡量：複本去旋轉、offsetHeight 不含 transform
+      const headClone = /** @type {HTMLElement} */ (labelCol.cloneNode(true));
+      headClone.style.transform = 'none';
+      probe.append(title.cloneNode(true), headClone);
       document.body.appendChild(probe);
-      const w = /** @type {HTMLElement} */ (probe.firstElementChild).offsetWidth + 2 * nav.offsetWidth + 5;
+      const w = /** @type {HTMLElement} */ (probe.firstElementChild).offsetWidth;
+      const h = headClone.offsetHeight;
       probe.remove();
       if (w > 5) listView.style.setProperty('--alumni-col-w', `${w}px`);
+      if (h > 0) { listHeadH = h; listView.style.setProperty('--alumni-head-h', `${h}px`); }
     };
     syncAlumniColW();
-    document.fonts?.ready.then(syncAlumniColW);
+    // 字型晚到＝欄頭高可能變 → 列數／列距要重算（list 正顯示時才重渲染；換形中或還在星雲就等下次 render）
+    document.fonts?.ready.then(() => {
+      const before = listHeadH;
+      syncAlumniColW();
+      if (listHeadH !== before && currentView === 'list' && !viewMorphing) {
+        listView.querySelectorAll('.atlas-list-col').forEach(c => {
+          const cat = /** @type {HTMLElement} */ (c).dataset.category || '';
+          renderListPage(/** @type {HTMLElement} */ (c), cat, listPageState[cat] || 0, true);
+        });
+      }
+    });
+    renderListPage(facultyCol, 'faculty', listPageState.faculty || 0, true);
     renderListPage(hostCol, 'host', listPageState.host || 0, true);
     renderListPage(employCol, 'employ', listPageState.employ || 0, true);
 
-    // Partners
     const partnersCol = buildCol('partners', CAT_LABELS.partners);
     listView.appendChild(partnersCol);
     renderListPage(partnersCol, 'partners', listPageState.partners || 0, true);
@@ -4943,8 +5009,8 @@ export async function initAtlas(options = {}) {
       const inner = /** @type {HTMLElement | null} */ (b.querySelector('.anchor-nav-inner'));
       if (!inner || !cat) return;
       if (selected.has(cat)) {
-        inner.style.background = '#000000';
-        inner.style.color = '#FFFFFF';
+        inner.style.background = 'var(--color-black)';
+        inner.style.color = 'var(--color-white)';
         inner.style.opacity = '';
         if (!inner.style.transform) {
           inner.style.transform = `rotate(${randDeg()}deg)`;
@@ -5272,15 +5338,20 @@ export async function initAtlas(options = {}) {
   const M_ITEM_START = M_CITY_LEAD + M_CITY_DUR;   // 位移等 城市離開 + decolorize+erase 都完成（user 08-31）
   const M_ITEM_RANGE = 0.3;
   const M_COLOR_FADE = M_CITY_DUR;   // 彩→theme-fg 褪黑窗＝對齊 host 色塊掃除（user 08-31：item 變黑要跟色塊消失「同時同 ease」＝EASE.exitSoft，否則黑 item 夾雜殘留色塊很突兀）；paired 起飛後由 flipFlyNode --atlas-fly-c 續完
-  const R_LIST_EXIT = 0.55;    // 反向 stage1：只在 list 出現的元素（item 副標 / 箭頭 / 未配對標題 / career）先清乾淨（user 08-30、09-01 副標併入）；
-                               //             回程波（item 飛回 + 標題 morph + 其餘 chip fade）都排在此之後＝正向「map-only 先退」的鏡像
+  // 反向 stage1：只在 list 出現的元素（item 副標 / 箭頭 / 未配對標題 / career）先清乾淨（user 08-30、09-01 副標併入）；
+  //   回程波（item 飛回 + 標題 morph + 其餘 chip fade）都排在此之後＝正向「map-only 先退」的鏡像。
+  //   副標／箭頭收場＝跟去程揭露同曲線同時長（DUR.reveal power3.out，見 switchToMap stage1）：0.55 時已收掉 ~91%，剩的被起飛換形藏掉看不出。
+  //   ⚠️別改回「嚴格時間倒放」(power3.in＋窗拉到 DUR.reveal)：去程看不出在動的慢尾巴倒過來變成回程開頭的停頓＝user「好慢」（10-26 試過）
+  const R_LIST_EXIT = 0.55;
   const R_ITEM_START = R_LIST_EXIT;   // 反向 stage2（user 09-02）：list 上的 item 與 title chip / 未配對散回「同波起飛」；原 +0.3 偏移＝flipFlyNode 內副標收合窗，副標 09-01 已移 phase1 先退→該偏移是殘留，移除
   const R_ITEM_RANGE = 0.3;
   const R_NAV_START  = R_LIST_EXIT;   // 反向：欄標題與 item 同波
   const R_NAV_STEP   = 0;      // user 08-31：回程 nav btn 也對齊正向＝同時到位（原 0.12 階梯，去程已設 0 故拉平）
   const R_FADE_START = R_LIST_EXIT;   // 反向：其餘 chip 散回+fade in＝R_ITEM_START 同波（08-27 鏡像）
-  const R_CITY_START = 2.15;   // 反向 stage4：城市「最後」出現（user）；＝R_BLOOM + M_COLOR_FADE（bloom 上色收完才起）＝城市確實壓軸
-  const R_BLOOM = 1.65;    // 反向 stage3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」＝正向 exit「decolorize + 色塊 clip-out」的鏡像；＝R_FADE_START(0.55)+M_FADE_RANGE(0.25)+CONVERGE_DUR(0.85)＝未配對 A/C 落地窗尾（晚到的 paired straggler 各自 onLand 自補、不卡此時點）
+  // 反向 stage3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」＝正向 exit「decolorize + 色塊 clip-out」的鏡像；
+  //   ＝R_FADE_START＋M_FADE_RANGE＋CONVERGE_DUR(0.85，定義在下方)＝未配對 A/C 落地窗尾（晚到的 paired straggler 各自 onLand 自補、不卡此時點）
+  const R_BLOOM = R_FADE_START + M_FADE_RANGE + 0.85;
+  const R_CITY_START = R_BLOOM + M_COLOR_FADE;   // 反向 stage4：城市「最後」出現（user）；bloom 上色收完才起＝城市確實壓軸
   const NAV_ORDER = /** @type {Record<string, number>} */ ({ faculty: 0, alumni: 1, host: 2, employ: 3, partners: 4 });
 
   // ── 遮罩三段核心（單一節點架構）────────────────────────────
@@ -5337,7 +5408,6 @@ export async function initAtlas(options = {}) {
     return g;
   }
 
-  const SUB_HIDE_DUR = 0.25;    // 反向 phase1：副標原地收回窗（跟箭頭一起先退，見 switchToMap stage1）
   const FLIP_FLY_MAX = 1.0;     // 直飛距離加時上限（見 flipFlyNode 內 flyDur）
   const FLIP_FLY_MAX_LIST = 2.0; // map→list 正向 +1s（user 09-02：要看清楚 item 被 chip 拉著走的弧線軌跡）；回程 list→map 不動
   const FLY_ARC_BULGE = 0.5;    // 正向 item 飛行「朝欄頭鼓弧」強度（0=直線 1=控制點壓到欄頭）；ponytail: 常數旋鈕，太彎就降
@@ -5762,7 +5832,7 @@ export async function initAtlas(options = {}) {
     cityLines.forEach(cl => {
       // ⚠️必先殺 in-flight tween：list 裡 hover/移開 item（含點 layout 鈕瞬間的 mouseout）→ clearDetail →
       // setCityLineRetract(null) 起 retractT→0 的 draw 回 tween（DUR.medium）；下面只寫 retractT=1 不殺它，
-      // 舊 tween 繼續跑＝回 map 首幀線被畫回來「突然先出現」（R_CITY_START 的壓軸 tween 2.15s 後才 overwrite 得到）
+      // 舊 tween 繼續跑＝回 map 首幀線被畫回來「突然先出現」（R_CITY_START 的壓軸 tween 要到回程尾段才 overwrite 得到）
       gsap.killTweensOf(cl);
       cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
       cl.retractT = 1;
@@ -6218,7 +6288,7 @@ export async function initAtlas(options = {}) {
       if (destroyed || currentView !== 'map') return;
       bloomed = true;
       // 跳過還在飛的 straggler（.atlas-flying，其 onLand 自補）＋還沒起飛的 paired（仍 .atlas-as-list list 形態——
-      // 若 R_BLOOM 被調到 ≤ 最大起飛 delay 0.85 就會遇到：無此 guard 會對還在 list 的節點誤上色+ghost 位置錯）
+      // 若 R_BLOOM 被調到 ≤ 最大起飛 delay（R_ITEM_START＋R_ITEM_RANGE）就會遇到：無此 guard 會對還在 list 的節點誤上色+ghost 位置錯）
       items.filter(i => i._span && i.category !== 'D'
         && !i._span.classList.contains('atlas-flying')
         && !i._span.classList.contains('atlas-as-list')).forEach(bloomItem);
@@ -6252,11 +6322,12 @@ export async function initAtlas(options = {}) {
     // stage1（phase1）：只在 list 出現的元素（item 副標 yPercent、未配對標題 yPercent、箭頭 clip-reveal 滑出）在 t=0
     // 先清乾淨，領先回程波（R_ITEM_START）＝正向「map-only 元素先退」的鏡像（user 08-30；09-01 副標併入此拍）
     // 只收「即將飛回的當頁 item」副標（非全 listView，避免掃到 off-screen 量測 ghost）；
-    // 全體同刻一起收（撤 stagger＝user 09-04：正向一起現、回程也要一起消；SUB_HIDE_DUR 0.25 遠短於 R_ITEM_START 0.85 不會拖進標題波）
+    // 全體同刻一起收（撤 stagger＝user 09-04：正向一起現、回程也要一起消）；跟去程揭露同曲線同時長（user 10-26「跟去的一樣」）＝
+    // 一點就動、速度感同去程。副標在 item span 內、起飛換 chip 形就隱藏：R_LIST_EXIT 時已收 ~91%，尾巴被藏掉看不出
     const subExitR = flyItems.flatMap(it =>
       /** @type {HTMLElement[]} */ ([...it._subsEl.querySelectorAll('.atlas-list-item-label'), ...it._span.querySelectorAll('.atlas-list-cc > span')]));
     if (subExitR.length) {
-      gsap.to(subExitR, { yPercent: 100, duration: SUB_HIDE_DUR, ease: EASE.exitSoft, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
+      gsap.to(subExitR, { yPercent: 100, duration: DUR.reveal, ease: EASE.enter, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
     }
     const yTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-col-title')])
       .filter(el => !pairedTitleEls.has(el));
@@ -6269,13 +6340,14 @@ export async function initAtlas(options = {}) {
     // 右箭頭離場改 hero clip-reveal（位移＋自遮罩），與進場（navChipHidden 從下滑上）鏡像＝往下滑出（user 09-01 全站不要 clip-path 原地擦除）
     // ⚠️ 動 btn 本體不動 .atlas-list-nav-item wrapper；必用 fromTo 顯式起點 NAV_CHIP_SHOWN（gsap.to 從 computed 補間會 snap，同 maskFlyChrome）
     const navExitBtns = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item .atlas-list-nav-btn')]);
+    // 箭頭去程跟副標同批（revealNav DUR.reveal power3.out）→ 回程同副標：同曲線同時長
     navExitBtns.forEach(btn => gsap.fromTo(btn, { ...NAV_CHIP_SHOWN },
-      { ...navChipHidden(btn, 'bottom'), duration: DUR.slow, ease: EASE.exitSoft, overwrite: true }));
-    // paired title/subchip 的「文字」也在 Stage1（跟副標/箭頭同時）clip-reveal 擦除、只留色塊（user 09-04）；
-    // 色塊留給下方 maskFlyChrome(skipTextOut) 於 R_NAV_START 跟配對 item 一起飛。
+      { ...navChipHidden(btn, 'bottom'), duration: DUR.reveal, ease: EASE.enter, overwrite: true }));
+    // paired title/subchip 的「文字」clip-reveal 擦除、只留色塊（user 09-04）；色塊留給下方 maskFlyChrome(skipTextOut) 於 R_NAV_START 跟配對 item 一起飛。
+    // 時點＝起飛前剛好收完（去程「色塊落地→文字揭露」的倒放）；排在 t=0 會讓色塊空著等完整個副標收場窗
     const titleTextExitR = /** @type {HTMLElement[]} */ ([...chromePairsR, ...subchipPairsR].flatMap(p => [...p.srcEl.children]));
     titleTextExitR.forEach(t => gsap.fromTo(t, { ...NAV_CHIP_SHOWN },
-      { ...navChipHidden(t, 'bottom'), duration: CHROME_TEXT_OUT, ease: EASE.exitSoft, overwrite: true }));
+      { ...navChipHidden(t, 'bottom'), duration: CHROME_TEXT_OUT, ease: EASE.exitSoft, delay: R_NAV_START - CHROME_TEXT_OUT, overwrite: true }));
     return;
   }
 

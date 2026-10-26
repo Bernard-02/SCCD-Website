@@ -346,8 +346,9 @@ function setup() {
   // 參考 ref.js:124
   customButton.mousePressed(() => {
     if (letters.length > 0 && !isEasterEggActive) {
-      // 如果已經在 Custom 模式下，點擊不做任何事
+      // 已在 Custom 模式再點一次＝關 custom、開轉（同 ▶ 鈕；user 2026-10-26）
       if (!isAutoRotateMode) {
+        togglePlay();
         return;
       }
 

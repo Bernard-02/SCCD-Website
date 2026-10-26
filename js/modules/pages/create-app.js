@@ -90,6 +90,25 @@ function tiltControlBoxes() {
   });
 }
 
+// 點盒的大 icon 鈕＝那塊重抽微傾角（user 2026-10-26；跟上次差 ≥1°）：mode／custom／▶❚❚／下載；
+// 小 icon（shuffle／reset／色環 play）、slider、角度數字、色環本體不算。整盒可點的 mode／下載盒點哪都算；
+// mode3 膠囊兩半＝同一塊、同角一起換
+function bindControlBoxReroll() {
+  const panel = document.querySelector('.control-panel');
+  if (!panel || typeof gsap === 'undefined') return;
+  panel.addEventListener('click', (e) => {
+    const t = /** @type {Element} */ (e.target);
+    const box = /** @type {HTMLElement | null} */ (t.closest('.control-box'));
+    if (!box || box.classList.contains('disabled')) return;
+    const btn = /** @type {HTMLButtonElement | null} */ (t.closest('button'));
+    if (btn ? btn.disabled || !btn.matches('.custom-button, #save-button') : !box.matches('#colormode-box, #save-box')) return;
+    const targets = box.matches('#colormode-box, #colorpicker-box')
+      ? panel.querySelectorAll('#colormode-box, #colorpicker-box') : [box];
+    const deg = SCCDHelpers.rerollAngle(randomCardTilt, box.style.getPropertyValue('--ctl-rot'));
+    gsap.to(targets, { '--ctl-rot': `${deg}deg`, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
+  });
+}
+
 // y-reveal 方向：±110 overshoot（memory feedback_clip_reveal_hidden_overshoot_to_110 sub-pixel 殘影防護）；
 // y 軸只有上下兩向，以「相鄰 item 不同方向」排（[+,-,+] 或 [-,+,-]），起始正負隨機翻
 const alternatingYPercent = (n) => {
@@ -503,6 +522,7 @@ export async function initCreatePage() {
   //   2. scripts 還沒 cached 走 await path，resume 後檢查 #create-app 是否還在 DOM
   applyModeClass();
   registerPageExit(playCreateExitAnimation);
+  bindControlBoxReroll();
 
   // Fast path：scripts 已載過 → sync init，user 沒微任務縫切走
   if (scriptsLoaded) {

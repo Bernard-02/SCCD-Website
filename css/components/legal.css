@@ -121,7 +121,7 @@
   .legal-title-block .hero-title,
   .legal-title-block .hero-title-cn {
     background: var(--color-green);
-    padding: 0.5rem 0.6rem;
+    padding: var(--spacing-xs) 0.6rem;
     line-height: 1.05;
     width: max-content;
     max-width: 100%;
@@ -221,7 +221,7 @@
   .legal-zebra-title-zh {
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
-    line-height: 1.2;
+    line-height: var(--line-height-lg);
     margin: 0;
   }
   .legal-zebra-title-en { margin-bottom: var(--space-en-zh-s); }
@@ -371,15 +371,15 @@
      水平用負 margin 抵銷（box 往 column-gap 溢出、track 佈局不變）。 */
   .legal-reg-name,
   .legal-reg-unit {
-    padding: var(--spacing-sm) 8px;
-    margin: 0 -8px;
+    padding: var(--spacing-sm) var(--spacing-xs);
+    margin: 0 calc(var(--spacing-xs) * -1);
     background: var(--item-color-deep, transparent);
     color: black;   /* hover 變色瞬切（不 transition） */
   }
   /* 第二欄 box 右緣吃掉 column-gap 與第三欄相接＝連續色帶：name 右伸 gap−8（unit 左已伸 8）；負 margin 同值抵銷、track 不變。 */
   .legal-reg-name {
-    padding-right: calc(var(--spacing-md) - 8px);
-    margin-right: calc(8px - var(--spacing-md));
+    padding-right: calc(var(--spacing-md) - var(--spacing-xs));
+    margin-right: calc(var(--spacing-xs) - var(--spacing-md));
   }
   /* 末欄 box 右緣延伸到卡片右緣：吃掉 .legal-zebra-card 右 padding(--spacing-sm) */
   .legal-reg-unit {
@@ -453,10 +453,12 @@
   :is(.legal-map-desc, .legal-page-desc) p[lang="zh-Hant"] { line-height: var(--line-height-zh-s); }
   /* 同主頁自成一組 .legal-map-pgroup＝主卡＋.legal-map-subs（分頁卡），組間才有大距。
      手機窄：單欄、組內直排（雙欄 ~160px 會把卡片標題擠爆） */
+  /* 斑馬（user 2026-10-26，卡片設計不變）：每組一條底色帶、組與組相接（grid 不留列距、間距改成組自己的 padding），
+     奇數組上色＝同 legal 手風琴列（idx 偶數上色）。--zb-color 給進場長底色用（lists.css .zb-cover，同 activities 斑馬） */
   .legal-map-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--spacing-lg) var(--spacing-md);
+    gap: 0 var(--spacing-md);
     align-items: start;
   }
   .legal-map-pgroup,
@@ -467,13 +469,23 @@
     align-items: flex-start;
     min-width: 0;
   }
+  .legal-map-pgroup { padding: var(--spacing-md) var(--spacing-sm); }   /* 左右 sm＝legal 手風琴列 px-sm */
+  .legal-map-pgroup:nth-child(odd) {
+    --zb-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
+    background-color: var(--zb-color);
+  }
+  body.mode-color .legal-map-pgroup:nth-child(odd) { --zb-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); }
   .legal-map-subs { align-self: stretch; }   /* 寬＝組寬 → 卡片 max-width:100% 有明確基準 */
   @media (min-width: 768px) {
-    /* 全體 4 等寬欄：col1＝主卡、後 3 欄＝分頁卡；一組一列。
-       pgroup display:contents → 主卡／subs 直接當 grid item，主卡鎖 col1＝沒分頁的組自動換列 */
-    /* 組間距 2xl；column-gap 須＝.legal-map-subs 的，欄線才對齊 */
-    .legal-map-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: var(--spacing-2xl); }
-    .legal-map-pgroup { display: contents; }
+    /* 一組一列＝一條斑馬帶：組自己是 4 等寬欄 grid（col1＝主卡、後 3 欄＝分頁卡）。各組同寬同 padding＝欄線跨組對齊；
+       組上下 padding lg＝相鄰兩組卡片距 2xl（＝原本的組間列距） */
+    .legal-map-pgroup {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      column-gap: var(--spacing-md);
+      align-items: start;
+      padding: var(--spacing-lg) var(--spacing-sm);
+    }
     .legal-map-pgroup > .legal-map-card { grid-column: 1; }
     /* 分頁區 3 欄（column-gap 同外層 → 欄線跟外層 4 欄對齊）：每張卡佔幾欄由 JS layoutMapCards 依貼字寬回寫 span，裝不下自動換列 */
     .legal-map-subs {
@@ -492,17 +504,18 @@
     display: inline-flex;
     flex-direction: row;
     align-items: flex-start;
-    column-gap: 8px;
+    column-gap: 6px;   /* ＝卡左右內距：編號與標題之間跟卡邊同寬 */
     width: fit-content;
     max-width: 100%;
-    padding: 6px 8px 5px;
+    padding: var(--card-pad-s);
+    line-height: var(--line-height-s);
     /* 兩區各自純色塊、卡片本身無底：卡片黑底上疊編號框＝旋轉後外緣反鋸齒漏 1px 黑邊；單層 gradient 畫兩區＝交界硬切、旋轉明顯鋸齒。
        → 黑區＝::before 從編號欄右緣 −1px 起（z-index:-1 墊在編號框下），交界由編號框的反鋸齒邊蓋在黑上。
        --map-num-w＝編號欄寬（JS equalizeMapNumWidth 寫在容器上）；各 mode／hover 只換這兩個 var（inverse.css / color.css） */
     --map-num-bg: var(--map-accent);
-    --map-body-bg: #000;
+    --map-body-bg: var(--color-black);
     position: relative;
-    color: #fff;
+    color: var(--color-white);
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);
     text-decoration: none;
@@ -518,7 +531,7 @@
     z-index: -1;                 /* 卡片帶 transform＝自成 stacking context，-1 仍在卡內、墊在編號框底下 */
     background: var(--map-body-bg);
   }
-  .legal-map-card.is-swap { --map-num-bg: #000; --map-body-bg: var(--map-accent); color: #000; }
+  .legal-map-card.is-swap { --map-num-bg: var(--color-black); --map-body-bg: var(--map-accent); color: var(--color-black); }
   /* 編號（1 / 1-1 / 1-1-1…）：width 由 JS equalizeMapNumWidth 量最寬者回寫（border-box 等寬含 padding、標題左緣對齊）。
      box 貼齊卡片左緣並 stretch 撐滿卡高（負 margin 吃掉卡 6/8/5 padding）、自帶同款 padding → 數字行與 EN 標題行同高對齊。 */
   .legal-map-num {
@@ -528,12 +541,12 @@
     font-weight: var(--font-weight-bold);
     /* 不用 tabular-nums：Inter 等寬「1」帶底座、字形不同；格寬已由 equalizeMapNumWidth 統一 */
     background: var(--map-num-bg);
-    color: #000;
-    padding: 6px 8px 5px;
-    margin: -6px 0 -5px -8px;
+    color: var(--color-black);
+    padding: var(--card-pad-s);
+    margin: -5px 0 -5px -6px;   /* 吃掉卡的 --card-pad-s（上下 5、左 6），改 token 要同步 */
     text-align: left;
   }
-  .legal-map-card.is-swap .legal-map-num { color: #fff; }
+  .legal-map-card.is-swap .legal-map-num { color: var(--color-white); }
   .legal-map-txt {
     display: flex;
     flex-direction: column;

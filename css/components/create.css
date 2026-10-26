@@ -717,6 +717,12 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 .custom-button-rotate.play-icon [data-icon-clip-wrap] {
   left: calc(40px * var(--scale) * 0.233);
 }
+/* ❚❚（pause_create.svg：160 方框、兩條 stroke 22 在 x 39–121）換圖遮罩裁到圖案自己的寬，不沿用 ▶ 的方框
+   （user 2026-10-26）。▶❚❚ 鈕 .pause-icon／色環鈕非 .is-play＝❚❚，class 都在換圖藏好時才切 */
+.custom-button-rotate.pause-icon [data-icon-clip-wrap],
+.colorwheel-play-button:not(.is-play) [data-icon-clip-wrap] {
+  clip-path: inset(0 24.375%);
+}
 /* img＝glyph 自己的大小（不撐滿 60×40 框再 contain）：換圖遮罩貼著它＝滑動距離＝icon 本身（user 2026-10-21 嫌 ▶／❚❚ 動太多）。
    SVG 只有 viewBox 沒寬高＝無固有尺寸 → 高要寫定值、寬 auto 吃比例：▶／❚❚ 正方＝40×40；▶❚❚ 255:150＝68 超內寬 →
    夾到 60（contain 等比＝圖案 60×35、框 60×40）。寬上限用 cqw（鈕＝size container，寬由盒高×aspect 決定、不看內容）：
@@ -834,20 +840,18 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   transition: none;
 }
 
-/* enabled：色由 ui-state.js 寫 --track-color／--thumb-color */
+/* enabled：色由 ui-state.js 寫 --track-color／--thumb-color。
+   灰→彩（打前三個字逐條 enabled）不過渡、瞬間換（user 2026-10-26）：slider／thumb／角度數字都不寫 transition */
 .custom-slider.enabled {
   background-color: var(--track-color);
-  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 .custom-slider.enabled::-webkit-slider-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 .custom-slider.enabled::-moz-range-thumb {
   background-color: var(--thumb-color);
   border: none;
-  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
 /* inactive slider＝var(--lib-fg)（opacity 另設，跟 icon 同階）。
@@ -857,7 +861,6 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 #create-app.inverse-mode .custom-slider:not(.enabled) {
   background: var(--lib-fg);
   box-shadow: none;
-  transition: background var(--dur-fast) ease, opacity var(--dur-fast) ease;
 }
 #create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
@@ -923,7 +926,6 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   width: calc(40px * var(--scale));
   text-align: center;
   color: #999;
-  transition: color var(--dur-fast) ease, opacity var(--dur-fast) ease;
   background: none;
   border: none;
   outline: none;
@@ -1039,8 +1041,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   display: block;
 }
 
-/* 非 mode3 用 opacity 隱藏（非 display:none）：退場時 .wireframe-mode 先被移除，display:none 會讓 play 鈕
-   在色環收合中瞬間消失。pointer-events:none 防淡出中誤點 */
+/* 非 mode3 用 opacity 隱藏（非 display:none）。離開 mode3 時 ui-state.js 先凍 inline opacity／icon filter，
+   play 鈕照 mode3 的樣子跟色環滑出、藏好才清。pointer-events:none 防誤點 */
 #create-app:not(.wireframe-mode) .colorwheel-play-button {
   opacity: 0;
   pointer-events: none;

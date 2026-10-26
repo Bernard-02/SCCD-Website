@@ -15,7 +15,7 @@ import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { initListAccordion, refreshStickyPinObservers } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
-import { revealRows, hideRow } from '../ui/list-row-reveal.js';  // rows 進場（CSS transition，同 activities）；hideRow＝per-item 翻上
+import { revealRows, hideRow, coverZebra, uncoverZebra } from '../ui/list-row-reveal.js';  // rows 進場（CSS transition，同 activities）；hideRow＝per-item 翻上；cover/uncoverZebra＝sitemap 斑馬帶長底色
 import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
@@ -526,18 +526,35 @@ export async function loadSitemap() {
     //   遮罩在卡片自己的 local box 上跟著旋轉走＝角不被裁、無外層遮罩＝不再「被切到再還原」；
     //   translate 與 clip 抵消＝動畫全程不畫出最終框外、不掃到鄰卡）。
     const targets = Array.from(contentEl.querySelectorAll('.legal-map-desc, .legal-map-card'));
+    // 斑馬帶（奇數組，legal.css）：底色由 .zb-cover 從一側長出（內容之下、不裁卡）＝跟該組第一張卡同拍、逐組接力（同 activities 斑馬）
+    const bands = /** @type {HTMLElement[]} */ (Array.from(contentEl.querySelectorAll('.legal-map-pgroup:nth-child(odd)')));
     if (typeof gsap !== 'undefined' && targets.length && !prefersReducedMotion()) {
       // 出生已烙單邊 100% clip 全藏；layout 好才量寬高補 translate 向量（clip/translate 不動 layout → 迴圈讀寫不 thrash）
       targets.forEach(el => gsap.set(el, navChipHidden(el, el.dataset.revealDir)));
+      const STAGGER_AMOUNT = 0.25;
       gsap.to(targets, {
         ...NAV_CHIP_SHOWN,
         duration: DUR.base,
         ease: EASE.wipe,   // 同 curriculum 灰卡
-        stagger: { amount: 0.25 },
+        stagger: { amount: STAGGER_AMOUNT },
         overwrite: true,
         clearProps: 'clipPath,translate',
       });
+      const each = targets.length > 1 ? STAGGER_AMOUNT / (targets.length - 1) : 0;   // GSAP amount＝首末間隔
+      bands.forEach(b => {
+        const first = /** @type {HTMLElement | null} */ (b.querySelector('.legal-map-card'));
+        coverZebra(b, first?.dataset.revealDir === 'top');
+        uncoverZebra(b, DUR.base, Math.max(0, targets.indexOf(first)) * each);
+      });
       registerPageExit(() => new Promise(res => {
+        // 斑馬帶反向收回（底色往起點那側縮，跟卡片同時長）
+        bands.filter(b => b.isConnected).forEach(b => {
+          coverZebra(b, Math.random() < 0.5);
+          b.style.setProperty('--zb-h', 'calc(100% + 2px)');
+          void b.offsetHeight;   // 先 commit 滿版才起 transition
+          b.style.setProperty('--zb-dur', `${DUR.base}s`);
+          b.style.setProperty('--zb-h', '0px');
+        });
         const alive = targets.filter(el => el.isConnected);
         if (!alive.length) { res(); return; }
         // ⚠️ hidden 向量依「當下」尺寸/角度重算（navChipHidden 勿 cache）；fromTo 顯式起點：

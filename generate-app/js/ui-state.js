@@ -117,10 +117,12 @@ function updateUI() {
                 //   mode3 進頁（control bar 進場還沒跑完）＝不另播、跟膠囊同一 unit 進（user 2026-10-21）
                 if (colorPickerContainer && entering && controlBarRevealed && typeof gsap !== 'undefined') {
                     const growDur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-medium')) || 0.5;
-                    const wheel = colorPickerContainer.elt, h = wheel.offsetHeight || 72;
+                    const wheel = colorPickerContainer.elt;
                     wheel.style.overflow = 'clip';
-                    gsap.fromTo(document.getElementById('colorpicker-reveal'), { y: Math.random() < 0.5 ? h : -h },
-                        { y: 0, duration: 0.4, ease: 'power2.out', delay: growDur, overwrite: true,
+                    // ±110% 非 ±offsetHeight：offsetHeight 取整，--scale<1 時色環真高是小數（72×0.85＝61.2）→
+                    // 差 0.2px＝遮罩邊先露一條色環（user 2026-10-26 小螢幕「先露出一點 wheel 頂部」）
+                    gsap.fromTo(document.getElementById('colorpicker-reveal'), { yPercent: Math.random() < 0.5 ? 110 : -110 },
+                        { yPercent: 0, duration: 0.4, ease: 'power2.out', delay: growDur, overwrite: true,
                           onComplete: () => { wheel.style.overflow = ''; } });
                 }
             };
@@ -131,6 +133,12 @@ function updateUI() {
             }
         }
     } else {
+        // 剛離開 mode3：play 鈕照 mode3 的樣子跟色環一起滑出——class 一拿掉 CSS 就把 icon 換成新 mode 的黑／白、
+        // 鈕淡出（user 2026-10-26「離開時 icon 變黑」）→ 先凍住反色與不透明度，色環藏好再清（下方 setTimeout）
+        if (colorPickerBox && colorPickerBox.elt.dataset.open === '1' && colorWheelPlayIcon && colorWheelPlayButton) {
+            colorWheelPlayIcon.elt.style.filter = getComputedStyle(colorWheelPlayIcon.elt).filter;
+            colorWheelPlayButton.elt.style.opacity = '1';
+        }
         body.removeClass('wireframe-mode');
         if (isInverseTarget) {
             body.removeClass('standard-mode');
@@ -143,9 +151,8 @@ function updateUI() {
         if (colorPickerBox) {
             // 色環先上/下滑出（play 鈕跟著），膠囊收合由 CSS delay dur-micro 接在後面。只在「剛離開 mode3」跑一次
             if (colorPickerContainer && colorPickerBox.elt.dataset.open === '1' && typeof gsap !== 'undefined') {
-                const wheel = colorPickerContainer.elt, h = wheel.offsetHeight || 72;
-                wheel.style.overflow = 'clip'; // 遮罩＝色環自己的圓（同進場）
-                gsap.to(document.getElementById('colorpicker-reveal'), { y: Math.random() < 0.5 ? h : -h, duration: 0.2, ease: 'power2.in', overwrite: true });
+                colorPickerContainer.elt.style.overflow = 'clip'; // 遮罩＝色環自己的圓（同進場）
+                gsap.to(document.getElementById('colorpicker-reveal'), { yPercent: Math.random() < 0.5 ? 110 : -110, duration: 0.2, ease: 'power2.in', overwrite: true });
             }
             colorPickerBox.elt.dataset.open = '0';
 
@@ -153,6 +160,8 @@ function updateUI() {
 
             // 色環滑出完（200ms）再隱藏；期間又切回 mode3＝別藏
             setTimeout(() => {
+                if (colorWheelPlayIcon) colorWheelPlayIcon.elt.style.removeProperty('filter');
+                if (colorWheelPlayButton) colorWheelPlayButton.elt.style.removeProperty('opacity');
                 if (colorPickerBox.elt.dataset.open === '1') return;
                 colorPickerBox.style('display', 'none');
 

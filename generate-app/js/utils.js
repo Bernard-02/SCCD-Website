@@ -174,6 +174,7 @@ function updateRotateIcon() {
   // 桌面版：使用 Auto/Custom 模式邏輯
   let desktopIconSrc = '';
   let desktopIsPlayIcon = false;
+  let desktopIsPauseIcon = false;
 
   if (!hasText) {
     // 沒有文字時：顯示 Rotate icon（disabled 狀態）
@@ -183,6 +184,7 @@ function updateRotateIcon() {
     if (isRotating) {
       // 正在自動旋轉：顯示 Pause icon
       desktopIconSrc = panelIcon(`Pause${suffix}`);
+      desktopIsPauseIcon = true;
     } else {
       // Auto 模式但暫停：顯示 Play icon
       desktopIconSrc = panelIcon(`Play${suffix}`);
@@ -199,9 +201,13 @@ function updateRotateIcon() {
 
   // 更新桌面版 icon
   if (rotateIcon) {
-    // 添加或移除 play-icon class：換圖藏好時才切
+    // 添加或移除 play-icon／pause-icon class：換圖藏好時才切
     const rotateButton = _p5.select('.custom-button-rotate');
-    swapIconSrc(rotateIcon.elt, desktopIconSrc, () => { if (rotateButton) rotateButton.elt.classList.toggle('play-icon', desktopIsPlayIcon); });
+    swapIconSrc(rotateIcon.elt, desktopIconSrc, () => {
+      if (!rotateButton) return;
+      rotateButton.elt.classList.toggle('play-icon', desktopIsPlayIcon);
+      rotateButton.elt.classList.toggle('pause-icon', desktopIsPauseIcon);
+    });
   }
 
   // 更新手機版 icon

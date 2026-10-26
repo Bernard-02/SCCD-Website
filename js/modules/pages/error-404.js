@@ -1,7 +1,7 @@
 /**
  * 404 Page
  *
- * 三張卡（ERROR / 錯誤 / 回首頁 btn）— 同色、隨機旋轉、collision-based 隨機放置
+ * 三張卡（ERROR / 未知 / 回首頁 btn）— 同色、隨機旋轉、collision-based 隨機放置
  * 每張卡 = anchor wrapper（負責 abs 定位 + 旋轉 + overflow:clip）+ 內層 card（負責 yPercent reveal）
  *
  * 放置策略：
@@ -18,8 +18,10 @@
 
 import { setupClipReveal, playClipReveal, playRevealExit } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { EASE } from '../ui/motion.js';
+import { DUR, EASE } from '../ui/motion.js';
 import { rotatedBBox, rectsOverlap } from '../ui/footer-scatter.js';
+import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 
 const ROTATION_RANGE = 12;          // ±度數
@@ -125,7 +127,10 @@ function randomizeAllPlacements(stage) {
     results.push({ anchor, topPct: accepted.topPct, leftPct: accepted.leftPct, rot: accepted.rot });
   }
 
-  results.forEach(r => setAnchorPlacement(r.anchor, { topPct: r.topPct, leftPct: r.leftPct, rot: r.rot }));
+  results.forEach(r => {
+    setAnchorPlacement(r.anchor, { topPct: r.topPct, leftPct: r.leftPct, rot: r.rot });
+    /** @type {any} */ (r.anchor)._arrowSpin?.commit(r.rot);   // 回首頁鈕：重排後的角＝hover 抽新角的起點（否則可能抽到跟現角差不多＝看不出轉）
+  });
 }
 
 // 三段式 shuffle：exit 退場 → 換位置 → enter 進場
@@ -190,6 +195,18 @@ export function init404() {
   playClipReveal(cards, {
     onComplete: () => startShuffleLoop(stage),
   });
+
+  // 回首頁鈕 hover＝黑方塊 icon 鈕家族（user 2026-10-26「跟其他 btn 一個樣式」）：換成另一個三原色底（CSS 在 404.html）
+  // ＋抽新角、離開保持。轉 anchor 不轉 card：anchor 的 overflow:clip 是進場遮罩，轉 card 會被切角；角度本來就由 GSAP rotation 持有
+  const back = /** @type {HTMLElement|null} */ (stage.querySelector('[data-error-card="back"]'));
+  if (back && typeof gsap !== 'undefined') {
+    bindNavBtnHover(back, { pick: () => {
+      const others = SCCDHelpers.ACCENT_COLORS.filter(c => c !== color);
+      return others[Math.floor(Math.random() * others.length)];
+    } });
+    bindArrowSpin(back, (/** @type {number} */ d) => gsap.to(back, { rotation: d, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' }),
+      { initial: Number(gsap.getProperty(back, 'rotation')) });
+  }
 
   // 離頁退場：先停 5s shuffle 不跟退場搶 tween，再 yPercent 反向沉出（anchor overflow:clip 當 mask）
   registerPageExit(() => {
