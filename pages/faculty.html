@@ -23,7 +23,7 @@
   <title>Faculty - SCCD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="../css/output.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
 </head>
@@ -128,7 +128,7 @@
            高度＝header 高就好（曾用容器 pt 整段 calc(+4rem)=156，user 嫌大）；底色吃 --faculty-panel-bg（開 panel 時 JS 設 accent）＝無縫；
            z-10 蓋過 relative 的內容容器、pointer-events-none 不擋捲動 -->
       <!-- box-shadow 1px：遮擋帶與 profile layer 交界防光柵化半像素縫（同 cards.css profile 底邊處理） -->
-      <div class="md:hidden absolute top-0 inset-x-0 h-[var(--header-height,80px)] z-10 pointer-events-none" style="background: var(--faculty-panel-bg, #fff); box-shadow: 0 1px 0 var(--faculty-panel-bg, #fff)"></div>
+      <div class="md:hidden absolute top-0 inset-x-0 h-[var(--header-height,80px)] z-10 pointer-events-none" style="background: var(--faculty-panel-bg, var(--color-white)); box-shadow: 0 1px 0 var(--faculty-panel-bg, var(--color-white))"></div>
 
       <!-- 手機返回鍵：釘在 header 右側 menu 鈕位置（slide-in 開啟時 menu/mode 鈕已被 lightbox-shell clip 收掉）；
            z-20 蓋過 header 遮擋帶（z-10）；佈局在 cards.css .faculty-back-header -->

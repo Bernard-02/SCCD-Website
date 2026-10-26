@@ -479,7 +479,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     if (activeLabel) {
       activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
       activeLabel.style.background = color;
-      activeLabel.style.color = '#000000';
+      activeLabel.style.color = 'var(--color-black)';
       activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
     }
 

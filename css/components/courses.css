@@ -41,7 +41,7 @@
       overflow-y: clip;
       scrollbar-width: none;
       -ms-overflow-style: none;
-      padding-top: 2rem;
+      padding-top: var(--spacing-lg);
       /* padding-bottom 給 active btn rotate 後下緣留 buffer，避免被 bar 邊裁切 */
       padding-bottom: 0.75rem;
       margin-left: calc(var(--container-padding) * -1);
@@ -117,8 +117,8 @@
     }
   }
 
-  /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative），每顆 chip 之間一律全站
-     --nav-btn-gap（bar／group HTML 皆 md:gap-[var(--nav-btn-gap)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
+  /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative）；組與組（bar）之間＝全站 --nav-btn-gap、
+     組內 BFA 小標→組別鈕（group）＝--nav-btn-sub-gap（HTML md:gap-[var(...)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
      矮橫向（landscape.css）／直向手機（absolute、JS --courses-bar-padtop）各有規則，min-height 501 排除矮橫向。 */
   /* 第一層（BFA 小標題、MDES）貼 logo 框左緣（＝欄左緣 0）、第二層組別鈕內縮 12（user 2026-10-21；原第一層 -12 外凸、組別貼 logo） */
   @media (min-width: 1024px) and (min-height: 501px) {
@@ -143,13 +143,13 @@
   .courses-bfa-label {
     display: inline-block;
     width: fit-content;
-    padding: 6px 8px 5px;
+    padding: var(--card-pad-s);
     position: absolute;
     bottom: calc(100% + 4px);
     left: -12px;
     z-index: 2;
     font-size: var(--font-size-s);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     line-height: var(--line-height-s);   /* 照字級：text-s → 1.3（同 about .class-group-label） */
     color: var(--theme-fg);
     background: transparent;
@@ -247,7 +247,7 @@
 
   /* 年級表頭（EN 上 / ZH 下）：字級同必修/選修 label；ZH 實色不加 opacity。sticky 由外層 cover 負責。 */
   .courses-grid-col-header {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);
     /* MDES 切換時 inner slide 進出、外層當遮罩。justify-self:start 讓遮罩縮成文字寬——
@@ -262,13 +262,13 @@
     gap: var(--space-en-zh-s);
   }
   .courses-grid-col-zh {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
   }
 
   /* 類別 label（必修/選修）：桌面 sticky containing block = 所在 row，row 到底時 label 跟著上去。
      color 用 var(--theme-fg)，勿硬寫 black（inverse 會黑底黑字） */
   .courses-grid-type-label {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);
     align-self: start;
@@ -298,7 +298,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: var(--spacing-sm);
     min-width: 0;
   }
 
@@ -313,7 +313,8 @@
     gap: var(--space-en-zh-s);
     width: fit-content;
     max-width: 100%;
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
+    padding: var(--card-pad-s);
+    line-height: var(--line-height-s);
     background: var(--light-gray);
     color: black;
     font-size: var(--font-size-s);
@@ -331,9 +332,9 @@
     text-overflow: clip;
     max-width: 100%;
   }
-  .courses-grid-card-en { font-weight: 700; }
+  .courses-grid-card-en { font-weight: var(--font-weight-bold); }
   /* ZH 不加 opacity：半透明會讓中文看起來比英文淡/細 → 中文 100% 實色 */
-  .courses-grid-card-zh { font-weight: 700; }
+  .courses-grid-card-zh { font-weight: var(--font-weight-bold); }
   .courses-marquee-inner {
     display: inline-block;
     white-space: nowrap;
@@ -389,7 +390,7 @@
     flex-shrink: 0;
     background: inherit;
     /* +1rem 對齊 faculty slide-in profile 圖片區塊頂（faculty 同為 1rem） */
-    padding-top: calc(var(--header-height, 80px) + 1rem);
+    padding-top: calc(var(--header-height, 80px) + var(--spacing-sm));
     padding-bottom: var(--spacing-md);
   }
   @media (min-width: 768px) {
@@ -435,7 +436,7 @@
     -ms-overflow-style: none;
     margin-left: calc(var(--container-padding) * -1);
     margin-right: calc(var(--container-padding) * -1);
-    padding: 0.5rem var(--container-padding);
+    padding: var(--spacing-xs) var(--container-padding);
   }
   .courses-mobile-grade-bar::-webkit-scrollbar { display: none; }
   .courses-mobile-grade-btn {
@@ -470,10 +471,10 @@
     row-gap: var(--space-en-zh-s);
   }
   .courses-mobile-type-en {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
   }
   .courses-mobile-type-zh {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
   }
   .courses-mobile-cells {
     /* 卡片直排、各卡寬度貼文字寬（fit-content）；align-self:stretch 給 max-width:100% 滿寬基準，防 nowrap 撐爆 */
@@ -537,7 +538,7 @@
       transform: translateZ(0);
       /* nav 帶（z-5、opaque）底緣比 grade bar top 低 → tuck ~4.6px 蓋住 nav↔grade 縫（grade bar 有 overflow、不能靠 ::before 補口）。
          tuck 會覆掉 active pill 旋轉頂角 → 改把 pill 往下推：top padding 16，旋轉頂角清開 nav 底約 5px（吸收 nav 高度變動）。 */
-      padding-top: 16px;
+      padding-top: var(--spacing-sm);
     }
     #courses-content-section .courses-grid-mobile {
       gap: var(--spacing-sm);
@@ -595,7 +596,7 @@
     }
     .courses-grid-card {
       font-size: var(--font-size-s);
-      padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
+      padding: var(--card-pad-s);
     }
   }
 

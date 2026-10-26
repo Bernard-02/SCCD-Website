@@ -47,7 +47,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { countryName } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
-import { modePlaceholderUrl } from './faculty-data-loader.js';
+import { modePlaceholderUrl, syncPlaceholderCard } from './faculty-data-loader.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -545,10 +545,11 @@ export function initFacultySlideIn() {
             loadFacultyData(facultyId);
             // 開著的這張維持 hover 樣（底色＋圖轉正，cards.css .is-active）：overlay 蓋上卡片＝:hover 失效、底色會先掉
             //（user 2026-10-19）。關完（closeSlideIn onComplete）才拿掉；關到一半又開別張 → 先清舊的
-            document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
+            document.querySelectorAll('.faculty-card.is-active').forEach(c => { c.classList.remove('is-active'); syncPlaceholderCard(c); });
             card.classList.add('is-active');
+            syncPlaceholderCard(card);   // 代用 logo 卡：開著期間維持線框（accent 底上不放彩色 logo）
 
-            const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || '#26BCFF';
+            const cardColor = getComputedStyle(card).getPropertyValue('--card-color').trim() || SCCDHelpers.ACCENT_COLORS[2];
             slideInPanel.style.backgroundColor = cardColor;
             // 右欄 sticky title 用此 var 蓋住下方 scroll 經過的字（inherit 抓不到 painted bg）
             slideInPanel.style.setProperty('--faculty-panel-bg', cardColor);
@@ -614,7 +615,7 @@ export function initFacultySlideIn() {
       slideIn.classList.add('invisible', 'pointer-events-none');
       slideIn.classList.remove('pointer-events-auto');
       slideInPanel.style.backgroundColor = '';
-      document.querySelectorAll('.faculty-card.is-active').forEach(c => c.classList.remove('is-active'));
+      document.querySelectorAll('.faculty-card.is-active').forEach(c => { c.classList.remove('is-active'); syncPlaceholderCard(c); });
       if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
     };
     if (deskCard) { deskClosing = true; desk.close(onComplete); }

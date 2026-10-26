@@ -281,7 +281,7 @@
       grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding） */
       /* 最小 column-gap 隨視窗放大（32 → 3.5vw → 80）：中寬度（~1280–1600）圖已近 250 上限、space-between 餘量還沒啟動，
          死釘 32 會圖大 gap 小；>~1700 圖封頂後由 space-between 撐大。 */
-      column-gap: clamp(2rem, 3.5vw, 5rem);
+      column-gap: clamp(var(--spacing-lg), 3.5vw, 5rem);
       row-gap: var(--spacing-4xl);
     }
 
@@ -301,7 +301,7 @@
       grid-row: span 3;
       /* 行距＝左右實際間距 ×1.5（documents 書本同規則；量卡片框、不含 6px padding）。實際左右間距＝column-gap 下限，
          或卡片封頂 250 後被 space-between 撐大的 (牆寬 − 4×250)/3，取大者。改欄數／卡寬上限要同步這裡 */
-      margin-top: calc(1.5 * max(clamp(2rem, 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
+      margin-top: calc(1.5 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
     }
     #faculty-cards .faculty-card:nth-child(-n+4) {
       margin-top: 0;
@@ -331,8 +331,8 @@
        minmax(0,...) 解放 min-content 下限 → track 永遠 fair share，內容靠 .faculty-marquee-line overflow clip */
     grid-template-columns: minmax(0, 1fr) minmax(0, 4fr) minmax(0, 2fr) minmax(0, 2fr);
     gap: var(--spacing-md);
-    align-items: baseline;
-    padding-right: 2rem;
+    align-items: baseline;   /* 真桌面改置中，見下方 sticky 段後 */
+    padding-right: var(--spacing-lg);
     font-size: var(--font-size-s);
   }
   /* row 間距統一由父層 .faculty-rows 的 gap 控制（不用 row padding-bottom）→ 最後一個 row 無 trailing 空白。
@@ -361,6 +361,12 @@
     #faculty-panel .faculty-section-title-col {
       top: 0;
     }
+  }
+  /* 真桌面（4 欄 grid）：內文格垂直置中於 row——只有單一語言（一行）的格對齊 row 中線、不貼頂；
+     年份不跟著置中、維持上方 align-self:start 貼頂（user 2026-10-26 二修）。矮橫向是另一套兩欄 grid（landscape.css），不動 */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    .faculty-grid-row { align-items: center; }
+    .faculty-grid-row-education > span:first-child { align-self: center; }   /* 學歷列沒有年份欄：首格是校名＝內文 */
   }
   /* 獲獎 row：year | country | name(5fr) | category；總和刻意 9fr 同學歷/經歷 `1fr 4fr 2fr 2fr` → fr 單位相同：
      country 左緣對齊 organization；category 起點同為 7fr → 對齊 role */
@@ -485,12 +491,12 @@
       background: var(--faculty-panel-bg, transparent);
       flex-direction: row;
       align-items: flex-start;   /* 圖頂對齊名字頂 */
-      gap: 2rem;
+      gap: var(--spacing-lg);
       /* pt 1rem：仍夠 rotate(-4deg) 頂角不被 header 帶蓋 */
-      padding-top: 1rem;
+      padding-top: var(--spacing-sm);
       /* pb：開場 Education 距 profile 的空間＝之後每個 title 釘住時的空間（同一值→結構上一致）；
          放 pb 而非 gap → 這段有 profile bg，捲過的內容不從縫隙露出 */
-      padding-bottom: 2rem;
+      padding-bottom: var(--spacing-lg);
       /* 自身一層 compositing layer：pinned sticky 沒有 layer 時每幀重繪 → 捲動抖（title col 同款） */
       transform: translateZ(0);
       /* 底邊多畫 1px 同色：profile 高度帶小數，與 title layer 各自光柵化差半像素 → 捲動中交界閃 1px 縫；
@@ -516,7 +522,7 @@
       top: var(--faculty-profile-h, 0px);
       z-index: 4;
       background: var(--faculty-panel-bg, transparent);
-      padding-bottom: 1rem;
+      padding-bottom: var(--spacing-sm);
       transform: translateZ(0);
       box-shadow: 0 1px 0 var(--faculty-panel-bg, transparent);
     }
@@ -530,7 +536,7 @@
       margin-bottom: 0;
       /* 上下 padding：釘住時捲過的內容不貼標題字（bg 蓋住 padding 區、無縫） */
       padding-top: 0.75rem;
-      padding-bottom: 1rem;
+      padding-bottom: var(--spacing-sm);
       transform: translateZ(0); /* 同 profile block：釘住時走 compositor 不逐幀重繪 */
     }
   }
@@ -579,14 +585,14 @@
     justify-content: center;
     width: 100%;
     height: 100%;
-    background: #000;
+    background: var(--color-black);
   }
   /* hover 隨機三原色（全站黑方塊 icon 鈕同款，見 lists.css .tl-icon-btn-inner）：faculty-slide-in.js／courses-map.js
      呼 bindNavBtnHover 掛 data-nav-hover + --nav-hover。無 active 態。mode3 翻反色。 */
   @media (hover: hover) and (min-width: 768px) {
     body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--nav-hover, var(--color-pink)); }
     /* icon 帶 text-white utility → 要指名 .icon 才蓋得掉；hover＝三原色底黑 icon */
-    body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: #000; }
+    body:not(.mode-color) .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: var(--color-black); }
     body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner { background: var(--theme-fg-inverse); }
     body.mode-color .slide-in-back-square[data-nav-hover]:hover > .slide-in-back-square-inner .icon { color: var(--theme-fg); }
   }
@@ -631,11 +637,11 @@
       bottom: auto;
     }
     /* faculty：照片寬＝卡片牆圖寬（JS 量點的卡寫 --faculty-img-w） */
-    #faculty-panel > .faculty-panel-body { padding: var(--spacing-lg); }
+    #faculty-panel > .faculty-panel-body { padding: var(--popup-pad); }   /* 同 footer 覆蓋卡（user 2026-10-26） */
     #faculty-panel #faculty-profile-block { width: var(--faculty-img-w, 22%); flex-shrink: 0; }
     /* curriculum：課名｜說明左右兩欄 3:2、gap 3xl（同 faculty 左右欄距；user 2026-10-20）；說明整欄高內捲 */
     #courses-detail-panel > .courses-detail-inner {
-      padding: var(--spacing-lg);
+      padding: var(--popup-pad);   /* 同 footer 覆蓋卡（user 2026-10-26） */
       flex-direction: row;
       gap: var(--spacing-3xl);
     }
@@ -643,15 +649,21 @@
     /* 課名 box 貼字寬＝旋轉中點在課名本身中心（不是整欄中心；user 2026-10-20） */
     #courses-detail-panel .courses-detail-title-box { width: fit-content; max-width: 100%; }
     #courses-detail-panel .courses-detail-desc-wrapper { flex: 2 1 0; min-width: 0; }
-    /* 捲到底不另留 pb：卡片內距 lg 就是上下留白（slide-in 時代的 pb-2xl 讓底比頂多 64，user 2026-10-20）；軌道同步不內縮 */
+    /* 捲到底不另留 pb：卡片內距就是上下留白（slide-in 時代的 pb-2xl 讓底比頂多 64，user 2026-10-20）；軌道同步不內縮 */
     #faculty-panel #faculty-detail-sections,
     #courses-detail-panel .courses-detail-desc-wrapper { padding-bottom: 0; }
     /* 捲動框原生 scrollbar 換成 desk-card.js 自製 thumb：原生的不能位移＝做不了 clip-reveal 進場（user 2026-10-21）。
-       原生 10px 軌道改由 padding-right 讓出（thumb 疊在這條上）＝文字寬不變 */
-    :is(#faculty-panel, #courses-detail-panel) .list-scroll { scrollbar-width: none; }
+       要捲時（desk-card.js syncGutter 掛 .has-desk-thumb）：文字到 scrollbar＝卡片內距；scrollbar 到卡片右緣＝內文字級的字卡右內距
+       （faculty／curriculum 內文都是 s → --card-pad-s 右 6；pop up 看內文，刻意不跟左內距一致，user 2026-10-26）＝捲動框負 margin
+       伸進右內距、thumb 貼它右緣。不用捲＝都不留、文字直接到內距線 */
+    :is(#faculty-panel, #courses-detail-panel) { --desk-sb-edge: 6px; }   /* ＝--card-pad-s 右（內文 text-s） */
+    :is(#faculty-panel, #courses-detail-panel) .list-scroll { scrollbar-width: none; padding-right: 0; }
     :is(#faculty-panel, #courses-detail-panel) .list-scroll::-webkit-scrollbar { width: 0 !important; }
-    #faculty-panel .list-scroll { padding-right: 10px; }
-    #courses-detail-panel .courses-detail-desc-wrapper { padding-right: calc(var(--spacing-md) + 10px); }
+    :is(#faculty-panel, #courses-detail-panel) .list-scroll.has-desk-thumb {
+      padding-right: calc(10px + var(--popup-pad));   /* 10＝.desk-scroll-thumb 寬 */
+      margin-right: calc(var(--desk-sb-edge) - var(--popup-pad));
+    }
+    #faculty-panel .faculty-grid-row { padding-right: 0; }   /* 列自帶的 2rem 是 slide-in 時代避原生 scrollbar 用的；色卡的文字↔scrollbar 只留上面那段（user 2026-10-26） */
     /* 外層＝遮罩（自身形狀、跟捲動位置走），內層＝色條（clip-reveal 位移）；寬 10＝原生／全域 thumb */
     .desk-scroll-thumb {
       position: absolute;
@@ -662,7 +674,7 @@
       touch-action: none;
       user-select: none;
     }
-    .desk-scroll-thumb-inner { width: 100%; height: 100%; background: #000; }
+    .desk-scroll-thumb-inner { width: 100%; height: 100%; background: var(--color-black); }
   }
 
   /* ===== About Works 圖片容器 ===== */
@@ -679,9 +691,9 @@
       height: auto !important;
       display: flex !important;
       overflow-x: auto;
-      gap: 1rem;
+      gap: var(--spacing-sm);
       scroll-snap-type: x mandatory;
-      padding-bottom: 1rem;
+      padding-bottom: var(--spacing-sm);
       justify-content: flex-start !important;
       scrollbar-width: none;
     }
@@ -699,16 +711,4 @@
     }
   }
 
-  /* ===== 首頁 WATCH! 圓形卡片（#homepage-yt-card.homepage-card）=====
-     尺寸由 CSS 控（RWD）；inline style 只留 layout 屬性。WATCH 字母由 index-yt-card.js 依 W/160 ratio 自動縮放。 */
-  .homepage-card {
-    width: 160px;
-    height: 160px;
-  }
-  @media (max-width: 767px) {
-    .homepage-card {
-      width: 96px;
-      height: 96px;
-    }
-  }
 }

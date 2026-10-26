@@ -403,7 +403,7 @@ export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {})
             <button type="button" class="album-prev ${preChev ? '' : 'invisible '}absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60"${preChev ? ' style="opacity:0.5;cursor:var(--cursor-not-allowed)"' : ''}>
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
-            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: 8px 0;">
+            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: var(--spacing-xs) 0;">
               <div class="album-track-inner flex items-center gap-sm" style="transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;">
                 ${thumbsHtml}
               </div>
@@ -2241,11 +2241,11 @@ function clipRevealFlag(el, code) {
   if (typeof gsap === 'undefined') { setFlagClass(el, code); return; }
   gsap.killTweensOf(el);
   gsap.to(el, {
-    yPercent: -110, duration: 0.18, ease: 'power2.in',
+    yPercent: -110, duration: 0.18, ease: EASE.exitSoft,
     onComplete: () => {
       setFlagClass(el, code);
       gsap.fromTo(el, { yPercent: 110 },
-        { yPercent: 0, duration: 0.2, ease: 'power3.out', clearProps: 'transform' });
+        { yPercent: 0, duration: DUR.micro, ease: EASE.enter, clearProps: 'transform' });
     },
   });
 }

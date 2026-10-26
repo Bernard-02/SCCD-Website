@@ -48,7 +48,7 @@ async function navigateToAdmissionItem(itemId, unlock) {
   while (el) { targetTop += el.offsetTop; el = /** @type {HTMLElement | null} */ (el.offsetParent); }
   const finalTop = Math.max(0, targetTop - COMPENSATE);
 
-  const flashColor = currentSectionColor || '#00FF80';
+  const flashColor = currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
   // 順序：list 文字 render → highlight → 600ms → 展開（同 activities）
   const flashThenOpen = async () => {
     await waitForItemRevealed(target);

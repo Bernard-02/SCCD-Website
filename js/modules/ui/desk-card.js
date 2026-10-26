@@ -108,6 +108,15 @@ export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => fa
     thumb.style.top = `${y + scroller.scrollTop / (sh - ch) * (ch - thumbH)}px`;
     thumb.style.height = `${thumbH}px`;
   }
+  // 要不要捲＝「不留 scrollbar 空間」時放不放得下：留了空間字變窄只會更高 → 先拿掉再量，不會加了又拿、拿了又加。
+  // 只在開卡／尺寸變時跑（捲動中改 padding 會重排、scrollTop 被夾）；量的空檔捲動位置可能被夾 → 存回去
+  function syncGutter() {
+    if (!scroller) return;
+    const top = scroller.scrollTop;
+    scroller.classList.remove('has-desk-thumb');
+    scroller.classList.toggle('has-desk-thumb', scroller.scrollHeight > scroller.clientHeight + 1);
+    scroller.scrollTop = top;
+  }
   function ensureThumb() {
     if (thumb || !scroller) return;
     thumb = document.createElement('div');
@@ -144,10 +153,11 @@ export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => fa
     placeBack(deg);
     ensureThumb();
     if (scroller) scroller.scrollTop = 0;   // caller 也會歸零；先歸零才量得到 thumb 頂位
+    syncGutter();
     placeThumb();
     // 卡高＝內容高（cards.css）：照片／字型晚到、視窗高變＝卡底跟著動 → 返回鍵重釘；內文高變 → thumb 重算
     if (!ro && typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(() => { placeBack(deg); placeThumb(); });
+      ro = new ResizeObserver(() => { placeBack(deg); syncGutter(); placeThumb(); });
       ro.observe(panel);
       if (panel.parentElement) ro.observe(panel.parentElement);
       if (scroller) [...scroller.children].forEach(c => ro.observe(c));

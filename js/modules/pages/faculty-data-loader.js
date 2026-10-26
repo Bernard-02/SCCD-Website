@@ -136,12 +136,25 @@ export function modePlaceholderUrl(item, forceKey) {
   return pickVariantUrl(item.placeholders, forceKey || currentPlaceholderVariantKey());
 }
 
+// 卡片 hover 樣（accent 底，cards.css）＝線框版：hover 中，或詳情開著（.is-active 維持 hover 樣到收完）都算——
+// 開卡時 overlay 蓋上＝mouseleave，舊版就換回彩色 logo 疊在 accent 底上（user 2026-10-26）。
+// hover 進出＋faculty-slide-in 加／拿 .is-active 後都呼叫這支；accent 底只在 ≥768，手機不動
+const PH_HOVER_MQ = window.matchMedia('(min-width: 768px)');
+export function syncPlaceholderCard(cardEl, hovering = false) {
+  const c = PH_HOVER_MQ.matches && _phCards.find(x => x.card === cardEl);
+  if (!c) return;
+  const key = (hovering || cardEl.classList.contains('is-active')) ? 'wireframeBlack' : currentPlaceholderVariantKey();
+  c.img.setAttribute('src', pickVariantUrl(c.ph, key) || c.defaultUrl);
+  applyNaturalAspect(c.img);
+}
+
 // 只處理「圖片變體」：animate=true（theme:changed）變體真的換才 cross-fade；animate=false（首次）直接套。
 // 卡片底色不在這裡動（wrapper 已設 transparent，頁面背景透過來＝平滑同步、無階梯閃爍）。
 function applyPlaceholderMode(animate = false) {
   if (!_phCards.length) return;
   const key = currentPlaceholderVariantKey();
   for (const c of _phCards) {
+    if (c.card.classList.contains('is-active')) continue;   // 詳情開著＝維持線框，收完 syncPlaceholderCard 再還原
     const url = pickVariantUrl(c.ph, key) || c.defaultUrl;
     if (url && c._curUrl !== url) {
       c._curUrl = url;
@@ -300,19 +313,15 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
       }
       // preload 4 個變體 → 切 mode 時 src 換成已快取圖、不再每次 network 重抓（消除換色延遲）
       Object.values(item.placeholders).forEach(u => { if (u) { const im = new Image(); im.src = u; } });
-      _phCards.push({ img, fadeImg, wrapper, ph: item.placeholders, defaultUrl: item.image, _curUrl: null, _fadeTimer: null });
+      _phCards.push({ img, fadeImg, wrapper, card: cardEl, ph: item.placeholders, defaultUrl: item.image, _curUrl: null, _fadeTimer: null });
 
       // hover → 露出線框 wireframe 版（user 2026-06-11；平常顯示 mode 對應變體，hover 切線框）。
-      // 桌面限定（手機無 hover）；變體已 preload→swap 即時不閃。離開還原當前 mode 變體。
+      // 桌面限定（手機無 hover）；變體已 preload→swap 即時不閃。離開還原當前 mode 變體（詳情開著＝.is-active 例外，見 syncPlaceholderCard）。
       // 黑線對比：hover 時卡片底翻成 accent 色（standard/inverse 都變亮綠底→黑線可見）、mode-color 另有 :hover filter，
       // 故各 mode hover 下線框都對比可見，不需額外反色（user 說「黑白則反過來這個做好了」即此既有 hover 底色機制）。
-      if (window.matchMedia('(min-width: 768px)').matches) {
-        const wfUrl = pickVariantUrl(item.placeholders, 'wireframeBlack') || item.image;
-        cardEl.addEventListener('mouseenter', () => { img.setAttribute('src', wfUrl); applyNaturalAspect(img); });
-        cardEl.addEventListener('mouseleave', () => {
-          img.setAttribute('src', pickVariantUrl(item.placeholders, currentPlaceholderVariantKey()) || item.image);
-          applyNaturalAspect(img);
-        });
+      if (PH_HOVER_MQ.matches) {
+        cardEl.addEventListener('mouseenter', () => syncPlaceholderCard(cardEl, true));
+        cardEl.addEventListener('mouseleave', () => syncPlaceholderCard(cardEl));
       }
     } else {
       applyNaturalAspect(img); // 真實照片依自然比例調框

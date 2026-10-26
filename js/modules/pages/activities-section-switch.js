@@ -249,7 +249,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   if (boxScroller) {
     const sectionEl = document.getElementById('activities-content-section');
     const sectionTopDoc = sectionEl ? sectionEl.getBoundingClientRect().top + window.scrollY : 0;
-    const boxFlashColor = currentSectionColor || '#00FF80';
+    const boxFlashColor = currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
     const openViaAccordion = () => {
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
@@ -335,7 +335,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   // ⚠️ 先 await 目標 list-item reveal 完成（data-pre-reveal 移除）才 highlight：ref/deep-link 切過去時 list rows
   //    還在 clip-reveal（文字沒出現）就 flash＝highlight 比文字早出現（user 2026-06-09 報「不對」）。
   //    順序固定為 list 文字 render → highlight → 600ms → 展開。
-  const flashColor = currentSectionColor || '#00FF80';
+  const flashColor = currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
   const flashThenOpenAccordion = async () => {
     await waitForItemRevealed(target);
     target.style.transition = 'background var(--dur-fast)';
@@ -1244,7 +1244,7 @@ function initExhibitionsTypeFilter() {
 
   const activeInner = /** @type {HTMLElement | null} */ (document.querySelector('#exhibitions-type-filter .exhibitions-type-btn.active .anchor-nav-inner'));
   if (activeInner) {
-    activeInner.style.background = currentSectionColor || '#00FF80';
+    activeInner.style.background = currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
     activeInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
   }
 
@@ -1269,7 +1269,7 @@ function initExhibitionsTypeFilter() {
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
       if (inner) {
         // 點下去時的 hover 色（user 2026-09-28 沿用）；沒 hover（手機）才用 section 色
-        inner.style.background = navHoverColor(btn) || currentSectionColor || '#00FF80';
+        inner.style.background = navHoverColor(btn) || currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
         delete btn.dataset.navPicked;   // 用完即丟：之後程式觸發的 tabBtn.click()（深連）不吃舊色
         // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
         if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
@@ -1300,7 +1300,7 @@ function initVisitsTypeFilter() {
   // 初始化 active btn 樣式（預設 outbound 已在 HTML 標記 active）
   const activeInner = /** @type {HTMLElement | null} */ (document.querySelector('#visits-type-filter .visits-type-btn.active .anchor-nav-inner'));
   if (activeInner) {
-    activeInner.style.background = currentSectionColor || '#00FF80';
+    activeInner.style.background = currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
     activeInner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
   }
 
@@ -1320,7 +1320,7 @@ function initVisitsTypeFilter() {
       const inner = /** @type {HTMLElement | null} */ (btn.querySelector('.anchor-nav-inner'));
       if (inner) {
         // 點下去時的 hover 色（user 2026-09-28 沿用）；沒 hover（手機）才用 section 色
-        inner.style.background = navHoverColor(btn) || currentSectionColor || '#00FF80';
+        inner.style.background = navHoverColor(btn) || currentSectionColor || SCCDHelpers.ACCENT_COLORS[1];
         delete btn.dataset.navPicked;   // 用完即丟：之後程式觸發的 tabBtn.click()（深連）不吃舊色
         // 桌面沿用 hover 當前角（click 不另抽）；手機/矮橫向無 hover → click 現抽
         if (!isNavSpinDesktop()) inner.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
