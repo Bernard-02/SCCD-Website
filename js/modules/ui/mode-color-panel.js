@@ -20,7 +20,7 @@ import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColo
 
 const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
 const CAP_H = 48;    // 圓鈕直徑＝capsule 高（同 header mode/menu 鈕 48）
-const CAP_W = 268;   // 展開寬＝左圓角留白 20 + 色條 160 + 間距 8 + play 32 + chevron 格 48（css .mcp-cap-row 同步）
+const CAP_W = 265;   // 展開寬＝左留白 20 + 色條 160 + 17 + play 20 + chevron 格 48（css .mcp-cap-row 同步；四段間距推導見該處）
 const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/play 進退場也用同長度
 // 色條／play icon 各自四向隨機進退場（user 2026-10-01，同 clipRevealIconSwap 四向）；±110＝整條真的出遮罩
 // （色條遮罩外擴 1px 給 indicator，±100 會在邊上留一條 1px）
@@ -36,6 +36,7 @@ const WHEEL = window.innerWidth < 768
 
 let root, pencilBtn, panel, panelMask, canvas, playBtn, playIcon, svgEl, indEl;
 let cap, capToggle, capIcon, capPlay, bar, barTrack, barInd, barIndWrap, capReveal, playIcons = [];
+let capColorTween = null;   // 收起時底色 active→inactive 的補間（open 要殺掉＋清 inline）
 let openedDesk = false;   // 開啟時走哪套（close 用它、不重判 isDesk()：開著跨 1200 gate 也收對那套）
 let isOpen = false;
 let dragging = false;
@@ -155,14 +156,17 @@ function publishFootprint() {
   document.body.style.setProperty('--mcp-footprint-x', (isOpen ? (32 + WHEEL + 32) : 48) + 'px');
 }
 
+// running → 顯示 pause（點了會停）；paused → 顯示 play
+const playIconClass = () => `icon ${isColorLoopRunning() ? 'icon-pause' : 'icon-play'}`;
 function syncPlayIcon() {
-  // running → 顯示 pause（點了會停）；paused → 顯示 play
-  playIcons.forEach(i => { i.className = `icon ${isColorLoopRunning() ? 'icon-pause' : 'icon-play'}`; });
+  playIcons.forEach(i => { i.className = playIconClass(); });
 }
 function onPlayClick(e) {
   e.stopPropagation();
   if (isColorLoopRunning()) stopSiteColorLoop(); else startSiteColorLoop();
-  syncPlayIcon();
+  // 桌面 capsule 的 ▶／❚❚ 換圖＝clip-reveal（user 2026-10-26，同 chevron）；手機色輪面板維持直接換
+  playIcon.className = playIconClass();
+  clipRevealIconSwap(playIcons[1], playIconClass(), { duration: ICON_SWAP });
 }
 
 /* ── open / close：wheel 整顆從畫面右緣外滑入（user 2026-07-17：不再走遮罩內 clip-reveal）──
@@ -195,6 +199,8 @@ function open() {
       gsap.to(cap, { width: CAP_W, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
     }
     else cap.style.width = CAP_W + 'px';
+    if (capColorTween) { capColorTween.kill(); capColorTween = null; gsap.set(cap, { clearProps: 'backgroundColor,color' }); }
+    cap.classList.remove('no-hover');
     cap.classList.add('is-active');   // 展開中＝反色（css .mcp-cap.is-active）
     clipRevealIconSwap(capIcon, 'icon icon-chevron-right', { duration: ICON_SWAP });
     // 時序（user 2026-09-29）：capsule 長＋chevron 換入（0→2×ICON_SWAP）→ 之後色條＋play icon 才進場；
@@ -202,7 +208,7 @@ function open() {
     if (typeof gsap !== 'undefined') {
       const from = pickRevealDirs();
       gsap.fromTo(capReveal, { xPercent: i => from[i].xPercent, yPercent: i => from[i].yPercent },
-        { xPercent: 0, yPercent: 0, duration: ICON_SWAP, ease: 'power2.out', delay: ICON_SWAP * 2, overwrite: true, clearProps: 'transform' });
+        { xPercent: 0, yPercent: 0, duration: ICON_SWAP, ease: EASE.enterSoft, delay: ICON_SWAP * 2, overwrite: true, clearProps: 'transform' });
     }
     capToggle.setAttribute('aria-expanded', 'true');
   } else if (typeof gsap !== 'undefined') {
@@ -244,8 +250,8 @@ function close(instant, opts = {}) {
   if (openedDesk) {
     capToggle.setAttribute('aria-expanded', 'false');
     capPlay.tabIndex = -1;
-    cap.classList.remove('is-active');   // 收起一開始就翻回（跟展開對稱：狀態變了色就變，不等寬度收完）
     if (instant || typeof gsap === 'undefined') {
+      cap.classList.remove('is-active');
       if (typeof gsap !== 'undefined') gsap.killTweensOf(capReveal);   // 還在等 delay 的 reveal 別在收合後升起
       capIcon.className = 'icon icon-pencil';
       if (typeof gsap !== 'undefined') gsap.set(cap, { width: CAP_H, xPercent: pencilReturn ? 0 : 100 });
@@ -254,8 +260,19 @@ function close(instant, opts = {}) {
     }
     // 展開的反序（user 2026-09-29）：色條＋play icon 先收進遮罩（各自四向隨機）→ 收完 chevron 才換回鉛筆＋capsule 縮
     const to = pickRevealDirs();
-    gsap.to(capReveal, { xPercent: i => to[i].xPercent, yPercent: i => to[i].yPercent, duration: ICON_SWAP, ease: 'power2.out', overwrite: true });
+    gsap.to(capReveal, { xPercent: i => to[i].xPercent, yPercent: i => to[i].yPercent, duration: ICON_SWAP, ease: EASE.enterSoft, overwrite: true });
     clipRevealIconSwap(capIcon, 'icon icon-pencil', { duration: ICON_SWAP, delay: ICON_SWAP });
+    // 底色跟下面縮寬同拍（同 delay／長／曲線）從 active 漸變回 inactive（user 2026-10-26：原本鉛筆出現那拍才閃過去）。
+    // inline 蓋過 :hover＝點 chevron 收、游標還在圓上也照樣變；收完到游標離開前不吃 hover（.no-hover），免得清 inline 又閃回 hover 色。
+    // 收到一半又 open → open 殺掉這支、清 inline
+    const cs = getComputedStyle(cap);
+    cap.classList.add('no-hover');
+    capColorTween = gsap.to(cap, {
+      backgroundColor: cs.getPropertyValue('--theme-fg').trim() || '#000',
+      color: cs.getPropertyValue('--theme-fg-inverse').trim() || '#fff',
+      duration: DUR.medium, ease: EASE.enter, delay: ICON_SWAP,
+      onComplete: () => { capColorTween = null; cap.classList.remove('is-active'); gsap.set(cap, { clearProps: 'backgroundColor,color' }); },
+    });
     // 收回圓；gate 藏起（pencilReturn=false）＝收完再整顆滑出遮罩
     // 收完才判：收的途中 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
     gsap.to(cap, { width: CAP_H, duration: DUR.medium, ease: EASE.enter, delay: ICON_SWAP, overwrite: 'auto', onComplete: () => {
@@ -440,8 +457,9 @@ function build() {
   playBtn.addEventListener('click', onPlayClick);
   capPlay.addEventListener('click', onPlayClick);
   capToggle.addEventListener('click', () => (isOpen ? close(false) : open()));
+  cap.addEventListener('pointerleave', () => cap.classList.remove('no-hover'));   // 收起後游標離開才恢復 hover 反色（見 close）
   // 鉛筆／chevron 格 hover 抽角（user 2026-09-29，全站 −4~+6、離開保持）：轉這一格（收起時＝圓鈕本身，圓轉了看不出＝轉 icon），
-  // 不轉整顆 .mcp-cap——展開成 268 寬 capsule 一歪兩端就被 .mcp-cap-mask 的 overflow 裁掉。GSAP rotation（mode3 下 CSS transition 不可靠）；
+  // 不轉整顆 .mcp-cap——展開成 CAP_W 寬 capsule 一歪兩端就被 .mcp-cap-mask 的 overflow 裁掉。GSAP rotation（mode3 下 CSS transition 不可靠）；
   // 這格沒有別的 GSAP transform（icon 換裝動的是內層 .icon、進退場動的是 .mcp-cap）。
   // 角度一路延續：開／關的 click 不重抽也不回退——icon 換裝的 clip-reveal 與收回後的鉛筆都停在點擊當下的角（user「不是 0°」：
   // 用 bindArrowSpin 時沒 hover 的 click 會重抽、回退鉛筆角又常落在近 0°，看起來像歸零）
@@ -468,11 +486,12 @@ export function initModeColorPanel() {
     if (typeof gsap !== 'undefined') {
       gsap.killTweensOf([pencilBtn, cap, panel, capIcon]);
       gsap.set([pencilBtn, cap], { xPercent: wasShown ? 0 : 100 });
-      gsap.set(cap, { width: CAP_H });
+      gsap.set(cap, { width: CAP_H, clearProps: 'backgroundColor,color' });   // 收起底色補間被砍＝殘留 inline 色
       gsap.set(capIcon, { clearProps: 'transform' });
       gsap.set(panel, WHEEL_HIDDEN);
     }
-    cap.classList.remove('is-active');
+    capColorTween = null;
+    cap.classList.remove('is-active', 'no-hover');
     capIcon.className = 'icon icon-pencil';
     capToggle.setAttribute('aria-expanded', 'false');
     capPlay.tabIndex = -1;

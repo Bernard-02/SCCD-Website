@@ -38,8 +38,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: var(--theme-fg, #000);
-  color: var(--theme-fg-inverse, #fff);
+  background: var(--theme-fg, var(--color-black));
+  color: var(--theme-fg-inverse, var(--color-white));
   border: none;
   cursor: var(--cursor-pointer);
   font-size: 32px;   /* glyph 對齊 atlas 左下 .atlas-layout-inner（48 盒 32 glyph） */
@@ -53,8 +53,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   width: 104px;
   height: 104px;
   padding: var(--spacing-sm, 16px);
-  background: var(--theme-fg, #000);        /* 純黑/白對比底（依 hue 亮暗翻，非中性灰） */
-  color: var(--theme-fg-inverse, #fff);
+  background: var(--theme-fg, var(--color-black));        /* 純黑/白對比底（依 hue 亮暗翻，非中性灰） */
+  color: var(--theme-fg-inverse, var(--color-white));
   /* 收起態由 JS build() 用 gsap xPercent 設；勿在 CSS 放 translateX(100%)：gsap 會解析成 px 的 x 分量、
      與 xPercent 各自獨立 → 面板永遠偏移 */
 }
@@ -79,8 +79,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   position: absolute;
   inset: 0;
   background: conic-gradient(#f33 0deg, #ff3 60deg, #3f3 120deg, #3ff 180deg, #33f 240deg, #f3f 300deg, #f33 360deg);
-  -webkit-mask: radial-gradient(circle closest-side, transparent 0 52.9%, #000 52.9% 98%, transparent 98%);
-          mask: radial-gradient(circle closest-side, transparent 0 52.9%, #000 52.9% 98%, transparent 98%);
+  -webkit-mask: radial-gradient(circle closest-side, transparent 0 52.9%, var(--color-black) 52.9% 98%, transparent 98%);
+          mask: radial-gradient(circle closest-side, transparent 0 52.9%, var(--color-black) 52.9% 98%, transparent 98%);
 }
 .mcp-wheel-svg {
   position: absolute;
@@ -104,12 +104,12 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   background: none;
   border: none;
   cursor: var(--cursor-pointer);
-  color: var(--theme-fg-inverse, #fff);
+  color: var(--theme-fg-inverse, var(--color-white));
 }
 .mcp-play .icon { font-size: 16px; }
 
 /* ── 桌面：圓鈕 → capsule ──
-   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→268（mode-color-panel.js CAP_W），
+   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→265（mode-color-panel.js CAP_W），
    mask right 錨定＝往左長；row 固定寬靠右＝長出部分由右往左露出色條/play。非桌面只有鉛筆方鈕＋色環（上面那套） */
 .mcp-cap-mask { display: none; }
 @media (min-width: 1024px) and (min-height: 501px) {
@@ -132,31 +132,36 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   height: 48px;
   border-radius: 24px;
   overflow: hidden;
-  background: var(--theme-fg, #000);
-  color: var(--theme-fg-inverse, #fff);
+  background: var(--theme-fg, var(--color-black));
+  color: var(--theme-fg-inverse, var(--color-white));
 }
 /* active（展開中）＝反色：底 fg-inverse、內容（皆 currentColor）fg
-   hover 先反色＝點開時已是 active 色；一律 instant 不 fade */
+   hover 先反色＝點開時已是 active 色；一律 instant 不 fade。
+   收起時底色由 JS 跟縮寬同拍漸變回 inactive，收完到游標離開前掛 .no-hover（mode-color-panel.js close） */
 .mcp-cap.is-active {
-  background: var(--theme-fg-inverse, #fff);
-  color: var(--theme-fg, #000);
+  background: var(--theme-fg-inverse, var(--color-white));
+  color: var(--theme-fg, var(--color-black));
 }
 @media (hover: hover) {
-  .mcp-cap:hover {
-    background: var(--theme-fg-inverse, #fff);
-    color: var(--theme-fg, #000);
+  .mcp-cap:not(.no-hover):hover {
+    background: var(--theme-fg-inverse, var(--color-white));
+    color: var(--theme-fg, var(--color-black));
   }
 }
 .mcp-cap-row {
   position: absolute;
   top: 0;
   right: 0;
-  width: 268px;             /* = CAP_W */
+  width: 265px;             /* = CAP_W */
   height: 48px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  padding-left: 20px;       /* 左端圓角內留白 */
+  /* 四段間距（左緣→色條→pause→chevron→右緣）以「圖形實際墨跡」算、全 ≈20（user 2026-10-26 嫌不一致）：
+     pause.svg 墨跡 x 26–118/160（@20px＝寬 11.5、左 3.25 右 5.25）；chevron 翻向後墨跡 38.7–128.3/160（@24px＝格內左 17.8、右 16.75）
+     → play 盒 20 寬、左 margin 17（20−3.25）、緊貼 chevron 格；chevron 在格內左移 3（.icon-chevron-right margin-right 6）
+     ⚠️ play 盒不可伸進 chevron 格（負 margin）：那格＝收起時的圓鈕，伸進去＝▶ 尖角露在圓左緣（10-26 踩過） */
+  padding-left: 20px;
 }
 /* 色條：膠囊圓角；框線＋indicator 走 currentColor＝色環圈線同色
    track 滿版（漸層兩端皆紅 hue 0＝360，圓角只裁形狀）：indicator 才能滑到右緣再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），barHue 點擊與 indicator 同一座標系 */
@@ -206,7 +211,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
    兩者都用「fg 60% 混 capsule 底（展開中＝fg-inverse）」＝視覺同 0.6 疊在 capsule 上；同色也免 indicator 伸進框線那 1px 疊兩次變深。
    color-mix 在這裡 OK：hover 瞬間不補間（color-mix 跟 legacy 色 transition 會走 Oklab 插值，見 465de63） */
 @media (hover: hover) {
-  .mcp-bar:hover { --mcp-bar-line: color-mix(in srgb, currentColor 60%, var(--theme-fg-inverse, #fff)); border-color: var(--mcp-bar-line); }
+  .mcp-bar:hover { --mcp-bar-line: color-mix(in srgb, currentColor 60%, var(--theme-fg-inverse, var(--color-white))); border-color: var(--mcp-bar-line); }
   .mcp-bar:hover .mcp-bar-ind { background: var(--mcp-bar-line); }
 }
 .mcp-cap-play,
@@ -222,7 +227,10 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   color: inherit;
   cursor: var(--cursor-pointer);
 }
-.mcp-cap-play { width: 32px; margin-left: 8px; font-size: 20px; }
+.mcp-cap-play { width: 20px; margin-left: 17px; font-size: 20px; }   /* 間距推導見 .mcp-cap-row */
+/* ❚❚（pause.svg：160 方框、兩條 stroke 28 在 x 26–118）換圖遮罩裁到圖案自己的寬、不沿用方框（user 2026-10-26，
+   同 /create ❚❚）；class 在換圖藏好時才換 → 遮罩跟著換 */
+.mcp-cap-play [data-icon-clip-wrap]:has(.icon-pause) { clip-path: inset(0 26.25% 0 16.25%); }
 /* 鍵盤焦點：全站 :focus-visible 是 theme-fg 外框＋外推 2＝跟圓鈕底同色又被 overflow 裁 → 改 currentColor 內縮 */
 .mcp-cap button:focus-visible {
   outline: 2px solid currentColor;
@@ -235,6 +243,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 .mcp-cap-toggle .icon-chevron-right {
   --icon: url('../website-icons/chevron_left_lightbox.svg');
   position: relative;
+  /* 格內左移 3（貼身遮罩 fit-content 置中＝寬 +6 → 左移一半）：只 chevron 有、鉛筆仍正中（class 在 swap 藏好時才換＝不跳）；間距見 .mcp-cap-row */
+  margin-right: 6px;
   font-size: 24px;
   background-color: transparent;
   -webkit-mask-image: none;

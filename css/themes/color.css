@@ -143,7 +143,7 @@ body.mode-color .courses-bfa-label[style*="background"] {
 }
 
 /* ===== About Resources colored-accordion：strict B/W =====
-   Hover：JS inline HOVER_COLORS → [style*="background"] 偵測，翻成相反 B/W */
+   Hover（非展開卡）：底＋字同一條 :hover:not(.active)，翻成相反 B/W（同 accordion.css，只真桌面） */
 body.mode-color .colored-accordion .accordion-item,
 body.mode-color .colored-accordion .accordion-label,
 body.mode-color .colored-accordion .accordion-text-wrap,
@@ -156,14 +156,11 @@ body.mode-color .colored-accordion .accordion-text-wrap p {
   color: var(--theme-fg-inverse) !important;
 }
 
-body.mode-color .colored-accordion .accordion-item[style*="background"],
-body.mode-color .colored-accordion .accordion-label[style*="background"],
-body.mode-color .colored-accordion .accordion-text-wrap[style*="background"],
-body.mode-color .colored-accordion .accordion-img-wrap[style*="background"] {
-  background-color: var(--theme-fg-inverse) !important;
-}
-
-@media (min-width: 768px) {
+@media (min-width: 1024px) and (min-height: 501px) {
+  body.mode-color .colored-accordion .accordion-item:hover:not(.active),
+  body.mode-color .colored-accordion .accordion-item:hover:not(.active) :is(.accordion-label, .accordion-text-wrap, .accordion-img-wrap) {
+    background-color: var(--theme-fg-inverse) !important;
+  }
   body.mode-color .colored-accordion .accordion-item:hover:not(.active) .accordion-label-inner,
   body.mode-color .colored-accordion .accordion-item:hover:not(.active) .accordion-text-wrap p {
     color: var(--theme-fg) !important;
@@ -835,10 +832,9 @@ body.mode-color .atlas-list-nav-btn {
   color: var(--theme-fg) !important;
 }
 
-/* ===== Homepage marquee + YT card ===== */
+/* ===== Homepage marquee（含最底 WATCH banner）===== */
 /* strict 黑白（floating items 同套） */
-body.mode-color .homepage-marquee-link,
-body.mode-color #homepage-yt-card {
+body.mode-color .homepage-marquee-link {
   background: var(--theme-fg) !important;
 }
 
@@ -847,26 +843,12 @@ body.mode-color .homepage-marquee-clone {
   color: var(--theme-fg-inverse) !important;
 }
 
-/* News 數字方塊（JS inline accent）→ 跟 bar（theme-fg）反色 */
-body.mode-color .hm-banner-num[style*="background"] {
-  background: var(--theme-fg-inverse) !important;
-  color: var(--theme-fg) !important;
-}
-/* hover 對調：mode3 hover 不用 rgb → 方塊與 bar 的黑白互換 */
-body.mode-color .hm-banner-row.is-swap .hm-banner-num {
-  background: var(--theme-fg) !important;
-  color: var(--theme-fg-inverse) !important;
-}
+/* hover：mode3 不用 rgb → bar 黑白反色 */
 body.mode-color .hm-banner-row.is-swap .homepage-marquee-link {
   background: var(--theme-fg-inverse) !important;
 }
 body.mode-color .hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) {
   color: var(--theme-fg) !important;
-}
-
-/* watch-hover 遮蔽 overlay（整列蓋成 bar 色）：inline #000 → 跟 bar 同色 */
-body.mode-color .hm-banner-row-mask {
-  background: var(--theme-fg) !important;
 }
 
 /* ===== Header 圓鈕（mode3）=====

@@ -23,7 +23,7 @@
   /* slide-in / lightbox 開時 header overlay 黑底 → icon 白。只掛 body.lightbox-open（slide-in 也會掛）：
      它在關閉當下就移除；has-slide-in 要等收場（~0.8s）才移除，掛它會讓 animateHeaderShow reveal 時 icon 仍白＝空白鈕 */
   body.lightbox-open .theme-toggle-btn {
-    color: #fff;
+    color: var(--color-white);
   }
 
   /* atlas 渲染/intro 完成前擋 mode 切換（atlas.js 掛/移 body class）：header 是 async fetch，
@@ -61,14 +61,14 @@
     background: var(--menu-btn-accent, var(--color-pink)) !important;
   }
   #site-header #menu-btn.is-open .mobile-menu-btn {
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
   @media (hover: hover) {
     #site-header #menu-btn:hover {
       background: var(--menu-btn-accent, var(--color-pink)) !important;
     }
     #site-header #menu-btn:hover .mobile-menu-btn {
-      color: #000 !important;
+      color: var(--color-black) !important;
     }
     body.mode-color #site-header #menu-btn:hover {
       background: var(--theme-fg-inverse) !important;
@@ -96,7 +96,7 @@
       background: var(--mode-btn-accent, var(--color-pink)) !important;
     }
     body:not(.atlas-mode-gate) #site-header #mode-btn:hover .theme-toggle-btn {
-      color: #000 !important;
+      color: var(--color-black) !important;
     }
     body.mode-color:not(.atlas-mode-gate) #site-header #mode-btn:hover {
       background: var(--theme-fg-inverse) !important;
@@ -116,8 +116,8 @@
   .mobile-header-btn {
     width: 44px;
     height: 44px;
-    background: #fff;
-    color: #000;
+    background: var(--color-white);
+    color: var(--color-black);
     /* transform transition：mobile-menu.js 對外殼套隨機旋轉，換角需平滑；clip-path 由 lightbox-shell GSAP 控，不進 transition */
     transition: background var(--transition-fast), color var(--transition-fast), transform var(--dur-base) ease;
   }
@@ -133,7 +133,7 @@
     background: none;
     border: none;
     padding: 0;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-s);
   }
 
@@ -214,7 +214,8 @@
     display: inline-block;
     width: fit-content;
     cursor: var(--cursor-pointer); /* label 可點＝轉發給隔壁 division btn（bfa-division-toggle.js） */
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 padding */
+    padding: var(--card-pad-s);
+    line-height: var(--line-height-s);
     position: absolute;
     bottom: calc(100% + var(--spacing-xs));
     left: -12px;
@@ -232,13 +233,21 @@
   }
 
   /* ===== Class Division Toggle Buttons ===== */
+  /* tab 列（about programs #class-buttons-sticky／DSD 子展覽 tab 共用）：對齊／間距改這裡兩頁一起變。
+     頂對齊（user 2026-10-26）：大標 chip 彼此頂齊；about 小標 absolute 不佔 flow、不參與對齊 */
+  .division-tab-row {
+    display: flex;
+    align-items: flex-start;
+    gap: calc(var(--spacing-gutter) + var(--spacing-sm));
+  }
   .class-division-btn {
     background: var(--theme-fg);
     color: var(--theme-bg);
     border: none;
     border-radius: 0;
     cursor: var(--cursor-pointer);
-    padding: 6px 8px 5px;
+    padding: var(--card-pad-md);   /* 字級 md（about 組別、DSD 子展覽 tab）；系友城市鈕另寫 s，見 alumni.css */
+    line-height: var(--line-height-md);
     text-align: left;
     transition: background var(--dur-micro) ease, color var(--dur-micro) ease, transform var(--dur-fast) var(--ease-standard);
   }
@@ -268,18 +277,6 @@
   @media (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .grid-20 > div > * { flex-shrink: 0; }
   }
-  /* MDES（無 BFA 小標題）對齊左邊「小標題＋btn」整組的中線：整排 items-end、小標題 absolute 不佔 flow → self-center 只對到 btn 中線；
-     負 margin-top X 讓 margin box 上移 X/2，X＝小標題塊高（padding 6+5 + text-s 兩行）＋ xs 間距（.class-group-label bottom:100%+xs）
-     ＝同 scroll-snap.css --about-pill-label 公式。works 模式的 .class-division-bfa-wrap 同樣沒小標題 → 同規則。
-     矮橫向直排（landscape.css）不適用 → min-height 501 排除 */
-  @media (min-width: 1024px) and (min-height: 501px) {
-    #class-buttons-sticky .class-division-btn[data-division="mdes"],
-    #class-buttons-sticky .class-division-bfa-wrap {
-      align-self: center;
-      margin-top: calc(-1 * (11px + 2 * var(--font-size-s) * var(--line-height-s) + var(--spacing-xs)));
-    }
-  }
-
   /* ===== Class Buttons Sticky Container =====
      透明、不加貼頂白底，免遮擋/裁掉經過的封鎖綫 */
   #class-buttons-sticky {
@@ -289,7 +286,7 @@
 
   /* BFA（Design Fundamental，works-only）btn wrapper：只管「空間」——is-works-context 時 max-width 撐開推旁邊。
      鈕本身進退場＝clip-reveal（bfa-division-toggle.js SCCD_animateBfaChips；user 10-21 撤原本 clip-path 左→右擦除）：
-     進＝空間先撐（delay 0）、撐完鈕才滑進；退＝鈕先滑出、空間等 --dur-medium 再收。收合態 visibility 藏（不靠 clip）。 */
+     進＝空間撐開與鈕滑進同拍（delay 0、同長）；退＝鈕先滑出、空間等 --dur-medium 再收（user 2026-10-26 試過退場同拍又撤回）。收合態 visibility 藏（不靠 clip）。 */
   .class-division-bfa-wrap {
     max-width: 0;
     overflow: visible;
@@ -302,7 +299,7 @@
                 visibility 0s linear var(--dur-medium);
   }
   #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
-    max-width: 320px;
+    max-width: var(--bfa-chip-w, 320px);   /* JS 寫鈕實際寬（SCCD_animateBfaChips）＝收展與鈕滑動同拍 */
     pointer-events: auto;
     visibility: visible;
     margin-right: 0;

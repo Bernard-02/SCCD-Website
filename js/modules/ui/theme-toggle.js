@@ -538,7 +538,6 @@ function applyMode(mode, opts) {
         html.mode-switching.mode-switching #next-labels h4,
         html.mode-switching.mode-switching #next-labels h2,
         html.mode-switching.mode-switching #homepage-marquee-wrap,
-        html.mode-switching.mode-switching #homepage-yt-card,
         html.mode-switching.mode-switching [data-hero-hl],
         html.mode-switching.mode-switching [data-section-title],
         html.mode-switching.mode-switching .section-title-strip,
@@ -679,7 +678,6 @@ function nameModeVtElements() {
   // 首頁 news banner 本體（bar／數字方塊，不動）照常交叉淡入，命名只因為疊在漂浮卡層上面
   name(document.getElementById('homepage-marquee-stack'), 'home-news');
   // 首頁 WATCH 卡整顆自己漂（rAF）：具名 group 跟著即時位置走＝新舊圖同位不殘影，照常交叉淡入；也因為疊在漂浮卡層上面
-  name(document.getElementById('homepage-yt-card'), 'home-yt');
   const stack = document.getElementById('library-card-stack');
   if (stack) {
     let i = 0;

@@ -50,7 +50,7 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
     filter: invert(1);
   }
   body.mode-inverse .footer-social-icon:hover .icon.footer-social-glyph::after { filter: none; }
-  body.mode-color .footer-social-icon:hover .icon.footer-social-glyph::after { background: #fff; filter: none; mix-blend-mode: difference; }
+  body.mode-color .footer-social-icon:hover .icon.footer-social-glyph::after { background: var(--color-white); filter: none; mix-blend-mode: difference; }
 }
 
 /* 沒底色的 icon 鈕 hover＝icon 降到 0.6、瞬間不 fade（同 lightbox／album 翻頁 chevron 的 hover:opacity-60；user 2026-10-21）。

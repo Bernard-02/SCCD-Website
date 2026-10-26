@@ -15,7 +15,7 @@ body.mode-inverse {
 
   /* Library 主矩形：淺灰 → 深灰，文字黑 → 白；半透明文字同 alpha 但反成 rgba(255,...) */
   --lib-bg: var(--dark-gray);
-  --lib-fg: #ffffff;
+  --lib-fg: var(--color-white);
   --lib-fg-rgb: 255, 255, 255;
 
   /* Footer 反轉：黑底白字 → 白底黑字 */
@@ -230,14 +230,14 @@ body.mode-inverse .courses-grid-card[style*="background"] {
   color: black !important;
 }
 /* Sitemap 卡（同首頁 news banner inverse）：標題區白底黑字、編號 box 維持 rgb；hover 對調＝標題區吃 rgb、box 白底黑字 */
-body.mode-inverse .legal-map-card { --map-body-bg: #fff; color: #000; }   /* 兩區底色走 --map-*-bg var（legal.css） */
-body.mode-inverse .legal-map-card.is-swap { --map-num-bg: #fff; --map-body-bg: var(--map-accent); }
-body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: #000; }
+body.mode-inverse .legal-map-card { --map-body-bg: var(--color-white); color: var(--color-black); }   /* 兩區底色走 --map-*-bg var（legal.css） */
+body.mode-inverse .legal-map-card.is-swap { --map-num-bg: var(--color-white); --map-body-bg: var(--map-accent); }
+body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: var(--color-black); }
 
 /* ===== About Anchor Nav ===== */
 /* inactive 黑底白字（hover 見 navigation.css「nav btn hover」段） */
 body.mode-inverse .anchor-nav-btn:not(.active) .anchor-nav-inner {
-  background-color: #000 !important; /* 實色（非半透明）防透出後方內容 */
+  background-color: var(--color-black) !important; /* 實色（非半透明）防透出後方內容 */
   color: white !important;
 }
 
@@ -261,7 +261,7 @@ body.mode-inverse .list-content[style*="background"],
 body.mode-inverse .list-content[style*="background"] *,
 body.mode-inverse .list-item[style*="background"],
 body.mode-inverse .list-item[style*="background"] * {
-  color: #000 !important;
+  color: var(--color-black) !important;
 }
 
 /* ===== Faculty Slide-in：inverse 模式下視覺等同 standard ===== */
@@ -299,39 +299,24 @@ body.mode-inverse .homepage-marquee-text,
 body.mode-inverse .homepage-marquee-clone {
   color: black !important;
 }
-/* hover 對調（bar 吃 rgb 走 lists.css 通用規則）：方塊變 bar 色＝白底黑字 */
-body.mode-inverse .hm-banner-row.is-swap .hm-banner-num {
-  background: white !important;
-  color: black !important;
-}
-
-/* watch-hover 遮蔽 overlay（整列蓋成 bar 色）：inline 寫死 #000，inverse bar 是白底 → 改蓋白 */
-body.mode-inverse .hm-banner-row-mask {
-  background: white !important;
-}
-
-body.mode-inverse #homepage-yt-card {
-  background: white !important;
-}
-
 /* ===== Header 圓鈕：Mode btn 圓底＝page bg（融入頁面）、白 icon ===== */
 body.mode-inverse [data-bar="mode"] {
-  background: #000 !important;
+  background: var(--color-black) !important;
 }
 body.mode-inverse [data-bar="mode"] .theme-toggle-btn {
-  color: #fff !important;
+  color: var(--color-white) !important;
 }
 
 /* mobile menu-btn 跟 mode-btn 同款圓底：inverse 黑底白 icon */
 body.mode-inverse .mobile-header-btn {
-  background: #000 !important;
-  color: #fff !important;
+  background: var(--color-black) !important;
+  color: var(--color-white) !important;
 }
 
 /* Degree Show card hover：wrapper hover 把 .degree-show-card-content 設 accent bg，body 白字看不清 → 反黑 */
 body.mode-inverse .degree-show-card-content[style*="background"] *,
 body.mode-inverse .degree-show-card-content[style*="background"] {
-  color: #000 !important;
+  color: var(--color-black) !important;
 }
 
 /* ===== Atlas List View：inverse 反轉 =====

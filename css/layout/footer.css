@@ -8,8 +8,8 @@
   /* ===== Shell + base colors ===== */
   .footer-shell {
     height: 100vh;
-    background-color: var(--footer-bg, #000);
-    color: var(--footer-fg, #fff);
+    background-color: var(--footer-bg, var(--color-black));
+    color: var(--footer-fg, var(--color-white));
     /* header（fixed z-9999）往下收起時不蓋 footer：footer 提到同層、DOM 在後→勝；
      * 仍低於 lightbox/overlay(10000+)＝modal 照常在最上。ponytail: 9999 是刻意對齊 header 上限 */
     position: relative;
@@ -31,7 +31,7 @@
   }
 
   .footer-link {
-    color: var(--footer-fg, #fff);
+    color: var(--footer-fg, var(--color-white));
   }
 
   /* 分頁說明文字（後台 footer_tabs.note）：base 不顯示，只有真桌面散佈版開（下方 ≥1024 段）。
@@ -101,7 +101,7 @@
   /* 關聯單位卡 EN + ZH 都 bold */
   .footer-random .footer-unit-en,
   .footer-random .footer-unit-zh {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
   }
 
   /* scatter icon 放大 1.5×（base --icon-hero） */
@@ -168,7 +168,7 @@
     display: none;
     width: 88px;
     height: 31px;
-    border: 1px dashed var(--footer-fg, #fff);
+    border: 1px dashed var(--footer-fg, var(--color-white));
     /* 標章是無 line-height 的裸框：只隔 gap-xs 時看起來比連結↔連結（多了行高 leading）窄 → 補 margin-top 對齊視覺間距。 */
     margin-top: var(--spacing-xs);
   }
@@ -324,7 +324,7 @@
     font-family: inherit;
     line-height: var(--line-height-s);   /* text-s → 照字級 tier */
     text-align: left;
-    color: var(--footer-fg, #fff);
+    color: var(--footer-fg, var(--color-white));
     /* transform：hover 隨機旋轉（footer-scatter bindFooterTabs）需要 transition 才 ease 不 snap。
        opacity（dim↔全亮）不過渡＝hover／點選瞬間切（全站 hover 變色不 fade） */
     transition: transform var(--dur-fast) ease;
@@ -341,7 +341,7 @@
     height: var(--tab-mark-h);
     width: auto;
     margin-bottom: var(--spacing-xs);
-    background-color: var(--footer-fg, #fff);
+    background-color: var(--footer-fg, var(--color-white));
     /* 錨 left top 非 center：比例正確時無差；萬一 SVG 比例與 box 失配（快取舊圖/後台換圖），字仍貼頂不往下掉 */
     -webkit-mask: var(--tab-mark-src) no-repeat left top / contain;
             mask: var(--tab-mark-src) no-repeat left top / contain;
@@ -352,11 +352,11 @@
   .footer-tab .footer-tab-en,
   .footer-tab .footer-tab-zh {
     font-size: var(--font-size-s);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     white-space: normal;
     text-wrap: balance;
     max-width: var(--tab-text-w, var(--tab-text-cap, 12rem));
-    color: var(--footer-fg, #fff);
+    color: var(--footer-fg, var(--color-white));
   }
   .footer-tab .footer-tab-zh {
     margin-top: var(--space-en-zh-s);   /* text-s EN→ZH gap 收進 tier token（值同 2px） */
@@ -449,13 +449,14 @@
       margin-left: calc(-1 * var(--spacing-md));
       /* 上／下／右同理：最寬的 SCCDAA tab（~400px）hover 抽到 +6° 時角凸出 (w/2)·sin6° ≈ 21px，餘量 16 會被裁（user 2026-10-19 截圖）
          → 三邊 24。absolute 不佔流＝補 padding 不推東西；reserveTabRow 量 offsetTop+offsetHeight 再扣 padding-bottom。
-         上緣：padding 24 配 margin-top −8＝tab 列視覺位置不變（仍下移 16）、裁切界往上多 8 進卡的內 padding 區 */
+         上緣：padding 24 等值負 margin 拉回、只留 5＝tab 字頂對齊右上 legal 連結字頂（連結 padding-top＝--card-pad-s 的 5）。
+         原本留 16 是對齊舊左側 logo，桌面卡拿掉 logo 後顯得偏低（user 2026-10-26「tab 可以再往上一點」） */
       padding-right: var(--spacing-md);
       padding-bottom: var(--spacing-md);
       z-index: 1;
       opacity: 1;   /* ⚠️ 蓋掉下方 `.footer-random > div { opacity:0 }`（scatter anchor 預設）——tabs 是 div 會誤中 */
       padding-top: var(--spacing-md);
-      margin-top: calc(var(--spacing-sm) - var(--spacing-md));
+      margin-top: calc(5px - var(--spacing-md));
       /* mark 尺寸集中：改寬只動 --tab-mark-w，mark 高 + 無 mark 的 tab2 對齊墊高都跟著算（免逐處硬寫）。 */
       --tab-mark-w: 110px;
       --tab-mark-h: calc(var(--tab-mark-w) * 320 / 1135);   /* SVG 1135×320 比例 */
@@ -468,14 +469,14 @@
     }
 
     /* 三原色底色塊：會變化的文字 scatter block 套隨機 accent 底（JS applyAccentColors 每次 shuffle 設 inline bg），亮底一律黑字。
-       桌面 only——線性版 JS 不設 bg，黑字會在黑底 footer 看不到。padding 同 nav btn（.anchor-nav-inner 6px 8px 5px）；
+       桌面 only——線性版 JS 不設 bg，黑字會在黑底 footer 看不到。padding＝字級 s 的字卡內距（同 nav btn；user 2026-10-26）；
        別放大：卡片變大 scatter no-overlap 演算法找不到合法 layout、每次 fallback 同一坨。 */
     .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
-      padding: 6px 8px 5px;
+      padding: var(--card-pad-s);
     }
     .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit),
     .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) :is(h6, p, a, span) {
-      color: #000;
+      color: var(--color-black);
     }
     /* 資訊卡整張可點：卡內連結 ::after 撐滿整張卡（EN/ZH 兩行同網址），游標／新分頁／鍵盤焦點都是原生 a 行為。
        ⚠️ 卡片本身不加 position:relative：卡是 `.footer-random > div` 的 absolute（shrink-to-fit 量自然寬給散佈用），
@@ -552,7 +553,7 @@
       transform: translateY(130%);   /* 130 非 115：底離視窗邊 48，100% 不夠藏 */
     }
     .footer-inner {
-      padding: calc(var(--container-padding) / 2);   /* 卡內四周 30（user 2026-10-19 減半） */
+      padding: var(--popup-pad);   /* 卡內四周 20（user 2026-10-26；原 container-padding 一半＝30），不再綁 container-padding；faculty／curriculum 色卡共用 */
       min-height: calc(100vh - var(--nav-line) - 48px);
     }
     .footer-backdrop {
@@ -586,7 +587,7 @@
       bottom: 0;
       opacity: 1;
       overflow: clip;
-      color: var(--footer-fg, #fff);
+      color: var(--footer-fg, var(--color-white));
     }
     /* 照後台換行顯示、不自動折行；(0,2,0) 壓過 `.footer-random p` 的 nowrap。
        中英混排沒標 lang → 改吃中文 s 行距（英文 1.3 顯擠） */
@@ -595,16 +596,16 @@
       line-height: var(--line-height-zh-s);
     }
 
-    /* legal 連結＝nav btn 同款：粗體 text-s、6/8/5 padding、旋轉；預設無底，hover 隨機三原色底黑字（瞬間進出不 fade）。
-       角度與 --legal-hover 由 footer-scatter.js bindLegalChips 寫在 clip-reveal wrapper（遮罩＋旋轉載體）上。負 margin 抵掉左 padding＝字左緣對齊 copyright */
+    /* legal 連結＝nav btn 同款：粗體 text-s、字級 s 字卡內距、旋轉；預設無底，hover 隨機三原色底黑字（瞬間進出不 fade）。
+       角度與 --legal-hover 由 footer-scatter.js bindLegalChips 寫在 clip-reveal wrapper（遮罩＋旋轉載體）上。負 margin 抵掉左 padding（--card-pad-s 左右 6）＝字左緣對齊 copyright */
     .footer-privacy a[data-footer-legal] {
-      padding: 6px 8px 5px;
+      padding: var(--card-pad-s);
       font-size: var(--font-size-s);
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
     }
     .footer-privacy > div > a[data-footer-legal],
     .footer-privacy .clip-reveal-wrapper[data-legal-bound] {
-      margin-left: -8px;
+      margin-left: -6px;
     }
     .footer-privacy .clip-reveal-wrapper[data-legal-bound] {
       transition: transform var(--dur-fast) var(--ease-standard);
@@ -612,7 +613,7 @@
     @media (hover: hover) {
       .footer-privacy .clip-reveal-wrapper[data-legal-bound]:hover > a {
         background: var(--legal-hover, var(--color-pink));
-        color: #000;
+        color: var(--color-black);
       }
       /* mode3：三原色撞 hue 底 → 黑白翻（同 nav btn mode3 hover）：底＝--footer-fg、字＝--theme-fg-inverse-contrast（strict B/W 對比色） */
       body.mode-color .footer-privacy .clip-reveal-wrapper[data-legal-bound]:hover > a {

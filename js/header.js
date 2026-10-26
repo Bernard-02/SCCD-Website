@@ -72,12 +72,15 @@ function footerShowLogo(opts = {}) {
     t.mask.style.pointerEvents = '';
     gsap.to(t.mask, { yPercent: 0, ...vars });
   }
+  const settle = () => {
+    if (t.mask) { t.mask.style.overflow = ''; gsap.set(t.mask, { clearProps: 'transform' }); }
+    gsap.set(t.logo, { clearProps: 'transform' });
+  };
   gsap.to(t.logo, {
     yPercent: 0, ...vars,
-    onComplete: () => {
-      if (t.mask) { t.mask.style.overflow = ''; gsap.set(t.mask, { clearProps: 'transform' }); }
-      gsap.set(t.logo, { clearProps: 'transform' });
-    },
+    onComplete: settle,
+    // snapOnInterrupt（進站進場用）：被外部砍中途就直接落定，別留一顆藏在遮罩裡的 logo；一般 footer-near 展開不設（收起會接手）
+    onInterrupt: opts.snapOnInterrupt ? settle : undefined,
   });
 }
 // 即時復位（reset 路徑用，不跑動畫）
@@ -92,6 +95,41 @@ function resetFooterLogoState() {
     t.mask.style.overflow = '';
     t.mask.style.pointerEvents = '';
   }
+}
+
+// ── 進站 header 進場（user 2026-10-26「每次進站 logo 跟兩顆鈕都 clip-reveal 進場」）：取代整個 header opacity 淡入 ──
+// prepare：header HTML 注入後同步呼叫（同一 task、首繪前）＝logo／鈕先藏進各自遮罩（沿用 footer-near 那套，duration 0）；
+// play：revealHeaderWhenReady／intro 到了「要顯示 header」的時點呼叫＝header opacity 直接開 1（內容都藏著、看不出）、
+//   等 logo Lottie DOMLoaded（封頂 800ms，不然 Lottie 晚到會先露空框）再 logo＋鈕一起滑入（logo 由下、鈕隨機四向／手機一致往上）。
+// 不走：/create（logo 由 typewriter 接管、mode 鈕收著）、reduced-motion；載入當下已被 footer-near 收著（頁底 deep-link）就交給它展開；
+// lightbox 開著（deep-link）只放 logo、鈕由 lightbox 關閉時展。SPA 換頁 header 不重載＝只有進站這一次。
+let _entrancePrepared = false;
+/** @type {(() => void) | null} */
+let _logoReadyResolve = null;
+let _logoReady = Promise.resolve();
+/** @param {string} currentPage */
+function prepareHeaderEntrance(currentPage) {
+  if (typeof gsap === 'undefined' || prefersReducedMotion() || currentPage === 'create' || currentPage === 'generate') return;
+  _logoReady = new Promise(r => { _logoReadyResolve = r; });
+  footerHideLogo({ duration: 0 });
+  footerHideBars({ duration: 0 });
+  _entrancePrepared = true;
+}
+export function playHeaderEntrance() {
+  const header = /** @type {HTMLElement|null} */ (document.querySelector('#site-header header'));
+  if (!header) return;
+  // 首頁 header 出生 opacity 0（index.html）且有 transition：要瞬開，滑入才不會前半段半透明
+  header.style.transition = 'none';
+  header.style.opacity = '1';
+  header.style.setProperty('--header-pe', 'auto');
+  requestAnimationFrame(() => { header.style.transition = ''; });
+  if (!_entrancePrepared) return;
+  _entrancePrepared = false;
+  Promise.race([_logoReady, new Promise(r => setTimeout(r, 800))]).then(() => {
+    if (barsHidden) return;
+    footerShowLogo({ snapOnInterrupt: true });
+    if (!document.body.classList.contains('lightbox-open')) footerShowBars({ snapOnInterrupt: true });
+  });
 }
 
 // bars 的 footer-near 收/展：2026-07-15 改成完全比照 hero 字卡 clip-reveal（hero-animation.js offsetFor）：
@@ -185,6 +223,8 @@ function footerShowBars(opts = {}) {
     x: 0, y: 0,
     duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto',
     onComplete: () => bars.forEach(clearBarMask),
+    // snapOnInterrupt（進站進場用）：被外部砍中途＝直接歸位清遮罩（同 footerShowLogo）
+    onInterrupt: opts.snapOnInterrupt ? () => bars.forEach(clearBarMask) : undefined,
   });
 }
 // 歸零 translate（rotate 已在 wrapper，child transform 純平移 → clearProps 安全）＋還原 transition ＋卸遮罩 overflow。
@@ -245,8 +285,12 @@ export function cycleHeaderBtn(bar, swap) {
   const off = barHideOffset(pickBarDir(bar), bar, mask || bar);
   // onComplete 都先驗「狀態還是這個 cycle」：in-tween 最後一幀再點＝新 out-tween 建好但同 tick 舊 in-tween 先完成、
   // 它的 onComplete 會把新狀態刪掉＋清遮罩（鈕露在遮罩外滑、再點就繞過狀態機 icon 對不上；trace 實抓 2026-10-20）
+  // onInterrupt＝被外部 killTweensOf 砍中途（換頁 cleanupPageModules 砍 header 鈕、lightbox／footer-near…）直接收尾：
+  // 不然鈕停在遮罩內半路（user 2026-10-26 點選單連結換頁偶發、headless 3 次中 2 次），砍 tween 的呼叫端不用個個記得先 settle。
+  // 再點（in 最後一幀新 out 蓋掉舊 in）也會觸發 in 的 onInterrupt → phase 已被改成 'out' 就不理
   gsap.to(bar, {
     x: off.x, y: off.y, duration: DUR.base, ease: EASE.exit, overwrite: 'auto',
+    onInterrupt: () => { if (btnCycles.get(bar) === s && s.phase === 'out') settleBtnCycle(bar); },
     onComplete: () => {
       if (btnCycles.get(bar) !== s) return;
       s.swap();
@@ -255,6 +299,7 @@ export function cycleHeaderBtn(bar, swap) {
       const from = barHideOffset(pickBarDir(bar), bar, mask || bar);
       gsap.fromTo(bar, { x: from.x, y: from.y }, {
         x: 0, y: 0, duration: DUR.base, ease: EASE.enter, overwrite: 'auto',
+        onInterrupt: () => { if (btnCycles.get(bar) === s && s.phase === 'in') settleBtnCycle(bar); },
         onComplete: () => { if (btnCycles.get(bar) !== s || s.phase !== 'in') return; btnCycles.delete(bar); clearBarMask(bar); },
       });
     },
@@ -356,9 +401,11 @@ if (typeof window !== 'undefined') {
   // logo 尺寸：開卡縮到小（100）——首頁沒得捲、scroll-shrink 到不了；關卡回到「捲動應有」的尺寸（180 − 80×min(1, scrollY/300)
   // ＝scroll-shrink 同一條公式；捲到底的頁本來就 100＝no-op）。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）尺寸各自管、不還原。
   // 不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡 180），兩支同屬性 tween 最後都收斂到同一公式值
+  let _footerCardOpen = false;
   function footerLogoSize(open) {
     const logo = document.getElementById('header-logo');
     if (!logo || typeof gsap === 'undefined' || !SCCDHelpers.isDesktopLayout()) return;
+    _footerCardOpen = open;
     const hasScrub = typeof ScrollTrigger !== 'undefined' && ScrollTrigger.getAll().some(st => st.vars && st.vars.trigger === 'body');
     if (!open && !hasScrub) return;
     const size = open ? 100 : 180 - 80 * Math.min(1, window.scrollY / 300);
@@ -366,6 +413,11 @@ if (typeof window !== 'undefined') {
   }
   document.addEventListener('footer:open', () => { closeMobileMenu(); footerLogoSize(true); });
   document.addEventListener('footer:close', () => footerLogoSize(false));
+  // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝180），
+  // 事件同一個 task 內壓回小＝不會閃（user 2026-10-26「開卡時切換視窗大小 logo 要保持小」）
+  if (typeof ScrollTrigger !== 'undefined') {
+    ScrollTrigger.addEventListener('refresh', () => { if (_footerCardOpen) gsap.set('#header-logo', { width: 100, height: 100 }); });
+  }
 }
 
 /**
@@ -918,7 +970,10 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
         if (st.vars && st.vars.trigger === 'body') st.kill();
       });
     }
-    gsap.killTweensOf(logoEl);
+    // 只砍尺寸 tween：進站 clip-reveal 的 yPercent（playHeaderEntrance）在跑時被全砍＝logo 卡在遮罩裡（library 冷載入實測）。
+    // 要整支 kill、不能 killTweensOf(logoEl, 'width,height') 只砍屬性：冷載入 header 與 router 各叫一次本函式，
+    // 第一支 fromTo 被「砍屬性」後會變殭屍（不前進、每幀重寫 startAt 180）→ 捲下去 scrub 一停 logo 就自己變回大的
+    gsap.getTweensOf(logoEl).forEach(t => { if ('width' in t.vars) t.kill(); });
 
     // /create：清完就交棒給 triggerGenerateLogo，不在這裡 set 新 tween 否則跟 shrink 競爭。
     // ⚠️但 st.kill() 會 revert 掉 scroll-shrink 寫的 inline width → logo 瞬跳回 CSS 預設 180，
@@ -981,6 +1036,7 @@ export function initHeader() {
 
     // 2. Active Nav State（初次載入）
     let currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+    prepareHeaderEntrance(currentPage);   // 進站進場：首繪前先把 logo／鈕藏進遮罩（見 playHeaderEntrance）
 
     // Generate page 初次載入時觸發 logo 動畫
     // 注意：直接訪問 /create.html 時 currentPage='create'，這條 if 不會 fire，由 main-modular.js
@@ -1064,6 +1120,7 @@ export function initHeader() {
         }
       });
       logoAnim.addEventListener('DOMLoaded', () => {
+        if (_logoReadyResolve) { _logoReadyResolve(); _logoReadyResolve = null; }
         const svg = logo.querySelector('svg');
         if (svg) {
           svg.style.overflow = 'visible';
@@ -1132,6 +1189,7 @@ export function initHeader() {
           rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
         });
         mobileLogoAnim.addEventListener('DOMLoaded', () => {
+          if (_logoReadyResolve) { _logoReadyResolve(); _logoReadyResolve = null; }
           const svg = mobileLogo.querySelector('svg');
           if (svg) {
             svg.style.overflow = 'visible';

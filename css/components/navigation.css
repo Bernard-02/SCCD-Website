@@ -94,7 +94,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-s);
   }
 
@@ -105,9 +105,10 @@
     /* chip 英中距：chip 是 flex，用 gap——雙語 chip 吃 gap、單節點 chip（特設 / 年份）no-op；
        chip 排除在 mb-en-zh utility 外（緊湊元件），用 text-s 英中距 token --space-en-zh-s（variables.css） */
     gap: var(--space-en-zh-s);
-    background: #fff; /* 實色（非半透明）防透出後方內容；inverse/color 由 themes 蓋 */
-    padding: 6px 8px 5px;
-    color: #000; /* 全站 nav btn inactive 字 100% 不透明；hover 色見下方「nav btn hover」段；inverse/color 由 themes 蓋 */
+    background: var(--color-white); /* 實色（非半透明）防透出後方內容；inverse/color 由 themes 蓋 */
+    padding: var(--card-pad-s);
+    line-height: var(--line-height-s);
+    color: var(--color-black); /* 全站 nav btn inactive 字 100% 不透明；hover 色見下方「nav btn hover」段；inverse/color 由 themes 蓋 */
     transition: all var(--dur-fast) var(--ease-standard);
   }
 
@@ -143,7 +144,7 @@
   }
   body:not(.mode-color) [data-nav-hover]:not(.active) .anchor-nav-inner:hover {
     background-color: var(--nav-hover, var(--color-pink)) !important;
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
   body.mode-color [data-nav-hover]:not(.active) .anchor-nav-inner:hover {
     background-color: var(--theme-fg) !important;
@@ -166,7 +167,7 @@
      --nav-hover 掛在 group、JS 也以 group 進出當 hover（courses-section-switch.js） */
   body:not(.mode-color) .courses-program-group:has(> [data-nav-hover]:not(.active)):has(.anchor-nav-inner:hover, .courses-bfa-label:hover) :is(.anchor-nav-inner, .courses-bfa-label) {
     background-color: var(--nav-hover, var(--color-pink)) !important;
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
   body.mode-color .courses-program-group:has(> [data-nav-hover]:not(.active)):has(.anchor-nav-inner:hover, .courses-bfa-label:hover) :is(.anchor-nav-inner, .courses-bfa-label) {
     background-color: var(--theme-fg) !important;
@@ -268,7 +269,7 @@
   #site-header .mobile-nav-link {
     pointer-events: auto;
     background: var(--theme-fg);
-    padding: 8px 12px 7px; /* 字級 lg 配 nav btn 標準 6/8/5 太擠 */
+    padding: var(--card-pad-lg);
     font-size: var(--font-size-lg);
     line-height: var(--line-height-lg);
   }
@@ -285,7 +286,7 @@
   }
   #site-header .mobile-nav-link.active,
   #site-header .mobile-nav-link.active span {
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
   /* hover＝三原色底黑字（--menu-hover 由 mobile-menu.js mouseenter 抽），active 不變 */
   #site-header .mobile-nav-link:not(.active):hover {
@@ -293,7 +294,7 @@
   }
   #site-header .mobile-nav-link:not(.active):hover,
   #site-header .mobile-nav-link:not(.active):hover span {
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
   /* mode3：三原色撞 hue 底 → strict B/W 翻反色（同全站 mode3 active / hover 慣例） */
   body.mode-color #site-header .mobile-nav-link.active,
@@ -334,10 +335,10 @@
   .page-indicator-card {
     background: var(--theme-fg);
     color: var(--theme-fg-inverse);
-    padding: 6px 8px 5px;
+    padding: var(--card-pad-s);
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     white-space: nowrap;
   }
   .page-indicator-card:empty {

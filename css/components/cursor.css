@@ -50,3 +50,13 @@ body [data-tl-nav-edge="right"] * {
 html.overlay-no-dim body :is(#faculty-overlay, #courses-overlay) {
   cursor: var(--cursor-default);
 }
+
+/* 5) 原生 video controls（全螢幕＝video 本體、原生 UI 接手）：UA 在按鈕／進度條寫死 keyword。
+      ponytail: 只蓋得到 -webkit- 偽元素；「⋮」選單鈕與其選單項是 -internal-，頁面 CSS 碰不到、仍是系統游標 */
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-mute-button,
+video::-webkit-media-controls-fullscreen-button,
+video::-webkit-media-controls-timeline,
+video::-webkit-media-controls-volume-slider {
+  cursor: var(--cursor-pointer);
+}
