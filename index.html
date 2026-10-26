@@ -24,10 +24,10 @@
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="css/output.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
-  <!-- p5 不放 head（移除 render-blocking）；WATCH 卡已改純原生 canvas 不依賴 p5（index-yt-card.js initWatchChars），只剩 /create 進頁時載本地 generate-app/p5.min.js -->
+  <!-- p5 不放 head（移除 render-blocking）；只剩 /create 進頁時載本地 generate-app/p5.min.js（WATCH 2026-10-26 起是 news 同款 banner，不用 canvas） -->
 </head>
 <body style="overflow:hidden">
 
@@ -49,26 +49,18 @@
       <!-- Floating Items Layer -->
       <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>
 
-      <!-- News Marquee Stack（4 個 banner 旋轉排列在左下角；JS 動態渲染 + cycling） -->
+      <!-- News Marquee Stack：3 條 news 旋轉堆疊在左下角＋最底一條 WATCH 影片入口（同款 banner，user 2026-10-26）；JS 動態渲染 + cycling（index-marquee.js） -->
       <div id="homepage-marquee-stack" style="position:absolute; left:0; bottom:0; width:100%; height:100%; pointer-events:none;"></div>
-
-      <!-- YouTube Card：絕對定位，JS 負責隨機位置 + 旋轉
-           width/height 改由 .homepage-card class 控制（桌面 160 / 手機 96，CSS 分流）
-           出生光圈收起（clip-path circle 0）：index 模組是動態載入、init 晚於換頁後第一次繪製，不先藏＝黑圓在預設位置（左下）閃一下；
-           initYTCard 定位後再開光圈進場 -->
-      <div id="homepage-yt-card" class="homepage-card" style="position:absolute; border-radius:50%; cursor:var(--cursor-pointer); overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center; z-index:20; clip-path:circle(0% at 50% 50%);">
-        <div id="homepage-yt-chars" style="position:absolute;inset:0;"></div>
-      </div>
 
     </section>
 
   <!-- Video Player Lightbox（必須在 <main> 內，否則 SPA 從別頁切回 index 時不會被 swap 進來） -->
-  <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:#000; flex-direction:column; justify-content:center; align-items:center;">
+  <div id="video-player-overlay" style="display:none; position:fixed; inset:0; z-index:10000; background:var(--color-black); flex-direction:column; justify-content:center; align-items:center;">
     <video id="video-player" style="width:95%; max-height:90%; object-fit:contain;" preload="metadata" controlsList="nodownload" oncontextmenu="return false;"></video>
 
     <!-- 手機專用左上返回鍵（桌面用 video-controls 內的 close btn，預設隱藏） -->
     <!-- top:6rem 對齊手機 header logo 下方：header `py-md`(24px) + logo wrapper `-top-4`(-16px) + logo 80px = 88px 底邊 + ~8px 間距 ≈ 96px (6rem)；left 同 logo 邊距 -->
-    <button id="video-mobile-close-btn" aria-label="關閉影片 Close video" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:#00FF80; color:#000; border:none; width:44px; height:44px; padding:0; line-height:1; align-items:center; justify-content:center;">
+    <button id="video-mobile-close-btn" aria-label="關閉影片 Close video" style="display:none; position:absolute; top:6rem; left:1rem; z-index:10003; background:var(--color-green); color:var(--color-black); border:none; width:44px; height:44px; padding:0; line-height:1; align-items:center; justify-content:center;">
       <span class="icon icon-arrow-left" style="font-size:1.75rem;"></span><!-- 44 盒 −16＝28（同 lightbox pill 規格） -->
     </button>
 
@@ -78,39 +70,39 @@
       <!-- 區塊 1：返回鍵 — 正方形 48 盒＋32 icon（同全站黑方塊鈕規格，user 2026-10-21）。
            按鈕撐滿色塊＝整塊都是鈕、hover 整塊反色（lightbox.css）；返回 icon-xl 32；播放／音量／全螢幕 28 由 lightbox.css 給（不帶 size class，video-player.js 換態同） -->
       <div id="video-block-close" style="background:transparent; padding:0; width:3rem; height:3rem; flex:none; display:flex; align-items:center;">
-        <button id="video-close-btn" aria-label="關閉影片 Close video" style="color:#fff; background:none; border:none; padding:0; width:100%; height:100%; line-height:1; display:flex; align-items:center; justify-content:center;">
+        <button id="video-close-btn" aria-label="關閉影片 Close video" style="color:var(--color-white); background:none; border:none; padding:0; width:100%; height:100%; line-height:1; display:flex; align-items:center; justify-content:center;">
           <span class="icon icon-arrow-left icon-xl"></span>
         </button>
       </div>
 
       <!-- 區塊 2：中間 control bar -->
-      <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 1rem;">
+      <div id="video-block-center" style="background:transparent; padding:0 1.25rem; height:3rem; display:flex; align-items:center; gap:1.25rem; flex:1; min-width:0; margin:0 var(--spacing-sm);">
 
         <!-- Play -->
-        <button id="video-play-btn" aria-label="播放／暫停 Play/Pause" style="color:#fff; background:none; border:none; padding:0; line-height:1; display:flex; flex-shrink:0;"><!-- 寬＝icon（icon 固定正方形、play/pause 切換不跳寬，舊固定寬會在左邊多墊空白） -->
+        <button id="video-play-btn" aria-label="播放／暫停 Play/Pause" style="color:var(--color-white); background:none; border:none; padding:0; line-height:1; display:flex; flex-shrink:0;"><!-- 寬＝icon（icon 固定正方形、play/pause 切換不跳寬，舊固定寬會在左邊多墊空白） -->
           <span class="icon icon-play"></span>
         </button>
 
         <!-- 時間軸（flex:1）— track 全黑 + fill 全黑（連續黑線）；thumb = 4px 寬黑色直線，靠上下伸出 5px 標位置。
              末子＝透明命中層撐到 thumb 高（14px）：只有 4px 線吃得到 hover/點擊，滑到 thumb 凸出處會變回箭頭（2026-10-01） -->
-        <div id="video-progress-track" style="flex:1; height:4px; background:#000; position:relative; min-width:0; cursor:var(--cursor-pointer);">
-          <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:#000;">
-            <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none;"></div>
+        <div id="video-progress-track" style="flex:1; height:4px; background:var(--color-black); position:relative; min-width:0; cursor:var(--cursor-pointer);">
+          <div id="video-progress-fill" style="height:100%; width:0%; pointer-events:none; position:relative; background:var(--color-black);">
+            <div id="video-progress-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:var(--color-black); pointer-events:none;"></div>
           </div>
           <div style="position:absolute; left:0; right:0; top:-5px; bottom:-5px;"></div>
         </div>
 
         <!-- 剩餘時間 -->
-        <span id="video-time" class="text-s" style="color:#fff; white-space:nowrap; flex-shrink:0;">0:00</span>
+        <span id="video-time" class="text-s" style="color:var(--color-white); white-space:nowrap; flex-shrink:0;">0:00</span>
 
         <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
         <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
-          <button id="video-mute-btn" aria-label="靜音／取消靜音 Mute/Unmute" style="color:#fff; background:none; border:none; padding:0; line-height:1;">
+          <button id="video-mute-btn" aria-label="靜音／取消靜音 Mute/Unmute" style="color:var(--color-white); background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume"></span>
           </button>
-          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s var(--ease-wipe); height:4px; background:#000; position:relative; flex-shrink:0; cursor:var(--cursor-pointer);">
-            <div id="video-volume-fill" style="height:100%; width:100%; background:#000; pointer-events:none; position:relative;">
-              <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:#000; pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
+          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s var(--ease-wipe); height:4px; background:var(--color-black); position:relative; flex-shrink:0; cursor:var(--cursor-pointer);">
+            <div id="video-volume-fill" style="height:100%; width:100%; background:var(--color-black); pointer-events:none; position:relative;">
+              <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:var(--color-black); pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
             </div>
             <div style="position:absolute; left:0; right:0; top:-5px; bottom:-5px;"></div>
           </div>
@@ -120,7 +112,7 @@
 
       <!-- 區塊 3：全螢幕 -->
       <div id="video-block-fullscreen" style="background:transparent; padding:0; width:3rem; height:3rem; flex:none; display:flex; align-items:center;">
-        <button id="video-fullscreen-btn" aria-label="全螢幕 Fullscreen" style="color:#fff; background:none; border:none; padding:0; width:100%; height:100%; line-height:1; display:flex; align-items:center; justify-content:center;">
+        <button id="video-fullscreen-btn" aria-label="全螢幕 Fullscreen" style="color:var(--color-white); background:none; border:none; padding:0; width:100%; height:100%; line-height:1; display:flex; align-items:center; justify-content:center;">
           <span class="icon icon-full-screen"></span>
         </button>
       </div>

@@ -1,5 +1,6 @@
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { playHeaderEntrance } from '../../header.js';
 /**
  * Intro Animation Module
  * 網站進場動畫 - 使用 Lottie 播放 AE 動畫
@@ -20,7 +21,7 @@ export function initIntroAnimation() {
   if (prefersReducedMotion()) {
     overlay.style.display = 'none';
     document.body.style.overflow = '';
-    const showHeader = () => { const h = /** @type {HTMLElement|null} */ (document.querySelector('header')); if (h) { h.style.opacity = '1'; h.style.setProperty('--header-pe', 'auto'); } };   // 無淡入＝直接開互動（開關＝--header-pe，見 index.html／navigation.css header 放行規則）
+    const showHeader = () => playHeaderEntrance();   // reduced-motion＝header.js 沒預藏 → 只開 opacity／互動
     if (document.querySelector('header')) showHeader();
     else document.addEventListener('header:ready', showHeader, { once: true });
     return Promise.resolve();
@@ -54,27 +55,8 @@ export function initIntroAnimation() {
 
       tl.to(overlay, { opacity: 0, duration: DUR.medium, ease: EASE.enterSoft });
 
-      if (header) {
-        tl.to(header, {
-          opacity: 1,
-          duration: DUR.base,
-          ease: EASE.enterSoft,
-          onStart: () => { document.body.style.overflow = ''; },
-          // 淡入完成才開互動（淡入中隱形不可點，見 index.html --header-pe:none；user 2026-09-04）。
-          // 不能直接在 onComplete 開：navigation.css header 的 opacity transition 讓 computed 落後 GSAP inline 值
-          // ~100ms（驗證量到 0.63 就可點）→ 同 main-modular revealHeaderWhenReady 輪詢 computed 至 ~1 才開
-          onComplete: () => {
-            const h = /** @type {HTMLElement} */ (header);
-            const enablePE = () => {
-              if (parseFloat(getComputedStyle(h).opacity) >= 0.99) h.style.setProperty('--header-pe', 'auto');
-              else requestAnimationFrame(enablePE);
-            };
-            enablePE();
-          },
-        }, '<');
-      } else {
-        tl.call(() => { document.body.style.overflow = ''; }, null, '<');
-      }
+      // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑
+      tl.call(() => { document.body.style.overflow = ''; playHeaderEntrance(); }, null, '<');
     });
   }
 

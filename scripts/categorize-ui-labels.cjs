@@ -13,8 +13,7 @@ const CHOICES = [
   'header', 'about', 'about programs tree', 'about programs detail', 'about works',
   'curriculum programs', 'faculty programs', 'faculty types',
   'activities', 'activities exhibitions', 'activities visits', 'admissions',
-  'library', 'atlas', 'atlas alumni', 'alumni',
-];
+  'library', 'atlas', 'atlas alumni', 'alumni', 'index',];
 
 // key → 資料夾
 function catOf(k) {
@@ -28,6 +27,7 @@ function catOf(k) {
   if (k === 'act.type.special' || k === 'act.type.permanent') return 'activities exhibitions';
   if (k === 'act.type.outbound' || k === 'act.type.inbound') return 'activities visits';
   if (k.startsWith('act.')) return 'activities';
+  if (k.startsWith('index.')) return 'index';   // 首頁
   if (k.startsWith('adm.')) return 'admissions';
   if (k.startsWith('lib.')) return 'library';
   if (k === 'atlas.host' || k === 'atlas.employ') return 'atlas alumni';
@@ -53,6 +53,7 @@ async function main() {
   const rows = (await api('/items/ui_labels?limit=-1&fields=id,key,category')).j.data || [];
   let done = 0, skip = 0;
   for (const row of rows) {
+    if (!row.key) { console.warn('  ? 空 key（後台空白列）略過 id', row.id); skip++; continue; }   // 之前會在 catOf 炸掉整支
     const cat = catOf(row.key);
     if (!cat) { console.warn('  ? 無對應資料夾:', row.key); skip++; continue; }
     if (row.category === cat) { skip++; continue; }

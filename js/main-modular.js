@@ -4,7 +4,7 @@
  */
 
 // ── 全站常駐模組（每頁都要：layout / 主題 / 換頁清理 / hero）──────────────────
-import { initHeader } from './header.js';
+import { initHeader, playHeaderEntrance } from './header.js';
 import { initFooter } from './footer.js';
 import { initSiteAssets } from './modules/ui/site-assets.js';
 import { initThemeToggle, applyModeForPage, updateToggleBtnVisualState } from './modules/ui/theme-toggle.js';
@@ -67,10 +67,12 @@ export function cleanupPageModules(destPage) {
   // selector 集中走 lightbox-shell.getHeaderTargets()（之前是 selector 雙寫，header 結構改一處會漏改另一處）
   // 排除 #mode-btn：/create 收它的狀態由 header.js animateHeaderModeBtnHide 管（2026-10-01 起是遮罩平移、非 clipPath），
   // 這裡別碰，免得 /create same-page reentry 時誤放出來
+  // ⚠️ 只砍 clipPath：鈕的 x/y 平移由 header.js 管（換 icon cycle、進站 clip-reveal）——初始路由的 loadPage 也會進這裡，
+  // 全砍會砍中剛起跑的進站滑入（手機 about 實測鈕卡 −50）／選單換頁時的換 icon
   if (typeof gsap !== 'undefined') {
     const lbHeaderTargets = getHeaderTargets().filter(el => el.id !== 'mode-btn');
     if (lbHeaderTargets.length) {
-      gsap.killTweensOf(lbHeaderTargets);
+      gsap.killTweensOf(lbHeaderTargets, 'clipPath');
       lbHeaderTargets.forEach(el => { el.style.clipPath = ''; el.style.visibility = ''; });
     }
   }
@@ -119,19 +121,8 @@ function revealHeaderWhenReady(headerAt = Promise.resolve()) {
   const overlay = document.getElementById('intro-overlay');
   if (overlay) overlay.style.display = 'none';
   document.body.style.overflow = '';
-  const showHeader = () => {
-    const header = /** @type {HTMLElement | null} */ (document.querySelector('#site-header header'));
-    if (!header) return;
-    header.style.opacity = '1';
-    // 互動只在「完全顯示後」才開：opacity 是淡入的（typography 白名單 transition）→ 淡入中隱形卻可點＝
-    // mode btn 有 pointer cursor＋可點（user 2026-09-04）。輪詢 opacity 至 ~1 才開（隱形時 --header-pe:none，見 index.html）。
-    // 開的是 --header-pe 不是 header 本體 pe：本體恆 none 讓中間空白放行（navigation.css header 放行規則）
-    const enablePE = () => {
-      if (parseFloat(getComputedStyle(header).opacity) >= 0.99) header.style.setProperty('--header-pe', 'auto');
-      else requestAnimationFrame(enablePE);
-    };
-    requestAnimationFrame(enablePE);
-  };
+  // header 顯示＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26；原本整個 header opacity 淡入＋輪詢開 --header-pe）
+  const showHeader = () => playHeaderEntrance();
   headerAt.then(() => {
     if (document.querySelector('#site-header header')) showHeader();
     else document.addEventListener('header:ready', showHeader, { once: true });
@@ -204,9 +195,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'index') {
     const firstVisit = !sessionStorage.getItem('sccd-intro-shown');
     if (firstVisit) sessionStorage.setItem('sccd-intro-shown', '1');
-    // 進場順序（user 2026-10-21）：logo／header、news、WATCH 同時（stage1）→ floating 最後。
+    // 進場順序（user 2026-10-21）：logo／header、news 同時（stage1）→ floating 最後。
     // stage1＝news 開始進場那刻（資料＋海報量完；首訪再等 intro loader 播完、header 由 intro 自己淡入）。
-    // ponytail: news 慢於 1.2s 就不等、header／WATCH 先進（news 晚到自己進場）；import 失敗也放 header
+    // ponytail: news 慢於 1.2s 就不等、header 先進（news 晚到自己進場）；import 失敗也放 header
     let startStage1;
     const stage1 = new Promise(r => { startStage1 = r; });
     if (!firstVisit) revealHeaderWhenReady(stage1);
@@ -214,8 +205,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       firstVisit ? import('./modules/pages/intro-animation.js') : null,
       import('./modules/pages/index-marquee.js'),
       import('./modules/animations/floating-items.js'),
-      import('./modules/pages/index-yt-card.js'),
-    ]).then(([intro, marquee, floating, yt]) => {
+    ]).then(([intro, marquee, floating]) => {
       if (!alive()) return startStage1();
       const introDone = intro ? intro.initIntroAnimation() : Promise.resolve();
       Promise.race([
@@ -223,8 +213,6 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         introDone.then(() => new Promise(r => setTimeout(r, 1200))),
       ]).then(startStage1);
       floating.initFloatingItems(stage1);
-      floating.initWatchHover();
-      yt.initYTCard(stage1);
     }).catch(startStage1);
   }
 

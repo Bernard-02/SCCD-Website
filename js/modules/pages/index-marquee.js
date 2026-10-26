@@ -1,16 +1,20 @@
 /**
  * Index Page - News Marquee Stack
- * 3 個 news banner 左對齊堆疊在左下角，每個 bar 前綴一個隨機三原色數字方塊（item _num = 後臺順序 1-N）；
+ * 3 個 news banner 左對齊堆疊在左下角，每個 bar 前綴一個隨機三原色色塊（原本帶後臺順序數字，2026-10-26 拿掉）；
+ * url 是影片（.m3u8／.mp4）的那則點了開首頁播放器（openWatch）、不開新分頁——後台 index_video 併進 news
+ * （user 2026-10-26，取代同日的最底固定 WATCH 條）；播放期間暫停 cycle，關閉時黑底才收得回那條 banner；
  * items > 3 時每 5s 依序 cycle：
  * - slot 0（最上方 / 第一個 / 最舊）→ yPercent up clip-reveal 收起退場（duration 0.35s，先於 survivor 平移完成避免 overlap）
  * - slot 1, 2 → 往上平移一個 slot，duration 0.6s power2.inOut（同 about resources accordion）；
- *   中間 banner（slot 1）位移到第一個（slot 0），slot 2 跟著上來填 slot 1；每個 banner 帶著自己的 rotation + 數字方塊跟著走
+ *   中間 banner（slot 1）位移到第一個（slot 0），slot 2 跟著上來填 slot 1；每個 banner 帶著自己的 rotation + 色塊跟著走
  * - 新 item 從 slot 2（最後一個）→ clip-path top-down wipe 展開進場
  * 任一 banner 被 hover 時暫停 cycle；hoverCount 歸 0 後若有 pending 立即 advance
  * Banner 寬度依 poster orientation：landscape=400 / portrait=300（poster 自然尺寸 preload 判定）
  */
 
-import { applyNewsHover, removeNewsHover, subscribeWatchMask } from '../animations/floating-items.js';
+import { applyNewsHover, removeNewsHover } from '../animations/floating-items.js';
+import { initVideoPlayer, isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
+import { makeActivatable } from '../ui/a11y.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
@@ -20,10 +24,11 @@ import { marqueeSpeed } from '../ui/marquee-overflow.js';
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
 // 桌面 banner 寬度：依 poster orientation
-const WIDTH_LANDSCAPE = 400;  // 比原本 600 短 1/3
-const WIDTH_PORTRAIT  = 300;
+// 原本 bar 400/300＋前綴色塊 40；色塊拿掉（user 2026-10-26）後 bar 吃下那 40＝整條（含 hover 海報）寬不變
+const WIDTH_LANDSCAPE = 440;
+const WIDTH_PORTRAIT  = 340;
 // 手機統一寬度：user 2026-05-26 要求 full width 但留左右 padding
-// WIDTH_MOBILE() 是「totalWidth = 數字方塊 + bar」的目標值（createBanner 內 barWidth = WIDTH_MOBILE() - BAR_HEIGHT）
+// WIDTH_MOBILE() 是 banner 整條寬（＝bar 寬）的目標值
 // = innerWidth - 2 * MOBILE_PADDING_X 讓 banner 寬度 = viewport 扣兩邊呼吸空間
 // padding 同時給 rotation 邊角微凸視覺 buffer（rotation 樞紐在 left center，實際右側水平凸 ≈ 0、
 // y 凸 ~6px 在 slot gap 50px 內，但 padding 提供整體視覺呼吸感讓 banner 不貼齊 viewport 邊）
@@ -32,16 +37,12 @@ const MOBILE_PADDING_X = 16;
 // 直向手機 375-430 扣 padding 後本來就 < cap、不受影響。
 const WIDTH_MOBILE_MAX = 480;
 const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WIDTH_MOBILE_MAX);
-const BAR_HEIGHT = 40;        // 數字方塊邊長 ≈ bar 高度（h5 font 1.4rem + 預設 line-height + padding 0.35rem*2 ≈ 40）
-const BAR_PADDING_X = 12;     // bar 左右內縮：library 色塊 axisPad(24) 的一半，文字不貼邊
-// 數字方塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
+const BAR_HEIGHT = 40;        // 單行 bar 高度（h5 font 1.4rem + 預設 line-height + padding 上下 --card-pad-lg ≈ 40）
+// 色塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
 // cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
-// hover WATCH 卡時整條 news 被遮蔽：數字方塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
+// hover WATCH 卡時整條 news 被遮蔽：色塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
 // clip-path wipe（跟浮卡 newsOverlay 同款 0.5s cubic-bezier）。四個藏起方向（上/下/右/左）；進場一律 wipe 到滿版，
 // 退場改抽一個新隨機方向 wipe 出去 → 下次進場自然從那個新方向進來，四方向輪替（user 2026-09-04）。
-const MASK_HIDDEN = ['inset(100% 0 0 0)', 'inset(0 0 100% 0)', 'inset(0 100% 0 0)', 'inset(0 0 0 100%)'];
-const MASK_SHOWN = 'inset(0 0 0 0)';
-const randMaskHidden = () => MASK_HIDDEN[Math.floor(Math.random() * MASK_HIDDEN.length)];
 const ENTER_DELAY = 0.5;      // 新進場 banner 在 cycle 觸發後 delay 0.5s 才走 reveal
 // hover 時 poster 展開 與 上方 banner 被推開 共用同一組 duration/ease（同一 GSAP 時鐘）→ 看起來才是「被頂上去」；
 // 舊版 poster 走 CSS transition 0.4s cubic-bezier、push 走 0.5s power2.inOut，兩條曲線對不上（user 2026-09-28）
@@ -114,8 +115,10 @@ export function initMarquee(gate = Promise.resolve()) {
     .then(async data => {
       const items = Array.isArray(data?.items) ? data.items.filter(it => it && (it.textEn || it.textZh || it.text)) : [];
       if (items.length === 0) return;
-      // 後臺順序 → item._num（1-based）；item-bound，cycle 時跟著走
-      items.forEach((item, i) => { item._num = i + 1; });
+      // 第一則影片進頁就預載（同舊 index_video）：S3 首段實測 ~3s，點了才抓＝黑幕乾等
+      // ponytail: 只預載第一則；多則影片時其餘點了才緩衝
+      const firstVideo = items.find(it => isVideoUrl(it.url));
+      if (firstVideo) videoPlayer(firstVideo.url)?.preloadVideo(firstVideo.url);
       await Promise.all([preloadOrientations(items), gate]);
       if (!stack.isConnected) return;
       let disposeStack = runMarqueeStack(stack, items);
@@ -156,10 +159,9 @@ async function preloadOrientations(items) {
 
 function createBanner(item, squareColor) {
   // 手機統一寬度（max-width 視 viewport），桌面依 poster orientation
-  const barWidth = SCCDHelpers.isMobileLayout()
-    ? WIDTH_MOBILE() - BAR_HEIGHT
+  const totalWidth = SCCDHelpers.isMobileLayout()
+    ? WIDTH_MOBILE()
     : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
-  const totalWidth = BAR_HEIGHT + barWidth;
   // rotation 樞紐＝中心（同全站 nav btn；user 2026-09-28，原 left center 是錯的錨點）：兩端各擺 (w/2)·sinθ、
   // 左緣在 1° 內只飄 ~4px。手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
   const rotation = randomRotation();
@@ -173,6 +175,9 @@ function createBanner(item, squareColor) {
     pointer-events: none;
     will-change: transform;
   `;
+  // 沒海報＝寬度沒東西要配（固定寬是給海報的）→ 貼字寬、上限照原寬（放不下照跑馬燈；user 2026-10-26 WATCH 那則）。
+  // gateMarqueeScroll 量的時候 clone 還在＝兩份字撐到上限才量，不會有 max-content 小數寬 vs clientWidth 整數的誤判
+  if (!item.poster) { wrap.style.width = 'max-content'; wrap.style.maxWidth = `${totalWidth}px`; }
 
   // Clip wrapper 包覆 row → 提供 entry/exit 動畫的 overflow:clip
   const clipWrap = document.createElement('div');
@@ -183,7 +188,7 @@ function createBanner(item, squareColor) {
     pointer-events: auto;
   `;
 
-  // Row：flex 排 [數字方塊 + bar]；動畫套在 row 上 → 兩個元素一起進/出
+  // Row：包 bar（＋watch 遮蔽層）；動畫套在 row 上
   const row = document.createElement('div');
   row.className = 'hm-banner-row';
   row.style.cssText = `
@@ -194,30 +199,13 @@ function createBanner(item, squareColor) {
   `;
   row.style.setProperty('--hm-accent', squareColor);   // hover 對調（.is-swap）時 bar 吃這個色，見 lists.css
 
-  // 數字方塊（隨機 accent bg，後臺順序）；中英兩行後 bar 變高、方塊隨 row stretch 撐滿，
-  // 數字靠頂（user 2026-09-15）：padding-top 對齊 link 的 0.35rem 上內距
-  const square = document.createElement('div');
-  square.className = 'hm-banner-num';
-  square.textContent = String(item._num);
-  square.style.cssText = `
-    width: ${BAR_HEIGHT}px;
-    flex-shrink: 0;
-    background: ${squareColor};
-    color: #000;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 0.35rem;
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1;
-  `;
-
   // 沒 url（或舊資料 '#'）＝純公告：不給 href、cursor 維持 default、不跳轉（user 2026-09-28）
   const hasLink = !!item.url && item.url !== '#';
+  // url 是影片＝開播放器的鈕（不給 href、Tab＋Enter 可開）；點擊在 bindBannerInteraction 綁（要暫停 cycle）
+  const isVideo = isVideoUrl(item.url);
   const link = document.createElement('a');
   link.className = 'homepage-marquee-link';
-  if (hasLink) {
+  if (hasLink && !isVideo) {
     link.href = item.url;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -226,12 +214,16 @@ function createBanner(item, squareColor) {
     display: block;
     flex: 1;
     min-width: 0;
-    background: #000;
-    padding: 0.35rem ${BAR_PADDING_X}px;
+    background: var(--color-black);
+    padding: var(--card-pad-lg);   /* 字級 lg 的字卡內距（variables.css） */
     text-decoration: none;
   `;
+  if (isVideo) {
+    link.style.cursor = 'var(--cursor-pointer)';
+    makeActivatable(link);
+  }
 
-  // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮 BAR_PADDING_X，
+  // marquee viewport：overflow:hidden 掛在這層（不在 link）→ 裁切邊 = link 內容框 = 左右各縮字卡內距，
   // 對齊 library 色塊 marquee 的 axisPad inset（padding 直接放 link 會被 overflow 的 padding-box 裁切邊漏出文字）
   // 中英各一行堆疊（英上中下；舊單行 text 照渲染單行）；
   // duration 不在此設（需量寬）——掛載後 gateMarqueeScroll 依全域 marqueeSpeed() 像素制計算
@@ -247,7 +239,7 @@ function createBanner(item, squareColor) {
     const mkSpan = (cls) => {
       const s = document.createElement('span');
       s.className = `${cls} text-lg`;
-      s.style.cssText = 'color: #fff; font-weight: 700; font-size: var(--font-size-lg);';
+      s.style.cssText = 'color: var(--color-white); font-weight: var(--font-weight-bold); font-size: var(--font-size-lg);';
       s.textContent = txt;
       return s;
     };
@@ -260,31 +252,7 @@ function createBanner(item, squareColor) {
     return { viewport, inner, textEl, cloneEl };
   });
 
-  // watch-hover 遮蔽 overlay：一層蓋住整列（數字方塊＋bar），顏色＝bar 色（標準黑／inverse 白／mode3 theme-fg，見 themes
-  //   .hm-banner-row-mask）→ 整條同步 wipe 成一條實色塊（user 2026-10-01；原方塊、bar 各一層各自 wipe，方塊蓋回自己的 rgb）。
-  // 訂閱 subscribeWatchMask（只在 hover WATCH 卡時觸發，非 news 自身 hover）。
-  row.style.position = 'relative';
-  const rowMask = document.createElement('div');
-  rowMask.className = 'hm-banner-row-mask';
-  rowMask.style.cssText = `position:absolute; inset:0; background:#000; pointer-events:none; transition:clip-path var(--dur-medium) var(--ease-wipe);`;
-
-  let curHidden = randMaskHidden();
-  rowMask.style.clipPath = curHidden;
-  subscribeWatchMask(
-    () => {   // 進場：從當前藏起方向 wipe 到滿版
-      if (!rowMask.isConnected) return;
-      rowMask.style.clipPath = MASK_SHOWN;
-    },
-    () => {   // 退場：抽一個新方向 wipe 出去（＝下次進場的來向）→ 四方向輪替
-      if (!rowMask.isConnected) return;
-      curHidden = randMaskHidden();
-      rowMask.style.clipPath = curHidden;
-    }
-  );
-
-  row.appendChild(square);
   row.appendChild(link);
-  row.appendChild(rowMask);
   clipWrap.appendChild(row);
   wrap.appendChild(clipWrap);
 
@@ -307,10 +275,10 @@ function createBanner(item, squareColor) {
     img.style.cssText = 'display: block; width: 100%; height: auto;';
     posterEl.appendChild(img);
     wrap.appendChild(posterEl);
-    if (hasLink) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
+    if (hasLink && !isVideo) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
   }
 
-  return { el: wrap, row, link, lines, posterEl, item, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
+  return { el: wrap, row, link, lines, posterEl, item, isVideo, rotation, width: totalWidth, color: squareColor, _posterH: 0 };
 }
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
@@ -333,6 +301,7 @@ function gateMarqueeScroll(b) {
     const fits = widths[i] <= line.viewport.clientWidth;
     line.inner.style.animationName = fits ? 'none' : '';
     line.cloneEl.style.display = fits ? 'none' : '';
+    if (fits) line.textEl.textContent = line.textEl.textContent.trimEnd();   // 行尾 em space 是 loop 接縫用；不捲時留著＝貼字寬的框右邊多一截空白
     line.inner.style.animationDuration = `${duration}s`;
   });
 }
@@ -355,7 +324,7 @@ function enterBanner(b) {
   // feedback_clip_reveal_context_overrides_ypercent：clip-path 曾是 slot-bound rotation 的治標，現已可回 yPercent）。
   // delay ENTER_DELAY → 等前面的 exit + 平移先進行一陣子才開始 reveal
   gsap.fromTo(b.row,
-    { yPercent: 100 },
+    { yPercent: 110 },
     { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY }
   );
 }
@@ -412,8 +381,17 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     onLeave();
   };
 
-  if (SCCDHelpers.isMobileLayout()) {
-    // 手機：點 title (link / square / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
+  // 影片 news：點 bar 開播放器（手機有海報時 bar 照舊 toggle 海報、點海報才開）；播放中算一次 hover＝暫停 cycle，收完才放
+  if (b.isVideo) {
+    const play = (e) => { e.preventDefault(); e.stopPropagation(); if (openWatch(b, onLeave)) onEnter(); };
+    b.posterEl?.addEventListener('click', play);
+    if (!b.posterEl || !SCCDHelpers.isMobileLayout()) b.link.addEventListener('click', play);
+  }
+
+  if (!b.posterEl && SCCDHelpers.isMobileLayout()) {
+    // 手機沒海報：沒東西可 toggle，點 bar＝直接跳連結／開影片
+  } else if (SCCDHelpers.isMobileLayout()) {
+    // 手機：點 title (link / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
     // link <a> 預設 click 會跳轉，preventDefault 改成 toggle
     const toggleHandler = (e) => {
       e.preventDefault();
@@ -423,9 +401,6 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       else openPoster();
     };
     b.link.addEventListener('click', toggleHandler);
-    // square 數字方塊也算 title 區的一部分，點它也 toggle
-    const square = b.row?.querySelector('.hm-banner-num');
-    if (square) square.addEventListener('click', toggleHandler);
     // poster 自己點 = 跳轉（在 createBanner 已綁，stopPropagation 避免冒泡到 toggle）
     if (b.posterEl) {
       b.posterEl.addEventListener('click', (e) => e.stopPropagation());
@@ -434,7 +409,7 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     // 桌面：hover 開展 + 抽新角（全站卡片 hover 語彙），離開收合、角度保持（user 2026-09-28）。
     // 角度仍走本檔小範圍 randomRotation（不用 arrow-spin 的 −4~+6：離開保持後大角會永久疊到上下 banner）；
     // 翻到相反符號＝小範圍內最明顯的變化。寫回 b.rotation 讓之後 cycle 平移沿用新角、不彈回舊角。
-    // 同時數字方塊與 bar 配色對調（user 2026-10-03：bar 吃方塊的 rgb、方塊變 bar 色），瞬間切換
+    // 同時色塊與 bar 配色對調（user 2026-10-03：bar 吃方塊的 rgb、方塊變 bar 色），瞬間切換
     b.el.addEventListener('mouseenter', () => {
       openPoster();
       b.row.classList.add('is-swap');
@@ -448,6 +423,49 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       closePoster();
     });
   }
+}
+
+// ── 影片 news → 首頁播放器 ─────────────────────────────────
+// initVideoPlayer 是 module singleton（第一次傳的 opts 一直被用）→ 當前這則的框／收完回呼放模組變數、lambda 讀它
+let watchLink = null;
+let watchOnClosed = null;
+let watchOpening = false;
+const isVideoUrl = (url) => isHlsUrl(url) || isDirectVideoUrl(url);
+
+// 關閉時 video-player 把黑底收回當前這條 banner（getCardRect／getCardBg／getCardRadius）；首頁 overlay 不在＝undefined
+const videoPlayer = (url) => initVideoPlayer(url, {
+  getCardRect: () => watchLink?.getBoundingClientRect(),
+  getCardBg: () => (watchLink ? getComputedStyle(watchLink).backgroundColor : '#000'),
+  getCardRadius: () => '0',
+  onCloseAnimComplete: () => watchOnClosed?.(),
+});
+
+// 同色方塊從 banner 框放大蓋滿（底色同步 fade 成黑）→ 黑滿版才 openPlayer（不然全螢幕 overlay 的 video 會從角落露出）。
+// 回傳 false＝沒開成
+function openWatch(b, onClosed) {
+  const player = videoPlayer(b.item.url);
+  if (!player || watchOpening || typeof gsap === 'undefined') return false;
+  watchOpening = true;
+  watchLink = b.link;
+  watchOnClosed = onClosed;
+  player.preloadVideo(b.item.url);
+  const rect = b.link.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const vW = window.innerWidth, vH = window.innerHeight;
+  const maxDist = Math.max(...[[0, 0], [vW, 0], [0, vH], [vW, vH]].map(([x, y]) => Math.hypot(x - cx, y - cy)));
+  const targetScale = (maxDist / (Math.min(rect.width, rect.height) / 2)) * 1.1;   // 方塊：短邊的一半撐到最遠角
+  const clone = document.createElement('div');
+  clone.style.cssText = `position:fixed; left:${cx}px; top:${cy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width / 2}px; margin-top:${-rect.height / 2}px; background:${getComputedStyle(b.link).backgroundColor || '#000'}; z-index:10001; transform-origin:center center;`;
+  document.body.appendChild(clone);
+  gsap.to(clone, {
+    scale: targetScale, backgroundColor: '#000', duration: DUR.medium, ease: EASE.exit,
+    onComplete: () => {
+      player.openPlayer({ accentColor: b.color, url: b.item.url });   // 播放器 UI 色＝這條的 hover 色
+      clone.remove();
+      watchOpening = false;
+    },
+  });
+  return true;
 }
 
 // ── Stack runner ────────────────────────────────────────────
@@ -564,12 +582,12 @@ function runMarqueeStack(stack, items) {
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
     // 進場前先藏在 clip-wrap 底邊下（clip-reveal 起點；initial banner 原本 instant 顯示、無進場）
-    if (typeof gsap !== 'undefined') gsap.set(b.row, { yPercent: 100 });
+    if (typeof gsap !== 'undefined') gsap.set(b.row, { yPercent: 110 });   // 藏起量 110 非 100：banner 帶旋轉，row 剛好貼齊遮罩邊會留 1px 反鋸齒縫（全站 revealHidden ±110 慣例；user 2026-10-26 離頁退場看到縫）
   }
   cursor = visibleCount % items.length;
 
   // 進場：initial banner clip-reveal（yPercent:100→0）stagger 揭露（同 enterBanner）。
-  // 首頁進場順序（user 2026-10-21）：news 與 logo／header／WATCH 同時（delay 0）、floating 最後。
+  // 首頁進場順序（user 2026-10-21）：news 與 logo／header 同時（delay 0）、floating 最後。
   if (typeof gsap !== 'undefined') {
     banners.forEach((b, i) => gsap.to(b.row, {
       yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: i * 0.12,
@@ -585,7 +603,7 @@ function runMarqueeStack(stack, items) {
     const onOne = () => { if (++done >= banners.length) resolve(); };
     banners.forEach((b, i) => gsap.fromTo(b.row,
       { yPercent: 0 },
-      { yPercent: 100, duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
+      { yPercent: 110, duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
   }));
 
   // 轉向重建用：清 timer、殺 tween、拔 banner DOM、還原 hover 態；呼叫後本 closure 全部退役

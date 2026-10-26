@@ -246,24 +246,6 @@ export function removeNewsHover() {
   newsHoverListeners.leave.forEach(fn => fn());
 }
 
-// watch-hover 專屬遮蔽頻道（給 news marquee 訂閱）：只有 hover WATCH 卡時觸發，
-// 不隨「hover 單條 news banner」（那條走 applyNewsHover 只遮浮卡池、不遮 marquee 自己）。
-// 同 subscribeNewsHover：訂閱當下若已在 mask 態就立刻套（cycle 進來的新 banner 也會被遮）。
-const watchMaskListeners = { enter: [], leave: [] };
-let watchMaskActive = false;
-export function subscribeWatchMask(enterFn, leaveFn) {
-  watchMaskListeners.enter.push(enterFn);
-  watchMaskListeners.leave.push(leaveFn);
-  if (watchMaskActive) enterFn();
-}
-function applyWatchMask() {
-  watchMaskActive = true;
-  watchMaskListeners.enter.forEach(fn => fn());
-}
-function removeWatchMask() {
-  watchMaskActive = false;
-  watchMaskListeners.leave.forEach(fn => fn());
-}
 
 
 // news hover wipe overlay 的 clip-path 收/展（隨機抽一方向）；圖片卡片與文字卡片共用
@@ -376,8 +358,8 @@ function createTextEl(textEn, textZh, url) {
     display: inline-block;
     position: absolute;
     top: 0; left: 0;
-    padding: 6px 8px 5px;
-    font-weight: 700;
+    padding: var(--card-pad-s);
+    font-weight: var(--font-weight-bold);
     line-height: var(--line-height-s);
     will-change: transform;
     pointer-events: ${url ? 'auto' : 'none'};
@@ -453,167 +435,17 @@ function createTextEl(textEn, textZh, url) {
       el.style.background = 'var(--theme-fg-inverse)';
       el.style.color = 'var(--theme-fg)';
     } else if (document.body.classList.contains('mode-inverse')) {
-      el.style.background = '#ffffff';
-      el.style.color = '#000000';
+      el.style.background = 'var(--color-white)';
+      el.style.color = 'var(--color-black)';
     } else {
-      el.style.background = '#000';
-      el.style.color = '#fff';
+      el.style.background = 'var(--color-black)';
+      el.style.color = 'var(--color-white)';
     }
   } : null;
 
   return { el, w: maxTextWidth(), h: 80, onHover };
 }
 
-// IG 獨立模組，不在 floating pool 內
-export function initWatchHover() {
-  const watchBtn = document.getElementById('homepage-yt-card');
-  if (!watchBtn) return;
-
-  // SPA 回 index 時 watchBtn 是新的（main 內被 swap），但 body 內的舊 spotlight overlay 仍在 → 清掉
-  // 不然每次回 index body 累積一個透明 overlay（pointer-events:none 不擋 click 但 DOM leak）
-  document.querySelectorAll('[data-watch-spotlight]').forEach(el => el.remove());
-
-  // 全頁暗化 overlay，中間挖洞 spotlight。
-  const overlay = document.createElement('div');
-  overlay.dataset.watchSpotlight = '1';
-  overlay.style.cssText = `
-    position: fixed; inset: 0;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity var(--dur-fast) ease;
-    z-index: 9998;
-  `;
-  document.body.appendChild(overlay);
-
-  // ⭐overlay 要掛進 <header> 內（而非 body）＝關鍵：header 是 z-9999 的 stacking context，overlay 當它子層、
-  //   z-index:5 剛好夾在 nav bars（z-auto=0）之上、logo-wrapper（.z-10）之下 → overlay 自然蓋住 bars（bar 完全
-  //   不動：不 hide/不 fade/不調 opacity，user 2026-09-04），logo 在 overlay 之上恆亮＝「logo 除外」。header
-  //   context(9999) 整體又在首屏 section 內容（≤20）之上 → 同片 overlay 順帶蓋住 section（floating pool + news marquee），
-  //   單層無雙重壓暗。⚠️但 header 是 async fetch 進 #site-header、initWatchHover 執行時多半還沒到 → 首次 hover 才移
-  //   （lazy）；移不到（header 未載）就留在 body z-9998 當 fallback（蓋 section、蓋不到 header bars）。
-  //   ⚠️靠 <header> 本身無 transform（只 bars 被 collapse 動 transform）→ position:fixed 子層才仍以 viewport 為基準、
-  //   不被裁到 header box；若哪天 header 元素自身上 transform，這條會退化成只蓋 header 條、要改回純 body 掛法。
-  function ensureOverlayInHeader() {
-    const h = document.querySelector('#site-header header');
-    if (h && overlay.parentElement !== h) { overlay.style.zIndex = '5'; h.appendChild(overlay); }
-  }
-
-  // mode／menu 鈕比照 news banner（user 2026-10-02）：一層同底色（theme-fg）遮罩 clip-path wipe 蓋掉 icon、四方向隨機進出，
-  //   並把鈕列降到 overlay 後面——桌面列 relative z-50 自成 stacking context、整列（含鈕）原本浮在 overlay(z-5) 之上；
-  //   降成 auto 後 logo 錨點(z-10) 仍在 overlay 上、鈕在下。header 常駐跨頁 → 遮罩 lazy 建、離頁拔。
-  const btnRow = () => document.getElementById('mode-btn')?.parentElement;
-  function setHeaderBtnsMasked(on) {
-    ['mode-btn', 'menu-btn'].forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      let m = /** @type {HTMLElement|null} */ (btn.querySelector(':scope > [data-watch-btn-mask]'));
-      if (!m) {
-        m = document.createElement('div');
-        m.dataset.watchBtnMask = '1';
-        m.style.cssText = `position:absolute; inset:0; border-radius:inherit; background:var(--theme-fg); pointer-events:none; transition:clip-path var(--dur-medium) var(--ease-wipe); clip-path:${randomWipe().hidden};`;
-        btn.appendChild(m);
-        void m.offsetWidth;   // 藏起態先 commit，首次 wipe 才有 transition
-      }
-      m.style.clipPath = on ? 'inset(0 0 0 0)' : randomWipe().hidden;
-    });
-  }
-
-  function updateSpotlight() {
-    const rect = watchBtn.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    // 用 offsetWidth（未旋轉）；getBoundingClientRect().width 是旋轉後 AABB，
-    // 隨 rotation 從 W 到 W√2 變動 → 每次 spotlight 大小不同
-    const r = watchBtn.offsetWidth / 2 + 8;
-    overlay.style.background = `radial-gradient(circle ${r}px at ${cx}px ${cy}px, transparent 100%, rgba(0,0,0,0.85) 100%)`;
-  }
-
-  // hover 期間鎖頁面 scroll：spotlight 用 mouseenter 當下 getBoundingClientRect 的 viewport
-  // 座標寫進 radial-gradient，scroll 會讓 watch 按鈕跟著 main 移位但 mask 留在 viewport 原位 → 跑位
-  // isLocked guard：rapid re-enter 在 unlock setTimeout 觸發前若再次抓 body.overflow 會抓到自己鎖的
-  // 'hidden'，後續 mouseleave 還原時把 hidden 寫回 → 永久鎖死。只在「首次 lock」時 snapshot
-  let savedBodyOverflow = '';
-  let isLocked = false;
-  let unlockTimer = null;
-  // rAF tracking：scroll inertia 中 hover，mouseenter → JS overflow:hidden 之間還有 in-flight
-  // frames 的 scroll 推進；overlay 可見期間每 frame 重算 spotlight，把 fade-in / fade-out
-  // 過渡期間的殘餘位移也吃掉
-  let trackingRaf = null;
-  function startTracking() {
-    if (trackingRaf) return;
-    function loop() {
-      updateSpotlight();
-      trackingRaf = requestAnimationFrame(loop);
-    }
-    trackingRaf = requestAnimationFrame(loop);
-  }
-  function stopTracking() {
-    if (trackingRaf) { cancelAnimationFrame(trackingRaf); trackingRaf = null; }
-  }
-
-  watchBtn.addEventListener('mouseenter', () => {
-    if (unlockTimer) { clearTimeout(unlockTimer); unlockTimer = null; }
-    ensureOverlayInHeader();   // header 此時已載 → 把 overlay 移進 header 蓋住 bars（idempotent）
-    updateSpotlight();
-    overlay.style.opacity = '1';
-    applyNewsHover();
-    applyWatchMask();   // 遮蔽 news marquee（rgb 方塊蓋 rgb、黑條蓋黑）
-    const row = btnRow();
-    if (row) row.style.zIndex = 'auto';
-    setHeaderBtnsMasked(true);
-    setSpotlightLogo(true);
-    if (!isLocked) {
-      savedBodyOverflow = document.body.style.overflow;
-      isLocked = true;
-    }
-    document.body.style.overflow = 'hidden';
-    startTracking();
-  });
-
-  watchBtn.addEventListener('mouseleave', () => {
-    if (watchBtn.dataset.clickAnimating === '1') {
-      // 點擊動畫期間維持 spotlight 連續，scroll lock 交給 video-player overflow 管理接手
-      document.body.style.overflow = savedBodyOverflow;
-      isLocked = false;
-      return;
-    }
-    overlay.style.opacity = '0';
-    removeNewsHover();
-    removeWatchMask();
-    setHeaderBtnsMasked(false);
-    setSpotlightLogo(false);
-    // overlay 有 transition: opacity 0.3s，fade-out 期間 scroll 會讓 fading 中的 spotlight
-    // 在 viewport 原位 → 視覺跑位；等 fade 完才解鎖 scroll + 停 tracking（鈕列也等淡完才抬回 overlay 之上）
-    unlockTimer = setTimeout(() => {
-      document.body.style.overflow = savedBodyOverflow;
-      isLocked = false;
-      unlockTimer = null;
-      stopTracking();
-      const row = btnRow();
-      if (row) row.style.zIndex = '';
-    }, 300);
-  });
-  // 點擊開影片後收 spotlight（影片 overlay z-10000 蓋住 header → 鈕列直接抬回）
-  watchBtn.__closeSpotlight = () => {
-    overlay.style.opacity = '0';
-    removeNewsHover();
-    removeWatchMask();
-    setHeaderBtnsMasked(false);
-    setSpotlightLogo(false);
-    const row = btnRow();
-    if (row) row.style.zIndex = '';
-  };
-
-  // 離頁：overlay 現掛在跨 SPA 常駐的 <header> 內 → 一定要移除，否則殘留在別頁 header（雖 opacity:0 pe:none 無害、但積累）
-  registerPageCleanup(() => {
-    overlay.remove();
-    removeWatchMask();
-    document.querySelectorAll('[data-watch-btn-mask]').forEach(el => el.remove());
-    setSpotlightLogo(false);
-    const row = btnRow();
-    if (row) row.style.zIndex = '';
-  });
-}
 
 // ── Spawn & Animate ─────────────────────────────────────────
 
@@ -1136,8 +968,5 @@ export async function initFloatingItems(gate = Promise.resolve()) {
     newsHoverListeners.enter.length = 0;
     newsHoverListeners.leave.length = 0;
     newsHoverActive = false;
-    watchMaskListeners.enter.length = 0;
-    watchMaskListeners.leave.length = 0;
-    watchMaskActive = false;
   });
 }
