@@ -134,11 +134,11 @@ export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0
   const dir = _ICON_REVEAL_DIRS[Math.floor(Math.random() * 4)];
   gsap.killTweensOf(iconEl);
   gsap.to(iconEl, {
-    ...dir, duration, delay, ease: 'power2.out', overwrite: true,
+    ...dir, duration, delay, ease: EASE.enterSoft, overwrite: true,
     onComplete: () => {
       apply();
       gsap.fromTo(iconEl, dir,
-        { xPercent: 0, yPercent: 0, duration, ease: 'power2.out', clearProps: 'transform', overwrite: true });
+        { xPercent: 0, yPercent: 0, duration, ease: EASE.enterSoft, clearProps: 'transform', overwrite: true });
     },
   });
 }
@@ -336,6 +336,26 @@ export function navChipHidden(el, dir = 'bottom') {
   const tx = +(dx * Math.cos(th) - dy * Math.sin(th)).toFixed(2);
   const ty = +(dx * Math.sin(th) + dy * Math.cos(th)).toFixed(2);
   return { clipPath: d.clip, translate: `${tx}px ${ty}px` };
+}
+
+// navChipHidden ↔ NAV_CHIP_SHOWN 補間：不讓 GSAP parse translate／inset 字串——旋轉元素上偶發把 translate 起點誤放大 ~10 倍
+// ＝clip 照常收完、卡片卻還在遠處飛＝露在自己 box 外（resources 卡 user 2026-10-26 回報；memory reference_gsap_translate_fromto_misparse_flight）。
+// 改 tween 數字 proxy、逐幀自組字串。from/to 必須是顯式全值（navChipHidden／NAV_CHIP_SHOWN），別從 el.style 讀回（正規化縮寫）。
+// 回傳的 tween 不在 el 上：killTweensOf(el) 殺不到，caller 自留 ref 收。
+// ponytail: about-structure navClipTween、library-card heroClipTween 是同一招的舊副本，動到那兩檔時改用這支
+export function navChipTween(el, from, to, vars) {
+  const nums = (s) => s.match(/-?[\d.]+/g).map(Number);
+  const ft = nums(from.translate), tt = nums(to.translate), fc = nums(from.clipPath), tc = nums(to.clipPath);
+  const proxy = { p: 0 };
+  return gsap.to(proxy, {
+    ...vars,
+    p: 1,
+    onUpdate: () => {
+      const p = proxy.p;
+      el.style.translate = `${(ft[0] + (tt[0] - ft[0]) * p).toFixed(2)}px ${(ft[1] + (tt[1] - ft[1]) * p).toFixed(2)}px`;
+      el.style.clipPath = `inset(${fc.map((n, i) => (n + (tc[i] - n) * p).toFixed(3) + '%').join(' ')})`;
+    },
+  });
 }
 
 const _EXIT_CLIP_DIRS = [

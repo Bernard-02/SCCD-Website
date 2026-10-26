@@ -403,7 +403,7 @@
     gap: var(--spacing-md);
     margin: 0;                         /* fixed 定位不需負 margin bleed */
     /* 四邊 0.5rem 給 active chip 旋轉角 clearance（overflow-x:auto 連帶 y 也 auto、會裁旋轉角） */
-    padding: 0.5rem;
+    padding: var(--spacing-xs);
     width: 100%;                       /* col 改 flex 置中後 flex item 縮到內容寬 → 撐滿供 overflow-x 內捲（同 admission） */
   }
   #faculty-cards .inner-scroll-scroll-col {
@@ -494,7 +494,7 @@
     top: 0;
     background: var(--faculty-panel-bg, transparent);
     z-index: 2;
-    padding-bottom: 1rem;                              /* title↔第一個 row 呼吸 */
+    padding-bottom: var(--spacing-sm);                              /* title↔第一個 row 呼吸 */
     box-shadow: 0 -1px 0 var(--faculty-panel-bg);      /* 上補 1px 蓋 sticky title 頂 sub-pixel 縫（捲過內容會露線） */
   }
   /* profile 左欄天然固定（右欄獨立捲、左欄不在捲動流）→ 不 sticky */
@@ -518,7 +518,7 @@
   #faculty-panel .faculty-grid-row {
     display: grid;   /* 蓋 cards.css <768 的 flow-root（左欄 sticky float 版） */
     grid-template-columns: 4rem 1fr;
-    column-gap: 1.5rem;
+    column-gap: var(--spacing-md);
     row-gap: 0.25rem;
     padding-right: 0;
     font-size: var(--font-size-s);
@@ -532,7 +532,7 @@
     margin-top: 0;    /* 還原 float 版 0.25rem 行距（grid 由 row-gap 控） */
   }
   #faculty-panel .faculty-rows {
-    gap: 2rem;
+    gap: var(--spacing-lg);
   }
   /* 獲獎 row：year/country 浮動左欄、name/category 一般 block（category 緊貼 name、不被左欄高度拖遠）；同 cards.css 手機 block */
   #faculty-panel .faculty-grid-row-award {
@@ -1200,7 +1200,7 @@
     display: none;
   }
   /* BFA/Design Fundamental wrap 收合改垂直：buttons.css 的 max-width:0 + 負 margin-right 配橫排，直排下寬 0 仍佔一行高 + gap
-     → 換 max-height + margin-bottom 負 gap。收合態藏法（visibility）與鈕的 clip-reveal、先撐後揭／先滑出後收的時序同 buttons.css。
+     → 換 max-height + margin-bottom 負 gap。收合態藏法（visibility）與鈕的 clip-reveal、進同拍／先滑出後收的時序同 buttons.css。
      展開 class 同桌面（#class-buttons-sticky.is-works-context）。⚠️ buttons.css 該段改動時同步。 */
   #class-buttons-sticky .class-division-bfa-wrap {
     max-width: none;
@@ -1212,7 +1212,7 @@
                 visibility 0s linear var(--dur-medium);
   }
   #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
-    max-height: 8rem;
+    max-height: var(--bfa-chip-h, 8rem);
     margin-bottom: 0;
     transition-delay: 0s;
   }
@@ -1329,7 +1329,7 @@
     width: auto;      /* 蓋平板段 clamp(140px, 20vw, 280px)：矮橫向 logo-inner 固定 56px、col1 auto 貼身 */
     height: auto;
     align-self: auto;
-    padding-top: 1rem;
+    padding-top: var(--spacing-sm);
   }
   /* 直向 header 對齊負 margin（footer.css max-width:767，667 寬橫向也命中）不適用——pt 1rem 與 office/privacy 對齊；wrapper-aware 蓋回 */
   body .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
@@ -1379,7 +1379,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-md);
-    padding-top: 1rem;   /* 三欄 pt 對齊 logo-area / privacy 的 1rem 三件套 */
+    padding-top: var(--spacing-sm);   /* 三欄 pt 對齊 logo-area / privacy 的 1rem 三件套 */
   }
   /* tabs 手機式 in-flow 橫排；mark 尺寸同手機 64；溢出靠 base overflow-x:auto 內捲。 */
   body .footer-random > .footer-tabs {
@@ -1427,7 +1427,7 @@
   }
   body .footer-privacy {
     position: static;
-    padding-top: 1rem;   /* 三欄 pt 對齊 logo-area 的 1rem */
+    padding-top: var(--spacing-sm);   /* 三欄 pt 對齊 logo-area 的 1rem */
     padding-left: 0;
     /* 蓋平板段 margin-top:lg：在 clip wrapper 內被推下 32px、height:100% 跟著溢出 → copyright 被 wrapper overflow:clip 切掉 */
     margin-top: 0;
@@ -1454,7 +1454,7 @@
   }
   body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit),
   body .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-unit) :is(h6, p, a, span) {
-    color: var(--footer-fg, #fff);
+    color: var(--footer-fg, var(--color-white));
   }
   /* 手機 block（footer.css max-width:767）細節同步 */
   body .footer-random .icon {
@@ -1664,13 +1664,13 @@
     gap: 0.25rem;
     text-align: left;
     padding: var(--spacing-sm);
-    color: #000;
+    color: var(--color-black);
   }
   .dsd-next-card-m + .dsd-next-card-m {
     margin-left: -6%;
   }
   #next-link-m.dsd-next-card-m {
-    margin-top: 2rem;
+    margin-top: var(--spacing-lg);
   }
 
   /* 5j-hero) DSD hero：改「手機式堆疊＋文字打散」（分佈比照其他頁 hero）。≥768 橫向 hero.css 會顯桌面 rand-grid + 左下字卡 →
@@ -1688,7 +1688,7 @@
     display: block;
     min-height: 100svh;
     padding-top: 96px;              /* 讓開手機式 header 列（logo 列 ~92）*/
-    padding-bottom: 1.5rem;
+    padding-bottom: var(--spacing-md);
     overflow: clip;
     visibility: visible;            /* 保險：hero.css base 預設 hidden 等 sync，sync 完會設 inline visible */
   }

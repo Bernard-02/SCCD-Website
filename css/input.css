@@ -3,6 +3,8 @@
 /* 1. Global Imports (Must be first) */
 @import 'variables.css';
 /* 字型不在這 @import（會卡到 output.css 下載完才開抓）：各頁 head 直接 link；襯線字只 library 載（library-panels.js ensureSerifFonts） */
+/* 例外：大字中文 size-adjust 版只是 @font-face 宣告（build 時內嵌、字檔與 head link 同網址），不是 runtime @import */
+@import './base/fonts-zh-title.css';
 
 /* 2. Layer Imports */
 /* Base */

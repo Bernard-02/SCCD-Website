@@ -56,10 +56,11 @@
   /* 非文字階：footer 社群 icon／404 返回鈕的裝飾尺寸 */
   --icon-hero: 3.125rem;     /* 50px */
 
-  /* Font Weights */
+  /* Font Weights：全站字重唯一來源（CSS／JS inline／Tailwind font-bold・font-regular 都吃這裡）；
+     bold＝600（user 2026-10-26）。Google Fonts link 也只載到 600，改 bold 超過 600 要連 head link 一起改 */
   --font-weight-regular: 400;
   --font-weight-semibold: 600;
-  --font-weight-bold: 700;
+  --font-weight-bold: 600;
 
   /* Line Heights — 綁「字級」（size-based）：Tailwind fontSize 用 [size, line-height] tuple → .text-* 自帶該階行距；
      標籤靠 @apply text-* 吃同一套。單一來源＝此處。 */
@@ -82,6 +83,25 @@
   --line-height-zh-md: 1.4;
   --line-height-zh-s: 1.4;
   --line-height-zh-xs: 1.3;
+
+  /* 字卡內距：依字級一階一值（user 2026-10-26，取代全站 6px 8px 5px／0.5rem 0.6rem 各寫各的）。
+     只給「單獨的字卡」：卡中卡（手風琴內文、年代標）、列（list-header、規章列）、控制列不吃；
+     footer 卡內資訊卡／legal、atlas hover 卡各段 10-26 起照字級吃。字卡行距一併吃同字級的 --line-height-*。
+     xl＝畢業展上下屆年份／標題（hero 年份已改 lg）；上下不等是 user 指定 */
+  --card-pad-3xl: 4px 12px;
+  --card-pad-2xl: 3px 10px;
+  --card-pad-xl: 5px 7px 4px;
+  --card-pad-lg: 7px 9.5px;
+  --card-pad-md: 6px 7px;
+  --card-pad-s: 5px 6px;
+  --card-pad-xs: 4px 5px;
+  --card-pad-2xs: 3px 4px;   /* 11px（atlas 星雲節點 .atlas-name 0.6875rem）：B 系友企業 chip、D 國名展開 chip（user 2026-10-26 定 3/4） */
+  /* 純中文大字卡的墨跡補償（user 2026-10-26）：大字中文縮 88%（typography.css「大字中文」）以基線為準縮、墨跡偏下（96px 上下 15/9）
+     → 上內距挪這麼多給下內距、字回中間。用處：hero.css 純中文 hero 大標、404「未知」卡、degree-show-data-loader.js fitCardToInk */
+  --zh-ink-nudge: 0.03em;
+  /* 浮在頁面上的卡（footer 覆蓋卡、faculty／curriculum 詳情色卡）內距＝同一個值（user 2026-10-26「pop up 跟 footer 的 padding 一致」）；
+     卡內有內捲 scrollbar 時，scrollbar 貼右內距線、文字到 scrollbar 也留這麼多（desk-card.js syncGutter） */
+  --popup-pad: calc(2.5rem / 2);   /* 20 */
 
   /* 英中間距 tokens：以字級為主，一個字級一個值、任何用途共用（chip／卡／名字同字級吃同值）。
      疊放雙語 EN 元素的 margin-bottom／flex gap；段落 prose 是獨立軸（見 -body）。 */
@@ -117,9 +137,11 @@
   /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav／四頁 inner-scroll nav＋內容頂／atlas filter＋list／
      DSD 年份 chip／桌面 menu 第一顆／library 色卡上界）。真桌面見下方 184 */
   --nav-line: 160px;
-  /* 全站桌面 nav btn 垂直間距（about／alumni #anchor-nav、faculty、curriculum（含 BFA 小標）、activities、admission
+  /* 全站桌面 nav btn 垂直間距（about／alumni #anchor-nav、faculty、curriculum、activities、admission
      ＝各頁 HTML md:gap-[var(--nav-btn-gap)]；atlas filter＝atlas.css 基礎 gap 0.5rem＋margin 補差）。矮橫向／手機各有自己的間距 */
-  --nav-btn-gap: 0.75rem;   /* 12px */
+  --nav-btn-gap: 0.85rem;   /* 13.6px（user 2026-10-26，原 0.75） */
+  /* 母標題→子項（curriculum BFA 小標 → 組別鈕）：比 btn 間距緊，讀得出是同一組（user 2026-10-26「不要都一樣」） */
+  --nav-btn-sub-gap: 0.6rem;   /* 9.6px */
 
   /* ===== Transitions（legacy；buttons.css 等仍用，逐步遷移到下方 motion token） ===== */
   --transition-fast: var(--dur-micro) ease;
@@ -588,7 +610,7 @@
 
   /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（.is-works-context）才展開（對齊桌面 .class-division-bfa-wrap）。
      收起時負 margin 不佔 gap、visibility 藏。pill 內 .anchor-nav-inner 進退場＝clip-reveal（SCCD_animateBfaChips，user 10-21 撤擦除）：
-     進＝空間先撐、撐完才滑進；退＝先滑出、空間等 --dur-medium 再收。 */
+     進＝空間撐開與滑進同拍；退＝先滑出、空間等 --dur-medium 再收。 */
   #mobile-division-nav .mobile-division-btn--bfa {
     max-width: 0;
     pointer-events: none;
@@ -599,7 +621,7 @@
                 visibility 0s linear var(--dur-medium);
   }
   #mobile-division-nav.is-works-context .mobile-division-btn--bfa {
-    max-width: 320px;
+    max-width: var(--bfa-chip-w, 320px);
     pointer-events: auto;
     visibility: visible;
     margin-right: 0;
@@ -612,7 +634,7 @@
     position: static;
     left: auto;
     bottom: auto;
-    padding: 6px 8px 5px;   /* = 全站 nav btn 標準 */
+    padding: var(--card-pad-s);
     line-height: 1;
   }
 }

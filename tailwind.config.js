@@ -68,9 +68,9 @@ module.exports = {
 
       // 字體粗細
       fontWeight: {
-        'regular': 400,
-        'semibold': 600,
-        'bold': 700,
+        'regular': 'var(--font-weight-regular)',
+        'semibold': 'var(--font-weight-semibold)',
+        'bold': 'var(--font-weight-bold)',
       },
 
       // 行高：字級行距已綁在 fontSize tuple 上；這裡只留 leading-base 給 <body> 預設與少數對齊消費者

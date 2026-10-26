@@ -82,7 +82,7 @@
    - footer display:none toggle（generate/library/atlas 隱藏）+ broken-init recovery（無 `.footer-anchor` 則重 init）
    - `body.classList.toggle('overflow-hidden')` for generate/atlas（鎖頁 scroll）
    - `body.style.overflowX = 'hidden'` for about/alumni（section-title-strip overflow viewport 右側）
-   - `initPageModules(page, searchParams)` 跑頁面專屬 init——**頁面模組一律 `import()` 動態載入**（2026-10-04；原 52 個靜態 import＝每頁載全站 ~2MB）。開頭取 `const seq = lazySeq` + `alive()`，import 完 init 前比對（換頁 cleanup 會 `lazySeq++`）→ 下載中連點換頁不 stale/double-init；同頁多支模組共用同一 seq。**新頁面照這個寫法，別加回頂部靜態 import**（全站常駐的 header/theme/hero/cleanup 類才靜態）。⚠️ 動態 import＝init 晚於換頁後第一次繪製：HTML 裡「init 才藏起來再進場」的元素，隱藏態要直接寫在 HTML（例：首頁 WATCH 卡出生 `clip-path:circle(0%)`，否則先在預設位置閃一下）
+   - `initPageModules(page, searchParams)` 跑頁面專屬 init——**頁面模組一律 `import()` 動態載入**（2026-10-04；原 52 個靜態 import＝每頁載全站 ~2MB）。開頭取 `const seq = lazySeq` + `alive()`，import 完 init 前比對（換頁 cleanup 會 `lazySeq++`）→ 下載中連點換頁不 stale/double-init；同頁多支模組共用同一 seq。**新頁面照這個寫法，別加回頂部靜態 import**（全站常駐的 header/theme/hero/cleanup 類才靜態）。⚠️ 動態 import＝init 晚於換頁後第一次繪製：HTML 裡「init 才藏起來再進場」的元素，隱藏態要直接寫在 HTML（舊例：首頁圓形 WATCH 卡出生 `clip-path:circle(0%)`；2026-10-26 起首頁影片＝url 是影片的那則 news（後台 index_video 已併進 index_news），banner 由 JS 建、進 DOM 即 `yPercent:110` 藏著再進場）
    - `setTimeout scrollToTop` + `ScrollTrigger.refresh` 收尾
 
 ### 路由表特殊規則
@@ -108,7 +108,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 window.addEventListener('scroll', handler);
 registerPageCleanup(() => window.removeEventListener('scroll', handler));
 ```
-`cleanupPageModules` 開頭 `runPageCleanups()` 統一 drain。已用模組：activities-search / anchor-nav / activities-data-loader / index-yt-card。
+`cleanupPageModules` 開頭 `runPageCleanups()` 統一 drain。已用模組：activities-search / anchor-nav / activities-data-loader / index-marquee。
 
 ### Page Exit Animation（`js/modules/ui/page-exit.js`）
 頁面可註冊「離頁前要跑的動畫」（如 /create 的 SCCD 反向 typewriter + control panel y-reveal、alumni 的 header bar 收起）：
@@ -179,10 +179,17 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 ### 字體
 - **標題**：H1 (8rem) ~ H6 (1.25rem)
 - **內文**：P1 (1rem) / P2 / P3
-- **字重**：Regular (400) / Semibold (600) / Bold (700)
+- **字重**：一律寫 token `var(--font-weight-regular|semibold|bold)`（variables.css 唯一來源；CSS／JS inline／Tailwind `font-bold`・`font-regular` 都指向它），**勿寫死數字**；bold＝600（2026-10-26，中英皆是）。Google Fonts link 的 Inter／Bitter／Noto Sans・Serif 也只載 `wght@400..600` 當保險（各頁 head ＋ library-panels.js `SERIF_FONTS_HREF`；新頁 head 照抄），bold 要超過 600 得連 link 一起改；typography.css `font-synthesis-weight: none` 擋假粗體、`b, strong` 吃 bold token。例外：/create 用本地 Inter-Medium（固定 500，不動）
+- **英文字距**（2026-10-26）＝Inter 官方 dynamic metrics：typography.css base layer `*` 依各元素字級算（`exp()`＋`1em / 1px`，不支援的瀏覽器退回 -0.011em），字越大越緊（96px -0.022em、16px -0.011em）；元件自己寫的字距照舊贏。中文維持 0：標 `lang="zh-Hant"` 的自動歸零，沒標的大字中文明列在同一段（新的 xl 以上中文元素要標 lang 或補進清單）
+- **大字中文縮 88%**（2026-10-26）：xl 以上（`text-xl/2xl/3xl` class、h1/h2、`.about-hero-name`）的中文改吃 `'Noto Sans TC Title'`＝`css/base/fonts-zh-title.css`（Google 宣告快照＋`size-adjust: 88%`，字檔同網址）、Inter 不動；規則在 typography.css「大字中文」。新的大字中文用 CSS 自訂字級（沒 text-* class）的要補進那條；自己寫 font-family 的大字（library）要把 Title 插在 Inter 後。⚠️ 選擇器用 `[class~="text-xl"]` 不用 `.text-xl`（h3/h4 的 @apply 會把規則抄過去）。純中文的大字卡縮完墨跡偏下 → 上內距挪 `--zh-ink-nudge`（0.03em）給下內距（hero.css 中文大標、404、DSD `fitCardToInk`），新的純中文大字卡照做
 
 ### 間距
 xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96px) / 4xl (128px) / 7xl / 8xl
+
+### 字卡內距（2026-10-26）
+有底色的單獨字卡一律依**字級**吃 `variables.css` 的 `--card-pad-<size>`（3xl `4px 12px`／2xl `3px 10px`／xl `5px 7px 4px`／lg `7px 9.5px`／md `6px 7px`／s `5px 6px`／xs `4px 5px`／2xs `3px 4px`＝atlas 星雲節點 11px 專用），行距吃同字級 `--line-height-<size>`。舊「全站 6px 8px 5px」已退役，新字卡別再寫死。卡中卡（手風琴內文；footer 卡內資訊卡／legal 連結、atlas hover 卡三段 10-26 起照吃 s）、列（list-header、規章列）、控制列不吃。JS 要數值就讀 `:root` 的 token（例：atlas.js createCareerController）
+
+**浮層卡內距＝`--popup-pad`（20）**：footer 覆蓋卡、faculty／curriculum 詳情色卡共用（字卡 token 不受影響）。**box 內捲的 scrollbar（user 2026-10-26）**：① scrollbar 到 box 右緣＝**內文字級的字卡右內距**（s→6、md→7）。說明文字卡本身內距就是字卡 token＝自然跟左內距一致；② box 左內距不是字卡 token 的（pop up 色卡 20、about history 清單卡 32）照樣跟內文走、刻意跟左邊不一致（色卡 `--desk-sb-edge`、history `.tl-list-content` right 6）；③ 文字到 scrollbar＝卡片內距，只在真的要捲時才留，不用捲就不留（自製 thumb：desk-card.js `syncGutter` 掛 `.has-desk-thumb`，先拿掉再量＝不會來回跳；原生 scrollbar 可把間距併進 scrollbar 本身＝寬 10＋間距、thumb 左段透明 border＋`background-clip: padding-box`，免 JS）。about Works playlist 另計：scrollbar 到色塊右緣＝同區說明文字卡的右內距（6）
 
 ## RWD（Desktop-First，三 viewport）
 
@@ -292,7 +299,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 | `js/modules/ui/custom-scrollbar.js` | 全站隱藏原生 scrollbar + 自製 fixed thumb div + drag + footer 區換色 |
 | `js/modules/ui/marquee-overflow.js` | 文字 overflow → marquee：`applyMarqueeOverflow`（量寬+dual-copy+`--marquee-distance`）；`buildSyncedMarqueeTimeline`（中英同步 GSAP timeline）；`bindMarqueeReturn`（桌面 hover 放開平滑回彈，見下規範） |
 | `js/modules/ui/section-switch-helpers.js` | `setActiveNavBtn` + `showPanel` + `bindNavBtnFit` + `bindFrameScrollSplit`（4 個 inner-scroll 頁共用；2026-09-27 起 ≥1200 nav 佔 cols 1-3、內容 col 4-18＝看得見的內容左貼 col-4 左緣、右貼 col-18 右緣（about 同；平板 768-1199 與舊版＝col 4 留白、內容 5-20）；bindNavBtnFit＝nav btn 貼文字寬；bindFrameScrollSplit＝滾輪分區——col 1-3 捲 window 去 footer/hero、col 4 起一律內部捲，box 邊界不外溢靠 lists.css `overscroll-behavior: contain`，短 panel 放行 window）；＋ `bindLandscapeNavGate`（矮橫向 nav chip 過 hero 才現、到 footer 收，4 頁共用）、`getScrollableScrollCol`／`waitForItemRevealed`（activities／admission 共用） |
-| `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用） |
+| `js/modules/lightbox/lightbox-shell.js` | enter/exit + body lock + header bar 收展（給 lightbox / slide-in / full-screen overlay 共用）；`hideLightboxEntrance`／`playLightboxEntrance`＝lightbox 開場順序（overlay 淡入 → 底部 UI 同時 clip-reveal＋chevron 淡入 → 中間 item；圖片 lightbox＋PDF viewer 共用；share 卡同順序＝空白卡先進、落定後卡內 UI＋角上返回鍵同拍 clip-reveal，share-modal.js 自己排） |
 | `js/modules/ui/list-row-reveal.js` | 清單 rows 進退場引擎（CSS transition 取代 GSAP yPercent，見「效能最佳實踐」；activities/admission 清單用） |
 | `js/modules/accordions/list-accordion.js` | list-header → list-content 展開（必須在 `loadListInto` 後 call `initListAccordion`） |
 | `js/modules/pages/activities-data-loader.js` `loadListInto` | 通用 list 渲染（activities / admission summer-camp 等） |
@@ -327,10 +334,11 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - Lottie SCCD logo，size 隨頁面變（180px / 100px — library/atlas）
 - /create 頁有 typewriter entry + reverse backspace exit
 - 退場時根據 logo state（State A/B/C）決定 backspace / skip / fade
+- **進站進場（2026-10-26）**：logo＋mode／menu 鈕 clip-reveal 滑入（`prepareHeaderEntrance` header 注入當下預藏、`playHeaderEntrance` 取代原 header opacity 淡入；首頁跟 stage1／intro 同拍、/create 與 reduced-motion 不走、SPA 換頁不重跑）。⚠️ 鈕的 x/y 與 logo 的 yPercent 由 header.js 管：換頁 cleanup 只砍 clipPath、updateNavActive 只砍 width/height，別再全砍
 
 ### Footer scatter（`js/modules/ui/footer-scatter.js`）
 JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generate verified layout + 每 10s shuffle 動畫（hidden 頁自動 pause）。2026-08-10 由 footer-draggable.js 改名（drag 功能早已移除）；舊 commit / memory 提到 footer-draggable 即此檔。
-- **桌面 footer＝fixed 覆蓋卡（2026-10-19）**：不在捲動流裡、沒有 logo 列、不一屏（高＝散佈區 480＋padding）；頁底再往下滾才從視窗下升起（位移＋0°→±1–2° 同一支 tween，每次新抽角）；0° 時框＝頂對齊第一顆 nav btn（`--nav-line`）、底對齊左下頁卡底（48px，開卡時頁卡被蓋）、左右 container padding。往上滾／點卡外／換頁＝沉回 0°（點卡上空白處／卡內滾輪都不關也不捲後面，2026-10-20）（往下滾不關）；開卡時 `.footer-backdrop` 墊在卡下，卡外滑鼠操作（點／滾／hover）一律先關卡或擋掉、不碰後面內容。卡內 padding 30（容器 padding 一半）、最小高＝散佈 480；矮螢幕不設上限、整張等比縮（`applyCardScale`：放不進 logo 底 148＋24 → 頁卡底 48 才縮、下限 0.8，散佈量測時 `unrotated` 連 scale 一起暫時還原）。header（logo／mode／menu）不收；z＝footer 全站最高、只低於 logo（footer 9998 < header 9999；mode／menu 鈕同在 header 內壓不下去 → 開卡 `body.footer-card-open` 把兩鈕 pointer-events:none 放行給 backdrop＝無 hover、點了只關卡；mode3 鉛筆降到 9996 沉卡下）；`footer:open/close` → header.js 關桌面 menu＋logo 縮到 100／還原成捲動公式值（首頁開卡 logo 會縮）；點 logo＝router 換頁與 `playFooterExit` 收卡並行。shuffle 只在卡開著時跑。⚠️ footer HTML 不能帶 `.relative` utility；fixed shell 的 offsetParent 恆 null（判顯隱用 getClientRects）。手機／矮橫向／iPad 仍是頁尾線性段（走 syncFooterHide／fromFooter 舊路徑）
+- **桌面 footer＝fixed 覆蓋卡（2026-10-19）**：不在捲動流裡、沒有 logo 列、不一屏（高＝散佈區 480＋padding）；頁底再往下滾才從視窗下升起：**卡頂前 20% 跟滾輪量逐段推、超過就整張吸上來；往上滾＝整張直接收、不停半路（10-26）**（`PEEK`，2026-10-26；吸附＝DUR.medium enterSoft、吸附中吞滾輪；逐段段：滾 1px＝卡動 1px、滑鼠一格 DUR.micro 等速（ease none）滑過、觸控板小 delta 直接設（ease-out 緩停＝user 說的磁吸、直接設＝整截跳出，兩個都被打回）；滾回 0 的最後一截同速收完再停放 130，不接 closeFooter 的加速沉下、停手停半路，角度 0°→±1–2° 隨升起比例、每次新抽角；起點＝卡頂剛好貼視窗底的 `_hideYP`，第一格就看得到卡）；0° 時框＝頂對齊第一顆 nav btn（`--nav-line`）、底對齊左下頁卡底（48px，開卡時頁卡被蓋）、左右 container padding。往上滾＝同樣逐段沉下、沉完才捲頁（卡內卡外一樣，backdrop／卡上的滾輪由 `onOpenWheel` 接走）；點卡外／換頁＝整張沉回 0°（點卡上空白處不關）；開卡時 `.footer-backdrop` 墊在卡下，卡外滑鼠操作（點／滾／hover）一律先關卡或擋掉、不碰後面內容。卡內 padding 20（`--popup-pad`，2026-10-26 起不綁 container padding；faculty／curriculum 色卡共用）、最小高＝散佈 480；矮螢幕不設上限、整張等比縮（`applyCardScale`：放不進 logo 底 148＋24 → 頁卡底 48 才縮、下限 0.8，散佈量測時 `unrotated` 連 scale 一起暫時還原）。header（logo／mode／menu）不收；z＝footer 全站最高、只低於 logo（footer 9998 < header 9999；mode／menu 鈕同在 header 內壓不下去 → 開卡 `body.footer-card-open` 把兩鈕 pointer-events:none 放行給 backdrop＝無 hover、點了只關卡；mode3 鉛筆降到 9996 沉卡下）；`footer:open/close` → header.js 關桌面 menu＋logo 縮到 100／還原成捲動公式值（首頁開卡 logo 會縮）；點 logo＝router 換頁與 `playFooterExit` 收卡並行。shuffle 只在卡開著時跑。⚠️ footer HTML 不能帶 `.relative` utility；fixed shell 的 offsetParent 恆 null（判顯隱用 getClientRects）。手機／矮橫向／iPad 仍是頁尾線性段（走 syncFooterHide／fromFooter 舊路徑）
 
 ### 主要互動頁
 - **/create**：inline p5 generator（拆 iframe 後），三 mode（Standard / Inverse / Wireframe）對應 site mode（standard / inverse / color），rotation slider + color picker + save PNG + 彩蛋

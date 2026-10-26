@@ -622,7 +622,7 @@ function exitHeroChips(tl, chips, banner) {
   chips.forEach(el => {
     if (!(/** @type {HTMLElement} */ (el).dataset.heroRevealStarted)) { gsap.killTweensOf(el); return; }
     const to = offsetFor(randomRevealDir());
-    tl.to(el, { xPercent: to.xPercent, yPercent: to.yPercent, duration: 0.5, ease: EASE.exit, overwrite: true }, (i++) * 0.06);
+    tl.to(el, { xPercent: to.xPercent, yPercent: to.yPercent, duration: DUR.medium, ease: EASE.exit, overwrite: true }, (i++) * 0.06);
   });
   if (banner) {
     const bImg = /** @type {HTMLElement|null} */ (banner.querySelector('img'));
@@ -632,7 +632,7 @@ function exitHeroChips(tl, chips, banner) {
       if (Math.abs(bx) >= 105 || Math.abs(by) >= 105) {
         gsap.killTweensOf(bImg);
       } else {
-        tl.to(bImg, { ...revealHidden(), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+        tl.to(bImg, { ...revealHidden(), duration: DUR.medium, ease: EASE.exit, overwrite: true }, 0);
       }
     }
   }
@@ -646,10 +646,10 @@ async function playHeroExit() {
     '.hero-title, .hero-title-cn, .hero-text-en, .hero-text-cn, .coming-soon-title, .coming-soon-title-cn'
   )).filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
   const banner = /** @type {HTMLElement | null} */ (document.querySelector('.hero-banner'));
-  // Logo-only hero（about 頁）：進場是 [data-hero-logo] 的 yPercent clip-reveal，退場在下方反向沉出
-  const heroLogo = /** @type {HTMLElement | null} */ (document.querySelector('[data-hero-logo]'));
+  // 系名 hero（about 頁）：進場是 [data-hero-logo] 的四向 clip-reveal，退場隨機一向滑出遮罩
+  const heroLogos = Array.from(document.querySelectorAll('[data-hero-logo]'));
 
-  if (texts.length === 0 && !banner && !heroLogo) return;
+  if (texts.length === 0 && !banner && heroLogos.length === 0) return;
 
   const EXIT_DURATION = 0.5;
 
@@ -659,21 +659,8 @@ async function playHeroExit() {
     // chips（hero-title/-cn/-text-en/-cn）+ banner：從當下狀態收場，mid-entrance 不跳回全開（見 exitHeroChips）
     exitHeroChips(tl, texts, banner);
 
-    // Logo-only hero（about）：進場時 onComplete 把 wrapper 設 overflow:visible（露完整 logo）；
-    // 退場重新裁切 wrapper 當遮罩，logo yPercent 沉回底邊 = 進場 clip-reveal 的反向
-    if (heroLogo) {
-      const logoWrapper = /** @type {HTMLElement | null} */ (heroLogo.closest('.hero-logo-wrapper'));
-      if (logoWrapper) logoWrapper.style.overflow = 'hidden';
-      tl.fromTo(heroLogo,
-        { yPercent: 0 },
-        {
-          yPercent: 110,  // 同進場過衝：貼齊 100 在 dpr1.5 實機會留字頂 rasterization 細線
-          duration: EXIT_DURATION,
-          ease: EASE.exit,
-          overwrite: true,
-        },
-        0);
-    }
+    // 系名 hero（about）：從當下位置（進場中也行）滑出 wrapper 遮罩
+    heroLogos.forEach(el => tl.to(el, { ...revealHidden(), duration: EXIT_DURATION, ease: EASE.exit, overwrite: true }, 0));
   });
 }
 
@@ -867,8 +854,7 @@ export function initHeroAnimation() {
   if (heroHls.length > 0) {
     const color = SCCDHelpers.getRandomAccentColor();
     heroHls.forEach(el => {
-      /** @type {HTMLElement} */ (el).style.background = color;
-      /** @type {HTMLElement} */ (el).style.padding = '0.5rem 0.6rem';
+      /** @type {HTMLElement} */ (el).style.background = color;   // padding 依字級走 CSS（hero.css [data-hero-hl] ＋ --card-pad-*）
     });
   }
 
@@ -956,15 +942,12 @@ export function initHeroAnimation() {
       if (h.offsetParent === null) return;
       const cs = getComputedStyle(h);
       const stuckHidden = cs.visibility === 'hidden';
-      // [data-hero-logo]（about）進場後有 scroll parallax 留 inline transform＝合法狀態，只認 hidden 為卡住
-      const isParallaxLogo = h.hasAttribute('data-hero-logo');
       const t = h.style.transform;
-      const stuckOffset = !isParallaxLogo && !!t && t !== 'none' && /matrix|translate/.test(t);
+      const stuckOffset = !!t && t !== 'none' && /matrix|translate/.test(t);
       const clip = h.style.clipPath;
-      const stuckClip = !isParallaxLogo && !!clip && clip !== 'none' && clip !== 'inset(0% 0% 0% 0%)';
+      const stuckClip = !!clip && clip !== 'none' && clip !== 'inset(0% 0% 0% 0%)';
       if (!stuckHidden && !stuckOffset && !stuckClip) return;
-      if (isParallaxLogo) gsap.set(h, { visibility: 'visible', yPercent: 0 });
-      else gsap.set(h, { visibility: 'visible', clearProps: 'transform,clipPath' });
+      gsap.set(h, { visibility: 'visible', clearProps: 'transform,clipPath' });
       h.dataset.heroRevealStarted = '1';  // 之後退場把它當一般 chip 收
       rescued++;
       // 簽章給日後 root-cause 用：hidden=visibility 卡住 / offset=進場位移殘留 / clip=clip-path 沒收完
@@ -995,43 +978,17 @@ export function initHeroAnimation() {
     return;
   }
 
-  // --- Logo-only hero（如 about 頁）：clip y 位移進場 — yPercent 100→0，wrapper overflow:hidden 當遮罩 ---
-  // duration 對齊 hero-title 的 0.9s，節奏跟其他內頁一致
-  const heroLogo = /** @type {HTMLImageElement | null} */ (document.querySelector('[data-hero-logo]'));
-  if (heroLogo) {
-    const logoWrapper = /** @type {HTMLElement | null} */ (heroLogo.closest('.hero-logo-wrapper'));
-    const startLogoEntrance = () => {
-      if (prefersReducedMotion()) {
-        // 減少動態：logo 直接到位 + 解除 wrapper 裁切，不跑 clip-reveal
-        gsap.set(heroLogo, { yPercent: 0, visibility: 'visible', clearProps: 'transform' });
-        if (logoWrapper) logoWrapper.style.overflow = 'visible';
-      } else {
-        // 110 過衝（非 100 貼齊）：dpr 1.5 實機 rasterization 下，位移=wrapper 高「剛好貼齊」會因 clip 邊界
-        // 與圖層各自 snap device pixel 露出 1-2px 圖頂（SCCD 圓字母 S/C/C 的 overshoot 弧頂＝三條細線）。
-        gsap.fromTo(heroLogo,
-          { yPercent: 110, visibility: 'visible' },
-          {
-            yPercent: 0,
-            duration: DUR.reveal,
-            delay: 0.3,
-            ease: EASE.enter,
-            clearProps: 'transform',
-            onComplete: () => {
-              // 解除 wrapper 裁切，讓後續 scroll parallax (scale+yPercent) 顯示完整 logo
-              if (logoWrapper) logoWrapper.style.overflow = 'visible';
-            },
-          }
-        );
-      }
-    };
-    // 等 SVG 載完才進場：refresh 時圖檔重抓、載入前 img 高度 0，tween 先跑的話 bytes 到達那一刻
-    // logo 會瞬間 pop 在 tween 當下的位置（太晚到＝tween 已完、直接出現沒進場）。
-    // complete 立即跑；error 也跑（顯示 alt 文字，別讓 logo 永久 visibility:hidden）。
-    if (heroLogo.complete && heroLogo.naturalWidth) {
-      startLogoEntrance();
+  // --- 系名 hero（about 頁，中英兩塊）：四向 clip-reveal 進場，wrapper overflow:hidden 當遮罩 ---
+  // duration 對齊 hero-title 的 0.9s，節奏跟其他內頁一致；revealHidden ±110 過衝防 dpr 1.5 字頂細線
+  const heroLogos = gsap.utils.toArray('[data-hero-logo]');
+  if (heroLogos.length) {
+    if (prefersReducedMotion()) {
+      gsap.set(heroLogos, { visibility: 'visible' });
     } else {
-      heroLogo.addEventListener('load', startLogoEntrance, { once: true });
-      heroLogo.addEventListener('error', startLogoEntrance, { once: true });
+      heroLogos.forEach((el, i) => gsap.fromTo(el,
+        { ...revealHidden(), visibility: 'visible' },
+        { xPercent: 0, yPercent: 0, duration: DUR.reveal, delay: 0.3 + i * 0.12, ease: EASE.enter, clearProps: 'transform' }
+      ));
     }
   }
 

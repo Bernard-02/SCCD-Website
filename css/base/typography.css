@@ -3,8 +3,14 @@
 @layer base {
   html {
     @apply text-base;
-    background-color: #FFFFFF;
+    background-color: var(--color-white);
+    /* bold＝600（user 2026-10-26）：字重一律寫 var(--font-weight-*)（variables.css）；各頁 head 的 Google Fonts 也只載到 600
+       當保險（漏網的 700／bolder 被夾到 600）；這行擋瀏覽器拿 600 去描粗（假粗體） */
+    font-synthesis-weight: none;
   }
+
+  /* 後台富文本的 <b>/<strong>：preflight 的 bolder 是相對值，改吃 token 才跟全站一起調 */
+  b, strong { font-weight: var(--font-weight-bold); }
 
   body {
     @apply font-sans text-black bg-white leading-base;
@@ -41,6 +47,33 @@
   p {
     @apply text-s font-regular;
   }
+
+  /* 英文字距＝Inter 官方 dynamic metrics（user 2026-10-26 選 B）：-0.0223 + 0.185·e^(-0.1745·px) em，字越大越緊
+     （96px -0.022em、16px -0.011em、13.6px -0.005em）。掛 * 逐元素用自己的字級算——letter-spacing 繼承的是算好的 px，
+     只掛 body 會讓大字吃到內文值。base layer＋特異度 0＝元件／utility 自己寫的字距照舊贏。
+     不支援單位相除（1em / 1px）的瀏覽器第二行整條無效 → 退回第一行 -0.011em（內文那階）。 */
+  *, ::before, ::after {
+    letter-spacing: -0.011em;
+    letter-spacing: calc((-0.0223 + 0.185 * exp(-0.1745 * (1em / 1px))) * 1em);
+  }
+  /* 中文維持 0：只需列 xl 以上的中文（小字字距 ≤0.2px 看不出來）；標了 lang="zh-Hant" 的（:not(html)：html 本身就帶 lang，漏了＝全站歸零）＋沒標 lang 的明列；-zh／-cn class 名不可靠（mb-en-zh-*＝間距、DSD 英文標題叫 hero-text-cn）。
+     ponytail: CSS 無法只對拉丁字形加字距，中英混排同一元素的中文會跟著收（library 色卡跑馬燈）；新的大字中文元素要補進來 */
+  :is([lang="zh-Hant"]:not(html), .hero-title-cn, .hero-mobile-title-cn, #text-title, #prev-title, #next-title, .about-hero-name:not([lang="en"]), .mobile-nav-zh, [data-error-card="weizhi"]),
+  :is([lang="zh-Hant"]:not(html), .hero-title-cn, .hero-mobile-title-cn, #text-title, #prev-title, #next-title, .about-hero-name:not([lang="en"]), .mobile-nav-zh, [data-error-card="weizhi"]) * {
+    letter-spacing: 0;
+  }
+}
+
+/* ===== 大字中文縮 88%（user 2026-10-26，字型見 fonts-zh-title.css）=====
+   xl 以上只把中文那格換成 size-adjust 版、Inter 不動。h1/h2 靠標籤定字級（hero 中文大標、404）要列；h3/h4 不列（legal h3/h4 被元件縮成小字）；CSS 自訂大字級的另列（about 系名）。
+   ⚠️ 大字 class 用屬性選擇器 [class~=…]（特異度同 class）：寫 .text-xl 的話 h1～h4 的 @apply text-* 會把這條規則一起抄給 h3/h4（不論在不在 layer）。
+   低特異度（第一條 0,1,0、第二條 :where）＋排在元件 CSS 前＝元件明寫 font-family 的（library 襯線等）照舊贏。
+   大字容器裡另外縮成 lg 以下的中文換回一般（headless 掃全站找出來的） */
+:is([class~="text-xl"], [class~="text-2xl"], [class~="text-3xl"], h1, h2, .about-hero-name) {
+  font-family: var(--font-en), 'Noto Sans TC Title', var(--font-zh);
+}
+:where([class~="text-xl"], [class~="text-2xl"], [class~="text-3xl"], h1, h2) :is(.text-lg, .text-md, .text-s, .text-xs, .accordion-label-zh) {
+  font-family: var(--font-en), var(--font-zh);
 }
 
 /* ===== 中文獨立行距系統（size-based）=====
@@ -101,6 +134,7 @@ html.mode-switching.mode-switching .class-group-label,
 html.mode-switching.mode-switching .list-header,
 html.mode-switching.mode-switching .list-content,
 html.mode-switching.mode-switching .list-item-zebra,
+html.mode-switching.mode-switching .legal-map-pgroup,
 html.mode-switching.mode-switching #faculty-panel,
 html.mode-switching.mode-switching #courses-detail-panel,
 html.mode-switching.mode-switching .activities-filter-bar,
@@ -233,7 +267,6 @@ html.mode-switching.mode-switching .tl-icon-btn-inner,
 html.mode-switching.mode-switching .atlas-layout-inner,
 html.mode-switching.mode-switching .atlas-layout-face,
 html.mode-switching.mode-switching .homepage-marquee-link,
-html.mode-switching.mode-switching #homepage-yt-card,
 html.mode-switching.mode-switching #error-404-stage,
 html.mode-switching.mode-switching .courses-mobile-grade-bar,
 html.mode-switching.mode-switching .courses-mobile-row-label,
@@ -280,7 +313,7 @@ html.mode-switching.mode-switching #canvas-container {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--theme-fg);
   color: var(--theme-bg);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   transform: translateY(-120%);
   transition: transform var(--dur-fast) ease;
 }

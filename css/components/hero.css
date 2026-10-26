@@ -23,11 +23,21 @@
   .hero-text-en-wrapper { transform: rotate(1deg); }
   .hero-text-cn-wrapper { transform: rotate(-1deg); }
 
-  /* SCCD logo（about hero）— overflow:hidden 形成 yPercent slide-in 遮罩
-     JS 動畫完成 onComplete 改 overflow:visible，讓後續 scroll parallax (scale+yPercent) 不被裁 */
+  /* about hero 系名（中英兩塊）— wrapper overflow:hidden＝四向 clip-reveal 遮罩 */
   .hero-logo-wrapper {
     display: inline-block;
     overflow: hidden;
+  }
+  /* 字級跟半邊欄寬走：最長行 "Communications Design," ≈12em → 約佔半邊 80% */
+  .about-hero-name {
+    font-size: clamp(1.5rem, 3.2vw, 5rem);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    color: var(--theme-fg);
+    visibility: hidden;
+  }
+  @media (max-width: 767px) {
+    .about-hero-name { font-size: 6.4vw; }
   }
 
   .hero-text-en,
@@ -47,7 +57,7 @@
      [data-hero-hl] 寫兩次＝特異度追平 inverse 的 body.mode-inverse .text-black:not(.timeline-year-item) (0,3,1)，靠後出才贏 */
   body:not(.mode-color) [data-hero-hl][data-hero-hl],
   body:not(.mode-color) [data-hero-hl][data-hero-hl] * {
-    color: #000 !important;
+    color: var(--color-black) !important;
   }
 
   /* Hero random layout（faculty / curriculum / activities / admission 共用；手機改走下方 .hero-mobile）
@@ -156,7 +166,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: var(--spacing-sm);
   }
   .hero-mobile-text > * {
     width: fit-content;
@@ -166,9 +176,9 @@
     transform-origin: left center;
   }
   /* 標題區 → 段落區視覺斷點 */
-  .hero-mobile-text-en { margin-top: 1.5rem; }
+  .hero-mobile-text-en { margin-top: var(--spacing-md); }
   /* 中英段落額外 +1rem（合計 2rem）：旋轉後長 chip 視覺底邊低於 layout bbox ~width×sin(角度)，只靠 1rem gap 會撞 */
-  .hero-mobile-text-cn { margin-top: 1rem; }
+  .hero-mobile-text-cn { margin-top: var(--spacing-sm); }
 
   /* 字級同桌面 .hero-text-en/cn */
   .hero-mobile-text-en,
@@ -191,7 +201,7 @@
     }
     /* ±3° 寬盒（~330px）遠端各擺 ~w·sin3°≈17px，反向合計 ~30px > 1rem gap → 補 1rem */
     .hero-mobile-rand .hero-mobile-text-cn {
-      margin-top: 1rem;
+      margin-top: var(--spacing-sm);
     }
     .hero-mobile-rand .hero-mobile-text-scroll {
       display: block;
@@ -209,11 +219,32 @@
     [data-hero-hl] {
       padding: 0.3rem 0.45rem !important;
     }
+    .hero-mobile-title-cn[data-hero-hl]:not(.dshow-hero-title) {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）；0.3rem＝上一條上下；畢業展標題由 fitCardToInk 補（避免補兩次） */
+      padding-top: calc(0.3rem - var(--zh-ink-nudge)) !important;
+      padding-bottom: calc(0.3rem + var(--zh-ink-nudge)) !important;
+    }
   }
 
-  /* DSD hero 年份 chip padding 收窄；!important 蓋 hero-animation.js inline 0.5rem 0.6rem */
-  #text-year {
-    padding: 0.3rem 0.45rem !important;
+  /* 字卡內距依字級（user 2026-10-26；variables.css --card-pad-*）：hero 主標 3xl、畢業展主標 2xl、說明字卡 s、畢業展年份 lg。
+     legal 主標（2xl）維持 legal.css 自己的值；手機一律走上面 max-width:767 的 !important */
+  [data-hero-hl] {
+    padding: var(--card-pad-s);
+  }
+  :is(.hero-title, .hero-title-cn)[data-hero-hl] {
+    padding: var(--card-pad-3xl);
+  }
+  .hero-title-cn[data-hero-hl] {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）；4px＝--card-pad-3xl 上下 */
+    padding-top: calc(4px - var(--zh-ink-nudge));
+    padding-bottom: calc(4px + var(--zh-ink-nudge));
+  }
+  .dshow-hero-title[data-hero-hl] {
+    padding: var(--card-pad-2xl);   /* 行距見 lists.css .dshow-hero-title（2xl token） */
+  }
+  @media (min-width: 768px) {
+    #text-year {   /* 同下方上下屆年份（#prev-year／#next-year） */
+      padding: var(--card-pad-xl);
+      line-height: var(--line-height-xl);
+    }
   }
 
   /* DSD detail sticky chip（沿用 anchor-nav-inner 結構）
@@ -229,13 +260,12 @@
     display: inline-flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 6px 8px 5px;
-    color: #000;
-    line-height: 1.15;
+    padding: var(--card-pad-s);   /* 年份、標題 chip 都是字級 s（user 2026-10-26 標題 lg→s） */
+    color: var(--color-black);
+    line-height: var(--line-height-s);
   }
-  /* title chip 是 text-lg → 英中距用 lg 字級 token */
   #sticky-title-chip .sticky-chip-inner {
-    gap: var(--space-en-zh-lg);
+    gap: var(--space-en-zh-s);
   }
   /* chip max-width＝grid-20 col-span-3（留 col-4 當呼吸空間）；長名 wrap。桌面 only。
      col-span-3 = 3×欄寬 + 2×gutter，欄寬 = (100vw − 2padding − 19 gutter)/20 */
@@ -281,8 +311,8 @@
     width: 48px;
     height: 48px;
     padding: 0;
-    background: var(--theme-fg, #000);
-    color: var(--theme-fg-inverse, #fff);
+    background: var(--theme-fg, var(--color-black));
+    color: var(--theme-fg-inverse, var(--color-white));
     font-size: 32px;
     transition: transform var(--dur-fast) var(--ease-standard);
   }
@@ -318,7 +348,7 @@
   /* 返回鈕 hover 上色＝黑方塊 icon 鈕家族（同 lists.css .tl-icon-btn-inner 段；user 2026-10-20）：JS bindNavBtnHover 掛 data-nav-hover
      ＋--nav-hover（桌面才掛）；mode1/2 隨機三原色底黑 icon、mode3 翻反色。瞬切（inner transition 只列 transform） */
   @media (hover: hover) and (min-width: 768px) {
-    body:not(.mode-color) :is(#degree-show-back-btn, #degree-show-share-btn)[data-nav-hover]:hover .sticky-chip-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+    body:not(.mode-color) :is(#degree-show-back-btn, #degree-show-share-btn)[data-nav-hover]:hover .sticky-chip-inner { background: var(--nav-hover, var(--color-pink)); color: var(--color-black); }
     body.mode-color :is(#degree-show-back-btn, #degree-show-share-btn)[data-nav-hover]:hover .sticky-chip-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
   }
 
@@ -349,7 +379,7 @@
     }
     body:not(.mode-color) #degree-show-ref-popover .lightbox-ref-chip:hover,
     body:not(.mode-color) #degree-show-ref-popover .lightbox-ref-chip:hover * {
-      color: #000;
+      color: var(--color-black);
     }
   }
 }
