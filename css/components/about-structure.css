@@ -31,8 +31,9 @@
     stroke: var(--theme-fg);
     stroke-width: var(--prog-seg-w);
     stroke-linecap: butt;
-    transition: stroke var(--dur-base) ease;
   }
+  /* stroke 淡變只給 mode 切換（非 VT 瀏覽器）；hover 上色（JS inline stroke）瞬切 */
+  html.mode-switching .prog-lines line { transition: stroke var(--dur-base) ease; }
 
   /* 頂列：DCD ── 連結橫綫 ── BPAIDC（子樹另起，不撐此列寬）。
      fit-content＝clamp 到容器寬永不裁；≥1800 才升 max-content（見下方 @media） */
@@ -46,7 +47,8 @@
     flex-direction: column;
     width: fit-content;
     max-width: var(--prog-chip-max);          /* 上限 → 英文換行、卡片不過寬 */
-    padding: 6px 8px 5px;                     /* = .class-division-btn */
+    padding: var(--card-pad-lg);              /* 字級 lg */
+    line-height: var(--line-height-lg);
     color: var(--theme-bg);
     background: var(--theme-fg);
     /* 勿加 color/bg transition：hover 上色瞬切；mode 切換的 fade 由 typography.css whitelist 給 */
@@ -90,7 +92,7 @@
   .prog-box-en { margin-bottom: var(--space-en-zh-lg); }   /* 英中距 = btn */
   .prog-box-en,
   .prog-box-zh {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: var(--font-size-lg);            /* text-lg，同 program btn */
     line-height: var(--line-height-lg);
   }
@@ -158,7 +160,7 @@
       transition: right var(--dur-base) ease;   /* 色輪開合時位置平移；clip-path/translate 走 GSAP 不掛 transition */
     }
   }
-  /* 桌面：capsule 展開（往左長到 268）不推卡——收起圓鈕本在 col-18 右緣外、max() 恆取 col-18，直接釘 col-18 */
+  /* 桌面：capsule 展開（往左長到 CAP_W 265）不推卡——收起圓鈕本在 col-18 右緣外、max() 恆取 col-18，直接釘 col-18 */
   @media (min-width: 1024px) and (min-height: 501px) {
     body.mode-color .prog-legend-stack {
       right: calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter));
@@ -177,7 +179,7 @@
   .prog-legend-bars { display: flex; flex-direction: column; }
   .prog-legend-head,
   .prog-legend-bar {
-    padding: 6px 8px 5px;                      /* = 全站 nav btn / atlas 說明卡 padding */
+    padding: var(--card-pad-s);
     color: var(--theme-fg-inverse);            /* 對卡底 strict 對比字（勿用 --theme-bg：mode3 是流動 hue、字會跟頁面背景同色） */
     font-size: var(--font-size-s);
     line-height: var(--line-height-s);

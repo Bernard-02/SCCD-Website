@@ -228,7 +228,7 @@ export async function initProgramStructure() {
     if (!chip || typeof gsap === 'undefined') return;
     const proxy = chip._holdProxy || (chip._holdProxy = { v: chip._hold || 0 });
     gsap.killTweensOf(proxy);
-    gsap.to(proxy, { v: target, duration: 0.32, ease: 'power2.out', onUpdate: () => { chip._hold = proxy.v; } });
+    gsap.to(proxy, { v: target, duration: 0.32, ease: EASE.enterSoft, onUpdate: () => { chip._hold = proxy.v; } });
   }
   // hover 抽新角、離開保持（全站 nav btn 模型；user 2026-09-28，推翻 09-09「hover 回正到 0°」）：
   // tween 的是 _baseRot（floatTick 每幀讀它寫 transform）→ 角度平滑由 JS 提供、.prog-tilt 仍不掛 CSS transition。
@@ -272,16 +272,27 @@ export async function initProgramStructure() {
   bars.forEach((bar) => { if (bar._nodeIds.length) units.push({ el: bar, ids: bar._nodeIds, chip: null }); });
   const colorOf = (id) => { const c = classOf(id); return c ? CLASS_COLOR[c] : rndAccent(); };   // SCCD 無班級→隨機
   const lineageAll = (ids) => ids.flatMap(lineage);   // 重複元素重畫無害（paint 冪等）
+  // 連綫跟著上色（user 2026-10-26）：兩端 chip 都在 lineage 內的父子綫＝同色（root 綫的父端是整條 .prog-titled → contains）
+  const inLineage = (els, box) => els.some((e) => e === box || box.contains(e));
+  const paintAll = (ids, color) => {
+    const els = lineageAll(ids);
+    els.forEach((b) => paint(b, color));
+    const stroke = document.body.classList.contains('mode-color') ? 'var(--theme-fg-inverse)' : color;
+    lines.forEach((le) => { if (inLineage(els, le.parentBox) && inLineage(els, le.childBox)) le.el.style.setProperty('stroke', stroke, 'important'); });
+  };
+  const unpaintAll = (ids) => {
+    lineageAll(ids).forEach(unpaint);
+    lines.forEach((le) => le.el.style.removeProperty('stroke'));
+  };
   if (window.matchMedia('(hover: hover)').matches) {
     units.forEach(({ el, ids, chip, tab }) => {
       if (tab) el.addEventListener('click', () => jumpToTab(tab));
       el.addEventListener('mouseenter', () => {
-        const color = colorOf(ids[0]);
-        lineageAll(ids).forEach((b) => paint(b, color));
+        paintAll(ids, colorOf(ids[0]));
         if (chip) { setHold(chip, 1); spinChip(chip); }   // 只有當下 hover 那顆 chip 抽新角（bar 不轉）
       });
       el.addEventListener('mouseleave', () => {
-        lineageAll(ids).forEach(unpaint);
+        unpaintAll(ids);
         if (chip) setHold(chip, 0);
       });
     });
@@ -291,15 +302,15 @@ export async function initProgramStructure() {
     let tapped = null;   // { el, ids, color }
     units.forEach(({ el, ids, tab }) => el.addEventListener('click', () => {
       const same = tapped && tapped.el === el;
-      if (tapped) lineageAll(tapped.ids).forEach(unpaint);
+      if (tapped) unpaintAll(tapped.ids);
       if (tab) { tapped = null; jumpToTab(tab); return; }
       tapped = same ? null : { el, ids, color: colorOf(ids[0]) };
-      if (tapped) lineageAll(ids).forEach((b) => paint(b, tapped.color));
+      if (tapped) paintAll(ids, tapped.color);
     }));
     // tap 後切 mode 的殘留修（user 09-10）：tap 上色是 inline !important（壓 mode3 rest 規則的必要之惡）、
     // color.css 蓋不掉 → 切到 mode3 會殘留 accent。theme:changed 時用 paint() 依「當下 mode」重畫
     // tapped 狀態（mode3 翻反色、mode1/2 還原存的班級色）；mode3 hue loop 也發此事件（200ms throttle）、重畫冪等便宜。
-    const onThemeChanged = () => { if (tapped) lineageAll(tapped.ids).forEach((b) => paint(b, tapped.color)); };
+    const onThemeChanged = () => { if (tapped) paintAll(tapped.ids, tapped.color); };
     window.addEventListener('theme:changed', onThemeChanged);
     registerPageCleanup(() => window.removeEventListener('theme:changed', onThemeChanged));
   }
@@ -638,14 +649,14 @@ export async function initProgramStructure() {
     // reveal 完清掉殘留 clip-path：留著 inset(0%…) 會讓旋轉元素邊緣失去抗鋸齒＝鋸齒邊（user 2026-09-15）
     const revealTier = (tierChips, at) => tierChips.forEach((box, i) => {
       navClipTween(tl, box, navChipHidden(box, box._inDir), NAV_CHIP_SHOWN,
-        { duration: 0.6, ease: 'power3.out', onComplete: () => { box.style.clipPath = ''; box._floatReadyAt = performance.now() / 1000; } },
+        { duration: DUR.slow, ease: EASE.enter, onComplete: () => { box.style.clipPath = ''; box._floatReadyAt = performance.now() / 1000; } },
         at + i * 0.12);
     });
     const drawLevel = (lvl, at) => lvl.forEach((le, i) =>
-      tl.to(le, { draw: 1, duration: 0.55, ease: 'power2.out', onUpdate: () => drawLine(le), onComplete: () => { le._floatReady = true; } }, at + i * 0.1));
+      tl.to(le, { draw: 1, duration: 0.55, ease: EASE.enterSoft, onUpdate: () => drawLine(le), onComplete: () => { le._floatReady = true; } }, at + i * 0.1));
 
     revealTier(tier0, 0);
-    if (links.length) tl.to(links, { ...linkShown, duration: 0.6, ease: 'power3.out', onComplete: () => { linksReady = true; } }, 0.25);
+    if (links.length) tl.to(links, { ...linkShown, duration: DUR.slow, ease: EASE.enter, onComplete: () => { linksReady = true; } }, 0.25);
     drawLevel(lvl1, 0.5);
     revealTier(tier1, 0.75);
     drawLevel(lvl2, 1.05);
@@ -653,7 +664,7 @@ export async function initProgramStructure() {
     // 兩張說明卡最後進場（user 2026-09-09「等 tree 長出來再進」）＝tier2 尾（≈2.0），各自 clip-reveal、微 stagger
     legendEls.forEach((el, i) => {
       navClipTween(tl, el, navChipHidden(el, el._dir), NAV_CHIP_SHOWN,
-        { duration: 0.6, ease: 'power3.out', onComplete: () => { el.style.clipPath = ''; } },   // 清殘留 clip＝旋轉邊緣回復抗鋸齒
+        { duration: DUR.slow, ease: EASE.enter, onComplete: () => { el.style.clipPath = ''; } },   // 清殘留 clip＝旋轉邊緣回復抗鋸齒
         2.0 + i * 0.1);
     });
   }
@@ -670,12 +681,12 @@ export async function initProgramStructure() {
     return new Promise((resolve) => {
       const tl = gsap.timeline({ onComplete: resolve });
       chips.forEach((box) => {   // 方向仍各自隨機、但同時起收；from=SHOWN（float 殘位移 ±數px 首幀歸零，0.4s 全體同拍無感）
-        navClipTween(tl, box, NAV_CHIP_SHOWN, navChipHidden(box, randomRevealDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+        navClipTween(tl, box, NAV_CHIP_SHOWN, navChipHidden(box, randomRevealDir()), { duration: DUR.base, ease: EASE.exitSoft }, 0);
       });
-      lines.forEach((le) => tl.to(le, { draw: 0, duration: 0.4, ease: 'power2.in', onUpdate: () => drawLine(le) }, 0));
-      if (links.length) tl.to(links, { ...linkHidden, duration: 0.4, ease: 'power2.in' }, 0);
+      lines.forEach((le) => tl.to(le, { draw: 0, duration: DUR.base, ease: EASE.exitSoft, onUpdate: () => drawLine(le) }, 0));
+      if (links.length) tl.to(links, { ...linkHidden, duration: DUR.base, ease: EASE.exitSoft }, 0);
       legendEls.forEach((el) => {   // 兩張說明卡跟 chips 同拍 clip 收（user 2026-09-09 離頁也要出場動畫）
-        navClipTween(tl, el, NAV_CHIP_SHOWN, navChipHidden(el, randomRevealDir()), { duration: 0.4, ease: 'power2.in' }, 0);
+        navClipTween(tl, el, NAV_CHIP_SHOWN, navChipHidden(el, randomRevealDir()), { duration: DUR.base, ease: EASE.exitSoft }, 0);
       });
     });
   });

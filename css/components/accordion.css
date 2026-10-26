@@ -60,7 +60,7 @@
   /* A: Label — 寬度由 writing-mode 垂直文字撐開，文字靠底部 */
   .accordion-label {
     flex-shrink: 0;
-    background: #000;
+    background: var(--color-black);
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -103,9 +103,14 @@
     color: var(--color-black);
   }
 
-  /* Hover（非展開卡）翻 strict B/W：bg 由 JS inline 設 var(--theme-fg)，此處只翻字色
-     mode-color 的 hover 翻色在 themes/color.css（[style*="background"] 偵測） */
-  @media (min-width: 768px) {
+  /* Hover（非展開卡）翻 strict B/W：底＋字同一條 :hover 判定（user 2026-10-26：原本底靠 JS mouseenter inline、
+     字靠這裡 :hover，兩邊脫鉤＝白字配原 accent 底）。item 母層一起翻＝旋轉 AA 縫 backstop（只翻子盒會漏 1px accent 縫）。
+     只真桌面（旋轉手風琴；手機/矮橫向 carousel 沒 hover）。mode-color 在 themes/color.css */
+  @media (min-width: 1024px) and (min-height: 501px) {
+    body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active),
+    body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) :is(.accordion-label, .accordion-text-wrap, .accordion-img-wrap) {
+      background-color: var(--theme-fg);
+    }
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-label-inner,
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) .accordion-text-wrap p {
       color: var(--theme-fg-inverse) !important;
@@ -115,9 +120,9 @@
   /* Inner: vertical-rl + rotate(180deg) 垂直排版（桌面/手機/矮橫向在下方各自覆寫） */
   .accordion-label-inner {
     white-space: nowrap;
-    color: #fff;
+    color: var(--color-white);
     font-size: var(--font-size-lg);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     line-height: 1;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
@@ -165,7 +170,7 @@
   .accordion-text-wrap {
     flex: 1;
     min-width: 0;
-    background: #000;
+    background: var(--color-black);
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -296,7 +301,7 @@
     }
     /* 左右 8px 沿 nav btn 慣例；上下 14/13px 保留原視覺 */
     .colored-accordion .accordion-label {
-      padding: 14px 8px 13px;
+      padding: 14px var(--spacing-xs) 13px;
     }
     .colored-accordion .accordion-label-inner {
       font-size: var(--font-size-s);
@@ -313,7 +318,7 @@
       margin-top: 0;
     }
     .colored-accordion .accordion-text-wrap {
-      padding: 14px 8px 13px;
+      padding: 14px var(--spacing-xs) 13px;
     }
 
     /* Resources 卡片一屏預算：卡片上移到 anchor strip 正下方（封鎖線由 resources-cycling.js 依卡片列上緣重釘）；文字盒固定高、內捲
@@ -390,7 +395,7 @@
       height: 220px;
       flex: none;
       /* 手機圖左右露卡片底色：值＝text-wrap 左右 padding 8px */
-      padding: 0 8px;
+      padding: 0 var(--spacing-xs);
     }
 
     .accordion-text-wrap {
@@ -429,7 +434,7 @@
       flex-direction: row;
       align-items: center;
       justify-content: flex-start;
-      padding: 14px 8px 13px;
+      padding: 14px var(--spacing-xs) 13px;
       min-height: 44px;
     }
     .colored-accordion .accordion-label-inner {
@@ -459,14 +464,14 @@
       width: 100%;
       height: 120px; /* 卡片一屏預算：讓文字盒分到高度 */
       flex: none;
-      padding: 0 8px; /* 同手機直向：圖左右露卡片底色（text 左右 padding 8px） */
+      padding: 0 var(--spacing-xs); /* 同手機直向：圖左右露卡片底色（text 左右 padding 8px） */
     }
     /* 文字盒一屏預算內捲：291 = 卡頂落點 96（landing −32 + section pt-3xl 96 + 容器 pt-lg 32）+ title 列 51 + 圖 120 + 底部呼吸 24
        ⚠️ justify-content 必須翻回 flex-start：base 的 flex-end 配 max-height 內捲會讓溢出往上長、段落開頭被永久裁掉 */
     .colored-accordion .accordion-text-wrap {
       width: 100%;
       flex: none;
-      padding: 14px 8px 13px;
+      padding: 14px var(--spacing-xs) 13px;
       max-height: max(calc(100svh - 291px), 80px);
       overflow-y: auto;
       scrollbar-width: none;

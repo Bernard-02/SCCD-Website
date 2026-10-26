@@ -8,7 +8,7 @@
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { playClipPathExit, navChipHidden, NAV_CHIP_SHOWN, randomRevealDir } from '../ui/scroll-animate.js';
+import { playClipPathExit, navChipHidden, navChipTween, NAV_CHIP_SHOWN, randomRevealDir } from '../ui/scroll-animate.js';
 
 let accordionWrappers = [];
 
@@ -39,18 +39,14 @@ export function initHorizontalAccordion() {
   });
 }
 
-// ── Hover 色：strict B/W（依 mode + 對比度）──────────────────────
-// 舊版 hover 換黃/紫/橘 accent，已拿掉。現在 hover bg 一律設 var(--theme-fg)：
-//   standard（mode1）= 黑底、inverse（mode2）= 白底；字色由 accordion.css 的
-//   「非 mode-color hover」規則翻成 var(--theme-fg-inverse)（白/黑）。
-// mode-color（mode3）：這裡設的 inline bg 只當 hover 偵測 trigger，實際翻色由
-//   themes/color.css 的 .accordion-label[style*="background"] !important 規則接管。
-
 // ── 旋轉卡片版（colored-accordion）──────────────────────────────
 // 每張卡片結構：[label | 照片 | 說明]，label 在最右，卡片往左展開
 // 收合：只露 label 條，展開：整張卡片顯示
 // z-index 由 index 決定（遞增）；顏色 nth-child(3n+1/2/3) 循環粉/綠/藍
-// Hover 時非展開的卡片換成循環 HOVER_COLORS
+// Hover（非展開卡）翻 strict B/W：底＋字全在 CSS 同一條 :hover:not(.active)（accordion.css／color.css）。
+//   ⚠️ 別改回 JS inline 上底色：字靠 CSS :hover、底靠 mouseenter 兩套判定會脫鉤（applyLayout 清色時游標還在卡上
+//   ＝白字配原 accent 底，user 2026-10-26 回報）
+//   JS 只管 hover 抽新角
 export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
   if (window.innerWidth < 768) {
     initColoredCardAccordion(wrapper);
@@ -73,17 +69,13 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
   wrapper.style.position = 'relative';
   wrapper.style.overflow = 'visible';
 
-  // 進場動畫模式：所有 item 初始收合，進場完成後才打開 index 0
-  let openIndex = animateEntry ? -1 : 0;
+  let openIndex = 0;
 
   function getLabelWidth(item) {
     return item.querySelector('.accordion-label').offsetWidth;
   }
 
   function applyLayout(animate = false) {
-    // 清掉所有 inline hover 色：使用者在 entrance 動畫期間 hover 留下的 inline bg 會卡在那（mouseleave 因 i===openIndex 不清），openIndex 改變後變成 active item 仍是 hover 色
-    resetColors();
-
     const wrapperW = wrapper.offsetWidth;
     const dur = animate ? 0.6 : 0;
 
@@ -139,26 +131,15 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
 
   applyLayout(false);
 
-  // 進場動畫：一半從正右方、一半從正下方（畫面外）飛入
-  // 最右（index N-1）先進場 → 最左（index 0）最後進場
-  // 全部就位後，打開 index 0（教學空間）
+  // 進場：每張卡在自己的 box 內 clip-reveal（user 2026-10-26 取代「畫面外飛入→再展開第一張」）；
+  // 卡片出生就是終態排版（第一張已展開），方向每張上下隨機（user 2026-10-26 撤左右）、跨卡 stagger 0.08。做法同下方退場（navChipHidden 反向）
   if (animateEntry && typeof ScrollTrigger !== 'undefined') {
-    // 平均分配：half fromRight + half fromBottom，再 Fisher-Yates 洗牌
-    const directions = /** @type {Array<'right' | 'bottom'>} */ (items.map((_, i) => i < Math.ceil(items.length / 2) ? 'right' : 'bottom'));
-    for (let i = directions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [directions[i], directions[j]] = [directions[j], directions[i]];
-    }
-
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    items.forEach((item, i) => {
-      // 起始位置必須在 viewport 外（以 vw/vh 為基準，random 微調距離）
-      const offsetX = directions[i] === 'right' ? vw * 0.8 + Math.random() * 200 : 0;
-      const offsetY = directions[i] === 'bottom' ? vh * 0.9 + Math.random() * 200 : 0;
-      gsap.set(item, { x: offsetX, y: offsetY });
-    });
+    const hidden = items.map(item => navChipHidden(item, Math.random() < 0.5 ? 'top' : 'bottom'));
+    items.forEach((item, i) => { item.style.clipPath = hidden[i].clipPath; item.style.translate = hidden[i].translate; });
+    // 進退場走 navChipTween（proxy，非 GSAP 直接 tween translate 字串，見 scroll-animate.js）；proxy 不在 item 上 → 自留 ref 收
+    let entryTweens = [];
+    const killEntry = () => { entryTweens.forEach(t => t.kill()); entryTweens = []; };
+    registerPageCleanup(killEntry);
 
     // 離頁退場：clip-reveal（user 2026-10-19，取代「飛回進場方向」）。卡片帶旋轉、沒有外層遮罩 →
     // 走 navChipHidden 模擬版：整張卡（含本體底色）沿自身旋轉軸滑出＋clip-path 把可見窗釘在原位＝遮罩是卡片自己的形狀；
@@ -167,16 +148,12 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
       if (typeof gsap === 'undefined') { resolve(); return; }
       const r = wrapper.getBoundingClientRect();
       if (!(r.width > 0 && r.bottom > 0 && r.top < window.innerHeight)) { resolve(); return; }
+      killEntry();
       gsap.killTweensOf(items);
-      const hid = items.map(item => navChipHidden(item, randomRevealDir()));
-      gsap.fromTo(items, { ...NAV_CHIP_SHOWN }, {
-        clipPath: (i) => hid[i].clipPath,
-        translate: (i) => hid[i].translate,
-        duration: DUR.base,
-        ease: EASE.exit,
-        overwrite: true,
-        onComplete: resolve,
-      });
+      let left = items.length;
+      items.forEach(item => navChipTween(item, NAV_CHIP_SHOWN, navChipHidden(item, randomRevealDir()), {
+        duration: DUR.base, ease: EASE.exit, onComplete: () => { if (--left === 0) resolve(); },
+      }));
     }));
 
     ScrollTrigger.create({
@@ -189,73 +166,32 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
         // 目的地就是本 section（點 resources 直達）→ 照常播進場
         const jumpTarget = document.body.dataset.anchorTarget;
         if (document.body.classList.contains('anchor-jumping') && jumpTarget !== wrapper.closest('section[id]')?.id) {
-          gsap.set(items, { x: 0, y: 0 });
-          openIndex = 0;
-          applyLayout(false);
+          gsap.set(items, { clearProps: 'clipPath,translate' });
           return;
         }
-        const tl = gsap.timeline({
-          onComplete: () => {
-            openIndex = 0;
-            applyLayout(true);
-          }
-        });
-
-        for (let i = items.length - 1; i >= 0; i--) {
-          const orderIdx = items.length - 1 - i;
-          tl.to(items[i], {
-            x: 0,
-            y: 0,
-            duration: DUR.reveal,
-            ease: EASE.enter
-          }, orderIdx * 0.12);
-        }
+        entryTweens = items.map((item, i) => navChipTween(item, hidden[i], NAV_CHIP_SHOWN, {
+          duration: DUR.reveal, ease: EASE.enter, delay: i * 0.08,
+          onComplete: () => { item.style.clipPath = ''; item.style.translate = ''; },
+        }));
       }
-    });
-  }
-
-  function resetColors() {
-    items.forEach((it) => {
-      const lb = it.querySelector('.accordion-label');
-      const tw = it.querySelector('.accordion-text-wrap');
-      const iw = it.querySelector('.accordion-img-wrap');
-      // 清除 inline style，讓 CSS nth-child 規則接管。
-      // ⚠️ item 也要清：hover 中點開卡片後 mouseleave 被 openIndex guard 短路，
-      // 母層黑 backstop 殘留 → 展開卡 AA 縫漏黑
-      it.style.background = '';
-      if (lb) lb.style.background = '';
-      if (tw) tw.style.background = '';
-      if (iw) iw.style.background = '';
     });
   }
 
   items.forEach((item, i) => {
     const label = item.querySelector('.accordion-label');
-    const textWrap = item.querySelector('.accordion-text-wrap');
-    const imgWrap = item.querySelector('.accordion-img-wrap');
     if (!label) return;
 
     item.addEventListener('mouseenter', () => {
       if (i === openIndex) return;
-      // 母層 backstop 同步變色（同 about tree .prog-titled 一整體思路）：只變子盒時
-      // 旋轉抗鋸齒邊緣會反漏 1px 母層 accent 縫；mode3 對應 color.css [style*="background"] 翻色規則
-      item.style.background = 'var(--theme-fg)';
-      label.style.background = 'var(--theme-fg)';
-      if (textWrap) textWrap.style.background = 'var(--theme-fg)';
-      if (imgWrap) imgWrap.style.background = 'var(--theme-fg)';
+      // 進退場中（inline clip-path 在＝navChipTween 正在寫 translate）不抽角：GSAP 動 rotation 會把元素的 translate 屬性寫成 none
+      // ＝卡片丟掉滑移量、clip 照收＝露在 box 外（user 2026-10-26）。clip-path 不擋 hit-test，還沒揭的卡也會被 hover 到
+      if (item.style.clipPath) return;
       // hover 抽新角、離開保持（全站 hover 旋轉定案；user 2026-10-03 resources 補上）；寫回 rotations＝applyLayout／點開沿用。
       // 走 GSAP rotation（不直接寫 style.transform）：GSAP 快取同步，離頁飛回退場才不跳回舊角
       let r;
       do r = randomRot(); while (Math.abs(r - rotations[i]) < 1);
       rotations[i] = r;
       gsap.to(item, { rotation: r, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
-    });
-    item.addEventListener('mouseleave', () => {
-      if (i === openIndex) return;
-      item.style.background = '';
-      label.style.background = '';
-      if (textWrap) textWrap.style.background = '';
-      if (imgWrap) imgWrap.style.background = '';
     });
 
     label.addEventListener('mouseenter', () => {
@@ -269,7 +205,6 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
 
     item.addEventListener('click', () => {
       if (i === openIndex) return;
-      resetColors();
       openIndex = i;
       applyLayout(true);
     });

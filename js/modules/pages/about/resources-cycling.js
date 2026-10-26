@@ -164,7 +164,19 @@ function initResourceSwitchers(root) {
         onComplete: () => { slides[idx].style.zIndex = '0'; incoming.style.zIndex = '1'; gsap.set(slides[idx], { xPercent: 0, yPercent: 0 }); idx = next; },
       });
     }
-    const timer = setInterval(() => { if (!hovering && settledOpen()) go((idx + 1) % slides.length); }, CYCLE_MS);
+    const tick = () => { if (!hovering && settledOpen()) go((idx + 1) % slides.length); };
+    let timer = setInterval(tick, CYCLE_MS);
+
+    // 點圖片＝手動切下一張（user 2026-10-26）；滑入中不收（go 的 onComplete 才推進 idx）。點完重算輪播計時，免得剛點完又自動換。
+    // 掛 .res-frame：桌面 switcher pointer-events:none（hover 判定在 frame，accordion.css）
+    const frame = sw.parentElement;
+    frame.style.cursor = 'var(--cursor-pointer)';
+    frame.addEventListener('click', () => {
+      if (slides.some(s => gsap.isTweening(s))) return;
+      go((idx + 1) % slides.length);
+      clearInterval(timer);
+      timer = setInterval(tick, CYCLE_MS);
+    });
 
     // 桌面 hover 暫停（手機不綁；.accordion-item hover 才停，讓使用者看清當前那張）
     if (item && window.matchMedia('(min-width: 768px)').matches) {

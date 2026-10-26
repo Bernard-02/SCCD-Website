@@ -149,7 +149,7 @@ html {
 
   /* Programs／Works 共用 division 鈕列：sticky 貼頂 0（!important 蓋 inline top:100）。
      可見頂＝「BFA 學士班」小標題頂＝98 線：小標題 absolute 不佔 flow → pt 加小標題塊高
-     （--about-pill-label＝padding 6+5 + text-s 兩行 + xs，同 buttons.css MDES 置中那條）。
+     （--about-pill-label＝小標題 padding 6+5 + text-s 兩行 + xs）。
      列高＝pt + 鈕 91（最高那顆 3 行實測）+ pb md；字級／行數改要同步——否則鈕旋轉角掉出列底、被 sticky 列 clip-path inset(0) 裁掉 */
   :root {
     --about-pill-label: calc(11px + 2 * var(--font-size-s) * var(--line-height-s) + var(--spacing-xs));

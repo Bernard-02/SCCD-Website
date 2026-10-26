@@ -140,6 +140,9 @@ function renderPlaylist(box, iframe, listId, vids) {
     b.appendChild(img);
     inner.appendChild(b);
   });
+  // 出生就框住當前播放那支（user 2026-10-26）：watch URL 帶 v= 的那支，videoseries 沒初始影片＝第一支
+  const curVid = iframe.src.match(/\/embed\/([^?]+)/)?.[1];
+  (inner.querySelector(`[data-vid="${curVid}"]`) || inner.firstElementChild)?.classList.add('is-active');
   scroll.addEventListener('click', e => {
     const btn = e.target.closest('.works-playlist-item');
     if (!btn) return;

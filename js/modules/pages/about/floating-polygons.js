@@ -155,7 +155,7 @@ export function initAboutPolygons() {
     const order = open ? shapes : [...shapes].reverse();
     order.forEach((s, i) => {
       if (open && s.gate < 0.05) pickAnchor(s);
-      gateTl.to(s, { gate: open ? 1 : 0, duration: 0.9, ease: open ? 'power3.out' : 'power3.in' }, i * 0.08);
+      gateTl.to(s, { gate: open ? 1 : 0, duration: 0.9, ease: open ? EASE.enter : EASE.exit }, i * 0.08);
     });
     if (open) gateShownAt = performance.now();
   };
@@ -293,8 +293,8 @@ export function initAboutPolygons() {
     const nextSides = drawShapes();
     shapes.forEach((s, i) => {
       s.sides = nextSides[i];
-      gsap.to(s.el, { attr: { d: genShapeD(nextSides[i], s.R) }, duration: 1.0, ease: 'power2.inOut', overwrite: 'auto' });
-      gsap.to(s, { scale: 0.7 + Math.random() * 0.7, duration: 1.0, ease: 'power2.inOut', overwrite: 'auto' });
+      gsap.to(s.el, { attr: { d: genShapeD(nextSides[i], s.R) }, duration: DUR.reveal, ease: EASE.move, overwrite: 'auto' });
+      gsap.to(s, { scale: 0.7 + Math.random() * 0.7, duration: DUR.reveal, ease: EASE.move, overwrite: 'auto' });
       s.heading = Math.random() * Math.PI * 2; // 方向隨機重擲（user 2026-08-10）
       s.speed = 18 + Math.random() * 14;
     });

@@ -12,6 +12,7 @@ import { bindNavBtnHover, navHoverColor } from '../../ui/section-switch-helpers.
 import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
 import { revealHidden, randomCardTilt } from '../../ui/scroll-animate.js';
+import { EASE } from '../../ui/motion.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -25,19 +26,19 @@ export function initTimeline() {
   const TIMING = {
     // 入場 reveal（clip-path 展開）
     revealDuration: 1.0,
-    revealEase: 'power3.out',
+    revealEase: EASE.enter,
     stagger: 0.08,
     // 退場（clip-path 收起）
     exitDuration: 0.5,
-    exitEase: 'power2.in',
+    exitEase: EASE.exitSoft,
     // 字卡 reveal（切頁後入場）
     cardRevealDuration: 0.6,
     // 卷軸橫移
     stripSlideDuration: 0.8,
-    stripSlideEase: 'power2.inOut',
+    stripSlideEase: EASE.move,
     // Photo raise/lower clip 週期
     photoClipDuration: 0.5,
-    photoClipEase: 'power2.inOut',
+    photoClipEase: EASE.move,
     // 邊界照片 dim/undim
     dimDuration: 0.3,
     // Reveal 完成後才開放 hover（= revealDuration + 5 * stagger）
@@ -540,10 +541,12 @@ export function initTimeline() {
     // 兩層 sticky（era 標籤釘頂 + 年份釘標籤下方；桌面手機同套）：量每個 era 的標籤實高寫進該組 --tl-era-label-h，
     // 年份的 sticky top 用它 → 標籤高度不一（手機兩行／桌面一行）時年份接得剛好（房規：多層 sticky offset 量高寫 var）。
     // 需 display:block 後才量得到高度。
+    // ⚠️ 量 offsetHeight（排版高）不量 getBoundingClientRect：卡片微傾後 rect 含旋轉＝寬標籤多出 寬×sinθ（~15px），
+    //   sticky top 過大＝首列年份被推離英文首行（user 2026-10-26「1958 沒跟右邊文字對齊」）
     function measureStickyOffsets() {
       listView.querySelectorAll('.tl-era-group').forEach(g => {
-        const label = g.querySelector('.tl-era-label');
-        if (label) g.style.setProperty('--tl-era-label-h', `${Math.ceil(label.getBoundingClientRect().height)}px`);
+        const label = /** @type {HTMLElement | null} */ (g.querySelector('.tl-era-label'));
+        if (label) g.style.setProperty('--tl-era-label-h', `${label.offsetHeight}px`);
       });
       // 捲動容器也寫一份（首組標籤高）→ 桌面 scrollbar 軌道從第一個 item 起算（lists.css .tl-list-years track margin-top）
       listYears.style.setProperty('--tl-era-label-h', listYears.firstElementChild?.style.getPropertyValue('--tl-era-label-h') || '0px');

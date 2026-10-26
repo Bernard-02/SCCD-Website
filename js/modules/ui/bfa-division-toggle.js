@@ -366,14 +366,14 @@ export function initBFADivisionToggle() {
         btn.classList.add('active');
         target.style.background = color;
         target.dataset.accentHex = color;  // 原始 hex，給 anchor-nav exclude 比對（style.background 讀回是 rgb）
-        target.style.color = '#000000';
+        target.style.color = 'var(--color-black)';
         target.style.transform = `rotate(${rot}deg)`;
         if (label) {
           const labelRot = label._pendingRot || randomRotation();
           label._baseRot = labelRot;
           label._pendingRot = null;
           label.style.background = color;
-          label.style.color = '#000000';
+          label.style.color = 'var(--color-black)';
           label.style.transform = `rotate(${labelRot}deg)`;
         }
         btn._activeColor = color;
@@ -424,10 +424,10 @@ export function initBFADivisionToggle() {
       }
       const color = randomColor(getCurrentStripColor());
       target.style.background = color;
-      target.style.color = '#000000';
+      target.style.color = 'var(--color-black)';
       if (label) {
         label.style.background = color;
-        label.style.color = '#000000';
+        label.style.color = 'var(--color-black)';
       }
       btn._pendingColor = color;
     });
@@ -574,7 +574,8 @@ export function initBFADivisionToggle() {
 
   // ─── Design Fundamental（works-only）鈕進退場＝clip-reveal（user 10-21：原本 wrap clip-path 擦除）──
   // 空間收展仍是 CSS（wrap／手機 pill 的 max-width 補間推開旁邊，見 buttons.css / variables.css / landscape.css）：
-  //   進＝先撐空間、撐完（delay --dur-medium）鈕才從自己框邊滑進；退＝鈕先滑出、CSS transition-delay 等它再收空間。
+  //   進＝撐空間（右邊鈕往右推）與鈕滑進同時開始、同時結束（user 2026-10-26，原本撐完才滑）；退＝鈕先滑出、CSS transition-delay 等它再收空間（退場同拍 10-26 試過、user 撤回）。
+//   方向＝四向隨機、每次重抽（user 2026-10-26；pickNavDir 不帶 el＝不限短邊）
   // 呼叫點＝切 is-works-context 的地方（桌面 class-buttons-sticky.js、手機本檔 works ScrollTrigger）。
   window.SCCD_animateBfaChips = function (show) {
     if (typeof gsap === 'undefined') return;
@@ -582,13 +583,16 @@ export function initBFADivisionToggle() {
       .forEach((el) => {
         if (!el.getClientRects().length) return;   // 這個視口沒顯示的那份（桌面／手機各一份）
         gsap.killTweensOf(el);
+        // 空間收展的上限＝鈕實際寬高（CSS max-width/max-height 吃這兩個 var）：寫死 320 比鈕寬一截＝收展有一段在收空檔、旁邊鈕動得不跟鈕
+        el.parentElement.style.setProperty('--bfa-chip-w', `${el.offsetWidth}px`);
+        el.parentElement.style.setProperty('--bfa-chip-h', `${el.offsetHeight}px`);
         el.style.transition = 'none';   // Tailwind transition-all 會追 GSAP 每幀值（同 class-buttons-sticky chip 進退場）
         if (show) {
-          gsap.set(el, navChipHidden(el, pickNavDir(el)));
-          gsap.to(el, { ...NAV_CHIP_SHOWN, duration: DUR.medium, ease: EASE.wipe, delay: DUR.medium,
+          gsap.set(el, navChipHidden(el, pickNavDir()));
+          gsap.to(el, { ...NAV_CHIP_SHOWN, duration: DUR.medium, ease: EASE.wipe,
             clearProps: 'clipPath,translate', onComplete: () => { el.style.transition = ''; } });
         } else {
-          gsap.fromTo(el, { ...NAV_CHIP_SHOWN }, { ...navChipHidden(el, pickNavDir(el)), duration: DUR.medium, ease: EASE.wipe });
+          gsap.fromTo(el, { ...NAV_CHIP_SHOWN }, { ...navChipHidden(el, pickNavDir()), duration: DUR.medium, ease: EASE.wipe });
         }
       });
   };
