@@ -4,7 +4,7 @@
  * 媒體順序：海報 → videos → images
  */
 
-import { enterLightboxMode, exitLightboxMode } from './lightbox-shell.js';
+import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
@@ -26,6 +26,7 @@ let openSeq = 0;
 // 用實際 enter 過與否配對，openCount 永遠平衡
 let lbEntered = false;
 let closeHideTimer = null;  // close 的 300ms 隱藏 timer；fadeout 中重開要取消，否則新內容被舊 timer 藏掉
+let entranceTl = null;      // 開場順序 timeline（playLightboxEntrance）；重開先 kill
 /** @type {HTMLElement | null} */
 let heldBtn = null;         // 淡出中凍住 hover 色的鈕（closeLightbox）
 let mainEl = null;
@@ -123,7 +124,7 @@ function ensureLightbox() {
            transform-origin:center：pill 繞中心旋轉（原 left bottom 會讓寬 title 右端下沉、把 share 拽得看起來低一截、跟 back 不在同一線，user 2026-08-20 改中心；小 pill 微傾 bbox 溢出左邊 ~1px 可忽略）-->
       <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: center; gap: 20px;">
         <button class="alb-close">
-          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;">
+          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;">
             <span class="icon icon-arrow-left icon-m"></span>
           </span>
         </button>
@@ -132,7 +133,7 @@ function ensureLightbox() {
         <!-- Share btn：排在 title 與（置中的）縮圖列之間。只有 caller 帶 opts.shareUrl（library album）才顯示；
              data-share-url 由 openLightbox 設、全站 share-modal.js 的 [data-share-btn] delegation 接管點擊（QR + 複製）。-->
         <button class="alb-share" data-share-btn aria-label="分享 Share" style="display: none;">
-          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:#00FF80;color:#000;width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
+          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
             <!-- 同畢業展詳情頁分享鈕的 icon-share（user 2026-10-21 統一；箭頭照 menu 格線重畫後兩者同粗，06-15「share 比較細」不再成立）-->
             <span class="icon icon-share"></span>
           </span>
@@ -145,7 +146,7 @@ function ensureLightbox() {
         <button class="alb-zoom-out lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom out">
           <span class="lb-zoom-pill"><span class="icon icon-zoom-out icon-m"></span></span>
         </button>
-        <span class="alb-zoom-pct text-s" style="font-variant-numeric: tabular-nums; min-width: 3.5rem; text-align: center;">100%</span>
+        <span class="alb-zoom-pct text-s" style="min-width: 3.5rem; text-align: center;">100%</span>
         <button class="alb-zoom-in lb-zoom-btn aria-disabled:opacity-30 aria-disabled:hover:opacity-30 aria-disabled:cursor-not-allowed" aria-label="Zoom in">
           <span class="lb-zoom-pill"><span class="icon icon-zoom-in icon-m"></span></span>
         </button>
@@ -176,7 +177,7 @@ function ensureLightbox() {
   watermarkClipEl = lightboxEl.querySelector('.alb-watermark-clip');
 
   // Ref btn：插在 close btn 跟 title pill 之間（flex 順序）；popover append 到 lightbox root
-  refUi = createRefBtn('#00FF80', () => closeLightboxAsync());
+  refUi = createRefBtn(SCCDHelpers.ACCENT_COLORS[1], () => closeLightboxAsync());
   refUi.btnEl.classList.add('alb-ref-btn');
   const topbarEl = lightboxEl.querySelector('.alb-topbar');
   if (topbarEl && titleEl) {
@@ -568,7 +569,7 @@ function renderMain(index) {
   // outline-offset:2px 讓 border 跟圖邊緣有 2px gap，視覺上明顯獨立框出來
   thumbsEl.querySelectorAll('.alb-thumb').forEach((th, i) => {
     if (i === index) {
-      th.style.outline = '2px solid var(--lb-pill-bg, #fff)';   // 框色＝鈕底色（user 2026-10-21）
+      th.style.outline = '2px solid var(--lb-pill-bg, var(--color-white))';   // 框色＝鈕底色（user 2026-10-21）
       th.style.outlineOffset = '2px';
     } else {
       th.style.outline = '';
@@ -744,7 +745,15 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
 
   clearTimeout(closeHideTimer);  // fadeout 中重開：取消舊 close 的隱藏 timer，否則 300ms 後把新內容藏掉
   SCCDHelpers.releaseHover(heldBtn);
+  // 開場順序（user 2026-10-26）：底部 UI／chevron／中間 item 先藏，overlay 淡入後依序進場
+  entranceTl?.kill();
+  const bars = [closePillEl, refUi?.btnEl?.querySelector('.lightbox-ref-btn-pill'), titleEl.querySelector('.alb-title-pill'),
+    sharePillEl, thumbsEl, zoomOutBtn, zoomPctEl, zoomInBtn, fitToggleBtn];
+  const fades = [prevBtn, nextBtn].map(b => b.querySelector('.icon'));
+  const item = zoomImg || mainEl.firstElementChild;   // 圖＝img 本身（object-fit 框＝圖）；影片＝player／iframe
+  hideLightboxEntrance([...bars, item], fades);
   lightboxEl.style.display = 'flex';
+  entranceTl = playLightboxEntrance({ bars, fades, item });
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
     // 開啟即把起始縮圖定位到中央（instant，不動畫）；renderMain 當下 lightbox 還 display:none 量不到 rect
@@ -793,7 +802,7 @@ function positionUIRelativeToLogo() {
 // mode1/mode2 維持 caller 帶入的 accent；lightbox 黑底永遠 → mode3 取白 pill 必定可見
 function resolvePillColor(color) {
   if (document.body.classList.contains('mode-color')) return '#FFFFFF';
-  return color || '#00FF80';
+  return color || SCCDHelpers.ACCENT_COLORS[1];
 }
 
 function renderBackButton(color) {
@@ -870,12 +879,12 @@ function renderTitle(title, color) {
   }
   const bg = resolvePillColor(color);
   const rot = getTitleRotation();
-  // pill min-height＝英中兩行高（padding 11＋2 行×1.2）：只有單語也不縮、字置中於方塊中線，左側鈕跟著不變矮（user 2026-10-21）
+  // pill min-height＝英中兩行高（上下字卡內距＋2 行×s 行距）：只有單語也不縮、字置中於方塊中線，左側鈕跟著不變矮（user 2026-10-21）
   // 結構：pill > window(overflow:hidden) > track(inline-block nowrap) > unit(column-flex EN+ZH)
   // marquee 動畫 track translateX，dual-copy 時 unit 整組（EN+ZH）一起捲動 = 中英字 textbox 為一個單位
   // 不是兩行各自 marquee 害 EN/ZH 互不同步
   titleEl.innerHTML = `
-    <span class="alb-title-pill" style="display:inline-flex;flex-direction:column;justify-content:center;min-height:calc(11px + var(--font-size-s) * 2.4);background:${bg};color:#000;padding:6px 8px 5px;font-weight:700;font-size:var(--font-size-s);line-height:1.2;transform:rotate(${rot}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
+    <span class="alb-title-pill" style="display:inline-flex;flex-direction:column;justify-content:center;min-height:calc(10px + var(--font-size-s) * 2 * var(--line-height-s));background:${bg};color:var(--color-black);padding:var(--card-pad-s);font-weight:var(--font-weight-bold);font-size:var(--font-size-s);line-height:var(--line-height-s);transform:rotate(${rot}deg);transform-origin:center;max-width:min(40vw, 360px);box-sizing:border-box;">
       <span class="alb-title-window" style="display:block;overflow:hidden;">
         <span class="alb-title-track" style="display:inline-block;white-space:nowrap;will-change:transform;">
           <span class="alb-title-unit" style="display:inline-flex;flex-direction:column;align-items:flex-start;white-space:nowrap;vertical-align:top;">

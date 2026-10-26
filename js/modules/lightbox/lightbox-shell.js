@@ -1,4 +1,6 @@
 import { DUR, EASE } from '../ui/motion.js';
+import { navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 /**
  * Lightbox Shell（共用 utility）
  * 提供所有全螢幕 lightbox/modal 統一的 enter/exit 行為：
@@ -351,4 +353,38 @@ export function resetLightboxMode() {
   restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結
   // 解除底層 scroll freeze（若 lightbox 沒走正規 exit 流程退出時兜底）
   if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
+}
+
+// ── 開場順序（user 2026-10-26）：overlay 淡入＋logo 照舊 → 底部 UI 全部同時 clip-reveal（不逐顆）、左右 chevron 淡入 → 最後中間 item clip-reveal ──
+// bars 傳「會轉的那層」（pill／zoom 鈕本身）：navChipHidden 讀它 style.transform 的 rotate＝遮罩跟著傾角、不切斜鈕。
+// 先 hideLightboxEntrance（root 還 display:none 量不到尺寸，只收 clip＝照樣看不到），root 顯示後 play 才量真尺寸補間。
+const LB_FADE = 0.3;      // ＝lightbox root 的 duration-300 opacity 淡入
+const LB_ITEM_DELAY = DUR.medium;   // bars 起跑後隔一拍才輪到中間 item
+const clearChip = (el) => { el.style.translate = ''; el.style.clipPath = ''; };
+export function hideLightboxEntrance(chips, fades) {
+  chips.forEach(el => { if (el) el.style.clipPath = 'inset(0% 0% 100% 0%)'; });
+  fades.forEach(el => { if (el) el.style.opacity = '0'; });
+}
+// 回傳 { kill }（重開時呼叫）；onItem＝輪到中間 item 的時間點（PDF 色塊自己接手）
+export function playLightboxEntrance({ bars = [], fades = [], item = null, onItem = null }) {
+  const chips = [...bars, item].filter(Boolean);
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) {
+    chips.forEach(clearChip);
+    fades.forEach(el => { if (el) el.style.opacity = ''; });
+    if (onItem) onItem();
+    return null;
+  }
+  const shown = bars.filter(el => el && el.getClientRects().length);
+  bars.forEach(el => { if (el && !shown.includes(el)) clearChip(el); });   // 沒顯示的不留隱藏態（之後 display 回來才看得到）
+  // 隱藏位移在起跑當下才量：圖片可能還沒載完（0 寬＝只剩擦除）、PDF 標題位置 rAF 才定
+  const tl = gsap.timeline();
+  const live = [];
+  const reveal = (el, at) => tl.call(() => live.push(navChipTween(el, navChipHidden(el, pickNavDir(el)), NAV_CHIP_SHOWN,
+    { duration: DUR.reveal, ease: EASE.enter, onComplete: () => clearChip(el) })), undefined, at);
+  shown.forEach(el => reveal(el, LB_FADE));
+  fades.forEach(el => { if (el) tl.to(el, { opacity: 1, duration: DUR.medium, ease: EASE.enterSoft, clearProps: 'opacity' }, LB_FADE); });
+  const itemAt = LB_FADE + LB_ITEM_DELAY;
+  if (item) reveal(item, itemAt);
+  if (onItem) tl.call(onItem, undefined, itemAt);
+  return { kill: () => { tl.kill(); live.forEach(t => t.kill()); } };
 }

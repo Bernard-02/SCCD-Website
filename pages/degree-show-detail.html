@@ -17,7 +17,7 @@
   <title>Degree Show - SCCD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Noto+Sans+TC:wght@400..700&family=Noto+Sans+JP:wght@400..700&family=Noto+Sans+SC:wght@400..700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="../css/output.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
 </head>
@@ -112,7 +112,7 @@
           <span id="sticky-year" class="sticky-chip-inner text-s font-bold"></span>
         </div>
         <div id="sticky-title-chip" class="sticky-chip">
-          <span class="sticky-chip-inner text-lg font-bold">
+          <span class="sticky-chip-inner text-s font-bold">
             <span id="sticky-title-en" class="block"></span>
             <span id="sticky-title" class="block"></span>
           </span>
@@ -223,15 +223,15 @@
              - 不被 card rotation 影響、不被 card 結構裁切
              - gap 對齊 hero `gap-md`（1.5rem）
              - chip 預設 clip-path 隱藏，hover 時 stagger reveal（prev 從左到右、next 從右到左） -->
-        <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
-          <p id="prev-title-en" class="dshow-next-title text-xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
-          <p id="prev-title" class="dshow-next-title text-xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+        <div id="prev-labels" class="absolute flex flex-col items-start pointer-events-none" style="bottom: 20%; left: 5vw; gap: var(--spacing-md); z-index: 5;">
+          <p id="prev-year" class="text-xl font-bold whitespace-nowrap" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="prev-title-en" class="dshow-next-title text-xl font-bold" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="prev-title" class="dshow-next-title text-xl font-bold" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: left center; clip-path: inset(0 100% 0 0); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
         </div>
-        <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: 1.5rem; z-index: 5;">
-          <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
-          <p id="next-title-en" class="dshow-next-title text-xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
-          <p id="next-title" class="dshow-next-title text-xl font-bold" style="padding: 0.4rem 0.6rem 0.3rem; color: #000; transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+        <div id="next-labels" class="absolute flex flex-col items-end pointer-events-none" style="top: 20%; right: 5vw; gap: var(--spacing-md); z-index: 5;">
+          <p id="next-year" class="text-xl font-bold whitespace-nowrap" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="next-title-en" class="dshow-next-title text-xl font-bold" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
+          <p id="next-title" class="dshow-next-title text-xl font-bold" style="padding: var(--card-pad-xl); color: var(--color-black); transform-origin: right center; clip-path: inset(0 0 0 100%); transition: clip-path var(--dur-medium) var(--ease-wipe);"></p>
         </div>
       </div>
 

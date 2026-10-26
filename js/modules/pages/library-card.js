@@ -60,7 +60,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   const tabOf   = new Map();
   const colorOf = new Map();
   const baseZOf = new Map();
-  const HOVER_Z = 9;   // hover 抬到色塊最上（底層 1–3 之上）、灰卡 10 之下（user 2026-10-20）
+  const HOVER_Z = 9;   // hover 抬層上限：色塊最上、灰卡 10 之下（user 2026-10-20）；超過就壓回 1..n（raiseToTop）
 
   // ── 工具 ────────────────────────────────────────────────────
 
@@ -317,7 +317,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // §43：line-height 必與 library.css .color-rect-title-inner 同值（1.05）——probe 量的 lineH 是旋轉邊
   //   厚度補償（left/right 邊 `PAD + lineH`）；原本沒寫＝吃 body 繼承、量出 42px vs 實際 38.4 已偏 ~3.6px。
   const PROBE_CSS = 'position:absolute;visibility:hidden;white-space:nowrap;line-height:1.05;' +
-    'font-family:Inter,"Noto Sans TC","Noto Sans JP","Noto Sans SC",sans-serif;font-size:var(--font-size-xl);font-weight:700;';
+    'font-family:Inter,"Noto Sans TC Title","Noto Sans TC","Noto Sans JP","Noto Sans SC",sans-serif;font-size:var(--font-size-xl);font-weight:var(--font-weight-bold);';
 
   // cfgCache: el → config，每次 setAsColor 後更新，供 renderMarquee 使用
   const cfgCache = new Map();
@@ -477,7 +477,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
   //   `if (isSwitching) return` 吞掉（點擊不經 hover 所以可點）。解鎖對每張 :hover 的非 active 卡合成套 hover；mouseleave 既有 handler 復原。
   function syncHoverAfterUnlock() {
-    allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) { applyCardHover(el); crossfadeZ(el, HOVER_Z); } });
+    allEls.forEach(el => { if (el !== activeEl && !el.dataset.cardPending && el.querySelector('.color-rect-title') && el.matches(':hover')) { applyCardHover(el); raiseToTop(el); } });
     // #3 (user 2026-09-12)：色塊變小的切分頁動畫完成後，游標若仍停在「下一分頁」箭頭上，補套下一目標色塊的黑底白字預覽
     //   （靜止游標下 mouseenter 不會重 fire；:hover pseudo-class 仍準，同上面 allEls 的判法）。
     if (nextBtnEl && !isSwitching && nextBtnEl.matches(':hover')) previewNextTarget();
@@ -500,6 +500,32 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     el.style.transform = `translate(-50%, -50%) rotate(${cardSpinRand(cur)}deg)`;
   };
 
+  // hover 抬到色塊最上、放開「不」沉回＝留在最前（user 2026-10-26，撤 10-20「放開沉回原深度」）：直接改 recency 深度 baseZOf
+  //   （switchTab／§41 落定都讀它）＝它變最高，其他色塊不動；頂到 HOVER_Z（灰卡 10 之下）才依現順序壓回 1..n（順序不變＝瞬切看不出）
+  function raiseToTop(el) {
+    const blocks = allEls.filter(o => o !== activeEl && baseZOf.has(o));
+    const maxZ = Math.max(...blocks.map(o => baseZOf.get(o)));
+    if (baseZOf.get(el) === maxZ && blocks.every(o => o === el || baseZOf.get(o) < maxZ)) return;   // 已在最前
+    let toZ = maxZ + 1;
+    if (toZ > HOVER_Z) {
+      blocks.sort((a, b) => baseZOf.get(a) - baseZOf.get(b)).forEach((o, i) => { baseZOf.set(o, i + 1); o.style.zIndex = String(i + 1); });
+      toZ = blocks.length + 1;
+    }
+    baseZOf.set(el, toZ);
+    crossfadeZ(el, toZ);
+  }
+  // 留在最前＝可能蓋到下層色塊的 marquee 帶 → 那幾張重挑 free edge（renderMarquee 避開高 z 佔用邊；同 §41 落定補救）
+  function reflowCoveredMarquees(topEl) {
+    const top = topEl.getBoundingClientRect();
+    allEls.forEach(o => {
+      if (o === topEl || o === activeEl || (baseZOf.get(o) ?? 0) >= (baseZOf.get(topEl) ?? 0)) return;
+      const t = o.querySelector('.color-rect-title');
+      if (!t || !t.innerHTML) return;
+      const r = t.getBoundingClientRect();
+      if (r.right > top.left && r.left < top.right && r.bottom > top.top && r.top < top.bottom) { renderMarquee(o); revealMarqueeTitle(o); }
+    });
+  }
+
   function attachHover(el) {
     const titleEl = document.createElement('div');
     titleEl.className = 'color-rect-title';
@@ -511,15 +537,15 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       if (isSwitching || exiting || el === activeEl || el.dataset.cardPending) return;
       applyCardHover(el);
       spinCard(el);   // #4：hover 進來抽一個新角度
-      crossfadeZ(el, HOVER_Z);   // 抬到色塊最上、灰卡之下（排在換色／抽角之後＝複本抄到 hover 色與轉動中的角，淡的只有深度）
+      raiseToTop(el);   // 抬到色塊最上、灰卡之下（排在換色／抽角之後＝複本抄到 hover 色與轉動中的角，淡的只有深度）
     });
     el.addEventListener('mouseleave', () => {
       // §26 bug 修：pending（縮小中/上色擦除前）的色塊必須維持灰——colorOf 在切換起手就已是新色，
       //   此處無 gate 時游標滑出＝直接把 RGB 寫進本體（「色塊變小自動填色」）。pending 中 hover 從沒套過、無需還原。
       if (exiting || el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
-      titleEl.style.color = '#000';
-      if (parseInt(el.style.zIndex) === HOVER_Z) crossfadeZ(el, baseZOf.get(el) ?? 1);   // 放開＝沉回原深度（點擊走 fadeToFront 15，不經此）
+      titleEl.style.color = 'var(--color-black)';
+      reflowCoveredMarquees(el);   // 放開不沉回、留在最前（raiseToTop）
       // #4：離開「不」再轉（user 二輪：避免一次 hover 轉兩次）——只 enter 轉；卡片維持 hover 那次的角度到下次 hover。
     });
   }
@@ -713,7 +739,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // 穩態 transition 依角色套用；三個套用點（進場×2＋切 tab 收尾）呼叫時 activeEl 都已是正確角色
   const applyIdleTransition = (el) => { el.style.transition = (el === activeEl) ? TRANSITION_GRAY : TRANSITION_IDLE; };
 
-  // 換深度（hover 抬到 HOVER_Z／放開沉回／點擊抬到 15）：z-index 只能瞬切 → 複本交叉淡化（user 2026-10-20，同首頁浮卡 floating-items.js crossfadeDepth）。
+  // 換深度（hover 抬到色塊最上 raiseToTop／點擊抬到 15）：z-index 只能瞬切 → 複本交叉淡化（user 2026-10-20，同首頁浮卡 floating-items.js crossfadeDepth）。
   //   本體立刻到目標 z（游標判定不變）；上行＝本體在上面從 0 淡入、複本留原深度墊底；下行＝本體直接回原深度、留在上面的複本從現值淡出。
   //   複本逐幀抄本體 computed transform（hover 抽角的 transition 可能還在轉）；marquee 是 CSS keyframe → 複本動畫對齊本體進度，
   //   免得淡化中字條疊兩份。同一張連續進出：上一張複本直接收、接著現值淡。殘留複本 .lib-z-ghost 由 _doSwitchTab 開頭清
@@ -761,7 +787,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
     allEls.forEach(el => {
       const titleEl = /** @type {HTMLElement | null} */ (el.querySelector('.color-rect-title'));
-      if (titleEl) titleEl.style.color = '#000';
+      if (titleEl) titleEl.style.color = 'var(--color-black)';
       if (el !== activeEl) {
         el.style.background = colorOf.get(el);
         if (baseZOf.has(el)) el.style.zIndex = String(baseZOf.get(el));
@@ -1378,7 +1404,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       if (!el || el === activeEl || el.dataset.cardPending) return;
       el.style.background = colorOf.get(el);
       const t =/** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
-      if (t) t.style.color = '#000';
+      if (t) t.style.color = 'var(--color-black)';
     });
   }
 

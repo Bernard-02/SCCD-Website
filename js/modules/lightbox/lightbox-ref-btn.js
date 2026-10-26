@@ -47,7 +47,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   btnEl.style.display = 'none';
   btnEl.setAttribute('aria-label', 'Show references');
   btnEl.innerHTML = `
-    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || '#00FF80'};color:#000;width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
+    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || SCCDHelpers.ACCENT_COLORS[1]};color:var(--color-black);width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
       <span class="icon icon-ref-lightbox icon-m"></span>
     </span>
   `;
@@ -66,12 +66,12 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   popoverEl.appendChild(stackEl);
 
   let currentRefs = [];
-  let currentColor = initialColor || '#00FF80';
+  let currentColor = initialColor || SCCDHelpers.ACCENT_COLORS[1];
   let isOpen = false;
   let openCloseAnimation = null;
 
   function setColor(color) {
-    currentColor = color || '#00FF80';
+    currentColor = color || SCCDHelpers.ACCENT_COLORS[1];
     const pill = /** @type {HTMLElement | null} */ (btnEl.querySelector('.lightbox-ref-btn-pill'));
     if (pill) pill.style.background = currentColor;
   }

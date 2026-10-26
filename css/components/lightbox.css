@@ -14,7 +14,7 @@
    z-index 9999：壓過 PDF modal 內 z-index:50 的元素；padding 32px：旋轉 card 的角不被切 */
 .lightbox-ref-popover {
   pointer-events: auto;
-  padding: 32px;
+  padding: var(--spacing-lg);
   max-width: min(50vw, 480px);
   box-sizing: border-box;
   z-index: 9999;
@@ -50,11 +50,11 @@
   min-width: 0;
   box-sizing: border-box;
   border: none;
-  padding: 6px 8px;
+  padding: 6px var(--spacing-xs);
   text-align: left;
   cursor: var(--cursor-pointer);
   background: transparent;
-  color: #000;   /* hover 變色一律瞬切，勿加 transition */
+  color: var(--color-black);   /* hover 變色一律瞬切，勿加 transition */
   /* card rotate 後相鄰 row sub-pixel rendering 漏 1px accent 縫；margin -1 讓 row 重疊補縫 */
   margin: -1px 0;
 }
@@ -62,12 +62,12 @@
 /* hover 包 desktop guard：手機 tap 後 sticky hover 會留黑底白字 */
 @media (min-width: 768px) {
   .lightbox-ref-chip:hover {
-    background: #000;
-    color: #fff;
+    background: var(--color-black);
+    color: var(--color-white);
   }
 
   .lightbox-ref-chip:hover * {
-    color: #fff;
+    color: var(--color-white);
   }
 }
 
@@ -88,10 +88,10 @@
    mode3 色塊是 theme-fg（color.css）→ hover 翻 fg-inverse 底 fg 字 */
 @media (min-width: 1024px) and (min-height: 501px) {
   body:not(.mode-color) :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover {
-    background: #000 !important;
+    background: var(--color-black) !important;
   }
   body:not(.mode-color) :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover button {
-    color: #fff !important;
+    color: var(--color-white) !important;
   }
   body.mode-color :is(#video-block-close, #video-block-fullscreen, .lb-video-block.lb-video-fs-block):hover {
     background: var(--theme-fg-inverse) !important;
@@ -126,19 +126,19 @@
 }
 .lb-zoom-pill {
   display: inline-flex;
-  padding: 8px;
-  background: var(--lb-pill-bg, #00FF80);
-  color: #000;
+  padding: var(--spacing-xs);
+  background: var(--lb-pill-bg, var(--color-green));
+  color: var(--color-black);
 }
 /* ＋ → fit 間距＝左側 title → share 的 20（PILL_GAP / .alb-topbar gap）：容器 gap 12 ＋ 8 */
 #pdf-fit-toggle,
 .alb-fit-toggle {
-  margin-left: 8px;
+  margin-left: var(--spacing-xs);
 }
 @media (min-width: 1024px) and (min-height: 501px) {
   .lb-zoom-btn:not([aria-disabled="true"]):hover .lb-zoom-pill {
-    background: #000;
-    color: #fff;
+    background: var(--color-black);
+    color: var(--color-white);
   }
 }
 
@@ -150,8 +150,8 @@
   .pdf-back-btn:hover .pdf-back-pill,
   .pdf-share-btn:hover .pdf-share-pill,
   .lightbox-ref-btn:hover .lightbox-ref-btn-pill {
-    background: #000 !important;
-    color: #fff !important;
+    background: var(--color-black) !important;
+    color: var(--color-white) !important;
   }
 }
 
@@ -160,7 +160,7 @@
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--spacing-xs);
   width: 100%;
   min-width: 0;
 }

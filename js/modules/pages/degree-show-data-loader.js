@@ -45,6 +45,32 @@ function hugHeroTitleWidths() {
   document.querySelectorAll('.dshow-hero-title').forEach(hugTitleBox);
 }
 
+// 色卡上下內距以墨跡為準（user 2026-10-26）：2xl token 內距＋行距 1 是照大寫字母配的；標題裡有比大寫高／比基線低
+// 的字形（例 2025「INTER-⧉」：⧉ 不在 Inter、落到系統數學字型，比大寫高 16px → 頂出卡緣）→ 該側補上超出量，
+// 墨跡到卡緣的留白跟一般字母一樣。基準字：含中文用「國」、其餘「H」。important＝蓋過手機 [data-hero-hl] 的 !important。
+// ponytail: 整串當單行量；換行時超出的字在中間行也會撐上下緣，真遇到再逐行量
+function fitCardToInk(el) {
+  const cs = getComputedStyle(el);
+  const ctx = /** @type {CanvasRenderingContext2D} */ (document.createElement('canvas').getContext('2d'));
+  ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const text = el.textContent || '';
+  const ink = ctx.measureText(text);
+  const ref = ctx.measureText(/[㐀-鿿]/.test(text) ? '國' : 'H');
+  const shift = (side, delta) => {
+    if (Math.abs(delta) > 0.5) el.style.setProperty(`padding-${side}`, `${Math.max(0, parseFloat(cs.getPropertyValue(`padding-${side}`)) + delta)}px`, 'important');
+  };
+  // 純中文（只有中文／標點／空白）：不比基準字（「時」等本來就比「國」高一點，會被誤算成超出、把字往下推），
+  // 只把上內距挪 --zh-ink-nudge 給下內距：大字中文縮 88% 以基線為準縮、墨跡偏下（同 hero.css 純中文大字卡）
+  if (/^[\s　-〿㐀-鿿＀-￯\-–—·・]+$/.test(text)) {
+    const nudge = parseFloat(cs.fontSize) * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zh-ink-nudge'));
+    shift('top', -nudge);
+    shift('bottom', nudge);
+    return;
+  }
+  shift('top', Math.max(0, ink.actualBoundingBoxAscent - ref.actualBoundingBoxAscent));
+  shift('bottom', Math.max(0, ink.actualBoundingBoxDescent - ref.actualBoundingBoxDescent));
+}
+
 // 上下兩個「旋轉的寬色卡」不重疊：旋轉後 bbox 角超出未旋轉版位（flex/gap 用未旋轉盒排），愈寬旋轉角愈大愈溢出
 // → 上盒底角壓到下盒頂。量實際 bbox 間距、不足就補 margin-top 到下盒撐開＝隨標題寬度/角度縮放（短標題本就不疊、
 // 補 0），比寫死 margin 好（寫死會讓短標題過度撐開）。必須在 hug（定寬）之後跑，寬度定了 bbox 才準。
@@ -144,8 +170,9 @@ export async function loadDegreeShowDetail() {
       // 色卡寬度收到「最寬 wrap 行 + padding」＝bg 貼文字、不因 inline-block 撐到 max-width 而右側空一塊粉底
       // （同 hero-animation.js tightenParagraphWidths 手法；DSD hero 不走 random 版面故那條不覆蓋這裡）。
       // 等字體 ready 才量（行寬吃 Inter/Noto 字型），rAF 讓 initHeroAnimation 的 wrap 先完成。
-      // 先 hug 定寬 → 再 separateHeroTitles 依定寬後的 bbox 撐開 EN/ZH 不重疊（順序不可換）。
+      // 先墨跡補高＋hug 定寬 → 再 separateHeroTitles 依定案後的 bbox 撐開 EN/ZH 不重疊（順序不可換）。
       document.fonts.ready.then(() => requestAnimationFrame(() => {
+        document.querySelectorAll('.dshow-hero-title').forEach(el => fitCardToInk(/** @type {HTMLElement} */ (el)));
         hugHeroTitleWidths();
         separateHeroTitles();
       }));
@@ -213,7 +240,7 @@ export async function loadDegreeShowDetail() {
             // 的突兀感（user 2026-08-18）；reduced-motion 時 runPageExit 整批跳過、此淡出也不跑。
             registerPageExit(() => Promise.all([
               playRevealExit(eventRows),
-              new Promise(res => gsap.to(eventsList, { opacity: 0, duration: 0.35, ease: 'power2.in', onComplete: res })),
+              new Promise(res => gsap.to(eventsList, { opacity: 0, duration: 0.35, ease: EASE.exitSoft, onComplete: res })),
             ]));
           }
           // 標題/地點行過長 → seamless marquee（桌面 hover 該欄才捲、手機自動捲）。
@@ -293,7 +320,7 @@ export async function loadDegreeShowDetail() {
       const videoPlayers = [];
       const renderVideoInto = (wrapper, url) => {
         if (isHlsUrl(url) || isDirectVideoUrl(url)) {
-          const player = createLightboxVideo(url, '#00FF80', { autoplay: false });
+          const player = createLightboxVideo(url, SCCDHelpers.ACCENT_COLORS[1], { autoplay: false });
           Object.assign(player.el.style, { maxWidth: 'none', aspectRatio: 'auto', width: '100%', height: '100%' });
           wrapper.innerHTML = '';
           wrapper.appendChild(player.el);
@@ -459,11 +486,11 @@ function setupHeroMobileEntrance() {
     return new Promise(resolve => {
       const out = gsap.timeline({ onComplete: resolve });
       chips.forEach((chip, i) => {
-        out.fromTo(chip, { xPercent: 0, yPercent: 0 }, { ...pick(DIRS), duration: 0.5, ease: EASE.exit, overwrite: true }, i * 0.06);
+        out.fromTo(chip, { xPercent: 0, yPercent: 0 }, { ...pick(DIRS), duration: DUR.medium, ease: EASE.exit, overwrite: true }, i * 0.06);
       });
       if (bgImg) {
         // to（非 fromTo）：進場中從當下位置倒帶、進場完成 computed 0,0，都不會先跳回全開
-        out.to(bgImg, { ...pick(IMG_DIRS), duration: 0.5, ease: EASE.exit, overwrite: true }, 0);
+        out.to(bgImg, { ...pick(IMG_DIRS), duration: DUR.medium, ease: EASE.exit, overwrite: true }, 0);
       }
     });
   });
@@ -568,7 +595,7 @@ function setupNextProject(prev, next) {
         let n = live.length;
         live.forEach((c, i) => gsap.to(c, {
           clipPath: HIDE[Math.floor(Math.random() * HIDE.length)],
-          duration: 0.5, ease: EASE.exit, delay: i * 0.06, overwrite: true,
+          duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true,
           onComplete: () => { if (--n <= 0) res(); },
         }));
       });
@@ -886,7 +913,7 @@ function setupNextProject(prev, next) {
     if (Math.abs(x) >= 105) { gsap.killTweensOf(card); return null; }
     const r = card.getBoundingClientRect();
     if (r.bottom <= 0 || r.top >= window.innerHeight) return null;
-    return new Promise(res => gsap.to(card, { xPercent: outX, duration: 0.5, ease: EASE.exit, overwrite: true, onComplete: res }));
+    return new Promise(res => gsap.to(card, { xPercent: outX, duration: DUR.medium, ease: EASE.exit, overwrite: true, onComplete: res }));
   };
   // 離頁退場：正在顯示（hover 中）的 title 字卡也 clip-reveal 收回（user 2026-09-11「桌面 title 字卡少了 reveal 出場」）。
   // 沿用 mouseleave 收法（clip-path hidden + translate navChipHidden，走 labelTransition CSS 0.5s）；只有真的在顯示才收+await。
@@ -953,7 +980,7 @@ function eventBoxesHtml(ev) {
     ev.time ? `<p class="font-bold">${escapeHtml(ev.time)}</p>` : '',
     stack(...guests),
     pair(withCity(ev.locationEn, ev.cityEn, false), withCity(ev.location, ev.city, true)),
-  ].filter(Boolean).map(h => `<div data-class-hl style="display: inline-block; width: fit-content; padding: 0.5em 0.6em;">${h}</div>`).join('');
+  ].filter(Boolean).map(h => `<div data-class-hl style="display: inline-block; width: fit-content; padding: var(--card-pad-s);">${h}</div>`).join('');
 }
 
 // 桌面子展覽（user 2026-10-20 二改「比照 about programs」）：上方依序排 event 標題 tab，下方左說明 box×3＋右圖片輪播；
@@ -970,7 +997,7 @@ function buildDesktopEventTabs(root, items) {
   section.innerHTML = `
     <div class="dsd-event-tabs-row site-container relative z-10">
       <div class="grid-20">
-        <div class="md:col-start-4 md:col-span-17 dsd-event-tabs-scroller flex items-center gap-[calc(var(--spacing-gutter)+var(--spacing-sm))]">
+        <div class="md:col-start-4 md:col-span-17 dsd-event-tabs-scroller division-tab-row">
           ${items.map(it => `<button type="button" class="class-division-btn font-bold text-left">${line(it.en)}${line(it.zh)}</button>`).join('')}
         </div>
       </div>
@@ -1195,7 +1222,7 @@ function buildMobileEventStrip(root) {
       if (i === idx) {
         b.classList.add('active');
         b.style.background = SCCDHelpers.getRandomAccentColor();
-        b.style.color = '#000000';
+        b.style.color = 'var(--color-black)';
         // active 保持初始隨機角、不重抽（user 2026-09-16「不要 click/捲之後又換角度」）；只換色
         b.style.transform = `rotate(${baseRots[i]}deg)`;
       } else {

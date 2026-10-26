@@ -407,7 +407,7 @@
   /* 只有 lectures 收副標；手機需捲過 pin 線（.is-pinned）才收。 */
   #panel-lectures .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
-    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs，收起後 title 不留 gap */
+    margin-top: calc(var(--spacing-xs) * -1);  /* 抵消父 flex-col gap-xs，收起後 title 不留 gap */
   }
 
   /* 手機：年份→list 的 grid gap 移除（間距由年份 padding 提供）；桌面維持 gutter。
@@ -670,7 +670,7 @@
   /* 桌面只有 lectures 收副標，且一 .active 就收、不等 pin：在頂部點開時 header 不一定壓到 sticky 線，is-pinned 不會 fire。 */
   #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(.list-subtitles) {
     grid-template-rows: 0fr;
-    margin-top: -0.5rem;  /* 抵消父 flex-col gap-xs；純 clip 收起、不 fade */
+    margin-top: calc(var(--spacing-xs) * -1);  /* 抵消父 flex-col gap-xs；純 clip 收起、不 fade */
   }
 
   /* album-thumb-item 內 year / date+title 各自 sticky；scroll container＝.item-albums（top:0 黏其上緣），換筆自然換手。 */
@@ -821,10 +821,10 @@
    → 左右 padding 留 clearance + 等量負 margin 抵消。垂直不用補（pt-lg pb-lg 已夠）。 */
 #exhibitions-type-filter,
 #visits-type-filter {
-  padding-left: 16px;
-  padding-right: 16px;
-  margin-left: -16px;
-  margin-right: -16px;
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+  margin-left: calc(var(--spacing-sm) * -1);
+  margin-right: calc(var(--spacing-sm) * -1);
 }
 
 /* 手機直向：chip 旋轉頂角凸進上方 section-bar box 3~8px，部分裝置依 paint order 被蓋成「被切」→ padding-top 推出正向 clearance。
@@ -837,15 +837,22 @@
 }
 
 /* ===== Activities Search Bar ===== */
-/* search bar scroll hide */
+/* search bar scroll hide＝clip-reveal 往上收（user 2026-10-26：不淡、不要「底邊往上蓋掉」）：列收高度（overflow:hidden 當遮罩）
+   同拍內容 -100% 往上移出列頂；內容底恆在列底之上＝只從頂邊裁。位移掛子元素：列本身的 transform 是進場 list-reveal-row 在用。
+   max-height 只比實際列高（29）留點餘裕：設太大前段在空轉、收合擠到尾段 */
 .activities-search-inner {
-  transition: max-height var(--dur-fast) ease, opacity var(--dur-fast) ease, padding var(--dur-fast) ease;
-  max-height: 80px;
+  transition: max-height var(--dur-fast) ease, padding var(--dur-fast) ease;
+  max-height: 40px;
   overflow: hidden;
+}
+.activities-search-inner > * {
+  transition: transform var(--dur-fast) ease;
+}
+.activities-filter-bar.bar-hidden .activities-search-inner > * {
+  transform: translateY(-100%);
 }
 .activities-filter-bar.bar-hidden .activities-search-inner {
   max-height: 0;
-  opacity: 0;
   pointer-events: none;
   padding-bottom: 0;
   /* 連 4px border-bottom 一起收：max-height:0 + overflow:hidden 不裁 border，殘留黑線會像分割線 */
@@ -855,7 +862,7 @@
 .activities-search-input::placeholder {
   /* 淡化文字：rgba(theme-fg) 50% 一條覆蓋三 mode */
   color: rgba(var(--theme-fg-rgb), 0.5);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 
 .activities-search-inner {
@@ -893,8 +900,8 @@
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: var(--theme-fg, #000);
-  color: var(--theme-bg, #fff);
+  background: var(--theme-fg, var(--color-black));
+  color: var(--theme-bg, var(--color-white));
   font-size: 32px;
   transform: rotate(-8deg);
   clip-path: inset(-12px);
@@ -911,10 +918,10 @@ body.mode-color .tl-icon-btn-inner {
    atlas.css／cards.css 各自寫同款）：hover 隨機三原色（JS bindNavBtnHover 掛 data-nav-hover + --nav-hover，桌面才掛），
    開合鈕 .active 沿用點下時的色（--nav-active，JS 寫）。瞬切。mode3 無 rgb → 翻反色。(0,5,1) 壓上方 mode3 (0,2,1)。 */
 @media (hover: hover) and (min-width: 768px) {
-  body:not(.mode-color) [data-nav-hover]:not(.active):hover > .tl-icon-btn-inner { background: var(--nav-hover, var(--color-pink)); color: #000; }
+  body:not(.mode-color) [data-nav-hover]:not(.active):hover > .tl-icon-btn-inner { background: var(--nav-hover, var(--color-pink)); color: var(--color-black); }
   body.mode-color [data-nav-hover]:not(.active):hover > .tl-icon-btn-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
 }
-body:not(.mode-color) button.active > .tl-icon-btn-inner { background: var(--nav-active, var(--color-pink)); color: #000; }
+body:not(.mode-color) button.active > .tl-icon-btn-inner { background: var(--nav-active, var(--color-pink)); color: var(--color-black); }
 body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-inverse); color: var(--theme-fg); }
 
 /* toggle 鈕放進與 list 卡同款 20-col grid → 落 col-3（list 卡從 col-4，見 .tl-list-cell） */
@@ -989,7 +996,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   inset: var(--spacing-sm) var(--spacing-lg);   /* 上下 sm、左右 lg（比照 slide-in container-padding） */
   overflow-y: auto;
   padding-right: var(--spacing-md);  /* 文字 ↔ scrollbar gap */
-  color: #000;           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
+  color: var(--color-black);           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
 }
 
 /* 只讓內層 .tl-list-years 捲動（外層不捲、padding-right 移過去）→ scrollbar 不含標頭。 */
@@ -998,7 +1005,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   flex-direction: column;
   overflow: hidden;              /* 捲動移到 .tl-list-years */
   padding-right: 0;              /* padding-right 移到 .tl-list-years */
-  right: 12px;                   /* scrollbar↔卡片右緣＝vision 卡 0.6em@text-md（同 playlist） */
+  right: 6px;                    /* scrollbar↔卡片右緣＝內文字級的字卡右內距：內文 text-s → --card-pad-s 右 6（user 2026-10-26，同 pop up 看內文） */
 }
 .tl-list-years {
   flex: 1 1 auto;
@@ -1043,7 +1050,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   line-height: var(--line-height-s);
   margin: 0 0 var(--space-en-zh-s);
   font-size: var(--font-size-s); /* 小標＝內文大小、保留 bold */
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
 }
 .tl-list-cols {
   display: grid;
@@ -1134,7 +1141,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 
 .list-scroll::-webkit-scrollbar-thumb,
 #library-year-picker-wrap::-webkit-scrollbar-thumb {
-  background: #000000 !important;
+  background: var(--color-black) !important;
   border-radius: 0 !important;
   border: none !important;
 }
@@ -1178,7 +1185,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   .list-scroll,
   #library-year-picker-wrap {
     scrollbar-width: thin;
-    scrollbar-color: #000000 transparent;
+    scrollbar-color: var(--color-black) transparent;
   }
   /* dsd events：三 mode 都用 var(--theme-fg)（同上 webkit 規則）*/
   .dsd-events-scroll {
@@ -1231,7 +1238,7 @@ body.mode-color .gallery-ph > span {
 .list-ref-label {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--spacing-xs);
   white-space: nowrap;
 }
 
@@ -1337,11 +1344,10 @@ body.mode-color .gallery-ph > span {
   100% { transform: translateX(-50%); }
 }
 
-/* hover 配色對調（index-marquee.js 桌面 hover 加 .is-swap）：bar 吃數字方塊的 rgb（--hm-accent）＋黑字、方塊變 bar 色。
-   方塊／bar／字色都是 JS inline → !important；mode2/mode3 見 inverse.css / color.css */
-.hm-banner-row.is-swap .hm-banner-num { background: #000 !important; color: #fff !important; }
+/* hover 配色（index-marquee.js 桌面 hover 加 .is-swap）：bar 換成該條的 rgb（--hm-accent）＋黑字（前綴色塊 2026-10-26 拿掉）。
+   bar／字色都是 JS inline → !important；mode2/mode3 見 inverse.css / color.css */
 .hm-banner-row.is-swap .homepage-marquee-link { background: var(--hm-accent) !important; }
-.hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) { color: #000 !important; }
+.hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) { color: var(--color-black) !important; }
 
 /* news banner 疊層：首屏 section 與 stack 都不建 stacking context（z auto）→ banner 直接跟 header(9999) 比。
    平常 15＝浮卡層(0)之上、WATCH 卡(20)之下；桌面 hover 那則拉到 10000，海報蓋過 logo（user 2026-10-19）——
@@ -1454,8 +1460,8 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
    .dshow-next-title > .dshow-title-inner（setupNextProject setTitle 注入）。桌面 max-width 當換行界、手機以卡寬為界。 */
 .dshow-next-title {
   white-space: normal;
-  /* line-height 與 hero 標題（.dshow-hero-title）一致（理由見該處）；!important 蓋 text-xl utility 綁的 lh。 */
-  line-height: 1.1 !important;
+  /* 字卡行距＝字級 xl 的 token（user 2026-10-26）；!important 蓋 text-xl utility 綁的 lh。 */
+  line-height: var(--line-height-xl) !important;
 }
 .dshow-next-title .dshow-title-inner {
   white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap */
@@ -1481,9 +1487,9 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   white-space: normal;
   /* wrap 上限＝容器右緣；實際色卡寬由 JS hugHeroTitleWidths 收到最寬行 + padding。 */
   max-width: calc(100vw - 2 * var(--container-padding));
-  /* text-2xl 的 line-height:1 太緊：換行時降部撞下一行、末行降部被 clip-reveal wrapper 切 → 用 line-height 同時給行間與末行留空間。
-     中英都吃此規則（色卡高一致）。!important＝蓋 text-2xl utility（同特異度、source order 較後）。 */
-  line-height: 1.1 !important;
+  /* 字卡行距＝字級 2xl 的 token 1（user 2026-10-26 明確要求統一，取代原本為降部留空的 1.1：換行時降部可能貼下一行／被 clip-reveal wrapper 切）。
+     中英都吃此規則（色卡高一致）。!important＝蓋 h1 base 的 3xl 行距。 */
+  line-height: var(--line-height-2xl) !important;
 }
 .dshow-hero-title .dshow-title-inner {
   white-space: normal;   /* 覆寫全站共用 .dshow-title-inner 的 nowrap，讓 hero 標題能換行 */
@@ -1513,7 +1519,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 .works-playlist-inner {
   position: absolute;
   inset: var(--spacing-sm);
-  right: 12px;                        /* scrollbar↔色塊右緣＝vision 卡 0.6em@text-md（20px） */
+  right: 6px;                         /* scrollbar↔色塊右緣＝同區 Works 說明文字卡的右內距（--card-pad-s 的 6；user 2026-10-26 只調這段） */
   overflow-y: auto;
   overflow-x: hidden;                 /* 縮圖旋轉溢寬不生水平軸（旋角靠 padding-left 容納） */
   display: flex;
@@ -1546,7 +1552,8 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   height: 100%;
   object-fit: cover;
 }
-.works-playlist-item.is-active { outline: 2px solid #000; outline-offset: -2px; }
+/* 當前播放＝lightbox 縮圖同款：2px 框外推 2px 留縫（activities-lightbox renderMain） */
+.works-playlist-item.is-active { outline: 2px solid var(--color-black); outline-offset: 2px; }
 
 /* History box 學制小標：手機英中兩行、桌面單行（timeline.js splitDivision 以首個 CJK 切分）。gap：h5=text-lg → --space-en-zh-lg。 */
 @media (max-width: 767px) {
@@ -1570,7 +1577,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
     overflow-y: hidden;               /* 旋角垂直投影靠上下 padding 容納，不生直向軸 */
     scrollbar-width: none;            /* 手機橫捲藏 bar、手指滑 */
     padding: 10px var(--spacing-sm);
-    right: var(--spacing-sm);         /* 還原桌面 scrollbar 12px 保留位（手機無 thumb） */
+    right: var(--spacing-sm);         /* 還原桌面 scrollbar 保留位（手機無 thumb） */
   }
   .works-playlist-inner::-webkit-scrollbar { display: none; }
   .works-playlist-item {

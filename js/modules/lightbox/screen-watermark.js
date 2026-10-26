@@ -13,26 +13,38 @@ export function applyScreenWatermark(wmEl) {
   if (!wmEl) return;
   const mob = window.innerWidth < 768;
   const FS = mob ? 14 : 24;                         // 手機字級縮小
-  const WEIGHT = 700, FAM = "Inter,'Noto Sans TC','Noto Sans JP','Noto Sans SC',sans-serif";
+  const WEIGHT = getComputedStyle(document.documentElement).getPropertyValue('--font-weight-bold').trim() || 700;
+  const FAM = "Inter,'Noto Sans TC','Noto Sans JP','Noto Sans SC',sans-serif";
+  const FONT = `${WEIGHT} ${FS}px ${FAM}`;
   const LH = Math.round(FS * (mob ? 4.4 : 5.6));    // 行距倍率：手機調小 → 垂直更密；tile 高 = 2*LH
   const SEP = '  ';                   // 2 個 em space(U+2003) 分隔 → 全站 marquee 統一 2em gap（同 index-marquee / library-card 色卡）；textContent 只能用字元不能用 &emsp;
   const EN_UNIT = 'Department of Communications Design, Shih Chien University' + SEP;
   const ZH_UNIT = '實踐大學媒體傳達設計學系' + SEP;
-  const measure = (s) => {
-    const sp = document.createElement('span');
-    sp.textContent = s;
-    sp.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font:${WEIGHT} ${FS}px ${FAM}`;
-    document.body.appendChild(sp);
-    const w = Math.ceil(sp.getBoundingClientRect().width);
-    sp.remove();
-    return w;
-  };
+  // 用 canvas 畫不用 SVG data-URI：圖片 SVG 是隔離文件、讀不到頁面 webfont → 吃訪客系統字真 700；
+  // canvas 吃頁面 @font-face → 跟全站一樣被 Google Fonts 400..600 夾住
+  const dpr = window.devicePixelRatio || 1;
   const layer = (unit, baseY) => {
-    const w = measure(unit);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${LH * 2}"><text x="0" y="${baseY}" xml:space="preserve" fill="rgba(0,0,0,0.08)" font-size="${FS}" font-weight="${WEIGHT}" font-family="${FAM}" text-anchor="start">${unit.replace(/&/g, '&amp;')}</text></svg>`;
-    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = FONT;
+    const w = Math.ceil(ctx.measureText(unit).width);
+    ctx.canvas.width = Math.round(w * dpr);
+    ctx.canvas.height = Math.round(LH * 2 * dpr);   // 改 canvas 尺寸會重置 ctx 狀態 → 下面重設
+    ctx.scale(dpr, dpr);
+    ctx.font = FONT;
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillText(unit, 0, baseY);
+    return { img: `url("${ctx.canvas.toDataURL()}")`, size: `${w}px ${LH * 2}px` };
   };
-  wmEl.style.backgroundImage = `${layer(EN_UNIT, Math.round(LH * 0.72))},${layer(ZH_UNIT, Math.round(LH * 1.72))}`;
+  const draw = () => {
+    const en = layer(EN_UNIT, Math.round(LH * 0.72)), zh = layer(ZH_UNIT, Math.round(LH * 1.72));
+    wmEl.style.backgroundImage = `${en.img},${zh.img}`;
+    wmEl.style.backgroundSize = `${en.size},${zh.size}`;
+  };
+  draw();
+  // 中文字子集可能還沒載（canvas 會先畫 fallback 字）→ 載完重畫；期間被 clear 就不畫回來
+  if (!document.fonts.check(FONT, EN_UNIT + ZH_UNIT)) {
+    document.fonts.load(FONT, EN_UNIT + ZH_UNIT).then(() => { if (wmEl.style.backgroundImage !== 'none') draw(); });
+  }
   wmEl.style.backgroundRepeat = 'repeat, repeat';
   wmEl.style.inset = '-50%';                        // 放大 → rotate(-30) 後仍蓋滿；外層 overflow:hidden 裁邊
   wmEl.style.transform = 'rotate(-30deg)';

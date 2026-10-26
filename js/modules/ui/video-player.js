@@ -218,9 +218,9 @@ export function hydrateHlsThumbs(root) {
 
 /**
  * @param {string} videoUrl
- * @param {{ getCardRect?: () => DOMRect, onCloseAnimComplete?: () => void, freezeCard?: (frozen: boolean) => void, getCardBg?: () => string }} [opts]
+ * @param {{ getCardRect?: () => DOMRect, onCloseAnimComplete?: () => void, freezeCard?: (frozen: boolean) => void, getCardBg?: () => string, getCardRadius?: () => string }} [opts]
  */
-export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, freezeCard, getCardBg } = {}) {
+export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, freezeCard, getCardBg, getCardRadius } = {}) {
   const overlay       = document.getElementById('video-player-overlay');
   if (_videoPlayerInstance && _videoPlayerInstance._overlay === overlay) return _videoPlayerInstance;
   const video         = /** @type {HTMLVideoElement | null} */ (document.getElementById('video-player'));
@@ -271,13 +271,16 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   // ── 預載入影片（不顯示 overlay、不播放）──────────────
   // 在 cover 動畫啟動時呼叫，讓 video 在 cover 期間 buffer 資料；
   // openPlayer 時 .play() 直接吃 buffered 資料，黑色過渡縮到 <100ms
-  function preloadVideo() {
+  // url：singleton 共用一個播放器，首頁多則影片 news 每次開帶自己的網址（不帶＝沿用上一支）
+  function preloadVideo(url) {
+    if (url) videoUrl = url;
     // HLS 走 hls.js、其餘原生；attachVideoSource 內有 _srcUrl 記號，重複呼叫不會重掛
     attachVideoSource(video, videoUrl);
   }
 
   // ── 開啟播放器 ──────────────────────────────────────────
-  function openPlayer({ accentColor = '#00FF80' } = {}) {
+  function openPlayer({ accentColor = SCCDHelpers.ACCENT_COLORS[1], url = '' } = {}) {
+    if (url) videoUrl = url;
     // 全部三原色（綠/粉/藍）底色一律配黑色 icon
     const uiIconColor = '#000';
     attachVideoSource(video, videoUrl); // 萬一沒 preload 也 fallback（_srcUrl 記號避免重掛）
@@ -285,7 +288,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     document.body.style.overflow = 'hidden';
     // html { scrollbar-gutter: stable } 保留 10px gutter；overlay fixed inset:0 蓋不到，
     // 預設 track 白色會在 overlay 右側露出。把 html bg 染黑讓 gutter 條隱形
-    document.documentElement.style.backgroundColor = '#000';
+    document.documentElement.style.backgroundColor = 'var(--color-black)';
 
     // 手機：用瀏覽器原生 video UI、video 撐滿視窗寬、custom controls 隱藏、左上顯示返回鍵
     // 桌面：保留現有 custom controls 流程（accent 色塊 + 自定按鈕）
@@ -391,7 +394,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
     // 已用上方 freezeCard 凍住卡片對齊解掉，故可安全 fade 回卡片色。
     const cardBg = getCardBg?.() || '#000';
     const clone = document.createElement('div');
-    clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:#000; border-radius:50%; z-index:10001; transform:scale(${fromScale}); transform-origin:center center;`;
+    clone.style.cssText = `position:fixed; left:${cardCx}px; top:${cardCy}px; width:${rect.width}px; height:${rect.height}px; margin-left:${-rect.width/2}px; margin-top:${-rect.height/2}px; background:var(--color-black); border-radius:${getCardRadius?.() || '50%'}; z-index:10001; transform:scale(${fromScale}); transform-origin:center center;`;   // 形狀跟卡：圓卡 50%、首頁影片 news banner 方（index-marquee getCardRadius）
     document.body.appendChild(clone);
 
     overlay.style.display = 'none';

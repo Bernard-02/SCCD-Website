@@ -9,7 +9,7 @@
 
 import { enterLightboxMode, exitLightboxMode } from './../lightbox/lightbox-shell.js';
 import { DUR, EASE } from './motion.js';
-import { ensureCardMask, revealHidden, randomRevealDir } from './scroll-animate.js';
+import { ensureCardMask, revealHidden, randomRevealDir, navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from './scroll-animate.js';
 import { bindArrowSpin } from './arrow-spin.js';
 import { registerPageExit } from './page-exit.js';
 
@@ -35,6 +35,10 @@ function randomAccent() {
 // 斜著滑入＝「卡片從角落進來」（user 2026-10-01 報，headless 重現 open#2 首幀 x=-85% y=85%）
 let revealDir = 'bottom';
 let backDir = 'bottom';   // 角上返回鍵自己的 clip-reveal 方向（同 slide-in 返回鍵：跟卡片各抽各的）
+// 開場順序同 lightbox（user 2026-10-26）：空白卡片先進場、落定後卡內 UI（QR 以外）＋角上返回鍵一起 clip-reveal（不 stagger）；
+// QR 照舊——快取命中跟卡片一起、沒命中 onload 才滑入
+const UI_IDS = ['share-copy-qr-btn', 'share-download-btn', 'share-url-text', 'share-url-copy-btn'];
+let entrance = null;   // 開場 timeline＋各顆 navChipTween：關卡／重開時一起砍
 
 
 function getQrEndpoint(url, size = 200) {
@@ -77,7 +81,7 @@ const LIGHTBOX_HTML = `
     <!-- 版面（user 2026-10-01 截圖＋二改＋三改）：QR ／ 複製圖片・下載 ／ 網址＋小複製鈕（標題列已撤，返回鍵改騎卡片左上角）。
          上下 padding＝各列間距＝同一個 lg 值（user「上下一致、內容 gap 也用這個 padding」）；
          網址列寬＝QR 寬 200 置中＝左右緣對齊 QR，網址過長 CSS 省略號截斷 -->
-    <div id="share-lightbox-card" style="background:#fff; color:#000; width:320px; padding: var(--spacing-lg) var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
+    <div id="share-lightbox-card" style="background:var(--color-white); color:var(--color-black); width:320px; padding: var(--spacing-lg) var(--spacing-md); display:flex; flex-direction:column; gap: var(--spacing-lg);">
       <div class="flex justify-center">
         <!-- mix-blend-mode:multiply → 白底像素乘上卡片色 = 視覺透明；黑模組維持黑（白卡 mode3 也無害）。下載走 canvas 另存白底原圖，不受此影響 -->
         <img id="share-qr-img" src="" alt="QR Code" style="width:200px;height:200px;display:block;opacity:0;transition:opacity 0.25s ease;mix-blend-mode:multiply;">
@@ -100,8 +104,8 @@ const LIGHTBOX_HTML = `
     <!-- 返回鍵（user 2026-10-01 三改）：全站黑方塊箭頭鈕（同 slide-in .slide-in-back-square）騎在卡片左上角——中心＝角
          （margin 拉回半顆，不用 translate＝transform 留給 hover 抽角）。外層＝遮罩（overflow:clip）、內層 #share-back-inner
          平移做四向 clip-reveal。黑底白箭頭＝同 slide-in 返回鍵（user 2026-10-01 四改；原反色白底黑箭頭已撤） -->
-    <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:48px; height:48px; margin:-24px 0 0 -24px; padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
-      <span id="share-back-inner" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:#000; color:#fff;">
+    <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:48px; height:48px; margin:calc(var(--spacing-md) * -1) 0 0 calc(var(--spacing-md) * -1); padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
+      <span id="share-back-inner" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:var(--color-black); color:var(--color-white);">
         <span class="icon icon-arrow-left icon-xl"></span>
       </span>
     </button>
@@ -187,19 +191,29 @@ function openShareLightbox(url, cardBg, backBg) {
     ensureCardMask(card);
     const stage = document.getElementById('share-lightbox-stage');
     if (stage) gsap.set(stage, { rotation: SCCDHelpers.getRandomRotation() });
-    gsap.fromTo(card,
+    entrance?.kill();
+    // 卡內 UI 先藏（遮罩＝元素自身形狀，navChipHidden；display:flex 之後才量得到尺寸）
+    const ui = /** @type {HTMLElement[]} */ (UI_IDS.map(id => document.getElementById(id)).filter(Boolean));
+    const hidden = ui.map(el => navChipHidden(el, pickNavDir(el)));
+    ui.forEach((el, i) => Object.assign(el.style, hidden[i]));
+    const tl = gsap.timeline();
+    const live = [];
+    tl.fromTo(card,
       revealHidden(revealDir),
       { xPercent: 0, yPercent: 0, duration: DUR.slow, ease: EASE.enter, overwrite: true }
     );
-    // 角上返回鍵：每次開重抽微傾角＋隨機四向，卡片滑到一半（0.3s，同 slide-in 返回鍵跟 panel 的 offset）自己 clip-reveal 進場；
+    // 卡片落定 → 角上返回鍵＋卡內 UI 同拍 clip-reveal（時長同 lightbox 底部 UI）。返回鍵每次開重抽微傾角＋隨機四向；
     // fromTo 兩軸都寫＝洗掉上次退場殘留的另一軸
     const closeBtn = document.getElementById('share-lightbox-close');
     /** @type {any} */ (closeBtn)?._arrowSpin?.reroll();
     backDir = randomRevealDir();
-    gsap.fromTo('#share-back-inner',
+    tl.fromTo('#share-back-inner',
       revealHidden(backDir),
-      { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, delay: 0.3, overwrite: true }
+      { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true }
     );
+    tl.call(() => ui.forEach((el, i) => live.push(navChipTween(el, hidden[i], NAV_CHIP_SHOWN,
+      { duration: DUR.reveal, ease: EASE.enter, onComplete: () => { el.style.translate = ''; el.style.clipPath = ''; } }))), undefined, '<');
+    entrance = { kill: () => { tl.kill(); live.forEach(t => t.kill()); } };
   }
 
   if (!shareOpen) {
@@ -247,6 +261,7 @@ function closeShareLightbox() {
   // 退場 clip-reveal：卡片沿進場方向反向滑出遮罩（同 dir、來去同一側）
   if (typeof gsap !== 'undefined') {
     closing = true;
+    entrance?.kill(); entrance = null;   // 開場還沒跑完就關：UI 停在半揭也無妨（跟卡片一起滑出），重開會重藏
     // 角上返回鍵沿自己的進場方向滑回
     gsap.to('#share-back-inner', { ...revealHidden(backDir), duration: DUR.medium, ease: EASE.exit, overwrite: true });
     gsap.to(card, {

@@ -7,7 +7,7 @@
   padding: 0 0 4px;
   font-family: inherit;
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   cursor: var(--cursor-pointer);
   white-space: nowrap;
   display: flex;
@@ -145,7 +145,7 @@
   z-index: 1;
   display: flex;
   visibility: hidden;    /* 預設隱藏，setAsColor 時設為 visible */
-  color: #000;
+  color: var(--color-black);
 }
 /* 左右邊直排字條：中文直立字墨水偏右、右緣超出 ~1.3px 被 overflow 切 → 裁切窗只往右多 3px（文字不動）。
    進場由右滑入時字墨離 inner 左緣 ≥4px，多的 3px 不會先露字（library-card.js marqueeEnterShift） */
@@ -156,9 +156,9 @@
   display: inline-block;
   white-space: nowrap;
   animation: color-rect-marquee 5s linear infinite;
-  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
+  font-family: 'Inter', 'Noto Sans TC Title', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;   /* xl 大字中文縮 88%（fonts-zh-title.css） */
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: inherit;
   /* 1.05 貼字（32px 字墨水高 31px）：1.2 的窗上下多 7.4px 死空間、marquee translate ±100% 多跑 24%。
      ⚠️與 library-card.js PROBE_CSS 的 line-height 同步（旋轉邊厚度補償由 probe 量） */
@@ -179,9 +179,9 @@
   overflow: hidden;
   white-space: nowrap;
   padding: var(--spacing-xs) var(--spacing-lg) 12px;
-  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
+  font-family: 'Inter', 'Noto Sans TC Title', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;   /* xl 大字中文縮 88%（fonts-zh-title.css） */
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   line-height: 1.2;
   color: var(--lib-fg);
 }
@@ -285,7 +285,7 @@
 /* ── Press year group ────────────────────────────────────────── */
 .press-year-label {
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   /* 不設 padding-top（年份要與左側 picker 第一個年份同頂）：padding-top＋負 margin-top 互抵的寫法，
      第一個 block 的負 margin 會被 scroll 容器頂緣 clamp 掉 */
   padding: 0 0 var(--spacing-sm);   /* 年份↔第一個 item＝sm（四 panel 統一） */
@@ -347,8 +347,8 @@
 .press-item-title-en,
 .press-item-title-zh {
   font-size: var(--font-size-s);
-  font-weight: 700;
-  line-height: 1.3;
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-s);
   overflow: hidden;
   white-space: nowrap;
   display: block;
@@ -376,7 +376,7 @@
 }
 .press-item-subtitle {
   font-size: var(--font-size-xs);
-  font-weight: 400;
+  font-weight: var(--font-weight-regular);
   color: var(--lib-fg);
   white-space: nowrap;
   overflow: hidden;
@@ -621,7 +621,7 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
   padding-left: var(--spacing-sm);
   padding-right: var(--spacing-sm);
   /* item 底 padding 搬到 row：開 ref 時間距全靜態（不 tween margin/padding），ref wrap 直接貼 item 底邊 */
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--spacing-xs);
 }
 /* 每欄文字遮罩（.award-cell-mask，各欄從自己框邊進場）。mask 是 grid/flex item → min-width:0（不設＝marquee 長字撐寬 fr 欄）。
    揭露期 item 掛 .award-cell-clip 才 clip；平時 visible＝ref chevron 旋轉角不被切 */
@@ -664,7 +664,7 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
   color: var(--lib-bg) !important;
 }
 #library-awards-list .award-ref-row {
-  font-family: 'Inter', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans SC', sans-serif;
+  font-family: var(--font-en), var(--font-zh);
 }
 /* ref 文字跟主表列同字級：<p> inherit 跟兩個斷點走，蓋過全域 p{font-size:p2} 與 .text-s（特異度 1,1,1） */
 #library-awards-list .award-ref-row p {
@@ -688,7 +688,7 @@ body.mode-color #library-awards-list .award-record-item[style*="background"] {
 }
 /* mode-inverse：整列保留 accent 原色（同 activities），文字翻黑（accent 底配黑字）。 */
 body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
-  color: #000 !important;
+  color: var(--color-black) !important;
 }
 
 /* award row 點擊冒出的 icon（spawnAwardIcon，fixed 在 body、吃不到 #library-card 的 --lib-fg）：色跟 library 卡走非 page；
@@ -734,16 +734,16 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));   /* 桌面一列 4 本；矮橫向 3、手機 2 另有規則 */
   /* row-gap＝column-gap ×1.5（同 faculty 卡片） */
-  row-gap: calc(1.5 * clamp(2rem, 3.5vw, 50px));
+  row-gap: calc(1.5 * clamp(var(--spacing-lg), 3.5vw, 50px));
   /* column-gap：≥1440 固定 50；以下跟 faculty 卡片牆同一條 3.5vw 等比縮、下限 2rem。手機另有 !important */
-  column-gap: clamp(2rem, 3.5vw, 50px);
+  column-gap: clamp(var(--spacing-lg), 3.5vw, 50px);
   /* 標題與第一排卡片的留白放 sticky 年份標題的 padding-bottom、不放這裡：deep-link 對齊第一排時自然貼齊標題底緣，
      且留白成為 sticky 不透明背景的一部分（捲動時遮卡） */
   min-width: 0;
 }
 /* 年份組之間＝同年份上下排間距（同 row-gap 式）；年份標題列另加、不算進此間距 */
 #library-files-list {
-  gap: calc(1.5 * clamp(2rem, 3.5vw, 50px));
+  gap: calc(1.5 * clamp(var(--spacing-lg), 3.5vw, 50px));
 }
 
 /* 年份 picker 最小寬（≈4 位年份）：某分類無年份時 max-content 欄不塌成 0、右側內容不走位 */
@@ -889,14 +889,14 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 .files-item-subtitle-tag {
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: rgba(var(--lib-fg-rgb), 0.5);
   white-space: nowrap;
 }
 /* 分類標籤 regular＋全不透明（蓋 base bold＋0.5）；album 與 files 一致 */
 #library-album-list .files-item-subtitle-tag,
 #library-files-list .files-item-subtitle-tag {
-  font-weight: 400;
+  font-weight: var(--font-weight-regular);
   color: var(--lib-fg);
 }
 /* Album 標題→分類標籤＝xs：album .files-item-titles 只有兩個子（標題 block＋tag），外層 gap 即 title→tag。只 scope album */
@@ -977,8 +977,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 .files-item-title-en,
 .files-item-title-zh {
   font-size: var(--font-size-s);
-  font-weight: 700;
-  line-height: 1.3;
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-s);
   overflow: hidden;
   white-space: nowrap;
   display: block;
@@ -993,8 +993,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 .files-item-subtitle-en,
 .files-item-subtitle-zh {
   font-size: var(--font-size-xs);
-  font-weight: 400;
-  line-height: 1.3;
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-xs);
   color: var(--lib-fg);
   overflow: hidden;
   white-space: nowrap;
@@ -1014,7 +1014,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   font-family: inherit;
   font-size: var(--font-size-xs);
   cursor: var(--cursor-pointer);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--lib-fg);
 }
 
@@ -1027,7 +1027,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   font-family: inherit;
   font-size: var(--font-size-xs);
   cursor: var(--cursor-pointer);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--lib-fg);
 }
 
@@ -1550,7 +1550,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     white-space: nowrap;
   }
   .cat-btn-zh {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     opacity: 0.85;
   }
   /* year-picker-wrap (nth-child 3) 升級後 order:4 */

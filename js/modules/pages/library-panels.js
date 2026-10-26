@@ -129,7 +129,7 @@ function ensureEmptyState(listEl) {
     el.className = 'search-empty-state hidden';
     // absolute 置中於 scroll 容器（left/right:0 + text-align:center 水平、top:50%+translateY 垂直），不佔流不受 list 高度影響
     el.style.cssText = 'position:absolute; top:50%; left:0; right:0; transform:translateY(-50%); text-align:center;';
-    el.innerHTML = '<p style="font-size: var(--font-size-xs); font-weight: 700;">No Result</p><p style="font-size: var(--font-size-xs); font-weight: 700;">無結果</p>';
+    el.innerHTML = '<p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);">No Result</p><p style="font-size: var(--font-size-xs); font-weight: var(--font-weight-bold);">無結果</p>';
     if (listEl.parentElement) listEl.parentElement.style.position = 'relative'; // 作為 absolute 置中基準
     listEl.insertAdjacentElement('afterend', el);
   }
@@ -259,7 +259,9 @@ function makeScrollPager(wrap, col, getItems, labels) {
   const more = document.createElement('button');
   more.className = 'year-more-btn';
   more.setAttribute('aria-label', labels.more);
-  more.innerHTML = '<span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span>';  // base 朝左，-90＝朝下
+  // base 朝左，-90＝朝下。inner＝chevron 自己的框（flex＝高貼 icon、不吃行高）：進退場 clip-reveal 動它不動整顆鈕
+  //   （鈕含上 padding＝遮罩比 chevron 大，user 2026-10-26）；icon 本身轉了 -90 不能直接動（clip 會跟著轉成左右）
+  more.innerHTML = '<span class="year-more-inner" style="display:flex;"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(-90deg);"></span></span>';
   const up = document.createElement('button');
   up.className = 'year-less-btn';
   up.setAttribute('aria-label', labels.less);
@@ -329,6 +331,7 @@ function attachCatPager(catEl, onReset) {
   const btn = makeResetBtn('重設分類篩選 Reset category filter', onReset);
   const { up, more, sync } = makeScrollPager(catEl, group, () => catEl.querySelectorAll(':scope > button'),
     { more: '下一批分類 More categories', less: '上一批分類 Previous categories' });
+  const moreBox = /** @type {HTMLElement} */ (more.firstElementChild);
   group.append(up, more, makeResetSlot(btn));
   sync();
   // 首開進場排程中才出現（資料 async 晚到才建／下面 fit 從 none 改回顯示）：照 revealPanelChrome 排的時間點補進場＝仍等選項出完（user 2026-10-19）。
@@ -340,7 +343,7 @@ function attachCatPager(catEl, onReset) {
     els.forEach(el => chromeHide(el, dir));
     requestAnimationFrame(() => requestAnimationFrame(() => els.forEach(el => chromePlay(el, Math.max(0, wait / 1000 - 0.033)))));
   };
-  enterLate([up, more]);
+  enterLate([up, moreBox]);
   // 選項放得下（沒到 2/3 欄）＝不出 chevron（user 2026-10-19；documents 只有 4 個）。判斷「沒有 chevron 時放不放得下」＝框高＋（顯示中的）chevron 高，
   // 免 chevron 本身佔掉的高把框擠到溢出；只在結果變了才動 display（每次先藏再量會打斷 chevron 的進場 transition）。框尺寸變（panel 顯示、resize、標籤載入）才重判
   const fit = () => {
@@ -349,7 +352,7 @@ function attachCatPager(catEl, onReset) {
     if (fits !== shown) return;
     more.style.display = fits ? 'none' : '';
     /** @type {any} */ (btn)._setExtra(fits ? Math.max(0, (parseFloat(getComputedStyle(catEl).rowGap) || 0) - (YEAR_RESET_SLOT_H - YEAR_RESET_ICON)) : 0);
-    if (!fits) enterLate([more]);
+    if (!fits) enterLate([moreBox]);
   };
   const ro = new ResizeObserver(fit);
   ro.observe(catEl);
@@ -375,14 +378,14 @@ function attachYearReset(pickerEl, onReset) {
 
   if (window.innerWidth < 768) {
     // will-change：sticky 在橫向 scroller 內拖動時逐幀 subpixel 重繪會抖，自有合成層改用位移合成
-    btn.style.cssText = 'order:1;position:sticky;right:0;background:var(--lib-bg);border:none;font-family:inherit;cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);white-space:nowrap;will-change:transform;display:none;';
+    btn.style.cssText = 'order:1;position:sticky;right:0;background:var(--lib-bg);border:none;font-family:inherit;cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);white-space:nowrap;will-change:transform;display:none;';
     pickerEl.appendChild(btn);
     return btn;
   }
 
   grid.style.position = 'relative';
   const gcs = getComputedStyle(grid);
-  const BTN_CSS = 'position:absolute;white-space:nowrap;text-align:left;border:none;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);display:none;';
+  const BTN_CSS = 'position:absolute;white-space:nowrap;text-align:left;border:none;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);display:none;';
   if (SCCDHelpers.isLandscapeGate()) {
     wrap.style.paddingBottom = 'var(--spacing-xl)';   // 末年份捲上時停在按鈕上方不被蓋
     btn.style.cssText = BTN_CSS + 'background:var(--lib-bg);padding:var(--spacing-xs) 0;';
@@ -417,7 +420,7 @@ function revealLateYearBtns(/** @type {HTMLElement} */ pickerEl) {
   if (!panel?.dataset.libChromeShown || pickerEl.offsetParent === null || prefersReducedMotion()) return;
   // 下一批 chevron（attachYearReset 剛建）同批：不然它會比年份先冒出來
   const btns = /** @type {HTMLElement[]} */ ([...pickerEl.querySelectorAll('button[data-year]'),
-    ...[...panel.querySelectorAll('.year-more-btn')].filter(el => !el.closest('.lib-cat-group'))]);
+    ...[...panel.querySelectorAll('.year-more-inner')].filter(el => !el.closest('.lib-cat-group'))]);
   const dir = chromeDir();
   btns.forEach(b => chromeHide(b, dir));
   requestAnimationFrame(() => requestAnimationFrame(() => btns.forEach(b => chromePlay(b, 0))));
@@ -450,7 +453,7 @@ function createYearPicker(pickerEl, years, onFilter) {
     btn.textContent = year;
     btn.dataset.year = year;
     btn.setAttribute('aria-pressed', 'false');
-    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);';  // color transition 在 library.css（inline 會被 reveal 收尾清掉）
+    btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);';  // color transition 在 library.css（inline 會被 reveal 收尾清掉）
     btn.addEventListener('click', () => {
       const adding = !selected.has(year);
       if (selected.has(year)) { selected.delete(year); } else { selected.add(year); }
@@ -949,8 +952,8 @@ function spawnAwardIcon(x, y) {
   gsap.timeline({ onComplete: () => el.remove() })
     .fromTo(el, { xPercent: -50, yPercent: -50, scale: 0, x: 0, y: 0, rotation: rot },
                 { scale: 1, duration: 0.18, ease: 'back.out(1.8)' }, 0)
-    .to(el, { x: dx, y: dy, duration: 0.66, ease: 'power2.out' }, 0)       // 直線射出、減速
-    .to(el, { scale: 0, duration: 0.2, ease: 'power2.in' }, 0.46);         // 收掉
+    .to(el, { x: dx, y: dy, duration: 0.66, ease: EASE.enterSoft }, 0)       // 直線射出、減速
+    .to(el, { scale: 0, duration: DUR.micro, ease: EASE.exitSoft }, 0.46);         // 收掉
 }
 
 // Awards ticker 的獎項 logo：Directus singleton library_award_logos 的 logos（Files-multiple M2M）。
@@ -1117,7 +1120,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     const cellLine = (txt, weight) =>
       `<span class="award-cell-line"${weight ? ` style="font-weight:${weight};"` : ''}><span class="award-cell-inner">${txt}</span></span>`;
     // 缺語言不輸出空行——空 cellLine 仍佔一個 line-height，會把單語 cell 撐滿列高、align-self 置中失效
-    const bilingualBold = (en, zh) => (en ? cellLine(en, 700) : '') + (zh ? cellLine(zh, 700) : '');
+    const bilingualBold = (en, zh) => (en ? cellLine(en, 'var(--font-weight-bold)') : '') + (zh ? cellLine(zh, 'var(--font-weight-bold)') : '');
     // 主辦單位／獎項類別／名次可為 repeater 陣列 [{en,zh}]（Directus）或舊 scalar（records.json）；
     // 統一成陣列，每筆各自 bilingual 疊放在同一 cell（獨立 repeater、不跟隔壁欄配對對齊，user 2026-08-25 定案）。
     const toBiList = (arr, en, zh) =>
@@ -1140,7 +1143,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 每筆＝一個 .award-winner-pair（EN 上 ZH 下，各含 .award-marquee-inner 供手機逐行 marquee）。桌面多筆整位橫捲、
     // 單筆靜態；手機直排。bold 只給得獎人（原本 700）。pairs 間 gap 由 CSS 撐開，避免文字黏一起。
     const buildHMarqueeTrack = (list, bold) => {
-      const w = bold ? ' style="font-weight:700;"' : '';
+      const w = bold ? ' style="font-weight:var(--font-weight-bold);"' : '';
       const pairs = list.map(o => {
         const enHtml = o.en ? `<div class="award-winner-en"${w}><span class="award-marquee-inner">${o.en}</span></div>` : '';
         const zhHtml = o.zh ? `<div class="award-winner-zh"${w}><span class="award-marquee-inner">${o.zh}</span></div>` : '';
@@ -1390,7 +1393,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const itemsHtml = (yearGroup.items || []).map(buildAwardItemHtml).join('');
       const html = `
           <div class="year-block" data-year="${yearGroup.year}">
-            <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: 700; padding: 0 0 var(--spacing-sm); position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;"><span class="year-label-text">${yearGroup.year}</span></div>
+            <div class="press-year-label" style="font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); padding: 0 0 var(--spacing-sm); position: sticky; top: -1px; background: var(--lib-bg); z-index: 2;"><span class="year-label-text">${yearGroup.year}</span></div>
             <div class="flex flex-col">${itemsHtml}</div>
           </div>`;
       if (lazySentinel) lazySentinel.insertAdjacentHTML('beforebegin', html);
@@ -1825,7 +1828,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const btn = document.createElement('button');
         btn.textContent  = String(year);
         btn.dataset.year = String(year);
-        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:700;color:var(--lib-fg);';
+        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);';
         btn.addEventListener('click', () => {
           const before = snapshotVisibleYears(listEl); // 操作前可見年份順序
           const adding = !selectedYears.has(String(year));
@@ -3721,9 +3724,12 @@ function setupFilesScrollReveal(listEl) {
   if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; }
   if (!listEl.querySelector('.files-item-card.files-card-pending')) return;   // 全揭完＝不綁 listener
   const flush = (snap = false, lead = true) => {
-    const pending = [...listEl.querySelectorAll('.files-item-card.files-card-pending')]
-      .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
-    if (!pending.length) { if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; } return; }
+    // 「全揭完」看全部預藏卡（含被 search／篩選 display:none 的）：只看可見的會在 search 縮短清單→scrollTop 夾回→
+    // scroll 觸發 flush 時誤判揭完拆 listener，清掉 search 後重現的預藏卡就永遠不揭（user 2026-10-26 年份空白／缺卡）
+    const all = [...listEl.querySelectorAll('.files-item-card.files-card-pending')];
+    if (!all.length) { if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; } return; }
+    const pending = all.filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);
+    if (!pending.length) return;
     const rbRaw = scroller.getBoundingClientRect().bottom;
     const st = scroller.getBoundingClientRect().top;
     const remain = Math.max(0, scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight);
@@ -3950,12 +3956,12 @@ function revealPanelChrome(panelEl, delaySec, animateTitle) {
   const ticker    = q(':scope [id$="awards-ticker"]');
   // 下一批 chevron 在捲動框外（年份欄底）→ 另抓、跟年份同批揭；分類框的 chevron 不算（下面另排）
   const yearItems = yearWrap ? /** @type {HTMLElement[]} */ ([...yearWrap.querySelectorAll('button[data-year]'),
-    ...[...panelEl.querySelectorAll('.year-more-btn, .year-less-btn')].filter(el => !el.closest('.lib-cat-group'))]) : [];
+    ...[...panelEl.querySelectorAll('.year-more-inner, .year-less-btn')].filter(el => !el.closest('.lib-cat-group'))]) : [];
   // 桌面分類框（年份欄頂 .lib-cat-group，user 2026-10-19）：選項逐顆 clip reveal、chevron 等選項出完才出。
   //   只錯開框內看得到的那幾顆（框外的捲上來才看得到，跟最後一顆同拍＝不拖長 chevron 的等待）；先量再藏（translate 會動 rect）
   const catGroup = /** @type {HTMLElement|null} */ (catFilter?.closest('.lib-cat-group') || null);
   const catOpts = catGroup ? /** @type {HTMLElement[]} */ ([...catFilter.querySelectorAll(':scope > button')]) : [];
-  const catChev = catGroup ? /** @type {HTMLElement[]} */ ([...catGroup.querySelectorAll('.year-more-btn, .year-less-btn')]) : [];
+  const catChev = catGroup ? /** @type {HTMLElement[]} */ ([...catGroup.querySelectorAll('.year-more-inner, .year-less-btn')]) : [];
   const boxBottom = catGroup ? catFilter.getBoundingClientRect().bottom : 0;
   const catShown = Math.max(1, catOpts.filter(o => o.getBoundingClientRect().top < boxBottom).length);
   const chevDelay = delaySec + (catShown - 1) * CAT_OPT_STAGGER + DUR_C;
@@ -4161,8 +4167,9 @@ const PANEL_PIECE_SELS = [
 function panelPieces(panelEl) {
   return PANEL_PIECE_SELS.flatMap(s => /** @type {HTMLElement[]} */ ([...panelEl.querySelectorAll(':scope ' + s)]));
 }
-// 桌面左欄＋工具列逐顆退場的件（playPanelBodyExit；殘值由 playPanelReveal 開頭清）
-const DESK_COL_EXIT_SELS = '[id$="year-picker"] > button[data-year], .lib-cat-group [id$="cat-filter"] > button, .year-more-btn, .year-less-btn, .year-reset-btn, .lib-toolbar';
+// 桌面左欄＋工具列逐顆退場的件（playPanelBodyExit；殘值由 playPanelReveal 開頭清）。
+//   下一批 chevron／reset 動 icon 自己的框、不動整顆鈕（鈕帶上 padding＝遮罩比 icon 大，user 2026-10-26）
+const DESK_COL_EXIT_SELS = '[id$="year-picker"] > button[data-year], .lib-cat-group [id$="cat-filter"] > button, .year-more-inner, .year-less-btn, .year-reset-btn > .icon, .lib-toolbar';
 // §38（req2+req5, user 2026-09-09，撤 §36/§37 的「整件 clip+位移滑出」）：
 //   - chrome（search 列/年份欄/cat-filter/ticker/年份標籤）＝**直接消失**（transition:none 即刻 clip 藏、不需要 ease）
 //   - zebra rows（視窗內清單列）＝每列自身 clip 由上往下收合＋微下沉位移（進場「由下往上揭」的鏡像）；
@@ -4184,7 +4191,7 @@ export function playPanelBodyExit(panelEl, dur = 0.35) {
   }) : [];
   panelPieces(panelEl).forEach(el => {
     if (el.id && el.id.endsWith('-scroll')) return;   // 捲動框不整塊 clip——rows 各自退場
-    if (desk && (els.includes(el) || el.matches('[id$="year-picker-wrap"], [id$="cat-filter"]'))) return;   // 裡面的鈕逐顆退場（下方）
+    if (desk && (els.includes(el) || el.matches('[id$="year-picker-wrap"], [id$="cat-filter"], .year-more-btn'))) return;   // 裡面的鈕／chevron 框逐顆退場（下方）
     el.style.transition = 'none'; el.style.clipPath = 'inset(0 0 100% 0)'; el.style.translate = '';
   });
   //   明確起點＋reflow 再設終點（none→inset() 不補間）；時長同 rows 收在 dur 窗內。
@@ -4376,7 +4383,7 @@ function maybeRevealDeferredPanel(panelId) {
 
 // 襯線字（Bitter＋Noto Serif，library.css 標題用）只有 library 需要＝不進全站字型 link（每頁省 ~96KB 字型 CSS）。
 // 硬重整由 library.html head 載；SPA 換頁 head 不換 → 進頁時補（同 ensure-flag-icons，已有就跳過）
-const SERIF_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400..700;1,400..700&family=Noto+Serif+TC:wght@400..700&family=Noto+Serif+JP:wght@400..700&family=Noto+Serif+SC:wght@400..700&display=swap';
+const SERIF_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400..600;1,400..600&family=Noto+Serif+TC:wght@400..600&family=Noto+Serif+JP:wght@400..600&family=Noto+Serif+SC:wght@400..600&display=swap';
 function ensureSerifFonts() {
   if (document.querySelector(`link[href="${SERIF_FONTS_HREF}"]`)) return;
   const link = document.createElement('link');
