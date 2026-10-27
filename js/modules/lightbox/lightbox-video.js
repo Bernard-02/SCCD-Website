@@ -108,12 +108,13 @@ export function createLightboxVideo(url, accent = SCCDHelpers.ACCENT_COLORS[1], 
 
   // 音量：mute 鈕 + hover 展開 slider（全黑線 + thumb，同 WATCH）
   const volWrap = document.createElement('div');
-  volWrap.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-shrink:0;';
+  volWrap.className = 'lb-video-vol';   // 間距見 lightbox.css
+  volWrap.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
   const muteBtn = mkIconBtn('icon-volume', '靜音／取消靜音 Mute/Unmute');
   volWrap.appendChild(muteBtn);
   const volTrack = document.createElement('div');
   volTrack.className = 'lb-video-ink-bg lb-video-track';
-  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s var(--ease-wipe);height:4px;background:var(--color-black);position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
+  volTrack.style.cssText = 'width:0;overflow:visible;transition:width 0.25s var(--ease-wipe), margin-left 0.25s var(--ease-wipe);height:4px;background:var(--color-black);position:relative;flex-shrink:0;cursor:var(--cursor-pointer);';
   const volFill = document.createElement('div');
   volFill.className = 'lb-video-ink-bg';
   volFill.style.cssText = 'height:100%;width:100%;background:var(--color-black);pointer-events:none;position:relative;';
@@ -242,10 +243,12 @@ export function createLightboxVideo(url, accent = SCCDHelpers.ACCENT_COLORS[1], 
     volFill.style.width = `${p * 100}%`;
     updateMuteIcon();
   }
-  const collapseVol = () => { volTrack.style.width = '0'; volThumb.style.opacity = '0'; };
+  // 音量↔slider 間距掛 track margin（不用 gap）：收起寬 0 時間距一起收（lightbox.css）
+  const collapseVol = () => { volTrack.style.width = '0'; volTrack.style.marginLeft = '0'; volThumb.style.opacity = '0'; };
   volWrap.addEventListener('mouseenter', () => {
     volHover = true;
     volTrack.style.width = '80px';
+    volTrack.style.marginLeft = '20px';
     volThumb.style.opacity = '1';
   });
   volWrap.addEventListener('mouseleave', () => {

@@ -109,6 +109,15 @@
 :is(#video-play-btn, .lb-video-play) .icon {
   font-size: calc(1.75rem * 0.8);
 }
+/* 中央 control bar 間距以圖形實際墨跡算、全 ≈20（同 mode3 鉛筆 bar .mcp-cap-row；user 2026-10-27）。
+   inline padding／gap 20 是框對框，這裡扣掉 icon 框內留白：
+   ❚❚ 22.4px（播放中常駐，同 mcp 以 pause 算；pause.svg 墨跡 x 26–118/160＝左 3.6 右 5.9）→ 左緣 −4、到進度條 −6；
+   音量 28px（volume.svg 墨跡 x 8–158/160＝左 1.4 右 0.3）→ 時間到音量 −1、右緣 padding 20 不動；
+   音量到 slider 20＝JS 展開時同拍給 track margin-left（收起寬 0 連間距一起收＝音量到右緣才是 20） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  :is(#video-play-btn, .lb-video-play) { margin: 0 -6px 0 -4px; }
+  :is(#video-volume-wrap, .lb-video-vol) { margin-left: -1px; }
+}
 
 /* lightbox 內鈕 hover 抽角的補間（arrow-spin 寫 inline rotate，user 2026-10-21）；
    opacity 一起列＝保留 chevron／zoom 的 Tailwind transition-opacity（本規則 unlayered 會整串蓋掉它） */

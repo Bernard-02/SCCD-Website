@@ -96,11 +96,11 @@
         <span id="video-time" class="text-s" style="color:var(--color-white); white-space:nowrap; flex-shrink:0;">0:00</span>
 
         <!-- Volume — hover 展開 slider；slider 全黑風格同 progress -->
-        <div id="video-volume-wrap" style="display:flex; align-items:center; gap:0.75rem; flex-shrink:0;">
+        <div id="video-volume-wrap" style="display:flex; align-items:center; flex-shrink:0;">
           <button id="video-mute-btn" aria-label="靜音／取消靜音 Mute/Unmute" style="color:var(--color-white); background:none; border:none; padding:0; line-height:1;">
             <span class="icon icon-volume"></span>
           </button>
-          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s var(--ease-wipe); height:4px; background:var(--color-black); position:relative; flex-shrink:0; cursor:var(--cursor-pointer);">
+          <div id="video-volume-track" style="width:0; overflow:visible; transition:width 0.25s var(--ease-wipe), margin-left 0.25s var(--ease-wipe); height:4px; background:var(--color-black); position:relative; flex-shrink:0; cursor:var(--cursor-pointer);">
             <div id="video-volume-fill" style="height:100%; width:100%; background:var(--color-black); pointer-events:none; position:relative;">
               <div id="video-volume-thumb" style="position:absolute; right:-2px; top:50%; transform:translateY(-50%); width:4px; height:14px; background:var(--color-black); pointer-events:none; opacity:0; transition:opacity 0.25s;"></div>
             </div>

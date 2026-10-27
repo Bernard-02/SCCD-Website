@@ -226,7 +226,10 @@ async function exitStandby() {
 
   // 待機離場時原頁內容也 fade in（user 2026-09-12）：此刻仍被不透明 overlay 蓋住 → 同步壓 opacity:0
   // 不會閃，再與 overlay fade out 同時 crossfade 回來（背景色都是 --theme-bg → 底不破）。
-  const pageContent = /** @type {HTMLElement|null} */ (document.getElementById('page-content'));
+  // 例外：首頁影片播放器（#video-player-overlay z 10000）開著＝不淡原頁。播放器在 #page-content 裡，page-content 一帶
+  // opacity<1 就自成 stacking context、播放器被關進去＝header logo(9999) 疊到影片上（user 2026-10-27）；播放器全黑不透明，atlas 淡出直接露回即可
+  const videoOpen = document.getElementById('video-player-overlay')?.style.display === 'flex';
+  const pageContent = videoOpen ? null : /** @type {HTMLElement|null} */ (document.getElementById('page-content'));
   if (pageContent) pageContent.style.opacity = '0';
 
   // 只 fade out，先不拆 atlas DOM。拆除（cleanupAtlas + overlay.innerHTML=''）跟 ScrollTrigger.refresh

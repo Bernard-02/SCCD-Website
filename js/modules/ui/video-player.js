@@ -555,12 +555,13 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
   // ── 音量 slider（hover expand + drag；thumb 預設 opacity:0，hover 才浮現）─────
   let volumeExpanded = false;
   volumeWrap?.addEventListener('mouseenter', () => {
-    if (volumeTrack) volumeTrack.style.width = '80px';
+    // 音量↔slider 間距掛 track margin（不用 gap）：收起寬 0 時間距一起收（lightbox.css）
+    if (volumeTrack) { volumeTrack.style.width = '80px'; volumeTrack.style.marginLeft = '20px'; }
     if (volumeThumb) volumeThumb.style.opacity = '1';
     volumeExpanded = true;
   });
   volumeWrap?.addEventListener('mouseleave', () => {
-    if (volumeTrack && !volDragging) volumeTrack.style.width = '0';
+    if (volumeTrack && !volDragging) { volumeTrack.style.width = '0'; volumeTrack.style.marginLeft = '0'; }
     if (volumeThumb && !volDragging) volumeThumb.style.opacity = '0';
     volumeExpanded = false;
   });
@@ -601,7 +602,7 @@ export function initVideoPlayer(videoUrl, { getCardRect, onCloseAnimComplete, fr
       updateMuteIcon();
       // mouseup 若已不在 wrap 內就收回 slider + thumb
       if (!volumeExpanded) {
-        if (volumeTrack) volumeTrack.style.width = '0';
+        if (volumeTrack) { volumeTrack.style.width = '0'; volumeTrack.style.marginLeft = '0'; }
         if (volumeThumb) volumeThumb.style.opacity = '0';
       }
     }
