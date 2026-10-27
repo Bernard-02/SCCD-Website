@@ -19,10 +19,10 @@ import { revealHidden, randomRevealDir } from '../ui/scroll-animate.js';
 // 該方向的「藏起」位移：child 移到 wrapper 外指定方向（width/height = wrapper bbox）
 function offsetFor(dir) {
   switch (dir) {
-    case 'top':    return { xPercent: 0,    yPercent: -100 };
-    case 'bottom': return { xPercent: 0,    yPercent: 100  };
-    case 'left':   return { xPercent: -100, yPercent: 0    };
-    case 'right':  return { xPercent: 100,  yPercent: 0    };
+    case 'top':    return { xPercent: 0,    yPercent: -110 };   // ±110 非 ±100：貼遮罩邊會留 1px 殘線（同 revealHidden）
+    case 'bottom': return { xPercent: 0,    yPercent: 110  };
+    case 'left':   return { xPercent: -110, yPercent: 0    };
+    case 'right':  return { xPercent: 110,  yPercent: 0    };
   }
 }
 
@@ -69,10 +69,10 @@ function getPoolKey(grid) {
 // build 期＝壞 snapshot 在入池前就被矯正）都強制夾回 section 內＝「文字在界外看不見」結構上不可能持續。
 // 文字 TOP_PAD 100：正常 placement 下限 140，被夾到 100 頂多貼近 header 但看得見（rescue 優先於美觀）。
 // 桌面 hero 四邊 padding（字卡＋圖共用，user 2026-10-03）：左右 container-padding 60、下 48（左下頁卡底）、
-// 上＝大 logo 中線（logo 頂＋180/2；logo 頂＝--header-logo-top，SCCDHelpers.headerGeom）。圖可疊到 logo 下方；
+// 上＝大 logo 中線（logo 頂＋大 logo/2；logo 頂與大小＝SCCDHelpers.headerGeom，大小依視窗高）。圖可疊到 logo 下方；
 // 字卡另避 logo／header 鈕（randomizeHeroLayout chromeZones）。
 // 圖的上界另計＝48（與下 48 對稱；上界用 logo 中線時圖太小，user 2026-10-03）。
-const DESK_HERO_PAD = { get top() { return SCCDHelpers.headerGeom().logoTop + 180 / 2; }, side: 60, bottom: 48, bannerTop: 48 };
+const DESK_HERO_PAD = { get top() { const g = SCCDHelpers.headerGeom(); return g.logoTop + g.logoLg / 2; }, side: 60, bottom: 48, bannerTop: 48 };
 function clampHeroItemsIntoSection(grid) {
   const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
   if (!section) return;
@@ -283,13 +283,13 @@ function randomizeHeroLayout() {
   // 加太小（如 8）chip 雖在 bbox 外但仍會被齒輪尾蓋住。
   const LOGO_VISUAL_PAD = 60;
   // 固定保底 zone（user 2026-09-13「明確規定字卡不可生成的範圍」）：桌面 logo 恆在左上
-  // （left=--container-padding 60、top=--header-logo-top、180×180）。純靠量測有兩個洞會讓撞 logo 的版面
+  // （left=--container-padding 60、top=--header-logo-top、大 logo 見方，headerGeom）。純靠量測有兩個洞會讓撞 logo 的版面
   // 進 layoutPool 快取整個 session：①首載 header.html async fetch 未完成 → 量不到＝整輪不迴避
   // ②SPA 換頁 logo shrink/grow 動畫中間態 → zone 比最終視覺小。固定值與量測值取聯集兩者都兜住。
   // 矮橫向不套（該 gate 走手機式 header，桌面 logo display:none，固定 264 高會白吃掉半個矮視窗）。
   const hg = SCCDHelpers.headerGeom();
   const FIXED_LOGO_ZONE = isShort ? null
-    : { left: 0, top: 0, right: 60 + 180 + LOGO_VISUAL_PAD, bottom: hg.logoTop + 180 + LOGO_VISUAL_PAD };
+    : { left: 0, top: 0, right: 60 + hg.logoLg + LOGO_VISUAL_PAD, bottom: hg.logoTop + hg.logoLg + LOGO_VISUAL_PAD };
   const logoEl = /** @type {HTMLElement|null} */ (document.querySelector('#header-logo'));
   let logoRect = FIXED_LOGO_ZONE;
   if (logoEl) {

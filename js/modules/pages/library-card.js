@@ -29,12 +29,13 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   deskTopGap()＝header 鈕垂直中線（SCCDHelpers.headerGeom().mid）− section 頂 96：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
   //   （灰卡頂伸進 header 列；header 放行點擊見 library.css）；
   //   DESK_BOTTOM_GAP 48＝當前頁卡底（navigation.css bottom 48）＝上下 padding 一致（上＝header 列 pt 48）；色卡底界也用它；
-  //   DESK_LEFT 192＝logo 右緣 160 + 32（左下當前頁卡同寬、同樣讓開 32）；
+  //   deskLeft()＝logo 右緣（60＋縮小態 logo，依視窗高；1920×960＝160）+ 32（左下當前頁卡同樣讓開 32）＝192；
   //   DESK_RIGHT 228＝next 鈕中心 sw−228 → 右緣 sw−204，跟 mode 鈕（左緣 sw−180）留 24＝mode↔漢堡 gap（header.html ml-md）＝三顆等距；
   //   色卡上界＝全站 nav line（見 genColorConfig），左右到 container padding 60；只避開左下當前頁卡（見 indicatorZone）。
   // ponytail: header 幾何寫死（列 pt / logo 尺寸 / 鈕寬），header 列改了要同步
   const deskTopGap = () => SCCDHelpers.headerGeom().mid - 96;
-  const DESK_BOTTOM_GAP = 48, DESK_LEFT = 192, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
+  const DESK_BOTTOM_GAP = 48, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
+  const deskLeft = () => 60 + SCCDHelpers.headerGeom().logoSm + 32;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
   const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
@@ -42,10 +43,10 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   function layoutMain(sw, sh) {
     const desk = isDesk();
     TOP_GAP = desk ? deskTopGap() : BASE_TOP_GAP;
-    MAIN_W = desk ? sw - DESK_LEFT - DESK_RIGHT : Math.round(sw * 0.84);
+    MAIN_W = desk ? sw - deskLeft() - DESK_RIGHT : Math.round(sw * 0.84);
     MAIN_H = Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP));
   }
-  const grayCx = (sw) => (isDesk() ? DESK_LEFT + MAIN_W / 2 : sw / 2); // 灰卡水平中心（≥1200 不置中）
+  const grayCx = (sw) => (isDesk() ? deskLeft() + MAIN_W / 2 : sw / 2); // 灰卡水平中心（≥1200 不置中）
   const centerY = () => TOP_GAP + MAIN_H / 2;
   // 左下「當前頁」卡佔的區（section 座標：x＝視窗 x、section 底＝視窗底；含 16 呼吸）：色卡不能被它蓋到（user 2026-09-27）。
   // 卡頂讀 navigation.css --page-indicator-top（@property 註冊＝computed 是 px；≥1200 gate 外 0＝不避）；
@@ -188,7 +189,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
       // ≥1200 色塊貼 padding、灰卡不置中 → 太窄會構不到灰卡（user 2026-09-28「一定要被灰卡遮住」）：
       // 旋轉後內側邊最淺點離外緣＝w·cos → w·cos ≥ padding 到灰卡邊的距離＋重疊量。取左右較遠那側（避當前頁卡時會換邊）
-      const minW = desk ? (Math.max(DESK_LEFT, DESK_RIGHT) - padX + DESK_MIN_OVERLAP) / cosA : 0;
+      const minW = desk ? (Math.max(deskLeft(), DESK_RIGHT) - padX + DESK_MIN_OVERLAP) / cosA : 0;
       let w = rand(Math.max(minSide, minW), maxBW), h = rand(minSide, maxBH);
       let bw = w*cosA + h*sinA, bh = w*sinA + h*cosA;
       if (bw > maxBW) { const f = maxBW/bw; w*=f; h*=f; }
@@ -882,7 +883,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   曲線選 ease-out（≈power3.out、起步即見）：舊 ease-in 在色塊短行程（~300px vs 大卡 ~1700px）前段幾乎不動＝「填色比較晚」錯覺；
   //   鏡像雙曲線版（滑出 in/滑入 out）也棄——動作輪廓不同就不是「同時」。
   const SLAB_EASE = 'cubic-bezier(0.215,0.61,0.355,1)';
-  const WIPE_SLABS = { top: 'translate(0,-100%)', bottom: 'translate(0,100%)', left: 'translate(-100%,0)', right: 'translate(100%,0)' };
+  const WIPE_SLABS = { top: 'translate(0,-110%)', bottom: 'translate(0,110%)', left: 'translate(-110%,0)', right: 'translate(110%,0)' };   // ±110：delay 期間停在起點，貼邊 100 會留 1px 殘線
   function slideColorWipe(host, color, { inset, z, pe, slideIn, dir, delay = 0, dur = SLAB_DUR, onDone }) {
     const off = WIPE_SLABS[dir || ['top', 'bottom', 'left', 'right'][Math.floor(Math.random() * 4)]];   // §22.3：dir 給定用配對方向、否則隨機
     const wrap = document.createElement('div');

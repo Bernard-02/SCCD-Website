@@ -50,13 +50,19 @@ export function initIntroAnimation() {
       introDone();
       // overlay fade out，header 同步 fade in
       const tl = gsap.timeline({
-        onComplete: () => { overlay.style.display = 'none'; }
+        onComplete: () => { overlay.style.display = 'none'; header?.style.removeProperty('z-index'); }
       });
 
       tl.to(overlay, { opacity: 0, duration: DUR.medium, ease: EASE.enterSoft });
 
-      // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑
-      tl.call(() => { document.body.style.overflow = ''; playHeaderEntrance(); }, null, '<');
+      // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑。
+      // 淡出期間 header 暫提到 overlay(10000) 之上：不然滑入隔著半透明白幕＝看起來是淡入（user 2026-10-27「去掉 fade」）；
+      // navigation.css header 是 9999 !important → inline 也要 important
+      tl.call(() => {
+        header?.style.setProperty('z-index', '10001', 'important');
+        document.body.style.overflow = '';
+        playHeaderEntrance();
+      }, null, '<');
     });
   }
 

@@ -850,6 +850,7 @@ export async function initFooterScatter(scope, opts = {}) {
   // 若 await 前就 wrap，display:none / 0×0 race 時也會建 anchor → recovery 永遠跳過 → footer 卡壞狀態。
   const ready = await awaitLayoutReady(area);
   if (!ready) return;
+  fitCardWidth(footer);   // 矮螢幕縮卡的版面寬：要在量 tab 列／散佈之前定
 
   const anchors = wrapItemsInAnchors(rawItems);
   const items = anchors.map((a) => a.firstElementChild).filter(Boolean);
@@ -899,6 +900,7 @@ export async function initFooterScatter(scope, opts = {}) {
     if (fallbackLayout.length === anchors.length && verifyPlacement(area, anchors, obstacles)) break;
     right.style.minHeight = `${right.offsetHeight + 80}px`;
     grew = true;
+    fitCardWidth(footer);   // 長高＝k 變小 → 版面寬再放大，重排吃新寬
     fallbackLayout = (await buildLayoutCache(area, anchors, obstacles))[0];
   }
   if (grew && typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();   // 文件變高，捲動觸發點要重量
@@ -939,7 +941,7 @@ let _footerExited = false;
 
 // ── 真桌面 footer＝蓋在頁面上的卡（user 2026-10-19）────────────────────────────
 // 卡不在捲動流裡（footer.css 真桌面段 position:fixed、出生藏在視窗下）：捲到頁底再往下滾 → 卡頂 20% 跟著滾輪量逐段升起、
-// 停手停半路，再往下就整張吸上來（PEEK），同時從 0° 轉向這次新抽的 ±[1,2]°（角度＝升起比例）；
+// 過門檻（PEEK）那一格跟完就直接整張吸上來（一個動作）；門檻前停手＝縮回去（user 2026-10-27）。同時從 0° 轉向這次新抽的 ±[1,2]°（角度＝升起比例）；
 // 往上滾＝整張直接收、不停半路（user 2026-10-26；原本吸回 20% 再逐段沉）；點卡外／換頁（router playFooterExit）→ 整張轉回 0° 沉下去（點卡上空白處不關）。
 // header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點＝關卡、滾輪＝推卡，不碰後面內容）。
 // footer:open／footer:close（document）→ header.js 關桌面 menu＋logo 縮小／還原。
@@ -948,13 +950,27 @@ const OVERLAY_HIDE_YPERCENT = 130;   // 卡底離視窗底 48，100% 不夠藏�
 // 矮螢幕整張等比縮（user 2026-10-20「縮卡，空間夠就不調」）：卡的版面高 h 放不進「logo 底＋gap → 頁卡底」的可用高時
 // scale＝可用高/h（下限 0.75＝字約 10.5px），繞中心縮＋y 補償讓視覺底仍貼頁卡底 48；空間夠＝1:1、y 0。
 // 縮到下限仍放不進：保住卡頂（logo 永遠不被蓋，user 的主訴）、底邊往下沉去蓋頁卡／視窗底緣。
-// logo 底＝logo 頂（--header-logo-top，SCCDHelpers.headerGeom）＋縮小態 100（header.js shrink 終值）；開卡時 logo 一定縮到 100（footerLogoSize）
+// logo 底＝logo 頂＋縮小態 logo（SCCDHelpers.headerGeom，依視窗高）；開卡時 logo 一定縮到小（footerLogoSize）
 const CARD_SCALE_MIN = 0.75;
+const cardAvailH = () => { const g = SCCDHelpers.headerGeom(); return window.innerHeight - (g.logoTop + g.logoSm) - 24 - 48; };
+const cardScaleFor = (h) => Math.max(CARD_SCALE_MIN, Math.min(1, cardAvailH() / (h || 1)));
+// 縮卡不縮寬（user 2026-10-27）：版面寬放大成 框寬÷k → 縮完視覺寬剛好貼回左右 container padding（原本等比縮連寬一起窄、
+// 1366×657 每邊多內縮 ~156）。散佈是 px 座標 → 必須在排版前定寬（initFooterScatter，長高後再定一次）；
+// k 記在 dataset 給 applyCardScale 用＝寬與縮放同一個 k。footer.css 的 left/right 吃 --card-ext
+function fitCardWidth(shell) {
+  if (typeof gsap === 'undefined') return;
+  const ext0 = parseFloat(shell.style.getPropertyValue('--card-ext')) || 0;
+  const frameW = shell.offsetWidth - 2 * ext0;
+  const k = cardScaleFor(shell.offsetHeight);
+  shell.dataset.cardK = String(k);
+  shell.style.setProperty('--card-ext', `${(frameW * (1 / k - 1) / 2).toFixed(1)}px`);
+}
 function applyCardScale(shell) {
   if (typeof gsap === 'undefined') return;
-  const avail = window.innerHeight - (SCCDHelpers.headerGeom().logoTop + 100) - 24 - 48;
+  const avail = cardAvailH();
   const h = shell.offsetHeight || 1;
-  const scale = Math.max(CARD_SCALE_MIN, Math.min(1, avail / h));
+  // 定寬後內容變寬可能變矮（avail/h 變大）→ 取定寬時的 k，寬才剛好；沒定過寬（init 中途 return）＝舊行為
+  const scale = Math.min(cardScaleFor(h), Number(shell.dataset.cardK) || 1);
   const excess = Math.max(0, scale * h - avail);   // 下限仍放不進的量 → 整張再往下沉這麼多（頂＝logo 底＋gap）
   const y = (1 - scale) * h / 2 + excess;   // 繞中心縮會把底抬高 (1−k)h/2 → 往下補回
   gsap.set(shell, { scale, y });
@@ -970,14 +986,18 @@ let _rot = 0;                 // 這次開卡的終點角
 let _hideYP = OVERLAY_HIDE_YPERCENT;   // 卡頂剛好貼視窗底的 yPercent：滾輪第一格就看得到卡（130 是停放位，多出那段滾了會沒反應）
 // 升起前 20% 跟滾輪走，再往下就整張吸上來；往上＝整張直接收（user 2026-10-26）
 const PEEK = 0.2;
+// 門檻前停手多久算放手＝縮回去（> 連續滾輪兩格的間隔、< 人感覺得到的停頓）。ponytail: 旋鈕，慢慢一格一格滾也想開就調大
+const PEEK_IDLE_MS = 250;
+let _peekTimer = 0;
 let _snapping = false;
+let _openAnnounced = false;   // footer:open 只在真的吸上來才發：探頭又縮回不讓 logo 一縮一放
 
 function getOverlayFooter() {
   const f = document.querySelector('footer.footer-shell');
   // fixed 元素 offsetParent 恆 null → 用有沒有 box 判顯隱（library/atlas/create 容器 display:none）
   return f instanceof HTMLElement && f.getClientRects().length ? f : null;
 }
-function finishClose() { const f = _closeDone; _closeDone = null; _closePromise = null; if (f) f(); }
+function finishClose() { const f = _closeDone; _closeDone = null; _closePromise = null; releaseWheel(); if (f) f(); }
 
 // 卡下透明墊：卡外任何滑鼠操作先關卡、不穿到後面的內容（user 2026-10-19）；header z 更高不受影響
 function showBackdrop() {
@@ -986,7 +1006,6 @@ function showBackdrop() {
   b.className = 'footer-backdrop';
   b.setAttribute('aria-hidden', 'true');
   b.addEventListener('click', () => closeFooter());
-  b.addEventListener('wheel', onOpenWheel, { passive: false });
   document.body.appendChild(b);
   document.body.classList.add('footer-card-open');   // CSS：mode／menu 鈕放行給 backdrop、mode3 鉛筆沉到卡下
   _backdrop = b;
@@ -1000,8 +1019,6 @@ function beginOpen(shell) {
   _footerOpen = true;
   _lastScrollY = window.scrollY;
   showBackdrop();
-  shell.addEventListener('wheel', onOpenWheel, { passive: false });
-  document.dispatchEvent(new CustomEvent('footer:open'));
   if (shuffleCtx) scheduleNextShuffle(SHUFFLE_INTERVAL_MS);
   _rot = (Math.random() < 0.5 ? -1 : 1) * rand(1, 2);
   gsap.killTweensOf(shell);
@@ -1022,29 +1039,56 @@ function scrubTo(shell, p, dy) {
   _progress = p;
   gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration: Math.abs(dy) < 50 || prefersReducedMotion() ? 0 : DUR.micro, ease: 'none', overwrite: 'auto' });
 }
-// 吸附段：整截補間；吸附中吞掉後續滾輪（觸控板慣性），不然 scrubTo 會把半路的 tween 砍成瞬跳
-function snapTo(shell, p) {
-  _progress = p;
+// 卡真的要開了：header.js 關桌面 menu＋logo 縮小（每次開卡只發一次）
+function announceOpen() {
+  if (_openAnnounced) return;
+  _openAnnounced = true;
+  document.dispatchEvent(new CustomEvent('footer:open'));
+}
+// 過門檻那一格：先照 scrubTo 的速度跟完這一格（滾多少出來多少），接著整張吸上來＝一個連續動作
+// （user 2026-10-27：原本「一格冒一截停住、再一格才吸」是兩段）。觸控板本來就跟著手＝直接吸。
+// 吸附中吞掉後續滾輪（觸控板慣性），不然 scrubTo 會把半路的 tween 砍成瞬跳
+function snapOpen(shell, p, dy) {
+  _progress = 1;
   _snapping = true;
+  announceOpen();
   const done = () => { _snapping = false; };
-  gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.enterSoft, overwrite: 'auto', onComplete: done, onInterrupt: done });
+  const snap = () => gsap.to(shell, { yPercent: 0, rotation: _rot, duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.enterSoft, overwrite: 'auto', onComplete: done, onInterrupt: done });
+  if (Math.abs(dy) < 50 || prefersReducedMotion()) { snap(); return; }
+  gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration: DUR.micro, ease: 'none', overwrite: 'auto', onComplete: snap, onInterrupt: done });
 }
 // 往下：滾輪 dy px＝卡移動 dy px（像頁面多出一段），前 PEEK 跟手、過了就整張吸上來；往上：整張直接收（吸附中也收，killTweensOf 會砍掉吸附）
 function scrubBy(shell, dy) {
+  clearTimeout(_peekTimer);
   if (dy < 0) { closeFooter(); return; }
   if (_snapping) return;
   const p = Math.min(1, _progress + dy / (shell.offsetHeight * _hideYP / 100));
-  if (p > PEEK) { if (_progress < 1) snapTo(shell, 1); }
-  else scrubTo(shell, p, dy);
+  if (p > PEEK) { if (_progress < 1) snapOpen(shell, p, dy); return; }
+  scrubTo(shell, p, dy);
+  // 門檻前停手＝縮回去，不停在半路（user 2026-10-27）
+  _peekTimer = window.setTimeout(() => { if (_footerOpen && !_snapping && _progress <= PEEK) closeFooter(); }, PEEK_IDLE_MS);
 }
 
-// 開著時卡上／卡外（backdrop）的滾輪＝往下推卡、往上收卡，不捲後面的頁；橫向為主（tab 列橫捲）照原生
-function onOpenWheel(e) {
-  e.stopPropagation();   // window 那支不再處理
+// 開卡中的滾輪全由這支接（window capture＝游標在卡上、卡外、header logo、捲軸上都先到這）：往下推卡、往上收卡，
+// 都不捲後面的頁／內捲框。往上收卡的那一手勢（滑鼠連滾、觸控板慣性）收卡途中與之後都一路吞到停手 WHEEL_GESTURE_GAP，
+// 下一次滾才捲頁＝不論怎麼滑都是先收掉 footer、不動上面的內容（user 2026-10-27）。橫向為主（tab 列橫捲）照原生
+const WHEEL_GESTURE_GAP = 200;
+let _swallowWheel = false;
+let _lastWheelT = 0;
+function releaseWheel() {
+  if (_swallowWheel && !_closePromise && performance.now() - _lastWheelT >= WHEEL_GESTURE_GAP) _swallowWheel = false;
+}
+function onCardWheel(e) {
+  if (!_footerOpen && !_swallowWheel) return;
   if (e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
   e.preventDefault();
+  e.stopPropagation();   // 頁面自己的滾輪路由（legal 欄、四頁 split 等）也不碰
+  _lastWheelT = performance.now();
+  window.setTimeout(releaseWheel, WHEEL_GESTURE_GAP);
+  if (!_footerOpen) return;   // 收卡途中／剛收完：只吞
+  if (e.deltaY < 0) _swallowWheel = true;
   const shell = getOverlayFooter();
-  if (shell && _footerOpen) scrubBy(shell, e.deltaY);
+  if (shell) scrubBy(shell, e.deltaY);
 }
 
 // 整張開（鍵盤 Tab 進卡）
@@ -1053,6 +1097,7 @@ export function openFooter() {
   if (!shell || typeof gsap === 'undefined') return;
   if (!_footerOpen) beginOpen(shell);
   _progress = 1;
+  announceOpen();
   gsap.to(shell, { yPercent: 0, rotation: _rot, duration: prefersReducedMotion() ? 0 : DUR.reveal, ease: EASE.enter, overwrite: 'auto' });
 }
 
@@ -1062,9 +1107,10 @@ export function closeFooter() {
   if (!_footerOpen) return _closePromise || Promise.resolve();
   _footerOpen = false;
   _progress = 0;
+  clearTimeout(_peekTimer);
   hideBackdrop();
-  shell.removeEventListener('wheel', onOpenWheel);
-  document.dispatchEvent(new CustomEvent('footer:close'));   // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）
+  // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）；只探頭沒開過＝logo 沒縮過，不發
+  if (_openAnnounced) { _openAnnounced = false; document.dispatchEvent(new CustomEvent('footer:close')); }
   stopShuffleLoop();
   gsap.killTweensOf(shell);
   _closePromise = new Promise((resolve) => {
@@ -1077,11 +1123,10 @@ export function closeFooter() {
 function bindFooterOverlay() {
   if (_overlayBound) return;
   _overlayBound = true;
-  // 頁底再往下滾＝開始推卡（看滾輪不看捲動＝首頁不可捲也能開）
+  window.addEventListener('wheel', onCardWheel, { capture: true, passive: false });
+  // 頁底再往下滾＝開始推卡（看滾輪不看捲動＝首頁不可捲也能開）；開卡中的滾輪 onCardWheel 已接走、到不了這裡
   window.addEventListener('wheel', (e) => {
-    if (!SCCDHelpers.isDesktopLayout() || e.ctrlKey) return;
-    // 開著時卡／backdrop 的滾輪由 onOpenWheel 接走；到這裡＝滾在 header 上（浮在卡上、這支 passive 擋不了捲頁）→ 往上就收
-    if (_footerOpen) { if (e.deltaY < 0 && -e.deltaY >= Math.abs(e.deltaX)) closeFooter(); return; }
+    if (!SCCDHelpers.isDesktopLayout() || e.ctrlKey || _footerOpen) return;
     if (e.deltaY <= 0 || e.defaultPrevented || document.body.classList.contains('lightbox-open')) return;
     const intro = document.getElementById('intro-overlay');
     if (intro && intro.style.display !== 'none') return;   // 首頁 intro 還蓋著

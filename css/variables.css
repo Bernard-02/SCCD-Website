@@ -199,6 +199,17 @@
   inherits: true;
   initial-value: 160px;
 }
+/* 桌面 logo 大／小（同理註冊＝JS 讀得到算好的 px：SCCDHelpers.headerGeom().logoLg／logoSm）；真桌面外維持 180／100 */
+@property --logo-lg {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 180px;
+}
+@property --logo-sm {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 100px;
+}
 
 /* 真桌面 header：全部從 --header-logo-top 推（user 2026-10-20：logo 以縮小態為準、中線對齊 mode／menu 鈕，「標準一起調整」）。
    矮橫向／768–1023 走手機 header，nav line 維持 160 */
@@ -207,12 +218,16 @@
     /* header 幾何唯一來源：縮小態 logo（100）頂距螢幕頂。JS 讀這個值的：SCCDHelpers.headerGeom()（hero 禁區、footer 卡、library 灰卡）。
        改這裡＝logo、鈕、nav line、上下同錨框全站一起走 */
     --header-logo-top: 36px;
+    /* logo 大／小依視窗高等比（user 2026-10-27）：視窗高 960（1080p 全螢幕瀏覽器）＝180／100，更矮等比縮（下限 0.6 倍＝108／60），
+       更高不放大。nav line／鈕／中線都從 --logo-sm 推＝一起走；間距（logo 頂 36、logo 底→nav line 36）與鈕 48 固定 */
+    --logo-lg: clamp(108px, 100svh * 180 / 960, 180px);
+    --logo-sm: clamp(60px, 100svh * 100 / 960, 100px);
     /* mode／menu 鈕（48）置中於 logo 中線 */
-    --header-btn-top: calc(var(--header-logo-top) + (100px - 48px) / 2);
+    --header-btn-top: calc(var(--header-logo-top) + (var(--logo-sm) - 48px) / 2);
     /* nav line＝縮小態 logo 底＋36（第一顆 nav btn、footer 卡頂、色卡上界對齊此線） */
-    --nav-line: calc(var(--header-logo-top) + 100px + 36px);
+    --nav-line: calc(var(--header-logo-top) + var(--logo-sm) + 36px);
     /* 縮小態 logo 中線：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box、DSD 影片高）上下都對齊此線 */
-    --header-logo-mid: calc(var(--header-logo-top) + 50px);
+    --header-logo-mid: calc(var(--header-logo-top) + var(--logo-sm) / 2);
   }
 }
 

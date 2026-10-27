@@ -123,12 +123,15 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return d;
   };
 
-  // 真桌面 header 幾何（唯一來源＝variables.css --header-logo-top）：縮小態 logo 100、mode／menu 鈕 48 置中於 logo 中線。
-  // 只在真桌面 gate 有定義，其他視口回 fallback 36（呼叫端本來就只在桌面用）
+  // 真桌面 header 幾何（唯一來源＝variables.css --header-logo-top／--logo-lg／--logo-sm）：logo 大小依視窗高等比
+  // （1920×960＝180／100）、mode／menu 鈕 48 置中於縮小態 logo 中線。真桌面外回 36／180／100（呼叫端本來就只在桌面用）
   Helpers.headerGeom = function() {
-    const logoTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-logo-top')) || 36;
-    const mid = logoTop + 50;
-    return { logoTop, mid, btnTop: mid - 24, btnBottom: mid + 24 };
+    const cs = getComputedStyle(document.documentElement);
+    const logoTop = parseFloat(cs.getPropertyValue('--header-logo-top')) || 36;
+    const logoLg = parseFloat(cs.getPropertyValue('--logo-lg')) || 180;
+    const logoSm = parseFloat(cs.getPropertyValue('--logo-sm')) || 100;
+    const mid = logoTop + logoSm / 2;
+    return { logoTop, mid, btnTop: mid - 24, btnBottom: mid + 24, logoLg, logoSm };
   };
 
   // 點了會退場的鈕／連結：退場途中保持 hover 樣子（user 2026-10-21，同 header menu 鈕）。退場起跑當下把 el＋子孫的

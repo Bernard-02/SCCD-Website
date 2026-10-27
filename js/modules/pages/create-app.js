@@ -234,7 +234,7 @@ function playCreateExitAnimation(destinationRoute) {
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches;
   const destPage = destinationRoute?.page;
-  // library / atlas 用 100px 小 logo；其他頁（含 alumni / about / index）皆 180px 大 logo
+  // library / atlas 用小 logo；其他頁（含 alumni / about / index）皆大 logo（--logo-sm／--logo-lg）
   const isSmallDestLogo = destPage === 'library' || destPage === 'atlas';
   // Same-page reentry（/create 點 header CREATE!）：page exit 內 content 元素正常退場，
   // 但 header logo (SCCD typewriter) **完全不動**——user 2026-05-31 拍板「邏輯跟其他頁切到同頁
@@ -262,7 +262,8 @@ function playCreateExitAnimation(destinationRoute) {
   //   switchHeaderLogo 走 skip path（dataset.logoType 相符 + svg 在）+ needsReveal=false → 不跑 reveal
   //   Same-page reentry 完全不碰 headerLogo（user 期望 header 完全靜止）
   if (!isSamePageReentry && !lottieStillAlive && headerLogo && !isMobile) {
-    const targetLogoSize = isSmallDestLogo ? 100 : 180;
+    const { logoLg, logoSm } = SCCDHelpers.headerGeom();
+    const targetLogoSize = isSmallDestLogo ? logoSm : logoLg;
     gsap.set(headerLogo, { width: targetLogoSize, height: targetLogoSize });
   }
 

@@ -58,7 +58,7 @@ function footerHideLogo(opts = {}) {
     t.mask.style.pointerEvents = 'none';
     gsap.to(t.mask, { yPercent: -100 * LOGO_HIDE_COUNTER, ...vars });
   }
-  gsap.to(t.logo, { yPercent: 100, ...vars });
+  gsap.to(t.logo, { yPercent: 110, ...vars });   // 110：貼遮罩邊的 100 會留 1px 殘線
 }
 function footerShowLogo(opts = {}) {
   const t = getFooterHideLogo();
@@ -398,9 +398,9 @@ if (typeof window !== 'undefined') {
   window.__sccdShowHeaderBars = footerShowBars;
   // 真桌面覆蓋卡 footer（footer-scatter.js）開卡＝關桌面 menu（面板在 header 層、會蓋在卡上）；logo／mode／menu 鈕都不收
   //（user 2026-10-19 第二輪），點 logo 照常回首頁、卡同拍退場。
-  // logo 尺寸：開卡縮到小（100）——首頁沒得捲、scroll-shrink 到不了；關卡回到「捲動應有」的尺寸（180 − 80×min(1, scrollY/300)
-  // ＝scroll-shrink 同一條公式；捲到底的頁本來就 100＝no-op）。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）尺寸各自管、不還原。
-  // 不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡 180），兩支同屬性 tween 最後都收斂到同一公式值
+  // logo 尺寸：開卡縮到小（--logo-sm）——首頁沒得捲、scroll-shrink 到不了；關卡回到「捲動應有」的尺寸（大 − (大−小)×min(1, scrollY/300)
+  // ＝scroll-shrink 同一條公式；捲到底的頁本來就小＝no-op）。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）尺寸各自管、不還原。
+  // 不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡大），兩支同屬性 tween 最後都收斂到同一公式值
   let _footerCardOpen = false;
   function footerLogoSize(open) {
     const logo = document.getElementById('header-logo');
@@ -408,28 +408,58 @@ if (typeof window !== 'undefined') {
     _footerCardOpen = open;
     const hasScrub = typeof ScrollTrigger !== 'undefined' && ScrollTrigger.getAll().some(st => st.vars && st.vars.trigger === 'body');
     if (!open && !hasScrub) return;
-    const size = open ? 100 : 180 - 80 * Math.min(1, window.scrollY / 300);
+    const { logoLg, logoSm } = SCCDHelpers.headerGeom();
+    const size = open ? logoSm : logoLg - (logoLg - logoSm) * Math.min(1, window.scrollY / 300);
     gsap.to(logo, { width: size, height: size, duration: DUR.slow, ease: EASE.move });
   }
   document.addEventListener('footer:open', () => { closeMobileMenu(); footerLogoSize(true); });
   document.addEventListener('footer:close', () => footerLogoSize(false));
-  // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝180），
+  const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
+  // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
   // 事件同一個 task 內壓回小＝不會閃（user 2026-10-26「開卡時切換視窗大小 logo 要保持小」）
   if (typeof ScrollTrigger !== 'undefined') {
-    ScrollTrigger.addEventListener('refresh', () => { if (_footerCardOpen) gsap.set('#header-logo', { width: 100, height: 100 }); });
+    ScrollTrigger.addEventListener('refresh', () => { if (_footerCardOpen) setLogoSmall(); });
   }
+  // logo 大小跟視窗高走（--logo-sm／--logo-lg）：scroll-shrink 頁靠 invalidateOnRefresh 自己重算；
+  // 固定小 logo 的頁（library/atlas/legal/create）與開卡中的 inline px 要在 resize 時補寫
+  window.addEventListener('resize', () => {
+    if (typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout() && (_logoSmallPage || _footerCardOpen)) setLogoSmall();
+  }, { passive: true });
+}
+
+// 目前頁的 logo 是不是固定小尺寸（不跟捲動縮放）：updateNavActive／冷載入設，resize 補寫用
+let _logoSmallPage = false;
+
+// 一般頁 scroll-shrink：捲 0→end 由大縮到小。值用函式＋invalidateOnRefresh＝resize（ScrollTrigger 自動 refresh）時重讀 --logo-lg／--logo-sm
+function logoScrollShrink(el, end) {
+  const g = () => SCCDHelpers.headerGeom();
+  return gsap.fromTo(el,
+    { width: () => g().logoLg, height: () => g().logoLg },
+    {
+      width: () => g().logoSm, height: () => g().logoSm, ease: 'none',
+      scrollTrigger: { trigger: 'body', start: 'top top', end: `+=${end}`, scrub: 0.5, invalidateOnRefresh: true },
+    }
+  );
 }
 
 /**
  * Typewriter SCCD 排版常數：每個字母「右邊緣」x 座標（PATHs 內 SVG viewBox 座標）+ scale 倍率。
  * triggerGenerateLogo 跟 /create 退場動畫的反向 typewriter 共用，必須對齊；export 出去避免硬編兩份。
  */
+// 縮小態 logo 依視窗高縮放（--logo-sm，user 2026-10-27）→ SCALE／SVG_TOP 取值當下讀；字樣 svg 本身用 CSS calc 跟 --logo-sm 走＝resize 不跑位
 export const GEN_LOGO_LAYOUT = {
   LETTER_X: [230, 545, 855, 1135],
-  SCALE: 70 / 320,  // 字高 70＝縮小態 logo（100）的 70%（user 2026-10-20；原 205/1135＝58）
+  // 字高＝縮小態 logo 的 70%（user 2026-10-20；原 205/1135＝58）
+  get SCALE() { return 0.7 * SCCDHelpers.headerGeom().logoSm / 320; },
   GAP: 6,
-  SVG_TOP: 15,  // 字樣在縮小態 logo 盒（100）內垂直置中＝中線對齊 mode/menu 鈕中線（user 2026-10-20 logo 改對 menu 中線）：(100 − 字高 70) / 2
+  // 字樣在縮小態 logo 盒內垂直置中＝中線對齊 mode/menu 鈕中線（user 2026-10-20 logo 改對 menu 中線）：(1 − 0.7) / 2
+  get SVG_TOP() { return 0.15 * SCCDHelpers.headerGeom().logoSm; },
 };
+// typewriter 完成後 <a> click target 撐到 SCCD bbox（原 260×100）
+function sizeGenLogoHitArea(el) {
+  el.style.width = 'calc(var(--logo-sm) * 2.6)';
+  el.style.height = 'var(--logo-sm)';
+}
 
 // Typewriter timeline reference：供 restoreHeaderLogo 在 SPA 換頁時 kill
 // 用戶在 destroy step（line ~79：lottie.destroy + logo.innerHTML=''）之前離開 /create，
@@ -635,7 +665,7 @@ export function triggerGenerateLogo() {
   // indicator cursor 出現在小 logo 右邊 → 短閃 → 摧毀 Lottie → cursor 跳左、type 出 SCCD。
   // 從 library/atlas 進來本來就是 100，shrink 是 no-op；刪除動畫只剩「小 logo」一種，不再分大小。
   // （2026-07-15 的「大 logo 直接刪」已被 user 推翻）
-  const SMALL_LOGO = 100;
+  const SMALL_LOGO = SCCDHelpers.headerGeom().logoSm;
   // 完成態直入：logo 直接 set 小尺寸；已是小尺寸（library/atlas/legal/scroll-shrink 過來）時 to() 本就是視覺 no-op
   if (instantDone) gsap.set(logo, { width: SMALL_LOGO, height: SMALL_LOGO });
   else gsap.to(logo, { width: SMALL_LOGO, height: SMALL_LOGO, duration: DUR.slow, ease: EASE.move, overwrite: 'auto' });
@@ -665,7 +695,8 @@ export function triggerGenerateLogo() {
   svgEl.id = 'gen-logo-svg';
   svgEl.setAttribute('viewBox', '0 0 1135 320');
   svgEl.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-  svgEl.style.cssText = `height:${320 * GEN_LOGO_LAYOUT.SCALE}px;width:${1135 * GEN_LOGO_LAYOUT.SCALE}px;position:absolute;top:${GEN_LOGO_LAYOUT.SVG_TOP}px;left:0;overflow:visible;pointer-events:none;z-index:1;`;
+  // 尺寸＝GEN_LOGO_LAYOUT 同比例（字高 0.7、頂 0.15 × --logo-sm）寫成 CSS：resize 時跟 logo 一起縮放
+  svgEl.style.cssText = `height:calc(var(--logo-sm) * 0.7);width:calc(var(--logo-sm) * 0.7 * 1135 / 320);position:absolute;top:calc(var(--logo-sm) * 0.15);left:0;overflow:visible;pointer-events:none;z-index:1;`;
 
   const PATHS = [
     'M120.05,320c-37.17,0-66.48-9.4-87.91-28.19C10.72,273.01,0,247.25,0,214.51h46.19c.14,20.39,6.69,36.34,19.66,47.85,12.97,11.52,31.03,17.27,54.2,17.27,21.08,0,37.97-4.47,50.66-13.42,12.69-8.95,19.04-20.98,19.04-36.1,0-11.93-4.54-21.6-13.63-29.02-9.09-7.42-24.38-13.7-45.88-18.83l-33.91-8.11c-31.35-7.49-54.2-17.93-68.56-31.31-14.36-13.38-21.53-30.83-21.53-52.33,0-18.17,4.58-34.05,13.73-47.65,9.15-13.59,22.02-24.14,38.6-31.63C75.14,3.75,94.53,0,116.72,0c33.43,0,60.03,8.74,79.79,26.22,19.77,17.48,30.13,41.34,31.11,71.57h-44.73c-1.11-17.89-7.63-31.94-19.56-42.13-11.93-10.19-27.67-15.29-47.23-15.29s-34.05,4.47-45.98,13.42c-11.93,8.95-17.89,20.43-17.89,34.43,0,11.24,4.58,20.36,13.73,27.36,9.15,7.01,24.34,13.08,45.57,18.21l33.5,7.91c31.07,7.35,53.99,17.96,68.76,31.83,14.77,13.87,22.16,31.91,22.16,54.1,0,18.59-4.79,34.82-14.36,48.69-9.57,13.87-23.03,24.62-40.36,32.25-17.34,7.63-37.73,11.44-61.17,11.44Z',
@@ -673,8 +704,7 @@ export function triggerGenerateLogo() {
     'M721.35,320c-28.44,0-53.54-6.73-75.32-20.18-21.78-13.45-38.77-32.18-50.98-56.18-12.21-24-18.31-51.81-18.31-83.43s6.1-59.85,18.31-83.85c12.2-24,29.16-42.72,50.87-56.18,21.71-13.45,46.85-20.18,75.42-20.18,22.61,0,43.1,4.44,61.48,13.32,18.38,8.88,33.6,21.4,45.67,37.56,12.07,16.16,19.9,35.27,23.51,57.32h-47.02c-4.58-21.08-14.32-37.35-29.23-48.79-14.91-11.44-32.91-17.17-53.99-17.17s-37.94,4.93-52.64,14.77c-14.7,9.85-26.04,23.65-34.02,41.4-7.98,17.76-11.96,38.35-11.96,61.79s3.95,43.97,11.86,61.59c7.91,17.62,19.25,31.35,34.02,41.2,14.77,9.85,32.35,14.77,52.74,14.77s38.87-5.69,53.78-17.06c14.91-11.37,24.79-27.53,29.65-48.48h46.81c-3.61,21.92-11.44,40.96-23.51,57.11-12.07,16.16-27.29,28.64-45.67,37.45-18.38,8.81-38.88,13.21-61.48,13.21Z',
     'M984.99,315.01h-100.29V4.99h103.41c30.38,0,56.56,6.24,78.54,18.73,21.98,12.48,38.87,30.27,50.66,53.37,11.79,23.1,17.69,50.6,17.69,82.5s-5.93,59.68-17.79,82.91c-11.86,23.23-28.99,41.13-51.39,53.68-22.4,12.56-49.35,18.83-80.83,18.83ZM930.89,274.85h51.18c36.2,0,63.01-10.2,80.42-30.59,17.41-20.39,26.11-48.62,26.11-84.68s-8.6-63.98-25.8-84.16c-17.2-20.18-43.07-30.27-77.61-30.27h-54.3v229.7Z',
   ];
-  const { LETTER_X, SCALE: scale, GAP, SVG_TOP } = GEN_LOGO_LAYOUT;
-  const letterHeight = Math.round(320 * scale);
+  const { LETTER_X, SCALE: scale, GAP } = GEN_LOGO_LAYOUT;
 
   const pathEls = PATHS.map(d => {
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -687,7 +717,7 @@ export function triggerGenerateLogo() {
   const cursorNew = document.createElement('div');
   cursorNew.dataset.genCursor = '1';
   cursorNew.dataset.genCursorRole = 'typewriter';
-  cursorNew.style.cssText = `position:absolute;top:${SVG_TOP - 6}px;left:0;width:1px;height:${letterHeight + 12}px;background:${fillColor};z-index:3;visibility:hidden;`;
+  cursorNew.style.cssText = `position:absolute;top:calc(var(--logo-sm) * 0.15 - 6px);left:0;width:1px;height:calc(var(--logo-sm) * 0.7 + 12px);background:${fillColor};z-index:3;visibility:hidden;`;
   logoContainer.appendChild(cursorNew);
 
   // 完成態直入：Lottie 即刻拆除、SCCD 全字現形、click target 撐到 SCCD bbox（同 timeline 尾段），不建 timeline
@@ -697,7 +727,7 @@ export function triggerGenerateLogo() {
     }
     logo.innerHTML = '';
     cursor.remove();   // indicator cursor 用不到
-    gsap.set(logoContainer, { width: 260, height: 100 });
+    sizeGenLogoHitArea(/** @type {HTMLElement} */ (logoContainer));
     return;
   }
 
@@ -749,8 +779,8 @@ export function triggerGenerateLogo() {
   // typewriter 完成後撐開 <a> click target 到 SCCD letter bbox：
   // #header-logo shrink 到 100x100 後 <a> 也只剩 100x100（block child 撐父層），
   // 但 SCCD svg 視覺占 0~248 x 15~85，右半邊（C/C/D）落在 click area 外 → 點不到。
-  // 設 260x100 涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
-  tl.set(logoContainer, { width: 260, height: 100 });
+  // 設 2.6×1 倍縮小態 logo（原 260x100）涵蓋 SCCD bbox + 視覺 padding；下次進 /create 由開頭清 inline 重置
+  tl.call(() => sizeGenLogoHitArea(/** @type {HTMLElement} */ (logoContainer)));
 }
 
 // ── Mode btn enter/exit anim for /create ──────────────────────
@@ -956,13 +986,15 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
   // 不加 gate 的話 same-page reentry 時 hide 狀態被清掉、edge-detection 又不會 re-fire hide → 視覺凍結現身
   if (modeBtnEl && !isGenerateActive) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
 
-  // Logo 尺寸：library / atlas 頁是小的（100）；一般頁是大的（180）會 scroll shrink
-  // /create 由 triggerGenerateLogo 自己管 size（shrink 180→100 是 typewriter 進場敘事的一部分），
+  // Logo 尺寸：library / atlas 頁是小的（--logo-sm）；一般頁是大的（--logo-lg）會 scroll shrink（兩者依視窗高等比，1920×960＝180／100）
+  // /create 由 triggerGenerateLogo 自己管 size（shrink 大→小 是 typewriter 進場敘事的一部分），
   // 這裡跑 width tween 會跟它的 shrink 競爭，所以對 generate 跳過 tween 但仍要清掉舊頁的 ScrollTrigger 和 tween
   const logoEl = document.getElementById('header-logo');
+  _logoSmallPage = isLibraryActive || isAtlasActive || isLegalActive || isGenerateActive;
   if (logoEl && typeof gsap !== 'undefined' && window.innerWidth >= 768) {
+    const { logoLg, logoSm } = SCCDHelpers.headerGeom();
     // 先精確捕捉目前尺寸（避免 ScrollTrigger 中斷造成不穩定）
-    const currentSize = logoEl.offsetWidth || 180;
+    const currentSize = logoEl.offsetWidth || logoLg;
 
     // 清除舊的 ScrollTrigger 和 tween（generate 也要清，否則前一頁的 body scroll-shrink trigger 殘留）
     if (typeof ScrollTrigger !== 'undefined') {
@@ -984,11 +1016,11 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
     } else {
       const SCROLL_END = 300;
       // SPA 切頁邏輯上應該起點 = page top（router scrollToTop 會在切頁時呼叫多次），
-      // 一般頁直接給 180 不從 window.scrollY 推算 — 否則 router scrollToTop 還沒收斂時
+      // 一般頁直接給大尺寸不從 window.scrollY 推算 — 否則 router scrollToTop 還沒收斂時
       // （前一頁從 footer 切過來、新頁 innerHTML swap 期間 scroll-anchoring 殘留），
       // 這裡會讀到舊的高 scrollY → logo 直接 snap 到小尺寸。
       // 後續 user 真的開始 scroll 由 onComplete 裡建的 ScrollTrigger 負責 shrink。
-      const targetSize = (isLibraryActive || isAtlasActive || isLegalActive) ? 100 : 180;
+      const targetSize = (isLibraryActive || isAtlasActive || isLegalActive) ? logoSm : logoLg;
 
       // 用 fromTo 強制指定起點尺寸（避免 GSAP 讀到不一致的狀態）
       // lottie SVG 內部動畫不受 width/height 變化影響，持續旋轉
@@ -1001,13 +1033,7 @@ export function updateNavActive(page, { fromFooter = false } = {}) {
           ease: EASE.move,
           onComplete: () => {
             if (!isLibraryActive && !isAtlasActive && !isLegalActive && typeof ScrollTrigger !== 'undefined') {
-              gsap.fromTo(logoEl,
-                { width: 180, height: 180 },
-                {
-                  width: 100, height: 100, ease: 'none',
-                  scrollTrigger: { trigger: 'body', start: 'top top', end: `+=${SCROLL_END}`, scrub: 0.5 }
-                }
-              );
+              logoScrollShrink(logoEl, SCROLL_END);
             }
           }
         }
@@ -1241,22 +1267,13 @@ export function initHeader() {
       // 否則直接訪問會走 else 分支裝上 scroll-shrink ScrollTrigger，跟 triggerGenerateLogo 的 shrink tween 競爭同個 width prop
       const isGenerate = currentPage === 'generate' || currentPage === 'create';
       if (isDesktop.matches) {
-        // /create 冷載入（含刪除動畫前 reload）也直接 100：沒有「上一頁」可縮，從 180 縮＝大變小（user 2026-10-21）
-        if (isLibrary || isAtlas || isLegal || isGenerate) {
-          gsap.set(logo, { width: 100, height: 100 });
+        // /create 冷載入（含刪除動畫前 reload）也直接小：沒有「上一頁」可縮，從大縮＝大變小（user 2026-10-21）
+        _logoSmallPage = isLibrary || isAtlas || isLegal || isGenerate;
+        if (_logoSmallPage) {
+          const s = SCCDHelpers.headerGeom().logoSm;
+          gsap.set(logo, { width: s, height: s });
         } else {
-          gsap.set(logo, { width: 180, height: 180 });
-          gsap.to(logo, {
-            width: 100,
-            height: 100,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: 'body',
-              start: 'top top',
-              end: '+=300',
-              scrub: 0.5,
-            }
-          });
+          logoScrollShrink(logo, 300);
         }
       } else {
         gsap.set(logo, { width: 80, height: 80 });

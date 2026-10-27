@@ -544,8 +544,9 @@
        ⚠️ HTML 不能帶 .relative utility（utilities 層會壓過這裡的 fixed）。 */
     .footer-shell {
       position: fixed;
-      left: var(--container-padding);
-      right: var(--container-padding);
+      /* --card-ext：矮螢幕縮卡時 footer-scatter.js fitCardWidth 把版面寬往兩側放大，縮完視覺寬仍貼 container padding */
+      left: calc(var(--container-padding) - var(--card-ext, 0px));
+      right: calc(var(--container-padding) - var(--card-ext, 0px));
       bottom: 48px;   /* ＝左下頁卡 bottom（user 2026-10-19「到動態那張卡的底」）；開卡時頁卡被蓋住 */
       z-index: 9998;
       /* 矮螢幕不設上限、不長高：卡的版面高＝max(框, 內容 540+)，放不進「logo 底 148＋24 → 頁卡底 48」時由
