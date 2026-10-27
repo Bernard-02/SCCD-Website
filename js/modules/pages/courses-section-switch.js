@@ -422,7 +422,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     if (slideInners.length) {
       pending++;
       gsap.killTweensOf(slideInners);
-      const DIRS = [{ a: 'y', p: -100 }, { a: 'y', p: 100 }, { a: 'x', p: -100 }, { a: 'x', p: 100 }];
+      const DIRS = [{ a: 'y', p: -110 }, { a: 'y', p: 110 }, { a: 'x', p: -110 }, { a: 'x', p: 110 }];   // ±110 防遮罩邊 1px 殘線
       const dirs = slideInners.map(() => DIRS[Math.floor(Math.random() * DIRS.length)]);
       gsap.to(slideInners, {
         yPercent: (i) => dirs[i].a === 'y' ? dirs[i].p : 0,
@@ -516,10 +516,10 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     const involvesMdes = isSwitch && prevPanel && (prevPanel.id === 'panel-mdes' || newPanelId === 'panel-mdes');
     // 年級表頭 exit 方向（4 方向 random：上下左右），enter 階段用反向 mirror（仿 hero-title-wrapper + atlas list view pattern）
     const HEADER_EXIT_DIRS = [
-      { axis: 'y', percent: -100 }, // up
-      { axis: 'y', percent: 100 },  // down
-      { axis: 'x', percent: -100 }, // left
-      { axis: 'x', percent: 100 },  // right
+      { axis: 'y', percent: -110 }, // up（±110 防遮罩邊 1px 殘線）
+      { axis: 'y', percent: 110 },  // down
+      { axis: 'x', percent: -110 }, // left
+      { axis: 'x', percent: 110 },  // right
     ];
     /** @typedef {{ axis: 'x' | 'y', percent: number }} HeaderDir */
     let headerExitDirs = /** @type {HeaderDir[] | null} */ (null);

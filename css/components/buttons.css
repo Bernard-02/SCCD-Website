@@ -264,8 +264,7 @@
   #class-buttons-sticky .class-division-btn[data-division="bfa"] .text-md {
     white-space: nowrap;
   }
-  /* max-width 卡在「md 首行剛好容、下一字溢出」：flex 內 block 會撐到自身 max-width，
-     故值＝首行 px＋16 padding＋餘裕（md 20px 量、border-box），盒寬才貼文字 */
+  /* max-width 只決定折行點（首行剛好容、下一字溢出）；折行後盒寬貼最長那行由 JS bindNavBtnFit 量（bfa-division-toggle.js） */
   #class-buttons-sticky .class-division-btn[data-division="animation"] {
     max-width: 247px;   /* 首行 "Division of Animation &"(md 227)＝於 & 後折 */
   }

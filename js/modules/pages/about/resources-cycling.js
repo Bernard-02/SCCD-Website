@@ -135,7 +135,7 @@ function renderResourcesAccordion(data, container) {
 // 「改成四周進場」，同 class 輪播 revealHidden）滑入蓋住當前（＝全站 hero clip-reveal slide，外層 .res-switcher
 // overflow:hidden 裁切），滑入 DUR.slow 0.6s、每 CYCLE_MS 換一張（4s→3s，同 class 輪播 INTERVAL；user 09-28 嫌停太久）。
 // 單張 / reduced-motion → 不輪播。桌面 hover 暫停讓人看清；離頁 registerPageCleanup 清 interval + tween。
-const SLIDE_FROM = [{ xPercent: 0, yPercent: -100 }, { xPercent: 0, yPercent: 100 }, { xPercent: -100, yPercent: 0 }, { xPercent: 100, yPercent: 0 }];
+const SLIDE_FROM = [{ xPercent: 0, yPercent: -110 }, { xPercent: 0, yPercent: 110 }, { xPercent: -110, yPercent: 0 }, { xPercent: 110, yPercent: 0 }];   // ±110 防遮罩邊 1px 殘線
 function initResourceSwitchers(root) {
   const CYCLE_MS = 3000;
   const reduce = prefersReducedMotion();

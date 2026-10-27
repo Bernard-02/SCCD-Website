@@ -311,7 +311,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
       if (openCloseAnimation) openCloseAnimation.kill();
       // 收合 = open 的反向：card 在 tight wrapper 內 yPercent 0→100 往下滑回遮罩（與 hero 退場同概念）
       openCloseAnimation = gsap.to(card, {
-        yPercent: 100,
+        yPercent: 110,
         duration: DUR.fast,
         ease: EASE.exit,
         onComplete: () => { popoverEl.style.display = 'none'; },

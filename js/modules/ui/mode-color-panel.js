@@ -213,10 +213,10 @@ function open() {
     capToggle.setAttribute('aria-expanded', 'true');
   } else if (typeof gsap !== 'undefined') {
     gsap.set(panelMask, { rotation: wheelRot });   // 微傾在 mask（drag 用 wheelRot 補償）
-    gsap.fromTo(pencilBtn, { xPercent: 0 }, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: true });
+    gsap.fromTo(pencilBtn, { xPercent: 0 }, { xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: true });
     gsap.fromTo(panel, WHEEL_HIDDEN, { xPercent: 0, x: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
   } else {
-    pencilBtn.style.transform = 'translateX(100%)';
+    pencilBtn.style.transform = 'translateX(110%)';
     panel.style.transform = 'none';
   }
   // 下一 tick 才綁 outside-close，避免開啟的那一下 pointerdown 立刻關回去
@@ -238,11 +238,11 @@ function close(instant, opts = {}) {
       // pencilReturn=true 時鉛筆由下面的 delay fromTo 自己收尾，這裡別碰——finish() 在 wheel
       // 完成(t=DUR.medium)先於鉛筆 tween 完成(t=HANDOFF_DELAY+DUR.medium)觸發，硬 set 會搶在
       // 鉛筆動畫跑完前把它瞬移到位、delay 一到 fromTo 又把它彈回 from 值重新滑入 → 閃兩次
-      if (!pencilReturn && !wasShown) gsap.set(pencilBtn, { xPercent: 100 });   // 收的途中又 show＝別把鉛筆停在遮罩外
+      if (!pencilReturn && !wasShown) gsap.set(pencilBtn, { xPercent: 110 });   // 收的途中又 show＝別把鉛筆停在遮罩外
       gsap.set(panel, WHEEL_HIDDEN);   // wheel 回藏起態（遮罩左側外）
     } else {
       panelMask.style.transform = '';
-      pencilBtn.style.transform = pencilReturn ? '' : 'translateX(100%)';
+      pencilBtn.style.transform = pencilReturn ? '' : 'translateX(110%)';
       panel.style.transform = 'translateX(calc(100% + 48px))';
     }
     if (opts.onDone) opts.onDone();
@@ -254,7 +254,7 @@ function close(instant, opts = {}) {
       cap.classList.remove('is-active');
       if (typeof gsap !== 'undefined') gsap.killTweensOf(capReveal);   // 還在等 delay 的 reveal 別在收合後升起
       capIcon.className = 'icon icon-pencil';
-      if (typeof gsap !== 'undefined') gsap.set(cap, { width: CAP_H, xPercent: pencilReturn ? 0 : 100 });
+      if (typeof gsap !== 'undefined') gsap.set(cap, { width: CAP_H, xPercent: pencilReturn ? 0 : 110 });
       else cap.style.width = '';
       finish(); return;
     }
@@ -277,7 +277,7 @@ function close(instant, opts = {}) {
     // 收完才判：收的途中 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
     gsap.to(cap, { width: CAP_H, duration: DUR.medium, ease: EASE.enter, delay: ICON_SWAP, overwrite: 'auto', onComplete: () => {
       if (pencilReturn || wasShown) finish();
-      else gsap.to(cap, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: finish });
+      else gsap.to(cap, { xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: finish });
     } });
     return;
   }
@@ -285,7 +285,7 @@ function close(instant, opts = {}) {
   // 反向接力：wheel 先往左滑回、鉛筆延遲回來（pencilReturn=false 時不回）
   gsap.to(panel, { ...WHEEL_HIDDEN, duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: finish });
   if (pencilReturn) {
-    gsap.fromTo(pencilBtn, { xPercent: 100 }, { xPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
+    gsap.fromTo(pencilBtn, { xPercent: 110 }, { xPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, delay: HANDOFF_DELAY });
   }
 }
 function onOutside(e) {
@@ -344,9 +344,9 @@ function updateVisibility() {
     return;
   }
   if (typeof gsap !== 'undefined') {
-    gsap.to(cap, { xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
+    gsap.to(cap, { xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
     gsap.to(pencilBtn, {
-      xPercent: 100, duration: DUR.medium, ease: EASE.enter, overwrite: true,
+      xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: true,
       // 動畫期間若又翻回 show（快速捲回），onComplete 別把剛 reveal 的層藏掉
       onComplete: () => { if (!wasShown) root.style.display = 'none'; },
     });
@@ -448,7 +448,7 @@ function build() {
 
   // 面板初始藏起（滑出遮罩左側外）：必須用 gsap xPercent（同 tween 的分量）；CSS translate% 會被
   // gsap 解析成 px 的 x 分量、跟 xPercent 疊加 → 開場後殘留偏移（實測 x=104 卡死）
-  if (typeof gsap !== 'undefined') { gsap.set(panel, WHEEL_HIDDEN); gsap.set(cap, { xPercent: 100 }); }
+  if (typeof gsap !== 'undefined') { gsap.set(panel, WHEEL_HIDDEN); gsap.set(cap, { xPercent: 110 }); }   // 鉛筆／圓鈕藏起一律 110：貼遮罩邊的 100 會留 1px 殘線
   else panel.style.transform = 'translateX(calc(100% + 48px))';
 
   publishFootprint();   // 初始＝收起鉛筆的 footprint（供 atlas 說明卡讓位）
@@ -485,7 +485,7 @@ export function initModeColorPanel() {
     if (isOpen) close(true);
     if (typeof gsap !== 'undefined') {
       gsap.killTweensOf([pencilBtn, cap, panel, capIcon]);
-      gsap.set([pencilBtn, cap], { xPercent: wasShown ? 0 : 100 });
+      gsap.set([pencilBtn, cap], { xPercent: wasShown ? 0 : 110 });
       gsap.set(cap, { width: CAP_H, clearProps: 'backgroundColor,color' });   // 收起底色補間被砍＝殘留 inline 色
       gsap.set(capIcon, { clearProps: 'transform' });
       gsap.set(panel, WHEEL_HIDDEN);

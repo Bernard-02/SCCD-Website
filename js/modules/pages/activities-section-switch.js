@@ -1170,7 +1170,7 @@ async function setPanelDescActive(panelId, descType) {
   if (current) {
     await new Promise(resolve => {
       gsap.to(current, {
-        yPercent: 100,
+        yPercent: 110,
         duration: DUR.base,
         ease: EASE.exit,
         overwrite: true,
@@ -1183,7 +1183,7 @@ async function setPanelDescActive(panelId, descType) {
   // 首次切換時 target 的 yPercent 是 0（panel 初次 reveal 已對所有 .list-reveal-row 拉回 0，
   // 包含 display:none 的隱藏 desc）。直接 playClipReveal 變成 0→0 不動畫 snap 出現。
   // 顯式 set 回 100 再 reveal，保證每次切換都有滑入動畫
-  gsap.set(target, { yPercent: 100 });
+  gsap.set(target, { yPercent: 110 });
   target.classList.add('active');
   playClipReveal([target], { clear: false });  // P2-3：transform 常駐 GSAP
 }

@@ -12,10 +12,10 @@ import { prefersReducedMotion } from './reduce-motion.js';
  * 讓內部 .list-header.active 等 position:sticky 元素失去原本的 sticky 範圍；clip 只剪裁不建立 scroll container
  */
 
-// 為每個 element wrap 一個 overflow:clip 容器並 set yPercent:100 隱藏
+// 為每個 element wrap 一個 overflow:clip 容器並 set yPercent:110 隱藏（±110＝多滑 10% 防遮罩邊 1px 殘線，同 revealHidden）
 // idempotent（dataset.clipWrapped 守衛）；render 後立即呼叫，避免在 ScrollTrigger 觸發前先閃現
 //
-// hide=true（預設）：wrap + 設 yPercent:100（隱藏準備 reveal）
+// hide=true（預設）：wrap + 設 yPercent:110（隱藏準備 reveal）
 // hide=false：只 wrap 不動 yPercent — 適合「初次載入 HTML 已可見描述塊，但仍需 clip-wrapper 讓未來 exit 能正確剪裁」
 //             場景。沒 wrapper 時 exit yPercent:100 會把元素推出自然 flow 看起來「掉出去」而非乾淨剪裁
 export function setupClipReveal(elements, { hide = true } = {}) {
@@ -64,7 +64,7 @@ export function setupClipReveal(elements, { hide = true } = {}) {
   });
 
   // 減少動態：不隱藏（元素留在終態可見），下方 playClipReveal 也會 early-return 不跑滑入。
-  if (hide && !prefersReducedMotion()) gsap.set(items, { yPercent: 100 });
+  if (hide && !prefersReducedMotion()) gsap.set(items, { yPercent: 110 });
   return items;
 }
 
@@ -253,7 +253,7 @@ function exitTargets(elements, viewportOnly) {
 }
 
 /**
- * clip-reveal 的反向退場：元素 yPercent 0→100 沉出 clip-wrapper 邊界。
+ * clip-reveal 的反向退場：元素 yPercent 0→110 沉出 clip-wrapper 邊界（多 10% 防 1px 殘線）。
  * 給「進場走 setupClipReveal/playClipReveal」的流式 block 內容用（list rows / 文字段落 / 描述塊 / 聯絡列）。
  * 會自動補 clip wrapper（idempotent；無 wrapper 時 yPercent:100 會掉出 flow 而非乾淨剪裁）。
  * ⚠️ 僅適用流式 block 元素；grid/flex 卡片請用 playClipPathExit（避免在 exit 當下 reparent 破壞排版）。
@@ -267,7 +267,7 @@ export function playRevealExit(elements, { stagger = 0.06, fromEnd = false, dura
   return new Promise(resolve => {
     gsap.killTweensOf(items);
     gsap.to(items, {
-      yPercent: 100,
+      yPercent: 110,
       duration,
       ease: EASE.exit,
       stagger: { each: stagger, from: fromEnd ? 'end' : 'start', grid: 'auto', axis: 'y' },

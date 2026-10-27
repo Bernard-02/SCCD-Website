@@ -363,7 +363,7 @@ export function initPdfViewer() {
   let entranceTl = null;
   // clip-reveal 進出場方向隨機四選一（user 2026-08-24，原本只上下）：inner 從該邊滑入/滑出、外層 overflow:hidden 當罩。
   // 螢幕上恆 (0,0)；離場端在該軸 ±100%（另一軸歸 0 避免對角殘留）。
-  const THUMB_DIRS = [{ x: 0, y: -100 }, { x: 0, y: 100 }, { x: -100, y: 0 }, { x: 100, y: 0 }];
+  const THUMB_DIRS = [{ x: 0, y: -110 }, { x: 0, y: 110 }, { x: -110, y: 0 }, { x: 110, y: 0 }];   // ±110 防遮罩邊 1px 殘線
   const randThumbDir = () => THUMB_DIRS[Math.floor(Math.random() * THUMB_DIRS.length)];
   function updateCornerThumb() {
     if (!cornerThumbEl || !cornerThumbRect) return;

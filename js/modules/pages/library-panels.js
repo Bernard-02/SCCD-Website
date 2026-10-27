@@ -268,7 +268,7 @@ function makeScrollPager(wrap, col, getItems, labels) {
   up.inert = true;
   up.innerHTML = '<span class="year-less-inner"><span class="icon icon-chevron-list icon-xs" style="transform:rotate(90deg);"></span></span>';  // 90＝朝上
   const upInner = /** @type {HTMLElement} */ (up.firstElementChild);
-  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
+  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -110 });
   let upShown = false;
   // chevron 觸發的程式捲動目的地（-1＝沒在捲）：顯隱看終點、點擊當下就進退場，不等捲完（user 2026-10-02）
   let goal = -1;
@@ -284,8 +284,8 @@ function makeScrollPager(wrap, col, getItems, labels) {
       // （125% 縮放 118×1.25=147.5）時兩邊捨入方向不同＝蓋板上方漏 1 裝置像素的年份字（user 2026-10-20）
       up.style.marginTop = `${wrap.getBoundingClientRect().top - cr.top - col.clientTop - parseFloat(getComputedStyle(col).paddingTop) - 1}px`;
     }
-    if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-100%)';
-    else gsap.to(upInner, { yPercent: show ? 0 : -100, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
+    if (typeof gsap === 'undefined') upInner.style.transform = show ? '' : 'translateY(-110%)';
+    else gsap.to(upInner, { yPercent: show ? 0 : -110, duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft, overwrite: true });
   };
   wrap.addEventListener('scroll', syncUp, { passive: true });
   const scrollTo = (/** @type {number} */ target) => {
@@ -3316,7 +3316,7 @@ function revealFilesCards(cards) {
     ].filter(Boolean);
     if (hasGsap && groups.length) {
       groups.forEach(ensureGroupClip);       // 各組獨立遮罩（見 ensureGroupClip 註解）
-      gsap.set(groups, { yPercent: 100 });   // 隱藏準備
+      gsap.set(groups, { yPercent: 110 });   // 隱藏準備
     }
     return groups;
   });
@@ -4253,7 +4253,7 @@ export function playPanelBodyExit(panelEl, dur = 0.35) {
   void panelEl.offsetWidth;
   plans.forEach(p => {
     if (p.groups) {
-      p.groups.forEach(g => { g.style.transition = `transform ${ROW_DUR}s ease-in`; g.style.transform = 'translateY(100%)'; });
+      p.groups.forEach(g => { g.style.transition = `transform ${ROW_DUR}s ease-in`; g.style.transform = 'translateY(110%)'; });
       if (p.cover) { p.cover.style.transition = `transform ${ROW_DUR}s ease-in`; p.cover.style.transform = pickCoverSlideDir(); }
     } else {
       const h = /** @type {{clipPath: string, translate: string}} */ (rowHid.get(p.el));

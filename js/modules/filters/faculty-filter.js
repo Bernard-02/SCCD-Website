@@ -258,11 +258,11 @@ function exitFacultyCards(cards, onComplete) {
 
     if (title) {
       gsap.killTweensOf(title);
-      gsap.to(title, { yPercent: 100, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay });
+      gsap.to(title, { yPercent: 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay });
     }
     if (name) {
       gsap.killTweensOf(name);
-      gsap.to(name, { yPercent: 100, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay + EXIT_INTERNAL_STEP });
+      gsap.to(name, { yPercent: 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay + EXIT_INTERNAL_STEP });
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);

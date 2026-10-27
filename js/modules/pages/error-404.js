@@ -144,7 +144,7 @@ function shuffleAll(stage) {
 
   gsap.killTweensOf(cards);
   gsap.to(cards, {
-    yPercent: 100,
+    yPercent: 110,
     duration: EXIT_DURATION_S,
     ease: EASE.enter,
     stagger: { each: 0.08, axis: 'y' },

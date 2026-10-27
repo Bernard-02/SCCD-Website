@@ -160,8 +160,9 @@ export function showPanel(panelSelector, targetId) {
  * @param {NodeList|Element[]} btns
  */
 export function bindNavBtnFit(btns) {
+  // 沒 .anchor-nav-inner 的鈕（about 分組鈕／DSD 子展覽 tab＝.class-division-btn，padding 在鈕本身）直接 fit 鈕
   const fit = () => [...btns].forEach(b =>
-    fitCardToText(/** @type {HTMLElement|null} */ (/** @type {Element} */ (b).querySelector('.anchor-nav-inner'))));
+    fitCardToText(/** @type {HTMLElement} */ (/** @type {Element} */ (b).querySelector('.anchor-nav-inner') || b)));
   fit();
   loadUiLabels().then(fit);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
@@ -270,7 +271,7 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     const gap = parseFloat(g) * (g.endsWith('rem') ? parseFloat(getComputedStyle(document.documentElement).fontSize) : 1);
     return upMask.offsetHeight + (gap || 0);
   };
-  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -100 });
+  if (typeof gsap !== 'undefined') gsap.set(upInner, { yPercent: -110 });
   let upShown = false;
   let goal = -1;   // chevron 觸發的捲動目的地（-1＝沒在捲）：上 chevron 顯隱看終點、點擊當下就進退場，不等捲完
   const pad = () => parseFloat(getComputedStyle(list).paddingTop) || 0;   // 溢出態的旋轉角 clearance（lists.css）
@@ -284,9 +285,9 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
     // 清單頂同拍裁掉 chip 佔的那段（lists.css --nav-up-clip）。變數寫在 host、list 繼承：
     // 寫在 list 上會被 scrollList 的 overwrite:true（同 target）殺掉、裁切卡在半途
     const clip = `${show ? pad() + upH() : 0}px`;
-    if (typeof gsap === 'undefined') { upInner.style.transform = show ? '' : 'translateY(-100%)'; host.style.setProperty('--nav-up-clip', clip); return; }
+    if (typeof gsap === 'undefined') { upInner.style.transform = show ? '' : 'translateY(-110%)'; host.style.setProperty('--nav-up-clip', clip); return; }
     const tw = { duration: DUR.medium, ease: show ? EASE.enter : EASE.exitSoft };
-    gsap.to(upInner, { yPercent: show ? 0 : -100, ...tw, overwrite: true });
+    gsap.to(upInner, { yPercent: show ? 0 : -110, ...tw, overwrite: true });
     gsap.to(host, { '--nav-up-clip': clip, ...tw, overwrite: 'auto' });   // 'auto'＝只取代前一支裁切 tween，不碰 host 上別的動畫
   };
   const update = () => {
@@ -345,7 +346,7 @@ export function bindNavOverflow(host, list = /** @type {HTMLElement|null} */ (ho
   registerPageExit(() => {
     if (typeof gsap === 'undefined' || !host.classList.contains('nav-overflowing')) return Promise.resolve();
     const tws = [gsap.fromTo(more, { ...NAV_CHIP_SHOWN }, { ...navChipHidden(more, randomRevealDir()), duration: DUR.base, ease: EASE.wipe })];
-    if (upShown) tws.push(gsap.to(upInner, { yPercent: -100, duration: DUR.base, ease: EASE.wipe, overwrite: true }));
+    if (upShown) tws.push(gsap.to(upInner, { yPercent: -110, duration: DUR.base, ease: EASE.wipe, overwrite: true }));
     return Promise.all(tws.map(t => t.then()));
   });
   // host 高（視窗 resize）或項目高（ui_labels 填字後折行、字型載入）一變就重判；

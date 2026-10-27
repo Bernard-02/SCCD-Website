@@ -17,6 +17,7 @@ import { registerPageCleanup } from './page-cleanup.js';
 import { ensureCardMask, fitCardToText, revealHidden, navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from './scroll-animate.js';
 import { pauseVideoEl } from './pause-offscreen-video.js';
 import { DUR, EASE } from './motion.js';
+import { bindNavBtnFit } from './section-switch-helpers.js';
 
 export function initBFADivisionToggle() {
   const classInfoPanels  = document.querySelectorAll('.class-info-panel');
@@ -155,7 +156,7 @@ export function initBFADivisionToggle() {
       panel.style.pointerEvents = 'none';
       panel.style.zIndex = '0';
       if (text && typeof gsap !== 'undefined') gsap.set(text, revealHidden());
-      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 100, xPercent: 0 });
+      if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 110, xPercent: 0 });
       // 換 tab 藏起的 panel 影片要停：panel 只是 transform 移走、沒 display:none → pauseVideosOffscreen 的 IO 不會觸發
       pauseVideoEl(panel.querySelector('iframe'));
     }
@@ -232,7 +233,7 @@ export function initBFADivisionToggle() {
     if (oldVideo) gsap.to(oldVideo, {
       ...dir.oldEnd, duration: VIDEO_DUR, ease: WORKS_VIDEO_EASE,
       // 退場後重置回預設「下方等待位」，下次 setWorksPanelState 可正常切回
-      onComplete: () => gsap.set(oldVideo, { yPercent: 100, xPercent: 0 })
+      onComplete: () => gsap.set(oldVideo, { yPercent: 110, xPercent: 0 })   // 停放 110（防遮罩邊 1px 殘線）；交棒推移本身維持 100＝兩片無縫
     });
 
     // 收尾：normalise z-index，確保只有 newPanel 是 active（z-index 1），其他全 0
@@ -642,7 +643,7 @@ export function initBFADivisionToggle() {
     const text  = panel.querySelector('[data-works-hl]');
     const video = worksVideoParts(panel);
     if (text)  { ensureCardMask(text); fitCardToText(text); gsap.set(text, revealHidden()); }
-    if (video) gsap.set(video, { yPercent: 100, xPercent: 0 });
+    if (video) gsap.set(video, { yPercent: 110, xPercent: 0 });
   };
   window.SCCD_revealWorksActive = function () {
     if (typeof gsap === 'undefined') return;
@@ -655,6 +656,9 @@ export function initBFADivisionToggle() {
   };
 
   // ─── Initial State ───────────────────────────────────────────
+
+  // 桌面分組鈕折行時寬＝最長那行（user 2026-10-27；同 nav btn helper、DSD 子展覽 tab 共用）
+  bindNavBtnFit(document.querySelectorAll('#class-buttons-sticky .class-division-btn'));
 
   requestAnimationFrame(() => {
     initRotations();
@@ -685,7 +689,7 @@ export function initBFADivisionToggle() {
     const video = worksVideoParts(activePanel);
     const tweens = [];
     if (text)  { ensureCardMask(text); tweens.push(gsap.to(text, { ...revealHidden(), duration: WORKS_ANIM_DUR, ease: EASE.wipe, overwrite: true })); }
-    if (video && video.length) tweens.push(gsap.to(video, { xPercent: -100, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
+    if (video && video.length) tweens.push(gsap.to(video, { xPercent: -110, duration: WORKS_ANIM_DUR, ease: WORKS_VIDEO_EASE, overwrite: true }));
     if (!tweens.length) { resolve(); return; }
     let done = 0;
     tweens.forEach(t => t.eventCallback('onComplete', () => { if (++done >= tweens.length) resolve(); }));

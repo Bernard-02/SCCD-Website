@@ -150,7 +150,7 @@ export function initMobileMenu() {
     // nav 一可見會閃一幀全顯選項才被壓回隱藏。把 hide 提到 .open 之前，這一幀不存在。
     if (typeof gsap !== 'undefined' && menuItems && menuItems.length) {
       setupClipReveal(menuItems);
-      gsap.set(menuItems, { yPercent: 100, y: hideY });
+      gsap.set(menuItems, { yPercent: 110, y: hideY });
       // 桌面 btn 旋轉掛在 clip wrapper（遮罩跟著轉 → 滑入不切旋轉凸角，同 header bar 收合做法）；已有角度就沿用
       menuItems.forEach(a => {
         const w = a.parentElement;
@@ -191,7 +191,7 @@ export function initMobileMenu() {
           if (!menuItems || !menuItems.length) { busy = false; return; }
           // fromTo 自帶起點 100：不依賴 open 前的外部 set 撐過滑入段，stagger 每次都確定從隱藏播（user 2026-06-24）
           revealTween = gsap.fromTo(menuItems,
-            { yPercent: 100, y: hideY },
+            { yPercent: 110, y: hideY },
             {
               yPercent: 0,
               y: 0,
@@ -244,7 +244,7 @@ export function initMobileMenu() {
           revealTween?.kill(); revealTween = null;   // 開啟中途收：見 revealTween 宣告
           gsap.killTweensOf(menuItems);
           gsap.to(menuItems, {
-            yPercent: 100,
+            yPercent: 110,
             y: desktop ? DESKTOP_HIDE_BUFFER : 0,
             duration: itemDur,
             stagger: { each: itemStagger, from: 'end' },

@@ -767,7 +767,7 @@ function runHeaderLogoReveal(logo) {
   const mask = /** @type {HTMLElement|null} */ (logo.closest('a'));
   if (mask) mask.style.overflow = 'hidden';
   gsap.fromTo(logo,
-    { yPercent: 100 },
+    { yPercent: 110 },
     {
       yPercent: 0,
       duration: DUR.reveal,
