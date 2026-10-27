@@ -88,10 +88,10 @@
      只給「單獨的字卡」：卡中卡（手風琴內文、年代標）、列（list-header、規章列）、控制列不吃；
      footer 卡內資訊卡／legal、atlas hover 卡各段 10-26 起照字級吃。字卡行距一併吃同字級的 --line-height-*。
      xl＝畢業展上下屆年份／標題（hero 年份已改 lg）；上下不等是 user 指定 */
-  --card-pad-3xl: 4px 12px;
-  --card-pad-2xl: 3px 10px;
+  --card-pad-3xl: 0 10px;
+  --card-pad-2xl: 0 8px;
   --card-pad-xl: 5px 7px 4px;
-  --card-pad-lg: 7px 9.5px;
+  --card-pad-lg: 5.5px 7px;
   --card-pad-md: 6px 7px;
   --card-pad-s: 5px 6px;
   --card-pad-xs: 4px 5px;

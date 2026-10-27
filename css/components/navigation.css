@@ -312,9 +312,9 @@
      角度掛外層遮罩（滑入不切旋轉凸角）。位置鏡像 menu 下組：左＝container padding、底 48。header.js updateNavActive 填字＋抽角＋clip-reveal。
      跟著內容走＝原生 sticky（JS 捲動事件寫位移會慢一幀而抖）：卡在隱形軌道 #page-indicator-track 底端（header.html，fixed header 外），
      軌道＝hero 底 → main 底（header.js layoutPageIndicatorTrack 寫 top/height），上下 padding 48。
-     --page-indicator-top＝卡頂離視窗底（48 + padding 11 + 英中兩行 + 英中距，跟下方卡片樣式同步）：atlas 切換鈕 / legal 標題 / library 色卡讓位用 */
+     --page-indicator-top＝卡頂離視窗底（48 + padding 上下 5×2＝--card-pad-s + 英中兩行 + 英中距，跟下方卡片樣式同步）：atlas 切換鈕 / legal 標題 / library 色卡讓位用 */
   :root {
-    --page-indicator-top: calc(48px + 11px + var(--font-size-s) * var(--line-height-s) * 2 + var(--space-en-zh-s));
+    --page-indicator-top: calc(48px + 10px + var(--font-size-s) * var(--line-height-s) * 2 + var(--space-en-zh-s));
   }
   #page-indicator-track {
     display: flex;

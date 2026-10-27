@@ -64,9 +64,9 @@
         white-space: nowrap;
         user-select: none;
       }
-      [data-error-card="weizhi"] .error-404-card {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）；4px＝--card-pad-3xl 上下 */
-        padding-top: calc(4px - var(--zh-ink-nudge));
-        padding-bottom: calc(4px + var(--zh-ink-nudge));
+      [data-error-card="weizhi"] .error-404-card {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）：--card-pad-3xl 上下是 0、上內距減不下去 → 補償全給下內距（2×＝上挪 1× 同效） */
+        padding-top: 0;
+        padding-bottom: calc(2 * var(--zh-ink-nudge));
       }
 
       .error-404-card.is-btn {

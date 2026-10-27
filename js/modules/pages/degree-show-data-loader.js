@@ -21,7 +21,7 @@ import { loadDegreeShow } from './degree-show-source.js';
 import { escapeHtml } from '../ui/escape-html.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
 import { countryName } from '../../data/country-names.js';
-import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { bindNavBtnHover, bindNavBtnFit } from '../ui/section-switch-helpers.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { makeTabsDraggable } from '../ui/footer-scatter.js';
 
@@ -63,8 +63,9 @@ function fitCardToInk(el) {
   // 只把上內距挪 --zh-ink-nudge 給下內距：大字中文縮 88% 以基線為準縮、墨跡偏下（同 hero.css 純中文大字卡）
   if (/^[\s　-〿㐀-鿿＀-￯\-–—·・]+$/.test(text)) {
     const nudge = parseFloat(cs.fontSize) * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zh-ink-nudge'));
-    shift('top', -nudge);
-    shift('bottom', nudge);
+    const cut = Math.min(nudge, parseFloat(cs.paddingTop));   // 上內距最多減到 0（2xl token 上下是 0）
+    shift('top', -cut);
+    shift('bottom', 2 * nudge - cut);   // 減不下去的那截由下內距加倍補＝墨跡置中同效（同 hero.css 純中文大字卡）
     return;
   }
   shift('top', Math.max(0, ink.actualBoundingBoxAscent - ref.actualBoundingBoxAscent));
@@ -431,13 +432,13 @@ function setupHeroMobileEntrance() {
   if (!bg && chips.length === 0) return;
 
   const DIRS = [
-    { xPercent: 0, yPercent: -100 },
-    { xPercent: 0, yPercent: 100 },
-    { xPercent: -100, yPercent: 0 },
-    { xPercent: 100, yPercent: 0 },
+    { xPercent: 0, yPercent: -110 },
+    { xPercent: 0, yPercent: 110 },
+    { xPercent: -110, yPercent: 0 },
+    { xPercent: 110, yPercent: 0 },
   ];
-  // bg img 藏定位 ±110 過衝（chips 是文字包 wrapper 用 100；圖片貼齊 100 有 dpr hairline，同 faculty SLIDE_MAP）
-  const IMG_DIRS = DIRS.map(d => ({ xPercent: d.xPercent * 1.1, yPercent: d.yPercent * 1.1 }));
+  // chips 與 bg img 都 ±110 過衝（貼齊 100 有 dpr hairline／1px 殘線，同 faculty SLIDE_MAP；user 2026-10-27 全站改）
+  const IMG_DIRS = DIRS;
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
   chips.forEach(chip => {
@@ -1036,6 +1037,7 @@ function buildDesktopEventTabs(root, items) {
   };
 
   const tabs = /** @type {HTMLElement[]} */ (Array.from(section.querySelectorAll('.class-division-btn')));
+  bindNavBtnFit(tabs);   // 長名折行時寬＝最長那行（同 about 分組鈕，user 2026-10-27）
   const panels = /** @type {HTMLElement[]} */ (Array.from(section.querySelectorAll('.class-info-panel')));
   const boxes = panels.map(p => /** @type {HTMLElement[]} */ (Array.from(p.querySelectorAll('[data-class-hl]'))));
   boxes.flat().forEach(tiltCardMask);
@@ -1602,7 +1604,7 @@ async function setupRefBtn(data) {
       // 收合 = open 反向：card 在 tight wrapper 內 yPercent 0→100 往下滑回遮罩（與 album viewer ref card 同）。
       // wrapper overflow-y:clip 一直維持（旋轉套 wrapper、card 對 wrapper 0°）→ 下滑乾淨被遮、無需切 overflow。
       openAnim = gsap.to(card, {
-        yPercent: 100,
+        yPercent: 110,
         duration: DUR.fast,
         ease: EASE.exit,
         onComplete: () => { popover.style.display = 'none'; },
