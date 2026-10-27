@@ -17,7 +17,59 @@ import { loadAboutVision, loadAboutClasses, loadAboutWorks } from './about-sourc
 import { YT_API_KEY } from '../../../config/api.js';
 import { isNavSpinDesktop } from '../../ui/section-switch-helpers.js';
 import { registerPageExit } from '../../ui/page-exit.js';
-import { setupClipReveal, playClipReveal, playRevealExit, tiltCardMask } from '../../ui/scroll-animate.js';
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
+import { setupClipReveal, playClipReveal, playRevealExit, tiltCardMask, revealHidden } from '../../ui/scroll-animate.js';
+import { escapeHtml } from '../../ui/escape-html.js';
+import { prefersReducedMotion } from '../../ui/reduce-motion.js';
+import { DUR, EASE } from '../../ui/motion.js';
+
+// ── Hero 中英系名（後台 about_vision.heroNamesEn／heroNamesZh，各可多筆）：第一筆蓋 HTML 預設、其餘疊進同一格（.about-hero-stack）等輪播 ──
+function fillHeroNames(lang, names) {
+  const stack = document.querySelector(`.about-hero-stack[data-hero-names="${lang}"]`);
+  const first = stack?.querySelector('.about-hero-name');
+  if (!first || !names?.length) return;   // 後台空／失敗＝留 HTML 預設
+  const toHtml = s => escapeHtml(s).replace(/\r?\n/g, '<br>');
+  first.innerHTML = toHtml(names[0]);
+  // 其餘筆照第一筆複製（lang／class 一致），出生就藏（.about-hero-name 預設 visibility:hidden）；
+  // 拿掉 [data-hero-logo]＝hero 進場不碰、拿掉 style＝不抄到第一筆進場中的 inline transform
+  names.slice(1).forEach(n => {
+    const wrap = /** @type {HTMLElement} */ (first.parentElement.cloneNode(true));
+    const p = /** @type {HTMLElement} */ (wrap.firstElementChild);
+    p.removeAttribute('data-hero-logo');
+    p.removeAttribute('style');
+    p.innerHTML = toHtml(n);
+    stack.append(wrap);
+  });
+}
+
+// 兩筆以上：每筆停 HERO_NAME_HOLD 秒 → 當前那筆四向 clip-reveal 退出 → 下一筆進場，循環回第一筆。
+// 中英共用一個節拍（各自有幾筆就各自循環；筆數相同＝中英成對換）；只有一筆的那邊不動。
+// [data-hero-logo] 跟著「畫面上那筆」走（退出完才交棒）＝中途離頁由 hero 退場（hero-animation playHeroExit）接手收它。
+const HERO_NAME_HOLD = 5;
+export function initHeroNameCycle() {
+  const lists = Array.from(document.querySelectorAll('.about-hero-stack'))
+    .map(s => /** @type {HTMLElement[]} */ (Array.from(s.querySelectorAll('.about-hero-name'))))
+    .filter(names => names.length > 1);
+  if (!lists.length || typeof gsap === 'undefined' || prefersReducedMotion()) return;   // 減少動態＝不自動換字
+  const idx = lists.map(() => 0);
+  /** @type {any} */ let tl = null;
+  let call = gsap.delayedCall(HERO_NAME_HOLD, next);
+  function next() {
+    tl = gsap.timeline({ onComplete: () => { call = gsap.delayedCall(HERO_NAME_HOLD, next); } });
+    lists.forEach((names, k) => {
+      const cur = names[idx[k]];
+      const nxt = names[idx[k] = (idx[k] + 1) % names.length];
+      tl.to(cur, { ...revealHidden(), duration: DUR.medium, ease: EASE.exit }, 0)
+        .set(cur, { visibility: 'hidden' }, DUR.medium)
+        .call(() => { cur.removeAttribute('data-hero-logo'); nxt.setAttribute('data-hero-logo', ''); }, undefined, DUR.medium)
+        .fromTo(nxt, { ...revealHidden(), visibility: 'visible' },
+          { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform' }, DUR.medium);
+    });
+  }
+  const stop = () => { call.kill(); tl?.kill(); };
+  registerPageCleanup(stop);
+  registerPageExit(async () => stop());   // 離頁不再排下一輪；畫面上那筆交給 hero 退場
+}
 
 // ── Vision（理念）：兩個 [data-overview-hl] span，DOM 順序 = EN、ZH ──
 // 文字寫進內層 [data-overview-text]（手機內捲層，padding 留在外盒）；無內層時退回外盒
@@ -207,6 +259,8 @@ export async function loadAboutContent() {
     loadAboutClasses().catch(() => null),
     loadAboutWorks().catch(() => null),
   ]);
+  fillHeroNames('en', vision?.heroNamesEn);
+  fillHeroNames('zh', vision?.heroNamesZh);
   fillVision(vision);
   fillClasses(classes);
   fillWorks(works);

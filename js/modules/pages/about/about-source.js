@@ -24,7 +24,15 @@ async function fetchRows(query, label) {
 // singleton：Directus 回 { data: {…} }（非陣列）
 export async function loadAboutVision() {
   const d = await fetchRows('about_vision', 'vision');
-  return { descriptionEn: d?.descriptionEn || '', descriptionZh: d?.descriptionZh || '' };
+  return {
+    descriptionEn: d?.descriptionEn || '', descriptionZh: d?.descriptionZh || '',
+    // hero 中英系名 repeater（各可多筆輪播）；空字串的筆跳過
+    heroNamesEn: heroNames(d?.heroNamesEn),
+    heroNamesZh: heroNames(d?.heroNamesZh),
+  };
+}
+function heroNames(rows) {
+  return (Array.isArray(rows) ? rows : []).map(r => (r?.text || '').trim()).filter(Boolean);
 }
 
 export async function loadAboutClasses() {

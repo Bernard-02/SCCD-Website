@@ -239,6 +239,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       if (!alive()) return;
       resources.initResourcesCycling();
       content.initAboutHighlights();
+      content.initHeroNameCycle();
       timeline.initTimeline();
       anchor.initAnchorNav({ reveal: true });
       hAccordion.initHorizontalAccordion();

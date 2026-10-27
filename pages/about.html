@@ -37,10 +37,11 @@
     <section class="snap-zone h-screen relative overflow-hidden flex items-center">
       <!-- grid-cols-2＋gutter＝grid-20 的 col 1-10／11-20（手機不用 grid-20：19 條 gutter 會撐爆 375 寬） -->
       <div class="site-container grid md:grid-cols-2 items-center gap-x-gutter gap-y-xl">
-        <div class="flex justify-center">
+        <!-- 中英系名＝後台 about_vision.heroNamesEn／heroNamesZh（可多筆輪播，about-data-loader.js 疊進來）；這裡是後台空／失敗時的預設 -->
+        <div class="about-hero-stack" data-hero-names="en">
           <div class="hero-logo-wrapper"><p data-hero-logo lang="en" class="about-hero-name">Department of<br>Communications Design,<br>Shih Chien University</p></div>
         </div>
-        <div class="flex justify-center">
+        <div class="about-hero-stack" data-hero-names="zh">
           <div class="hero-logo-wrapper"><p data-hero-logo class="about-hero-name">實踐大學媒體傳達設計學系</p></div>
         </div>
       </div>

@@ -28,6 +28,12 @@
     display: inline-block;
     overflow: hidden;
   }
+  /* 中英系名各可多筆輪播：全疊同一格、格＝最大那筆 → 換名不推動另一塊（手機上下疊）；每筆各自在格內置中 */
+  .about-hero-stack {
+    display: grid;
+    place-items: center;
+  }
+  .about-hero-stack > * { grid-area: 1 / 1; }
   /* 字級跟半邊欄寬走：最長行 "Communications Design," ≈12em → 約佔半邊 80% */
   .about-hero-name {
     font-size: clamp(1.5rem, 3.2vw, 5rem);
@@ -233,9 +239,9 @@
   :is(.hero-title, .hero-title-cn)[data-hero-hl] {
     padding: var(--card-pad-3xl);
   }
-  .hero-title-cn[data-hero-hl] {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）；4px＝--card-pad-3xl 上下 */
-    padding-top: calc(4px - var(--zh-ink-nudge));
-    padding-bottom: calc(4px + var(--zh-ink-nudge));
+  .hero-title-cn[data-hero-hl] {   /* 純中文大字卡墨跡補償（variables.css --zh-ink-nudge）：--card-pad-3xl 上下是 0、上內距減不下去 → 補償全給下內距（2×＝上挪 1× 同效） */
+    padding-top: 0;
+    padding-bottom: calc(2 * var(--zh-ink-nudge));
   }
   .dshow-hero-title[data-hero-hl] {
     padding: var(--card-pad-2xl);   /* 行距見 lists.css .dshow-hero-title（2xl token） */
