@@ -27,10 +27,11 @@ function getIconSuffix(useTargetMode = false) {
 // 在 css/components/create.css 用 filter: invert(1) 處理（class .white-icons 切換）。
 // 2026-05-20 全部對應完成，/generate-app/Panel Icon/ 資料夾已刪。
 const _PANEL_ICON_MAP = {
-  Standard: 'mode_1',
-  Inverse_White: 'mode_2',
-  Standard_Wireframe: 'mode_3',
-  Inverse_Wireframe: 'mode_3',
+  // mode 鈕用 /create 專用檔：48px 的線粗統一 4.4px（user 2026-10-27）；header 的 mode 鈕（32px）仍用 mode_1～3
+  Standard: 'mode_1_create',
+  Inverse_White: 'mode_2_create',
+  Standard_Wireframe: 'mode_3_create',
+  Inverse_Wireframe: 'mode_3_create',
   Play: 'play_create',
   Play_Inverse: 'play_create',
   Pause: 'pause_create',
