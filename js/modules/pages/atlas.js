@@ -3247,7 +3247,7 @@ export async function initAtlas(options = {}) {
       el.style.clipPath = 'none';      // 清掉 CSS 的 clip-path（改用 mask + yPercent）
     }
     // 滑動「藏 / 露」狀態：top 用 yPercent（mask 裁）、left 用 clip-path + translate（wrapper-free）
-    const slideHidden = () => (dirKey === 'top' ? { yPercent: -100 } : { clipPath: dirCfg.hiddenClip, translate: hiddenTranslatePx() });
+    const slideHidden = () => (dirKey === 'top' ? { yPercent: -110 } : { clipPath: dirCfg.hiddenClip, translate: hiddenTranslatePx() });
     const slideVisible = () => (dirKey === 'top' ? { yPercent: 0 } : { clipPath: CAREER_VISIBLE_CLIP, translate: CAREER_SHOWN_TRANSLATE });
     let idx = 0;
     /** @type {number | null} */
@@ -3289,10 +3289,10 @@ export async function initAtlas(options = {}) {
     // #6（user 09-01）：list career chip（dir 'top'，mask overflow:hidden 裁切）每次輪播從四方向之一隨機滑出/滑入；
     //   map view（dir 'left'）維持原 clip+translate 機制。四向都明確歸零另一軸 → 切換方向不留殘影。
     const CYCLE_SLIDE = {
-      top:    { xPercent: 0,    yPercent: -100 },
-      bottom: { xPercent: 0,    yPercent: 100  },
-      left:   { xPercent: -100, yPercent: 0    },
-      right:  { xPercent: 100,  yPercent: 0    },
+      top:    { xPercent: 0,    yPercent: -110 },   // ±110 防遮罩邊 1px 殘線
+      bottom: { xPercent: 0,    yPercent: 110  },
+      left:   { xPercent: -110, yPercent: 0    },
+      right:  { xPercent: 110,  yPercent: 0    },
     };
     const CYCLE_DIRS = ['top', 'bottom', 'left', 'right'];
 
@@ -3358,7 +3358,7 @@ export async function initAtlas(options = {}) {
         gsap.set(el, { height: 'auto', paddingTop: CAREER_PAD_TOP, paddingBottom: CAREER_PAD_BOTTOM });
         fitWidth();
         const naturalH = el.offsetHeight;
-        gsap.set(el, { yPercent: -100 });
+        gsap.set(el, { yPercent: -110 });
         gsap.set(mask, { height: 0, overflow: 'hidden' });
         const tlTop = gsap.timeline({ delay: (opts && opts.delay) || 0 });
         tlTop.to(mask, { height: naturalH, duration: DUR.fast, ease: EASE.enterSoft }, 0);
@@ -3413,7 +3413,7 @@ export async function initAtlas(options = {}) {
       if (interval) { clearInterval(interval); interval = null; }
       if (typeof gsap === 'undefined') {
         if (dirKey === 'top') {
-          el.style.transform = 'translateY(-100%)';
+          el.style.transform = 'translateY(-110%)';
           if (mask) mask.style.height = '0';
           return;
         }
@@ -3431,7 +3431,7 @@ export async function initAtlas(options = {}) {
         const curH = el.offsetHeight;
         gsap.set(mask, { height: curH });
         const tlTop = gsap.timeline({ delay: (opts && opts.delay) || 0 });
-        tlTop.to(el, { yPercent: -100, duration: DUR.base, ease: EASE.exitSoft }, 0);
+        tlTop.to(el, { yPercent: -110, duration: DUR.base, ease: EASE.exitSoft }, 0);
         tlTop.to(mask, { height: 0, duration: DUR.fast, ease: EASE.exitSoft }, 0.4);
         tween = tlTop;
         return;
@@ -3950,6 +3950,11 @@ export async function initAtlas(options = {}) {
   function showLayoutBtn() {
     if (!layoutBtn || !layoutInner || layoutBtn.classList.contains('atlas-layout-revealed')) return;
     layoutBtn.classList.add('atlas-layout-revealed');
+    // 進場帶新的隨機角（user 2026-10-27；每次進場重抽）：藏著時直接設、不走 CSS rotate transition（否則遮罩邊滑入邊轉）
+    layoutBtn.style.transition = 'none';
+    layoutBtn.style.rotate = `${randomSpinAngle(parseFloat(layoutBtn.style.rotate) || 0)}deg`;
+    void layoutBtn.offsetWidth;
+    layoutBtn.style.transition = '';
     if (typeof gsap === 'undefined') { layoutInner.style.transform = 'none'; return; }
     gsap.fromTo(layoutInner, { ...revealHidden(), x: 0, y: 0 },
       { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true });
@@ -4132,6 +4137,8 @@ export async function initAtlas(options = {}) {
     const content = ITEM_CONTENT_H[key];
     const pad = (!isMobileAtlas && content) ? Math.max(0, ((ITEM_H_PER_CAT[key] || 0) - content + ITEM_PAD_BOTTOM) / 2) : 0;
     col.style.setProperty('--list-top-pad', `${pad}px`);
+    // 主持／就職卡＝該欄第一列：卡頂改吃教師欄的推量＝跟教師第一列同一條水平線（各欄推量差 ~1px；user 2026-10-27）
+    if (cat === 'faculty') listView.style.setProperty('--list-row1-pad', `${pad}px`);
   }
 
   // 直向手機 alumni tab：host/employ 左右並排（grid span 1 各半寬）→ 每欄只排單一 sub-col，
@@ -4647,7 +4654,7 @@ export async function initAtlas(options = {}) {
       // 標題 chip 進場用 DUR.slow(0.6) 而非 DUR.reveal(1.0)：user 2026-07-16 覺得左上角欄標題 chip 進場偏慢；
       // item lines / chevron 維持 DUR.reveal（chip 先落定、內容隨後）
       gsap.fromTo(titleEl,
-        { yPercent: 100 },
+        { yPercent: 110 },
         { yPercent: 0, duration: DUR.slow, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
       );
     }
@@ -4761,12 +4768,15 @@ export async function initAtlas(options = {}) {
       return en ? en.split(/\s+/).pop().toLowerCase() : strip(it.textZh);
     };
     listGrouped.faculty.sort((a, b) => surnameKey(a).localeCompare(surnameKey(b), 'en'));
+    // 其餘欄（主持／就職／合作單位）依英文名 A-Z（user 2026-10-27），沒英文名退回中文
+    const nameKey = (it) => it.textEn || it.textZh || '';
+    ['host', 'employ', 'partners'].forEach(k => listGrouped[k].sort((a, b) => nameKey(a).localeCompare(nameKey(b), 'en', { sensitivity: 'base' })));
 
     // em-* items（系友就職企業 mock）已在 items 陣列、走 alumni cat → _listSubGroup='employ' → 自動進 listGrouped.employ
     // 不再需要這裡額外 push placeholder（之前繞 items 陣列直接餵 listGrouped 的 pattern 已 deprecate）
 
     // 主欄標（教師／系友／合作單位）文字＝map view 分類 chip 同一份（#atlas-filter 的 data-label-key 由後台 ui_labels 填；
-    // user 2026-10-26「list 的 title 要跟 map view 一致」）；每次切 list 都重跑 renderList＝晚到的 label 也會跟上。主持／就職同 map 子 chip 一行
+    // user 2026-10-26「list 的 title 要跟 map view 一致」）；每次切 list 都重跑 renderList＝晚到的 label 也會跟上。主持／就職桌面也兩行（user 2026-10-27）
     /** @param {string} key @param {{en:string, zh:string}} fallback */
     const filterLabel = (key, fallback) => {
       const b = filterEl && filterEl.querySelector(`[data-filter="${key}"]`);
@@ -4802,7 +4812,8 @@ export async function initAtlas(options = {}) {
 
     /** @param {string} cat @param {{en:string, zh:string}} label */
     function buildCol(cat, label) {
-      const stack = cat === 'faculty' || cat === 'partners';
+      // 手機 host/employ 欄標維持一行（只改桌面，user 2026-10-27）
+      const stack = !isMobileAtlas || cat === 'faculty' || cat === 'partners';
       const col = document.createElement('div');
       col.className = 'atlas-list-col';
       col.dataset.category = cat;
@@ -4906,9 +4917,11 @@ export async function initAtlas(options = {}) {
       probe.append(title.cloneNode(true), headClone);
       document.body.appendChild(probe);
       const w = /** @type {HTMLElement} */ (probe.firstElementChild).offsetWidth;
+      const titleH = /** @type {HTMLElement} */ (probe.firstElementChild).offsetHeight;   // 主持／就職卡繞自身左邊中點轉的軸心（atlas.css --list-title-h）
       const h = headClone.offsetHeight;
       probe.remove();
       if (w > 5) listView.style.setProperty('--alumni-col-w', `${w}px`);
+      if (titleH > 0) listView.style.setProperty('--list-title-h', `${titleH}px`);
       if (h > 0) { listHeadH = h; listView.style.setProperty('--alumni-head-h', `${h}px`); }
     };
     syncAlumniColW();
@@ -5457,7 +5470,7 @@ export async function initAtlas(options = {}) {
       n.classList.add('atlas-flying');
       if (toList) {
         const subs = /** @type {HTMLElement[]} */ ([...item._subsEl.querySelectorAll('.atlas-list-item-label'), ...n.querySelectorAll('.atlas-list-cc > span')]);
-        if (subs.length) gsap.set(subs, { yPercent: 100 });   // 副標（＋單列模式名稱後的國家）藏進遮罩、落地才 reveal
+        if (subs.length) gsap.set(subs, { yPercent: 110 });   // 副標（＋單列模式名稱後的國家）藏進遮罩、落地才 reveal
       }
       // 錨定「EN 行左緣中點」非盒中心（user 08-28 二輪「偏移一下才飛」，三輪擴到雙向）：
       // chip 形態行＝max-content 文字寬、list 形態行＝整欄寬，盒寬不同 → 盒中心對位會讓左對齊
@@ -5997,7 +6010,7 @@ export async function initAtlas(options = {}) {
     const navItems = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-nav-item')]);
     allTitles.forEach(t => { if (pairedTitles.has(t)) t.style.visibility = 'hidden'; });
     const restTitles = allTitles.filter(t => !pairedTitles.has(t));
-    if (restTitles.length) gsap.set(restTitles, { yPercent: 100, overwrite: true });
+    if (restTitles.length) gsap.set(restTitles, { yPercent: 110, overwrite: true });
     // 右箭頭改 hero clip-reveal「位移＋自遮罩」進場（user 09-01：不要 clip-path 原地擦除）→ 藏「按鈕本體」在下方（navChipHidden 自 clip、無需 wrapper）
     navItems.forEach(n => { const btn = n.querySelector('.atlas-list-nav-btn'); if (btn) gsap.set(btn, { ...navChipHidden(/** @type {HTMLElement} */(btn), 'bottom'), overwrite: true }); });
     listView.style.visibility = '';
@@ -6026,7 +6039,7 @@ export async function initAtlas(options = {}) {
         updateFilterBtnColors();
         // 未配對標題（subchip 收合等少見情境）一般進場
         if (restTitles.length) {
-          gsap.fromTo(restTitles, { yPercent: 100 },
+          gsap.fromTo(restTitles, { yPercent: 110 },
             { yPercent: 0, duration: DUR.slow, ease: EASE.enter, clearProps: 'transform', overwrite: true });
         }
         // 右箭頭補揭露 backstop（正常已由 SUB_REVEAL_AT 批次揭露、navShown 去重＝no-op）
@@ -6100,7 +6113,7 @@ export async function initAtlas(options = {}) {
       if (destroyed) return;
       // 副標＋國家後綴＝各自遮罩內由下往上 clip-reveal。force3D:false：GSAP 預設補間中用 translate3d 提升合成層，
       //   文字改對齊整數像素、結束回一般渲染又跳回小數座標＝「國家出現時左右抖一下」（user 2026-10-20，實測偏 0.155px）
-      if (allSubs.length) gsap.fromTo(allSubs, { yPercent: 100 },
+      if (allSubs.length) gsap.fromTo(allSubs, { yPercent: 110 },
         { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true, force3D: false });
       navItems.forEach(revealNav);   // 右箭頭跟副標同刻（navShown 去重＝onComplete 補揭露變 no-op）
       if (listCareerCtrl) listCareerCtrl.show({ delay: 0 });   // 職業chip 併入同批＝跟 title/副標/箭頭一起（user 09-04：不要 onComplete 最後單獨出）
@@ -6219,6 +6232,7 @@ export async function initAtlas(options = {}) {
         viewMorphing = false;
         refreshFloatRunning();   // 恢復 float（通常 floatThawEarly 已提前解凍＝no-op；補償在解凍當下做）
         floatThawEarly = false;
+        resumeRingFlow();   // 保險：B 飛行 tween 被砍、沒走到最後一顆 onLand 也不會整圈凍住（已放＝no-op）
         // 收尾補 career chip + ring（subchip 已飛回且 ctrl 恆 visible → show() 冪等 no-op；
         // 僅 intro 被中斷、subchip 從未展開的邊角才會由此 fallback 展開）
         const subchipT = /** @type {any} */ (setTimeout(() => {
@@ -6266,21 +6280,28 @@ export async function initAtlas(options = {}) {
             } });
       }
     };
+    // host 圈等飛回的 B 卡片全部落定才轉（user 2026-10-27）：解凍 wobble 時先凍 ring，最後一顆 B onLand 才放
+    let bFlying = flyItems.filter(it => it.category === 'B').length;
     // 當下頁 item 飛回＝全類本體直飛（黑、B 裸文字）；到位才 bloom（bulk 在 R_BLOOM／晚到自補）＝色與色塊一起、不在飛行中上色
     flyItems.forEach(it => {
       const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
       const swapFn = it.category === 'B'
         ? () => { toChipForm(it); it._span.style.backgroundColor = 'transparent'; }   // B 飛行中裸文字（色塊 bloom 才 clip-in）
         : () => toChipForm(it);
-      master.add(flipFlyNode(it, delay, swapFn, () => { if (bloomed) bloomItem(it); }, false), 0);
+      master.add(flipFlyNode(it, delay, swapFn, () => {
+        if (bloomed) bloomItem(it);
+        if (it.category === 'B' && --bFlying === 0) resumeRingFlow();
+      }, false), 0);
     });
     // 全類直飛＝落點跟著 anchor 補間（gsap x/y 疊在 anchor 座標上）、無 mask 預量落點約束 →
-    // 起手即解凍 wobble（原「不可早於 mask 落地」限制隨 maskFlyNode 退場；host 圈即刻恢復轉動）
+    // 起手即解凍 wobble（原「不可早於 mask 落地」限制隨 maskFlyNode 退場）；host 圈另凍到 B 落定
     if (flyItems.length) {
       master.call(() => {
         if (destroyed || currentView !== 'map') return;
         floatThawEarly = true;
         refreshFloatRunning();
+        // ⚠️ 必須在 refreshFloatRunning 補償 floatStart 之後才凍：凍結期間量的 now 會超前畫面相位＝放開時整圈跳
+        if (bFlying > 0) pauseRingFlow();
       }, null, 0.05);
     }
     // bulk bloom：R_BLOOM 一次同步（跳過還在飛的 straggler＝其 onLand 見 bloomed 後自補、於各自到位時 bloom）
@@ -6327,13 +6348,13 @@ export async function initAtlas(options = {}) {
     const subExitR = flyItems.flatMap(it =>
       /** @type {HTMLElement[]} */ ([...it._subsEl.querySelectorAll('.atlas-list-item-label'), ...it._span.querySelectorAll('.atlas-list-cc > span')]));
     if (subExitR.length) {
-      gsap.to(subExitR, { yPercent: 100, duration: DUR.reveal, ease: EASE.enter, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
+      gsap.to(subExitR, { yPercent: 110, duration: DUR.reveal, ease: EASE.enter, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
     }
     const yTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-col-title')])
       .filter(el => !pairedTitleEls.has(el));
     if (yTargets.length) {
       gsap.to(yTargets, {
-        yPercent: () => Math.random() < 0.5 ? 100 : -100,
+        yPercent: () => Math.random() < 0.5 ? 110 : -110,   // ±110：貼遮罩邊的 ±100 在斜遮罩上反鋸齒留 1px 細線（user 2026-10-27）
         duration: DUR.slow, ease: EASE.exitSoft, overwrite: true,
       });
     }
@@ -6364,8 +6385,8 @@ export async function initAtlas(options = {}) {
     opts[0].style.setProperty('--layout-bg', SCCDHelpers.getRandomAccentColor());
     // 兩格一體：hover inactive 格＝整顆轉新角、離開保持（同 arrow-spin 語意＋取角）；active 格 hover 不轉。
     // 不用 bindArrowSpin：它的角度狀態綁在單一元素，兩格各綁會各記各的角
-    let capRot = 0;
-    const spinCap = () => { capRot = randomSpinAngle(capRot); layoutBtn.style.rotate = `${capRot}deg`; };
+    // 從當下角度抽（進場 showLayoutBtn 也會寫角）
+    const spinCap = () => { layoutBtn.style.rotate = `${randomSpinAngle(parseFloat(layoutBtn.style.rotate) || 0)}deg`; };
     const hoverSpin = SCCDHelpers.isDesktopLayout();
     opts.forEach(o => {
       o.addEventListener('mouseenter', () => {
@@ -6462,7 +6483,7 @@ export async function initAtlas(options = {}) {
     const onOne = () => { if (++done >= total) gsap.delayedCall(0.1, finalize); };
     if (exitLines.length > 0) {
       gsap.to(exitLines, {
-        yPercent: () => Math.random() < 0.5 ? 100 : -100,
+        yPercent: () => Math.random() < 0.5 ? 110 : -110,   // ±110：貼遮罩邊的 ±100 在斜遮罩上反鋸齒留 1px 細線（user 2026-10-27）
         duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
       });
     }
@@ -6640,7 +6661,7 @@ export async function initAtlas(options = {}) {
       const onOne = () => { if (++done >= total) gsap.delayedCall(0.2, resolve); };
       if (yPercentExitTargets.length > 0) {
         gsap.to(yPercentExitTargets, {
-          yPercent: () => Math.random() < 0.5 ? 100 : -100,
+          yPercent: () => Math.random() < 0.5 ? 110 : -110,   // ±110：貼遮罩邊的 ±100 在斜遮罩上反鋸齒留 1px 細線（user 2026-10-27）
           duration: DUR.slow, ease: EASE.exitSoft, overwrite: true, onComplete: onOne,
         });
       }
