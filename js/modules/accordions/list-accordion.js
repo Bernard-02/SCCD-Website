@@ -191,6 +191,21 @@ export const ACCENT_TO_DEEP = {
   '#26BCFF': '#23a5ff', '#26bcff': '#23a5ff',
 };
 
+// legal zebra（多列同開）：accent 避開上下相鄰列已用的色＝相連兩列不同色（user 2026-10-27）。mode3 由 color.css 蓋成單色 fg、
+// 視覺不受影響；inline 照挑＝切回 mode1/2 也不撞色。prefer（hover 時已抽的色）沒撞就沿用。其他清單＝一次只開一個，照舊全站不連續重複
+function pickAccent(header, prefer) {
+  const root = header.closest('.legal-zebra');
+  if (!root) return prefer || SCCDHelpers.getRandomAccentColor();
+  const items = [...root.querySelectorAll('.list-item')];
+  const i = items.indexOf(/** @type {Element} */ (header.closest('.list-item')));
+  const taken = [items[i - 1], items[i + 1]]
+    .map(it => /** @type {HTMLElement|null|undefined} */ (it?.querySelector('.list-header'))?.dataset.accentHex?.toLowerCase())
+    .filter(Boolean);
+  if (prefer && !taken.includes(prefer.toLowerCase())) return prefer;
+  const pool = SCCDHelpers.ACCENT_COLORS.filter(c => !taken.includes(c.toLowerCase()));
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function listContentOf(header) {
   return /** @type {HTMLElement|null} */ (
     (header.nextElementSibling?.classList.contains('list-content')
@@ -645,7 +660,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
       if (scrollFollow || restoreScroll != null) resetBoxSpacer(header);
       // cursor 若仍在 header 上補回 hover bg（mouseenter 不會 re-fire）
       if (header.matches(':hover')) {
-        const refill = SCCDHelpers.getRandomAccentColor();
+        const refill = pickAccent(header);
         header.style.background = refill;
         header.dataset.accentHex = refill;
       }
@@ -699,7 +714,7 @@ function initListHeaderAccordion() {
       //    訊號：host section 有 .hover-dim-suppress（section-switch-helpers.initHoverDimMoveGuard 捲動掛、真 pointermove 才解）→ 跳過。
       if (this.closest('#activities-content-section, #admission-content-section')?.classList.contains('hover-dim-suppress')) return;
       if (!this.classList.contains('active') && !this.dataset.collapsing && !this.dataset.opening) {
-        const color = SCCDHelpers.getRandomAccentColor();
+        const color = pickAccent(this);
         this.style.background = color;
         this.dataset.accentHex = color;
         dimOpenItemForHover(this);  // hover 別的 item → 已展開 item 退回斑馬底色
@@ -745,10 +760,10 @@ function initListHeaderAccordion() {
         // 開新 item 時 proceedOpen 要等「其他已展開 item 收回」(DUR.base) 才跑，chevron 因此延遲才轉，
         // 但收起是 click 當下就轉＝兩邊不對稱（user 2026-06-15）。內容兩段式展開邏輯不動，只把 chevron 提前。
         if (chevron) gsap.to(chevron, { rotation: 90, duration: DUR.fast });  // open → 朝上（90=上）
-        // 一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion（legal zebra 也是，user 2026-10-03 撤 09-09f 多開）
+        // 一次只開一個：開啟前先關掉同 panel 內其他展開中的 accordion；legal zebra 例外＝可同時多開、預設全開（user 2026-10-27）
         // 非 activities 頁面（如 admission detail）無 .activities-panel，fallback 到 document
         const scope = this.closest('.activities-panel') || document;
-        const others = [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
+        const others = this.closest('.legal-zebra') ? [] : [...scope.querySelectorAll('.list-header.active')].filter(o => o !== this);
 
         // navigateToItem (ref/deep-link) 在 click 此 header 前已自己 scroll 對齊好 item → 標記 skipOpenScroll，
         // 跳過 proceedOpen 內的開啟捲動（deep-link 是全新 panel、上方無展開，已對齊好不要再動）。
@@ -818,7 +833,7 @@ function initListHeaderAccordion() {
           // Open - header / content 都保留 100% accent；ref 用對應 deep 色。**先上色**（兩段式 staged 捲動期間 header 已是
           // accent，不會「對齊捲動時還透明/hover、捲完才上色」閃一下）。content height:0 不可見，content/item 底色一起設無妨。
           // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，父層 .list-item 連續底色蓋縫。
-          const color = self.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
+          const color = pickAccent(self, self.dataset.accentHex);
           self.dataset.accentHex = color;
           self.style.background = color;
           content.style.background = color;

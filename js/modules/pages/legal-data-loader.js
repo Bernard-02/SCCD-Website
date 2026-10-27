@@ -185,15 +185,15 @@ function mountZebra(contentEl, html) {
   } else {
     items.forEach(it => { it.style.clipPath = ''; });
   }
-  // 全部 title rows 揭完（onDone）才自動展開——只開第一個（user 2026-10-03，原依序全開）
-  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items.slice(0, 1)) });
+  // 全部 title rows 揭完（onDone）才依序自動展開——全部打開（user 2026-10-27；10-03～10-26 只開第一個）
+  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items) });
   // 離頁退場＝activities 同一套（admission-data-loader）：先收展開的 accordion → zebra 底 clip 收回 + rows 滑出
   registerPageExit(() => playAdmissionPanelExit(contentEl));
 }
 
 // 依序自動展開 zebra 列：走 list-accordion 正常 click 路徑（上色/sticky observer/aria 全現成）。
 //   skipOpenScroll＝跳過 proceedOpen 的對齊捲動（進場不該捲頁）；點擊被 listAnimating 鎖吞掉
-//   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。現只傳第一列（一次只開一個，user 2026-10-03）。
+//   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。傳全部列（預設全開、可多開，user 2026-10-27）。
 function autoOpenZebra(rows, firstDelay = 100) {
   const headers = rows
     .map(r => /** @type {HTMLElement|null} */ (r.querySelector('.list-header')))
