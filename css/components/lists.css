@@ -993,9 +993,9 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 /* 捲動容器整體 inset 進矩形：scrollbar 不貼矩形邊、捲到底文字仍落在下 padding 內；padding-right＝文字↔scrollbar gap。 */
 .tl-list-content {
   position: absolute;
-  inset: var(--spacing-sm) var(--spacing-lg);   /* 上下 sm、左右 lg（比照 slide-in container-padding） */
+  inset: var(--popup-pad);   /* 四邊同 pop up（faculty／curriculum 色卡；user 2026-10-27） */
   overflow-y: auto;
-  padding-right: var(--spacing-md);  /* 文字 ↔ scrollbar gap */
+  padding-right: var(--popup-pad);  /* 文字 ↔ scrollbar gap＝卡片內距 */
   color: var(--color-black);           /* standard mode 黑字（inverse/color 由 .timeline-card-inner 規則覆蓋）*/
 }
 
@@ -1011,7 +1011,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   flex: 1 1 auto;
   min-height: 0;                 /* 允許收縮 → 內部捲動 */
   overflow-y: auto;
-  padding-right: var(--spacing-md);   /* 文字 ↔ scrollbar gap */
+  padding-right: var(--popup-pad);   /* 文字 ↔ scrollbar gap＝卡片內距（同 pop up） */
 }
 
 /* 連續清單：每個 era 一組、一路往下捲；era 標籤一行「EN ZH」壓在該組年份列上方、左緣對齊年份。
@@ -1518,8 +1518,9 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 }
 .works-playlist-inner {
   position: absolute;
-  inset: var(--spacing-sm);
-  right: 6px;                         /* scrollbar↔色塊右緣＝同區 Works 說明文字卡的右內距（--card-pad-s 的 6；user 2026-10-26 只調這段） */
+  /* 四邊：色塊邊→縮圖＝6＋下面 padding 10＝16＝縮圖↔scrollbar（user 2026-10-27）；
+     right 6＝scrollbar↔色塊右緣＝同區 Works 說明文字卡的右內距（--card-pad-s 的 6；user 2026-10-26） */
+  inset: 6px;
   overflow-y: auto;
   overflow-x: hidden;                 /* 縮圖旋轉溢寬不生水平軸（旋角靠 padding-left 容納） */
   display: flex;
@@ -1529,6 +1530,23 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   padding-top: 10px;                  /* 首/末張旋轉的垂直投影 clearance（捲動容器上下緣會裁角） */
   padding-bottom: 10px;
   padding-right: var(--spacing-sm);   /* thumb↔縮圖距離＝縮圖間 gap */
+}
+/* 軌道上下縮 10＝跟縮圖同一段高（scrollbar 不比縮圖更貼色塊上下緣）；webkit only */
+.works-playlist-inner::-webkit-scrollbar-track { margin: 10px 0; }
+/* 捲動中上下裁切線也退到 16（user 2026-10-27「上面 padding 比左右小」＝捲到一半縮圖在 6 被切）：
+   上緣隨捲動前 10px 裁到 10、下緣在最後 10px 放回 0 → 停在頂／底時首／末張的旋轉角不被裁。
+   不支援 scroll-driven 的瀏覽器維持原樣（在 6 裁）；不捲的短清單 timeline inactive＝不裁 */
+@property --pl-clip-t { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --pl-clip-b { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes pl-clip-t { to { --pl-clip-t: 10px; } }
+@keyframes pl-clip-b { from { --pl-clip-b: 10px; } to { --pl-clip-b: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .works-playlist-inner {
+    clip-path: inset(var(--pl-clip-t) 0 var(--pl-clip-b) 0);
+    animation: pl-clip-t linear both, pl-clip-b linear both;
+    animation-timeline: scroll(self), scroll(self);
+    animation-range: 0 10px, calc(100% - 10px) 100%;
+  }
 }
 .works-playlist-item {
   display: block;
@@ -1577,7 +1595,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
     overflow-y: hidden;               /* 旋角垂直投影靠上下 padding 容納，不生直向軸 */
     scrollbar-width: none;            /* 手機橫捲藏 bar、手指滑 */
     padding: 10px var(--spacing-sm);
-    right: var(--spacing-sm);         /* 還原桌面 scrollbar 保留位（手機無 thumb） */
+    inset: var(--spacing-sm);         /* 手機維持原內縮（桌面 6 是配 scrollbar 右緣的；手機無 thumb） */
   }
   .works-playlist-inner::-webkit-scrollbar { display: none; }
   .works-playlist-item {
