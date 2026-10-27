@@ -74,14 +74,14 @@
     padding: 0 var(--spacing-sm);
     background: var(--theme-fg);
   }
-  /* wordmark：SVG 當 mask、填 --theme-bg（同 footer .footer-tab-mark 手法） */
+  /* wordmark：後台上傳的圖當 mask（網址由 about-structure.js inline 寫入）、填 --theme-bg（同 footer .footer-tab-mark 手法） */
   .prog-acronym-mark {
     display: block;
     height: var(--prog-mark-h);
-    aspect-ratio: 1135 / 320;                  /* SCCD - Black.svg viewBox */
+    aspect-ratio: 1135 / 320;                  /* 原 SCCD wordmark 比例 */
     background-color: var(--theme-bg);
-    -webkit-mask: url('../images/SCCD - Black.svg') no-repeat center / contain;
-            mask: url('../images/SCCD - Black.svg') no-repeat center / contain;
+    -webkit-mask: no-repeat center / contain;
+            mask: no-repeat center / contain;
   }
 
   /* 傾斜/hover 單位（.prog-titled 與各子 .prog-box 共用；角度由 about-structure.js 上） */
