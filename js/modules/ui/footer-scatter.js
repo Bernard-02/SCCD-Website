@@ -593,7 +593,7 @@ function playScatterGroupExit() {
 // 切換散佈群組（user 2026-08-10：先出場再進場）：設 active tab → **現群組滑出出場**（await）→ 切 area
 // data-fgroup（CSS 收非 active 群組 display:none）→ unwrap + 重跑 scatter（新群組滑入進場）。
 // 平板 tab 切換要動畫的 group 區塊（= MOBILE_BLOCK_SELECTOR 去掉 logo/privacy——那兩塊不隨 tab 變）
-const TABLET_GROUP_SELECTOR = '.footer-social, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit';
+const TABLET_GROUP_SELECTOR = '.footer-social, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-note';
 
 // ── 群組顯隱（2026-08-11 CMS 化後由 CSS 三向互斥改 JS class）──
 // tab 改後台管理（footer_tabs）＝群組 key 任意，CSS 無法窮舉配對 → 改 JS 對非 active 群組
@@ -940,9 +940,9 @@ export async function initFooterScatter(scope, opts = {}) {
 let _footerExited = false;
 
 // ── 真桌面 footer＝蓋在頁面上的卡（user 2026-10-19）────────────────────────────
-// 卡不在捲動流裡（footer.css 真桌面段 position:fixed、出生藏在視窗下）：捲到頁底再往下滾 → 卡頂 20% 跟著滾輪量逐段升起、
-// 過門檻（PEEK）那一格跟完就直接整張吸上來（一個動作）；門檻前停手＝縮回去（user 2026-10-27）。同時從 0° 轉向這次新抽的 ±[1,2]°（角度＝升起比例）；
-// 往上滾＝整張直接收、不停半路（user 2026-10-26；原本吸回 20% 再逐段沉）；點卡外／換頁（router playFooterExit）→ 整張轉回 0° 沉下去（點卡上空白處不關）。
+// 卡不在捲動流裡（footer.css 真桌面段 position:fixed、出生藏在視窗下）：捲到頁底再往下滾 → 卡跟著滾輪量上下移動（滾 1px＝卡動 1px，
+// 像頁面多出一段；user 2026-10-28 撤掉 20% 門檻吸附／停手縮回／往上整張收），沉回起點＝關卡。同時從 0° 轉向這次新抽的 ±[1,2]°（角度＝升起比例）；
+// 點卡外／換頁（router playFooterExit）→ 整張轉回 0° 沉下去（點卡上空白處不關）。
 // header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點＝關卡、滾輪＝推卡，不碰後面內容）。
 // footer:open／footer:close（document）→ header.js 關桌面 menu＋logo 縮小／還原。
 // 手機／矮橫向仍是頁尾一段（線性版 initFooterMobileReveal），不走這裡。
@@ -984,13 +984,7 @@ let _backdrop = null;
 let _progress = 0;            // 0＝藏、1＝全開
 let _rot = 0;                 // 這次開卡的終點角
 let _hideYP = OVERLAY_HIDE_YPERCENT;   // 卡頂剛好貼視窗底的 yPercent：滾輪第一格就看得到卡（130 是停放位，多出那段滾了會沒反應）
-// 升起前 20% 跟滾輪走，再往下就整張吸上來；往上＝整張直接收（user 2026-10-26）
-const PEEK = 0.2;
-// 門檻前停手多久算放手＝縮回去（> 連續滾輪兩格的間隔、< 人感覺得到的停頓）。ponytail: 旋鈕，慢慢一格一格滾也想開就調大
-const PEEK_IDLE_MS = 250;
-let _peekTimer = 0;
-let _snapping = false;
-let _openAnnounced = false;   // footer:open 只在真的吸上來才發：探頭又縮回不讓 logo 一縮一放
+let _openAnnounced = false;   // footer:open 只在推到頂才發：探頭又縮回不讓 logo 一縮一放
 
 function getOverlayFooter() {
   const f = document.querySelector('footer.footer-shell');
@@ -1045,32 +1039,16 @@ function announceOpen() {
   _openAnnounced = true;
   document.dispatchEvent(new CustomEvent('footer:open'));
 }
-// 過門檻那一格：先照 scrubTo 的速度跟完這一格（滾多少出來多少），接著整張吸上來＝一個連續動作
-// （user 2026-10-27：原本「一格冒一截停住、再一格才吸」是兩段）。觸控板本來就跟著手＝直接吸。
-// 吸附中吞掉後續滾輪（觸控板慣性），不然 scrubTo 會把半路的 tween 砍成瞬跳
-function snapOpen(shell, p, dy) {
-  _progress = 1;
-  _snapping = true;
-  announceOpen();
-  const done = () => { _snapping = false; };
-  const snap = () => gsap.to(shell, { yPercent: 0, rotation: _rot, duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.enterSoft, overwrite: 'auto', onComplete: done, onInterrupt: done });
-  if (Math.abs(dy) < 50 || prefersReducedMotion()) { snap(); return; }
-  gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration: DUR.micro, ease: 'none', overwrite: 'auto', onComplete: snap, onInterrupt: done });
-}
-// 往下：滾輪 dy px＝卡移動 dy px（像頁面多出一段），前 PEEK 跟手、過了就整張吸上來；往上：整張直接收（吸附中也收，killTweensOf 會砍掉吸附）
+// 滾輪 dy px＝卡移動 dy px（像頁面多出一段）：上下都跟手、不吸附、停手停在原地（user 2026-10-28）；沉回起點＝關卡
 function scrubBy(shell, dy) {
-  clearTimeout(_peekTimer);
-  if (dy < 0) { closeFooter(); return; }
-  if (_snapping) return;
-  const p = Math.min(1, _progress + dy / (shell.offsetHeight * _hideYP / 100));
-  if (p > PEEK) { if (_progress < 1) snapOpen(shell, p, dy); return; }
+  const p = Math.min(1, Math.max(0, _progress + dy / (shell.offsetHeight * _hideYP / 100)));
+  if (p <= 0) { closeFooter(); return; }
   scrubTo(shell, p, dy);
-  // 門檻前停手＝縮回去，不停在半路（user 2026-10-27）
-  _peekTimer = window.setTimeout(() => { if (_footerOpen && !_snapping && _progress <= PEEK) closeFooter(); }, PEEK_IDLE_MS);
+  if (p >= 1) announceOpen();
 }
 
 // 開卡中的滾輪全由這支接（window capture＝游標在卡上、卡外、header logo、捲軸上都先到這）：往下推卡、往上收卡，
-// 都不捲後面的頁／內捲框。往上收卡的那一手勢（滑鼠連滾、觸控板慣性）收卡途中與之後都一路吞到停手 WHEEL_GESTURE_GAP，
+// 都不捲後面的頁／內捲框。往上沉卡的那一手勢（滑鼠連滾、觸控板慣性）沉到關卡之後還一路吞到停手 WHEEL_GESTURE_GAP，
 // 下一次滾才捲頁＝不論怎麼滑都是先收掉 footer、不動上面的內容（user 2026-10-27）。橫向為主（tab 列橫捲）照原生
 const WHEEL_GESTURE_GAP = 200;
 let _swallowWheel = false;
@@ -1107,7 +1085,6 @@ export function closeFooter() {
   if (!_footerOpen) return _closePromise || Promise.resolve();
   _footerOpen = false;
   _progress = 0;
-  clearTimeout(_peekTimer);
   hideBackdrop();
   // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）；只探頭沒開過＝logo 沒縮過，不發
   if (_openAnnounced) { _openAnnounced = false; document.dispatchEvent(new CustomEvent('footer:close')); }
@@ -1159,9 +1136,9 @@ function bindFooterOverlay() {
 // 退場接 router 的 playFooterExit、復位接 resetFooterAfterExit（與桌面共用 _footerExited flag）。
 // ════════════════════════════════════════════════════════════════
 
-// clip-reveal 的 block（querySelectorAll 回 DOM 順序：logo → fax → tel → office → email → 2 link → social → privacy）
+// clip-reveal 的 block（querySelectorAll 回 DOM 順序：logo → 各分頁項目 → 說明文字 note（直向手機才顯示，其餘 viewport CSS 連 wrapper 收掉）→ privacy）
 const MOBILE_BLOCK_SELECTOR =
-  '.footer-logo-area, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-social, .footer-privacy';
+  '.footer-logo-area, .footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit, .footer-social, .footer-note, .footer-privacy';
 
 let mobileBlocks = null;  // 手機 ctx：clip-reveal block 元素（footer 持久存在故跨換頁有效）
 
@@ -1202,9 +1179,41 @@ function initFooterMobileReveal(footer, animate = false) {
   // 群組顯隱在「包完 wrapper 後」套：applyGroupVisibility 會連 wrapper 一起掛 .fgroup-off
   //（只藏 item 不藏空 wrapper 的話，空 wrapper 仍佔平板 flex 欄位＝幽靈空格）
   applyGroupVisibility(footer.querySelector('.footer-random'));
+  bindMobileFooterSnap();
   // 標記 init 完成 → router 換頁的「broken init」recovery（靠缺 .footer-anchor 偵測，手機不建 anchor）不誤重跑、
   // footer 才能像桌面一樣持久（否則每次換頁重抓 footer.html 重建，clip-reveal ctx 被打斷）。
   footer.dataset.footerMobileInit = '1';
+}
+
+// 直向手機 footer 磁吸（user 2026-10-27）：捲動停在「footer 露一截」時，往下＝整張吸上、往上＝收回內容底；
+// 不做桌面那種露一點停手又縮回。CSS scroll-snap 只吸最近點、不看方向 → JS 等捲動（含慣性）停了才補捲。
+// footer 持久存在＝listener 全站綁一次、不走 page-cleanup。
+let _mobileSnapBound = false;
+function bindMobileFooterSnap() {
+  if (_mobileSnapBound) return;
+  _mobileSnapBound = true;
+  const mq = window.matchMedia('(max-width: 767px) and (orientation: portrait)');
+  let lastY = window.scrollY, dir = 0, timer = 0, touching = false;
+  const settle = () => {
+    if (!mq.matches || touching) return;
+    const footer = Array.from(document.querySelectorAll('#site-footer-static, #site-footer')).find(f => f.getClientRects().length);
+    if (!footer) return;
+    const y = window.scrollY;
+    const top = footer.getBoundingClientRect().top + y;
+    const up = top - window.innerHeight;   // footer 頂剛好貼視窗底
+    const down = Math.min(top, document.documentElement.scrollHeight - window.innerHeight);   // footer 頂貼視窗頂（捲不到就頁底）
+    if (y <= up + 1 || y >= down - 1) return;
+    window.scrollTo({ top: dir > 0 ? down : up, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(settle, 120); };
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY;
+    if (y !== lastY) dir = Math.sign(y - lastY);
+    lastY = y;
+    arm();
+  }, { passive: true });
+  window.addEventListener('touchstart', () => { touching = true; }, { passive: true });
+  ['touchend', 'touchcancel'].forEach(t => window.addEventListener(t, () => { touching = false; arm(); }, { passive: true }));
 }
 
 function playFooterMobileExit() {
