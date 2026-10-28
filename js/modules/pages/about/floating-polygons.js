@@ -173,10 +173,11 @@ export function initAboutPolygons() {
   //   ⚠️ 上行收合改「綁位置 scrub」不用固定時長 tween（見下 updateGate）——固定 0.9s 追不上快速/snap 上滑會疊 hero SCCD
   // ⚠️ 方向只讀 wheel/touch（不從 scrollY 差分推——proximity snap 停手回拉會翻假方向，踩過）
   const overview = document.getElementById('overview');
-  // 手機直向（strip 顯示中）改以「anchor strip 釘到 sticky top」為顯示門檻（user 2026-09-10
-  // 「nav btn 對齊到頂才出現」）：釘頂即出、未釘頂一律藏；strip 不存在/桌面/矮橫向走原 overview 邏輯。
+  // 手機（strip 顯示中）改以「hero 底過 header 帶 88」為顯示門檻（user 2026-09-10「nav btn 對齊到頂才出現」）：
+  // ＝矮橫向 strip 釘頂那一刻、直向手機底部 nav bar 滑上來那一刻（anchor-nav.js 同門檻）；strip 不存在/桌面走原 overview 邏輯。
   const mobileStrip = document.querySelector('.mobile-anchor-strip-wrap');
-  let mobileStripTop = 0;   // sticky top（inline 88px），首次進手機分支時讀一次
+  const hero = document.querySelector('#page-content > section');
+  const DOCK_LINE = 88;
   let gateShown = false;
   let exiting = false; // 頁面退場中：updateGate 停手，收起動畫不被判定翻回來
   let lastDir = 1;
@@ -203,9 +204,9 @@ export function initAboutPolygons() {
   const updateGate = () => {
     if (exiting) return;
     // 手機分支：strip 可見（<768 直向）→ 門檻＝strip 釘頂（t=0）。上行離頂沿用位置 scrub（任何捲速零重疊）。
-    if (mobileStrip && mobileStrip.offsetParent !== null) {
-      if (!mobileStripTop) mobileStripTop = parseFloat(getComputedStyle(mobileStrip).top) || 88;
-      const st = mobileStrip.getBoundingClientRect().top - mobileStripTop;   // 0＝已釘頂
+    // getClientRects 不用 offsetParent：直向手機 strip 是 fixed（offsetParent 恆 null）
+    if (mobileStrip && hero && mobileStrip.getClientRects().length) {
+      const st = hero.getBoundingClientRect().bottom - DOCK_LINE;   // ≤0＝hero 已捲進 header 帶
       // 容差 12：snap 停 vision 時 strip 實測停在釘頂前 ~11px（proximity 落點），嚴判 0 會「落定了卻不出」
       const DOCK_TOL = 12;
       const svh = window.innerHeight;

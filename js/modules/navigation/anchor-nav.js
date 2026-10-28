@@ -175,6 +175,9 @@ export function initAnchorNav({ reveal = false } = {}) {
   // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
   const isLandscapeGate = SCCDHelpers.isLandscapeGate();
+  // about 直向手機：strip＝畫面底部 bar（variables.css 檔尾 about 直向段，user 2026-10-27）
+  const mobileBar = reveal && window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches
+    ? document.querySelector('.mobile-anchor-strip-wrap') : null;
   if (reveal && typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout()) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
     if (inners.length) {
@@ -216,7 +219,9 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 語彙同 faculty/桌面 nav（navChipHidden 滑出、from:'end'）；退場當下逐顆過濾「可見且在視窗內」，
   // 不可見（display:none 的另一版 nav／捲離視窗）直接跳過不白等 0.4s。
   if (typeof gsap !== 'undefined' && window.innerWidth < 768 && !isLandscapeGate) {
-    const mobInners = Array.from(document.querySelectorAll('#mobile-anchor-strip .anchor-nav-inner, #anchor-nav .anchor-nav-inner'));
+    // about 底部 bar 整條滑出（見下方 mobileBar 段），chip 不另外逐顆收
+    const mobInners = Array.from(document.querySelectorAll('#mobile-anchor-strip .anchor-nav-inner, #anchor-nav .anchor-nav-inner'))
+      .filter(el => !mobileBar?.contains(el));
     if (mobInners.length) {
       const mobDir = new Map(mobInners.map(el => [el, pickNavDir(el)]));
       registerPageExit(() => new Promise(resolve => {
@@ -423,6 +428,30 @@ export function initAnchorNav({ reveal = false } = {}) {
         registerPageCleanup(() => heroIO.disconnect());
       }
     }
+  }
+
+  // 直向手機 about 底部 bar：同上矮橫向兩顆 IO（hero 上藏、footer 頂過 75% 線收），動畫＝整條從畫面底緣滑出滑進
+  // （CSS .is-bar-hidden transition，HTML 出生就帶＝hero 上不閃）。hero 門檻 -100＝hero 底過 header 帶 88＋12 容差，
+  // 同 floating-polygons 長出時機；overview 落點 92 時已現身。
+  if (mobileBar) {
+    const footerEl = document.getElementById('site-footer');
+    const heroEl = document.querySelector('#page-content > section');
+    let footerVis = false;
+    let heroVis = !!heroEl;
+    let exiting = false;
+    const apply = () => { if (!exiting) mobileBar.classList.toggle('is-bar-hidden', footerVis || heroVis); };
+    const ios = [];
+    if (footerEl) ios.push([footerEl, new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; apply(); }, { rootMargin: '0px 0px -25% 0px' })]);
+    if (heroEl) ios.push([heroEl, new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; apply(); }, { rootMargin: '-100px 0px 0px 0px' })]);
+    ios.forEach(([el, io]) => io.observe(el));
+    apply();
+    registerPageCleanup(() => ios.forEach(([, io]) => io.disconnect()));
+    registerPageExit(() => new Promise(resolve => {
+      exiting = true;
+      if (mobileBar.classList.contains('is-bar-hidden')) { resolve(); return; }
+      mobileBar.classList.add('is-bar-hidden');
+      setTimeout(resolve, DUR.base * 1000);
+    }));
   }
 
   // 3.（2026-07-07 移除）舊手機 floating 圓鈕選單（mobile-anchor-toggle/wrapper/menu/overlay/container）——

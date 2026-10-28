@@ -137,6 +137,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // hover 轉正 0°、離開換新角（user 2026-10-19）；hoverAll（about class 圖）＝含 slot 0 都轉正，
   // 預設 slot 0 不轉（degree-show 維持）
   const hoverAll = !!opts.hoverAll;
+  // peekNav（about 直向手機，user 2026-10-27）：只有左右露邊那兩張可點——點左＝整列往右退一張、點右＝往前一張；
+  // 中間主圖不可點。觸控不綁 hover（tap 會發 mouseenter 卻等不到 leave＝自動輪播永遠暫停）
+  const peekNav = !!opts.peekNav;
   // alignTop（user 2026-09-15，about 桌面用）：圖頂對齊容器頂＝說明 box 頂（grid items-start 同列同頂）；
   // 預設維持 top:70% + yPercent:-50 垂直置中（degree-show / timeline 等共用者不變）
   const slotPos = opts.alignTop ? { top: 0, yPercent: 0 } : {};
@@ -212,8 +215,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // 全部 slot 一律 pointer：click 是「含 slot 0」都觸發 shift（見 attachInteractions），
   // 舊版 slot 0 = default 是「第一張不可點」時代的殘留（user 2026-09-12 指正）
   function updateCursors() {
-    slots.forEach(s => {
-      s.style.cursor = 'var(--cursor-pointer)';
+    slots.forEach((s, i) => {
+      s.style.cursor = peekNav && i > 0 && i < slotCount - 1 ? '' : 'var(--cursor-pointer)';
     });
   }
 
@@ -222,7 +225,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   function pauseAutoplay() { if (timer) { clearInterval(timer); timer = null; } }
   function resumeAutoplay() {
     if (!running || timer || pool.length <= 1) return;
-    timer = setInterval(tick, INTERVAL);
+    timer = setInterval(() => tick(), INTERVAL);
   }
 
   // 點擊任一張（含 slot 0）：觸發一次 shift-left，整列往左移（2026-08-17 對齊 degree-show gallery）。
@@ -230,13 +233,18 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
       if (isShifting) return;
-      tick();
+      if (peekNav) {
+        const i = slots.indexOf(wrapper);
+        if (i > 0 && i < slotCount - 1) return;
+        tick(i === 0 ? -1 : 1);
+      } else tick();
       // 重置自動輪播計時，給用戶完整 INTERVAL 看新狀態（hover 暫停中 timer=null 則不動，離開後 resume 才起跑）
       if (timer) {
         clearInterval(timer);
-        timer = setInterval(tick, INTERVAL);
+        timer = setInterval(() => tick(), INTERVAL);
       }
     });
+    if (peekNav) return;
 
     wrapper.addEventListener('mouseenter', () => {
       pauseAutoplay();
@@ -255,8 +263,9 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     slots = [];
     for (let i = 0; i < slotCount; i++) {
       const src = pool[nextIdx % pool.length];
-      nextIdx++;
       const img = buildImg(src, imgWidth, relayout);
+      img._poolIdx = nextIdx % pool.length;   // tick 前後都從兩端那張的池位置往外取（往回退也接得上）
+      nextIdx++;
       container.appendChild(img);
       placeInSlot(img, i, slotLefts, {
         rotation: randomRotation(),
@@ -279,38 +288,45 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     }
   }
 
-  function tick() {
+  // dir 1＝整列左移（預設，自動輪播）；-1＝整列右移（peekNav 點左邊那張：最右離場、左端補前一張）
+  function tick(dir = 1) {
     if (slots.length !== slotCount) return;
     if (isShifting) return;
     isShifting = true;
+    const back = dir < 0;
 
     // 移動前清掉所有 slot 的 hover 狀態（旋轉還原）
     slots.forEach(s => clearHoverState(s));   // 別直接傳 clearHoverState：forEach 的 index 會被當成 reroll
 
-    const leaving = slots[0];
+    const leaving = back ? slots[slotCount - 1] : slots[0];
 
-    // 1. leaving img 滑出遮罩：預設 'left'（與整列左移同向）；leaveRandom（dshow-detail）改隨機 4 向
+    // 1. leaving img 滑出遮罩：預設順著整列移動方向；leaveRandom（dshow-detail）改隨機 4 向
     gsap.to(leaving.firstElementChild, {
-      ...(leaveRandom ? revealHidden() : revealHidden('left')),
+      ...(leaveRandom ? revealHidden() : revealHidden(back ? 'right' : 'left')),
       duration: ANIM_DUR,
       ease: EASE.wipe,
       onComplete: () => leaving.remove(),
     });
 
     // 4. 新圖（先建：adaptive 推移終點要看新排列）
-    const nextSrc = pool[nextIdx % pool.length];
-    nextIdx++;
-    const newImg = buildImg(nextSrc, imgWidth, relayout);
-    const shifted = adaptive ? adaptiveLefts([...slots.slice(1), newImg]) : null;
+    const len = pool.length;
+    const idx = back ? (slots[0]._poolIdx - 1 + len) % len : (slots[slotCount - 1]._poolIdx + 1) % len;
+    const newImg = buildImg(pool[idx], imgWidth, relayout);
+    newImg._poolIdx = idx;
+    const rest = back ? slots.slice(0, -1) : slots.slice(1);
+    const order = back ? [newImg, ...rest] : [...rest, newImg];
+    const newSlot = back ? 0 : slotCount - 1;
+    const shifted = adaptive ? adaptiveLefts(order) : null;
 
-    // 2/3. 其餘 slot 各往左移一格（保留各自旋轉）
-    for (let i = 1; i < slotCount; i++) {
-      gsap.to(slots[i], { left: shifted ? shifted[i - 1] : slotLefts[i - 1], duration: ANIM_DUR, ease: EASE.wipe });
-    }
+    // 2/3. 其餘 slot 各移一格（保留各自旋轉）
+    rest.forEach((s) => {
+      const to = order.indexOf(s);
+      gsap.to(s, { left: shifted ? shifted[to] : slotLefts[to], duration: ANIM_DUR, ease: EASE.wipe });
+    });
 
-    // 新圖在最後一個 slot 隨機 4 向滑入（與上面同時進行）
+    // 新圖在空出的端點 slot 隨機 4 向滑入（與上面同時進行）
     container.appendChild(newImg);
-    placeInSlot(newImg, slotCount - 1, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[slotCount - 1] } : {}), ...(shifted ? { left: shifted[slotCount - 1] } : {}) });
+    placeInSlot(newImg, newSlot, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[newSlot] } : {}), ...(shifted ? { left: shifted[newSlot] } : {}) });
     // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
     const inNew = newImg.firstElementChild;
     gsap.set(inNew, revealHidden());
@@ -322,8 +338,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     });
     if (!manual) attachInteractions(newImg);
 
-    slots.shift();
-    slots.push(newImg);
+    slots = order;
     slots.forEach((img, i) => gsap.set(img, { zIndex: slotZ ? slotZ[i] : slotCount - i }));
     if (!manual) updateCursors();
   }
@@ -332,7 +347,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     running = true;
     if (timer) return;
     if (pool.length <= 1) return; // 單張圖免輪播（單 slot 下 tick 會原地閃同一張）
-    timer = setInterval(tick, INTERVAL);
+    timer = setInterval(() => tick(), INTERVAL);
   }
   function stop() {
     running = false;
@@ -483,12 +498,14 @@ export async function initClassImagesSlideshow() {
     const poolFor = (division) => imagesByDivision[division] || [];
     if (!Object.keys(imagesByDivision).length) return;
 
-    // 手機＝單圖置中自動輪播（user 2026-07-07；同 timeline 手機單格 pattern）：單 slot 下 tick =
-    // 舊圖 clip-out + 新圖隨機 4 向 clip-in 同格交疊，內建 INTERVAL timer 直接驅動反覆切換。
-    // 桌面維持 3-slot 左移輪播。矮橫向（landscape gate）同走單圖（user 2026-07-07 wireframe：圖左文右單圖輪播）。
+    // 直向手機＝3 張主圖置中、左右露邊（user 2026-10-27；同 DSD 手機 slot 幾何），自動往左輪播、點左右露邊那張往回／往前（peekNav）。
+    // 矮橫向（landscape gate）維持單圖置中（user 2026-07-07 wireframe：圖左文右單圖輪播）；桌面 3-slot 左移輪播。
     const isMobileSlots = SCCDHelpers.isMobileLayout();
+    const isPeekSlots = isMobileSlots && !SCCDHelpers.isLandscapeGate();
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
-    const slotOpts = isMobileSlots
+    const slotOpts = isPeekSlots
+      ? { slotLefts: ['-16%', '50%', '116%'], slotXPercent: -50, slotZ: [1, 3, 2], peekNav: true, textHlReveal: true }
+      : isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
       : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {

@@ -13,6 +13,7 @@ import { whenImgReady } from '../../ui/img-ready.js';
 import { loadHistory } from './history-source.js';
 import { revealHidden, randomCardTilt } from '../../ui/scroll-animate.js';
 import { EASE } from '../../ui/motion.js';
+import { playCssMarquee } from '../../ui/marquee-overflow.js';
 
 export function initTimeline() {
   const area = document.getElementById('timeline-area');
@@ -135,9 +136,8 @@ export function initTimeline() {
           curDivision = null;
           items.push(cur);
         }
-        // 學制標題手機英中兩行、桌面單行（user 2026-09-15）：後台是單一純文字（英中同串）→ 以首個 CJK
-        // 字元切分；切不出（純英/純中）維持原樣。span 間留空白＝桌面 inline 單行有間隔、
-        // 手機 display:block 時 inter-block 空白不渲染（免 sep span）
+        // 學制標題英中一行（手機 10-27 也改一行，原 09-15 手機兩行）：後台是單一純文字（英中同串）→ 以首個 CJK
+        // 字元切分出中文 span（吃 lang 中文字族）；切不出（純英/純中）維持原樣。span 間留空白＝英中間隔
         const splitDivision = (txt) => {
           const m = /^(.*?)\s*([⺀-鿿豈-﫿].*)$/.exec(txt || '');
           return m && m[1]
@@ -173,8 +173,10 @@ export function initTimeline() {
     // section=area 剛好 landing→viewport 底、控制鈕不出畫面。svh 免手機工具列高估溢出。
     // 矮橫向此值只當 flex-basis（landscape.css #history/#timeline-area flex 撐滿覆寫）。
     // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
+    // 直向手機（2026-10-27）：落點 90＋讓出底部 nav bar（--about-bar-h，variables.css 檔尾 about 直向段）
     if (SCCDHelpers.isMobileLayout()) {
-      area.style.height = 'calc(100svh - 178px)';
+      const portraitPhone = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
+      area.style.height = portraitPhone ? 'calc(100svh - 90px - var(--about-bar-h))' : 'calc(100svh - 178px)';
     }
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;
@@ -185,10 +187,10 @@ export function initTimeline() {
     const bigPhoto = window.innerWidth < 768;
     const SPAN = bigPhoto ? 200 : 100;      // 每個 item 的橫向鋪排跨幅（vw 單位）
     const itemW = pageW * SPAN / 100;       // 每 item 佔 px 寬＝marquee 步距（桌面 = pageW）
-    // 手機 55~72：一輪 45~62 被 user 嫌太小（09-10 二輪「再大一點」）、原 60~85 又疊成坨——
-    // 取中間值：夠大、相鄰仍只輕度交疊不成坨
-    const PHOTO_MIN_VW = bigPhoto ? 55 : 30;
-    const PHOTO_MAX_VW = bigPhoto ? 72 : 50;
+    // 手機 64~84（user 10-27「再大一點」，原 55~72）：歷程 45~62 太小 → 60~85 疊成坨 → 55~72；
+    // 這次兩行中心同時上移（見 ROW_CENTER_VH）拉開上下空間
+    const PHOTO_MIN_VW = bigPhoto ? 64 : 30;
+    const PHOTO_MAX_VW = bigPhoto ? 84 : 50;
     const totalW = items.length * itemW;
 
     // 自動捲動取代分頁導航：nav zones 停用
@@ -283,10 +285,15 @@ export function initTimeline() {
 
       const photoTopsVH = [];
       if (bigPhoto) {
-        // 手機兩行：照片交替上/下排。行心收攏 40/60（原 26/74 貼上下緣）＝整體集中在畫面中段、
-        // 兩行偶爾輕碰（user 2026-09-10「兩 row 集中在畫面中間、可互相交曡」）。
+        // 手機兩行：照片交替上/下排。行心 30/50（user 10-27「分佈的 y 軸更上面」，原 40/60；更早 26/74 貼上下緣）、
+        // 兩行偶爾輕碰（user 2026-09-10「兩 row 集中、可互相交曡」）。
         // 不跑下方桌面的「垂直觸碰連接」——那是把 collage 照片黏成一片，兩行要保持上下分離。
-        const ROW_CENTER_VH = [40, 60];   // 上排 / 下排中心
+        // 依手機長寬比內插（user 10-27「大手機分佈要再明顯」）：照片大小跟寬走（vw）、高螢幕多出來的高度要靠行距吃掉。
+        // 兩端校準：矮（SE，area 高/寬≈1.37）＝30/50 集中偏上；高（如 430×932，≈1.8）＝26/66 拉開。調哪端改哪端。
+        const ROWS_SHORT = [30, 50], ROWS_TALL = [26, 66];
+        const ASPECT_SHORT = 1.37, ASPECT_TALL = 1.8;
+        const t = Math.min(1, Math.max(0, (pageH / pageW - ASPECT_SHORT) / (ASPECT_TALL - ASPECT_SHORT)));
+        const ROW_CENTER_VH = ROWS_SHORT.map((v, i) => v + (ROWS_TALL[i] - v) * t);   // 上排 / 下排中心（area 高 %）
         for (let p = 0; p < 5; p++) {
           const h = photoHsVH[p];
           const jitter = (Math.random() - 0.5) * 8;
@@ -375,16 +382,12 @@ export function initTimeline() {
     }
 
     let marqueeStarted = false;
-    let marqueeTween = null;
     let exited = false;   // 離頁旗標：擋仍在 pending 的 decode-gate reveal，免退場中又補揭一張
+    // 兩份同時左移一整條寬、到底接回 0＝無縫（CSS 常駐跑馬燈，見 playCssMarquee）
     function startMarquee() {
-      if (typeof gsap === 'undefined' || marqueeStarted) return;
+      if (marqueeStarted) return;
       marqueeStarted = true;
-      const wrapX = gsap.utils.wrap(-totalW, 0);
-      marqueeTween = gsap.to([strip, clone], {
-        x: `-=${totalW}`, ease: 'none', duration: totalW / 80, repeat: -1,
-        modifiers: { x: (x) => `${wrapX(parseFloat(x))}px` },
-      });
+      [strip, clone].forEach(el => playCssMarquee(el, totalW, totalW / 80));
     }
 
     function revealAll() {
@@ -410,7 +413,7 @@ export function initTimeline() {
     registerPageExit(() => new Promise(resolve => {
       exited = true;   // 阻止仍 pending 的 decode-gate reveal 於退場中補揭
       if (typeof gsap === 'undefined' || !marqueeStarted) { resolve(); return; }
-      if (marqueeTween) marqueeTween.pause();  // 凍結當前畫面
+      [strip, clone].forEach(el => { el.style.animationPlayState = 'paused'; });  // 凍結當前畫面
       const vh = window.innerHeight || 0;
       const visible = revealTargets.filter(el => {
         const r = el.getBoundingClientRect();
@@ -512,7 +515,7 @@ export function initTimeline() {
     }
 
     // 全時期連續渲染：每個 era 一組（era 標籤列 + 年份列）；年份不再 bold（user 2026-09-08）。
-    // 標籤 EN/ZH 兩 span 之間留一個空白：桌面一行「EN ZH」靠它隔開；手機兩 span display:block 時空白不佔行。
+    // 標籤 EN/ZH 兩 span 之間留一個空白＝一行「EN ZH」的間隔（手機 10-27 起也一行）。
     function renderAllEras() {
       listYears.innerHTML = eraGroups.map(era => {
         const rows = era.years.map(y => {

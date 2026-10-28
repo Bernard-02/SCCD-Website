@@ -277,19 +277,17 @@
 
   /* ===== Mobile：通用版垂直堆疊、colored-accordion 改水平 carousel ===== */
   @media (max-width: 767px) {
-    /* colored-accordion 手機＝水平 carousel（卡片恆展開、不旋轉、左右滑）：原生 scroll-snap 免 JS drag；
-       負 margin 讓軌道 bleed 到 viewport 邊、scroll-padding 補回對齊；
+    /* colored-accordion 手機＝水平 carousel（卡片恆展開、不旋轉、左右自由滑，不磁吸——user 2026-10-27）；
+       負 margin 讓軌道 bleed 到 viewport 邊、padding 補回對齊；卡距＝header mode／menu 鈕間距（gap-sm）；
        overflow-x 蓋上方 visible !important（同 layer 同特異度後出勝）、y 用 clip 防被軸連動算成 auto */
     .colored-accordion {
       flex-direction: row;
       align-items: flex-start;      /* 卡片各自自然高，不拉齊最高卡 */
-      gap: var(--spacing-md) !important;
+      gap: var(--spacing-sm) !important;
       overflow-x: auto !important;
       overflow-y: clip !important;
       margin-inline: calc(-1 * var(--container-padding));
       padding-inline: var(--container-padding);
-      scroll-snap-type: x mandatory;
-      scroll-padding-inline: var(--container-padding);
       scrollbar-width: none;
     }
     .colored-accordion::-webkit-scrollbar {
@@ -297,7 +295,6 @@
     }
     .colored-accordion .accordion-item {
       flex: 0 0 90%; /* 下一張留窄邊提示可滑 */
-      scroll-snap-align: start;
     }
     /* 左右 8px 沿 nav btn 慣例；上下 14/13px 保留原視覺 */
     .colored-accordion .accordion-label {

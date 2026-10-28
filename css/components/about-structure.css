@@ -199,6 +199,15 @@
   }
   .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }   /* 英中距＝s 字級 token（同 atlas name） */
 
+  /* 直向手機：層距跟手機高度走（user 2026-10-27「適應每支手機」）——可視區（100svh − header 帶 92 − 底部 bar）扣掉
+     樹＋說明卡本身高（--prog-fixed-h，about-structure.js fitMobileGap 量）平分兩層，夾 xl～4xl（手機 32～80）；
+     放不下（矮機）就停在 xl、內容往下長。樹這屏的框（落點 0、100lvh、上下 padding、置中）在 scroll-snap.css 直向段 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    #class-works-area #program-structure {   /* 兩個 id：蓋過下方手機段的 --prog-level-gap */
+      --prog-level-gap: clamp(var(--spacing-xl), calc((100svh - 92px - var(--about-bar-h) - var(--prog-fixed-h, 0px)) / 2), var(--spacing-4xl));
+    }
+  }
+
   /* ── 手機 <768：比照桌面 fan——BFA/MDES 一列、兩組一列，SVG 斜綫照畫；字級改 s；
      SCAIDC 移到子樹之後（display:contents + order 重排）；說明卡 in-flow 在樹底 ── */
   @media (max-width: 767px) {
@@ -243,7 +252,7 @@
       align-self: stretch;
       flex-direction: row;
       flex-wrap: wrap;
-      justify-content: flex-end;             /* 中層卡靠右 → 左側讓給 SCCD↔SCAIDC 直綫 */
+      justify-content: flex-start;           /* 靠左（user 2026-10-27）：第一顆（BFA）跟 DCD／動畫組左緣對齊；每條綫都是上層中點→下層中點 */
       gap: 0 var(--spacing-sm);              /* 16px：2×160+16=336 ≤ 342 兩顆才同列（md 24 會 344 擠爆折行）；垂直間距走子列 margin-top */
       width: auto;
       margin-top: var(--prog-level-gap);
@@ -256,7 +265,7 @@
       flex-basis: 100%;
       flex-direction: row;
       align-items: flex-start;
-      justify-content: flex-end;             /* 同上：靠右讓出左側直綫 lane */
+      justify-content: flex-start;           /* 靠左：動畫組在 DCD 正下方 */
       gap: var(--spacing-sm);                /* 同上：兩組 160 cap 併排要 16 才穩 */
       width: auto;
       margin-top: var(--prog-level-gap);
@@ -278,7 +287,9 @@
       flex-shrink: 0;                      /* 橫排下 bar 長也不擠壓 head */
     }
     .prog-legend-head > span:first-child { margin-bottom: var(--space-en-zh-s); }
-    /* 卡內橫排：head 左、bars 右（bars 上下疊） */
-    .prog-legend { flex-direction: row; }
+    /* 卡內橫排：head 左、bars 右（bars 上下疊）；bar 內中文接英文右（10-27），超過螢幕寬就往右延伸（about body overflow-x hidden 裁掉） */
+    .prog-legend { flex-direction: row; max-width: none; }
+    .prog-legend-bar { flex-direction: row; gap: 0.4em; align-items: baseline; }
+    .prog-legend-bar .prog-legend-en { margin-bottom: 0; }
   }
 }

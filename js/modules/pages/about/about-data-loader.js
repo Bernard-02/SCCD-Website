@@ -42,6 +42,16 @@ function fillHeroNames(lang, names) {
   });
 }
 
+// 手機中英上下疊（hero.css <768）：整組寬＝畫面上那幾筆（[data-hero-logo]）最寬的，不是全部筆數最寬 → 短名整組照樣置中。
+// 先拿掉變數＝欄寬回到全部最寬、每筆量到自己的自然寬；存 vw（手機字級 6.4vw）＝視窗寬變了也不用重量
+function fitHeroNamesWidth() {
+  const box = /** @type {HTMLElement|null} */ (document.querySelector('.about-hero-names'));
+  if (!box || !matchMedia('(max-width: 767px)').matches) return;
+  box.style.removeProperty('--hero-names-w');
+  const shown = Array.from(box.querySelectorAll('[data-hero-logo]'), p => p.parentElement.getBoundingClientRect().width);
+  if (shown.length) box.style.setProperty('--hero-names-w', `${(Math.max(...shown) + 1) / innerWidth * 100}vw`);   // +1px 防捨入換行
+}
+
 // 兩筆以上：每筆停 HERO_NAME_HOLD 秒 → 當前那筆四向 clip-reveal 退出 → 下一筆進場，循環回第一筆。
 // 中英共用一個節拍（各自有幾筆就各自循環；筆數相同＝中英成對換）；只有一筆的那邊不動。
 // [data-hero-logo] 跟著「畫面上那筆」走（退出完才交棒）＝中途離頁由 hero 退場（hero-animation playHeroExit）接手收它。
@@ -65,6 +75,7 @@ export function initHeroNameCycle() {
         .fromTo(nxt, { ...revealHidden(), visibility: 'visible' },
           { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform' }, DUR.medium);
     });
+    tl.call(fitHeroNamesWidth, undefined, DUR.medium);   // 舊的都退完、新的進場前換寬（排在上面交棒之後）
   }
   const stop = () => { call.kill(); tl?.kill(); };
   registerPageCleanup(stop);
@@ -261,6 +272,7 @@ export async function loadAboutContent() {
   ]);
   fillHeroNames('en', vision?.heroNamesEn);
   fillHeroNames('zh', vision?.heroNamesZh);
+  fitHeroNamesWidth();
   fillVision(vision);
   fillClasses(classes);
   fillWorks(works);

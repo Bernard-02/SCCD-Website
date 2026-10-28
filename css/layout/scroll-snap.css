@@ -51,15 +51,12 @@ html {
 /* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗 */
 #program-structure { min-height: 100svh; }
 /* 手機：anchor strip 全程 sticky（釘 88、高 91 → 底 179），落點要讓出 strip，180 = strip 底 +1。
-   ⚠️ 與 about.html strip top:88 / division nav top:168 為配對值，改 strip 高度三處同步 */
+   ⚠️ 與 strip top:88（variables.css）為配對值，改 strip 高度要同步 */
 @media (max-width: 767px) {
   #overview { scroll-margin-top: 180px; }
-  #class, #class-info-anchor { scroll-margin-top: 180px; }   /* class-info-anchor＝Programs btn 落點，同讓出 strip */
+  #class, #class-info-anchor, #works { scroll-margin-top: 180px; }   /* class-info-anchor＝Programs btn 落點，同讓出 strip */
   /* 178（180−2）：剛好貼 strip 底會在接縫露出前一區底緣 1-2px → 多捲 2px 藏進 strip 下 */
   #resources, #history { scroll-margin-top: 178px; }
-  /* works 再讓出釘住的 division nav（top 168 高 126 → 底 294）：307 = 294 + 13 呼吸；
-     落點不夠會讓 nav 被 containment 推上去疊住 strip。class 落點的 nav 在自然 flow 位置、180 即可 */
-  #works { scroll-margin-top: 307px; }
 }
 
 /* about 封鎖綫（.section-title-strip）直向手機不渲染；data-anchor 限定 about 四條（alumni 不受影響）；
@@ -69,8 +66,31 @@ html {
     display: none;
   }
 
-  /* works 保底一屏：短文 panel 撐不滿時 resources 會在 works 視圖底部提早露出 */
-  #works { min-height: 100svh; }
+  /* 每屏自己負責上下空白（user 2026-10-27「一勞永逸、不用每支手機測」）：
+     ① 落點一律貼 section 頂（scroll-margin 0）＝畫面頂看到的是這屏自己，不是上一屏的尾巴；
+     ② header 帶的空白由 section 自己的 padding-top 留：值＝原落點（92；resources/history 90）＋原 pt，
+        內容在畫面上的位置不變 → variables.css 檔尾 about 直向段的一屏預算、timeline.js area 高都不用改；
+     ③ 高至少 100lvh（Safari 工具列收起後多出的那截也是自己的空白）＝畫面底不露下一屏。
+     Programs 的落點 #class-info-anchor 是零高度錨點 → padding／高度下在它後面的 #class-info-area。
+     #about-content-wrapper 前綴：蓋 accordion.css／lists.css（#history 帶 !important）／variables.css 手機段的同 id 規則 */
+  #overview, #class, #class-info-anchor, #works, #resources, #history { scroll-margin-top: 0; }
+  #about-content-wrapper :is(#overview, #class-info-area, #works, #resources, #history) { min-height: 100lvh; }
+  #about-content-wrapper :is(#overview, #class-info-area) { padding-top: calc(92px + var(--spacing-md)); }
+  #about-content-wrapper #works { padding-top: 92px; }
+  #about-content-wrapper #resources { padding-top: 90px; }
+  #about-content-wrapper #history { padding-top: 90px !important; }
+  /* 學制樹：同上規則，另加內容在 header 帶 92 與底部 bar 之間置中；底 padding 多墊 100lvh−100svh＝工具列展開時內容也在可視區內。
+     層距跟手機高度走見 about-structure.css 直向段 */
+  #program-structure {
+    min-height: 100lvh;
+    display: flex;
+    flex-direction: column;
+    padding-top: 92px;
+    padding-bottom: calc(var(--about-bar-h) + 100lvh - 100svh);
+  }
+  /* 置中用上下 auto margin（非 justify-content:center）：內容比框高（矮機）時從 header 帶下緣往下長、不往上溢 */
+  #program-structure > :first-child { margin-top: auto; }
+  #program-structure > :last-child { margin-bottom: auto; }
 }
 
 @media (min-width: 768px) and (min-height: 900px) {

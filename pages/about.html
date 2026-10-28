@@ -36,7 +36,7 @@
     <!-- Hero Section：畫面左右兩半（col 1-10／11-20）各放一塊系名、各自在半邊內置中（user 2026-10-26 取代 SCCD logo 圖）；手機上下疊 -->
     <section class="snap-zone h-screen relative overflow-hidden flex items-center">
       <!-- grid-cols-2＋gutter＝grid-20 的 col 1-10／11-20（手機不用 grid-20：19 條 gutter 會撐爆 375 寬） -->
-      <div class="site-container grid md:grid-cols-2 items-center gap-x-gutter gap-y-xl">
+      <div class="about-hero-names site-container grid md:grid-cols-2 items-center gap-x-gutter gap-y-xl">
         <!-- 中英系名＝後台 about_vision.heroNamesEn／heroNamesZh（可多筆輪播，about-data-loader.js 疊進來）；這裡是後台空／失敗時的預設 -->
         <div class="about-hero-stack" data-hero-names="en">
           <div class="hero-logo-wrapper"><p data-hero-logo lang="en" class="about-hero-name">Department of<br>Communications Design,<br>Shih Chien University</p></div>
@@ -56,12 +56,11 @@
       <!-- Mobile Anchor Strip（hero 下方水平 nav，2026-07-07 取代舊 floating 圓鈕選單）：
            比照其他頁 section nav——水平 scroll pill、點擊置中 strip（anchor-nav.js）、
            active accent 色/旋轉由 setActiveBtn 統一管（.anchor-nav-inner 結構同桌面 #anchor-nav）。
-           sticky 全程釘畫面（user 2026-07-07 二改）：top 88 清開 56px logo 列、pill 視覺頂 88+py-sm 16=104
-           對齊四頁 nav btn（80+24，user 2026-07-13）；bg=theme-bg 遮捲過的內容；
-           sticky scope = #about-content-wrapper（直接子層）→ 一路釘到頁尾；
-           Programs 區 #mobile-division-nav 的 sticky top 已對應下移錯開（見該處註解）。
+           直向手機＝固定畫面底部 bar、英中同一行（user 2026-10-27）：過 hero 才滑上來、footer 前收（anchor-nav.js）；
+           .is-bar-hidden 出生就帶＝JS 動態載入前不在 hero 上閃現。矮橫向（<768 寬）維持舊 sticky top 88。
+           top／fixed／高度＋落點與一屏預算配對值在 variables.css／scroll-snap.css。
            負 margin 全出血 + 捲軸隱藏在 variables.css mobile block。 -->
-      <div class="mobile-anchor-strip-wrap md:hidden site-container sticky z-40" style="top: 88px; background: var(--theme-bg);">
+      <div class="mobile-anchor-strip-wrap is-bar-hidden md:hidden site-container sticky z-40" style="background: var(--theme-bg);">
         <div id="mobile-anchor-strip" class="flex flex-row items-center gap-md overflow-x-auto py-sm">
           <button class="anchor-nav-btn shrink-0 text-left whitespace-nowrap" data-target="overview">
             <span class="anchor-nav-inner"><div data-label-key="about.vision" data-label-part="en">Vision</div><div data-label-key="about.vision" data-label-part="zh">理念</div></span>
@@ -190,43 +189,6 @@
               <div class="prog-legend-head"><span>Degree</span><span lang="zh-Hant">學位</span></div>
               <div class="prog-legend-bars"></div>
             </div>
-          </div>
-        </div>
-
-        <!-- Mobile Division Nav：水平 scroll pill 列（沿用 .section-nav-btn / .anchor-nav-inner，與其他 section nav 一致）；
-             點擊切換下方圖文（wiring 在 bfa-division-toggle.js）。取代舊的 prev/next chevron 控制。
-             兩側負 margin 延伸到 viewport 邊 + py 給 active 旋轉 clearance（樣式在 variables.css mobile block） -->
-        <!-- sticky top = 168（anchor strip 釘 88 高 91 → 底 179；168 刻意上探 11px 疊進 strip 的
-             下 padding 帶收窄兩列視覺間距（user 2026-07-13「子 btn 到 nav btn 距離再小一點」）——
-             疊到的只是 strip 的 bg 空白、pill 本體不相撞；本容器 DOM 在後 + 同 z-40 蓋得住）；
-             mt-3xl 給初始與 Programs 標題的間距；
-             sticky 容器是 class-works-area 的子層 → 從 class 區一路黏到 works 區結束。z-40 蓋過內容、低於 header(z-9999)。
-             items-end：pill 底部對齊，BFA 學士班 label 浮在 Animation/Creative Media pill 上方（比照桌面）。
-             ⚠️ 改 top 要同步 scroll-snap.css #works scroll-margin（= top + nav 高 126 + 13 呼吸）。 -->
-        <div class="mobile-division-wrap md:hidden site-container sticky z-40 mt-3xl" style="top: 168px;">
-          <div id="mobile-division-nav" class="flex flex-row items-end gap-md overflow-x-auto py-sm">
-            <!-- Design Fundamental（works-only；CSS 預設收起，.is-works-context 才展開） -->
-            <button class="section-nav-btn mobile-division-btn mobile-division-btn--bfa shrink-0 text-left whitespace-nowrap" data-division="bfa">
-              <span class="anchor-nav-inner"><div data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div><div data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div></span>
-            </button>
-            <!-- Animation（BFA label 在 pill 上方單行，user 2026-07-13 對齊 curriculum .courses-bfa-label；
-                 樣式在 variables.css mobile block：in-flow、透明底 50% 字，active 才由 JS 上 accent 底） -->
-            <div class="mobile-division-group shrink-0 flex flex-col items-start gap-xs">
-              <span class="class-group-label text-s font-bold whitespace-nowrap"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
-              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="animation">
-                <span class="anchor-nav-inner"><div data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div><div data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div></span>
-              </button>
-            </div>
-            <!-- Creative Media（BFA label 同上） -->
-            <div class="mobile-division-group shrink-0 flex flex-col items-start gap-xs">
-              <span class="class-group-label text-s font-bold whitespace-nowrap"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
-              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="creative-media">
-                <span class="anchor-nav-inner"><div data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div><div data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div></span>
-              </button>
-            </div>
-            <button class="section-nav-btn mobile-division-btn shrink-0 text-left whitespace-nowrap" data-division="mdes">
-              <span class="anchor-nav-inner"><div data-label-key="about.program.mdes" data-label-part="en">MDES</div><div data-label-key="about.program.mdes" data-label-part="zh">碩士班</div></span>
-            </button>
           </div>
         </div>
 
@@ -442,6 +404,39 @@
         </div>
 
         </div><!-- end works view (#works) -->
+
+        <!-- Mobile Division Nav：水平 scroll pill 列（沿用 .section-nav-btn / .anchor-nav-inner，與其他 section nav 一致）；
+             點擊切換下方圖文（wiring 在 bfa-division-toggle.js）。取代舊的 prev/next chevron 控制。
+             兩側負 margin 延伸到 viewport 邊 + py 給 active 旋轉 clearance（樣式在 variables.css mobile block） -->
+        <!-- 固定畫面底、底部 nav btn bar 上方（user 10-27；fixed 在 variables.css）：Programs 圖文＋works（class-info-sticky-wrapper）
+             範圍內才逐 chip clip-reveal 進場、範圍外退場（bfa-division-toggle.js ②）。整條透明、不墊白底；is-div-hidden＝出生藏。
+             items-end：pill 底部對齊；BFA 學士班 label 在 Animation/Creative Media pill 左側併排（user 10-27）。 -->
+        <div class="mobile-division-wrap is-div-hidden md:hidden site-container z-40">
+          <div id="mobile-division-nav" class="flex flex-row items-end gap-md overflow-x-auto py-sm">
+            <!-- Design Fundamental（works-only；CSS 預設收起，.is-works-context 才展開） -->
+            <button class="section-nav-btn mobile-division-btn mobile-division-btn--bfa shrink-0 text-left whitespace-nowrap" data-division="bfa">
+              <span class="anchor-nav-inner"><div data-label-key="about.program.design-fundamental" data-label-part="en">Design Fundamental</div><div data-label-key="about.program.design-fundamental" data-label-part="zh">創作基礎</div></span>
+            </button>
+            <!-- Animation（BFA label 在 pill 左側併排、頂對齊，user 10-27：省一層高；
+                 樣式在 variables.css mobile block：in-flow 黑 chip，active 才由 JS 上 accent 底） -->
+            <div class="mobile-division-group shrink-0 flex flex-row items-start gap-xs">
+              <span class="class-group-label text-s font-bold whitespace-nowrap"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
+              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="animation">
+                <span class="anchor-nav-inner"><div data-label-key="about.program.animation" data-label-part="en">Animation & Moving Image</div><div data-label-key="about.program.animation" data-label-part="zh">動畫影像設計組</div></span>
+              </button>
+            </div>
+            <!-- Creative Media（BFA label 同上） -->
+            <div class="mobile-division-group shrink-0 flex flex-row items-start gap-xs">
+              <span class="class-group-label text-s font-bold whitespace-nowrap"><span data-label-key="about.group.bfa" data-label-part="en">BFA</span><span data-label-key="about.group.bfa" data-label-part="zh">學士班</span></span>
+              <button class="section-nav-btn mobile-division-btn text-left whitespace-nowrap" data-division="creative-media">
+                <span class="anchor-nav-inner"><div data-label-key="about.program.creative-media" data-label-part="en">Creative Media Design</div><div data-label-key="about.program.creative-media" data-label-part="zh">創意媒體設計組</div></span>
+              </button>
+            </div>
+            <button class="section-nav-btn mobile-division-btn shrink-0 text-left whitespace-nowrap" data-division="mdes">
+              <span class="anchor-nav-inner"><div data-label-key="about.program.mdes" data-label-part="en">MDES</div><div data-label-key="about.program.mdes" data-label-part="zh">碩士班</div></span>
+            </button>
+          </div>
+        </div>
 
         </div><!-- end class-info-sticky-wrapper -->
 

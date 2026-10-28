@@ -1,4 +1,5 @@
 import { DUR, EASE } from './motion.js';
+import { registerPageCleanup } from './page-cleanup.js';
 
 // 捲完後「hold」住 snap=none，等使用者首次主動捲動/互動才交回 mandatory（見 scrollWindowNoSnap 註解）。
 const INTERACT_EVENTS = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
@@ -111,4 +112,68 @@ export function scrollWindowNoSnap(targetY, { duration = DUR.medium, ease = EASE
     window.addEventListener('scrollend', finish);
     window.scrollTo({ top: targetY, behavior: 'smooth' });
   }
+}
+
+// ── about 直向手機磁吸（user 2026-10-27：about 各區已照一屏排）──
+// 原生 CSS snap 只開真桌面、且只吸最近點（過半才換屏）＋會蓋掉 footer 的方向磁吸 → 這頁手機改 JS：
+// 停手（含慣性）後往某方向捲超過 15% 屏高＝補捲到那方向的下一個落點，不到＝回原落點。
+// 落點＝.snap-zone 頂 − scroll-margin-top（同 nav btn 落點）＋最後一個＝footer 頂貼視窗底；footer 那段交給 footer-scatter 的方向磁吸。
+// 比一屏高的區段（小螢幕 floor 撐高）：補「段尾貼視窗底」落點、段頭～段尾之間自由捲。
+const SNAP_SWITCH = 0.15;
+export function initAboutMobileSnap() {
+  const mq = window.matchMedia('(max-width: 767px) and (orientation: portrait)');
+  let lastY = window.scrollY, dir = 0, timer = 0, touching = false;
+  const points = () => {
+    const vh = window.innerHeight, sy = window.scrollY;
+    const max = document.documentElement.scrollHeight - vh;
+    const ys = [...document.querySelectorAll('#page-content .snap-zone')]
+      .map(el => el.getBoundingClientRect().top + sy - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0));
+    const footer = Array.from(document.querySelectorAll('#site-footer-static, #site-footer')).find(f => f.getClientRects().length);
+    if (footer) ys.push(footer.getBoundingClientRect().top + sy - vh);
+    const pts = [...new Set(ys.map(y => Math.round(Math.min(Math.max(y, 0), max))))].sort((a, b) => a - b);
+    // 長段門檻用 100lvh：各屏 min-height 100lvh（iOS 工具列展開時比 innerHeight 高幾十 px，多出的是刻意留白）不算長段；
+    // 多出不到換屏門檻（矮機多半是 bar 後的底 padding）也不算——否則捲 20% 只停在段尾那幾十 px、換不了屏
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;height:100lvh';
+    document.body.append(probe);
+    const fullH = Math.max(vh, probe.offsetHeight);
+    probe.remove();
+    const free = [];
+    for (let i = pts.length - 1; i > 0; i--) {
+      if (pts[i] - pts[i - 1] > fullH + vh * SNAP_SWITCH) { free.push([pts[i - 1], pts[i] - vh]); pts.splice(i, 0, pts[i] - vh); }
+    }
+    return { pts, free };
+  };
+  const settle = () => {
+    if (!mq.matches || touching || !dir || document.body.classList.contains('anchor-jumping')
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const y = window.scrollY;
+    const { pts, free } = points();
+    if (y >= pts[pts.length - 1] - 1 || pts.some(p => Math.abs(p - y) <= 1)) return;   // footer 段／已在落點
+    if (free.some(([a, b]) => y > a && y < b)) return;
+    const prev = pts.filter(p => p < y).pop();
+    const next = pts.find(p => p > y);
+    if (prev === undefined || next === undefined) return;
+    const th = window.innerHeight * SNAP_SWITCH;
+    const to = dir > 0 ? (y - prev > th ? next : prev) : (next - y > th ? prev : next);
+    window.scrollTo({ top: to, behavior: 'smooth' });
+  };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(settle, 120); };
+  const onScroll = () => {
+    const y = window.scrollY;
+    if (y !== lastY) dir = Math.sign(y - lastY);
+    lastY = y;
+    arm();
+  };
+  const onTouchStart = () => { touching = true; };
+  const onTouchEnd = () => { touching = false; arm(); };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('touchstart', onTouchStart, { passive: true });
+  ['touchend', 'touchcancel'].forEach(t => window.addEventListener(t, onTouchEnd, { passive: true }));
+  registerPageCleanup(() => {
+    clearTimeout(timer);
+    window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('touchstart', onTouchStart);
+    ['touchend', 'touchcancel'].forEach(t => window.removeEventListener(t, onTouchEnd));
+  });
 }

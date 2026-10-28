@@ -318,8 +318,8 @@ export function initBFADivisionToggle() {
     });
   }
 
-  // ─── 手機 pill 置中 ────────────────────────────────────────
-  // active pill 捲到 strip 水平置中（user 2026-07-07，同 anchor strip / activities pattern）。
+  // ─── 手機 pill 對齊 ────────────────────────────────────────
+  // active pill 捲到 strip 左 padding（user 2026-10-27；原 07-07 置中）。
   // 桌面 nav 在 md:hidden wrapper 內 clientWidth=0 → scrollWidth 條件不成立、自動 no-op。
   // bfa pill 展開/收合 transition 進行中：setActive 的即時置中量到的是中途佈局（會先捲到錯位再被
   // recenter 拉回＝左右抖），故 transition 未結束前 centerMobilePill no-op，交給 recenterAfterBfaToggle。
@@ -329,9 +329,12 @@ export function initBFADivisionToggle() {
     const mNav = document.getElementById('mobile-division-nav');
     const mBtn = mNav && mNav.querySelector(`.mobile-division-btn[data-division="${divisionId}"]`);
     if (!mBtn || mNav.scrollWidth <= mNav.clientWidth) return;
-    const b = mBtn.getBoundingClientRect();
+    // 對齊＝active 那組（含左側 BFA 學士班 label）左緣貼左 padding（user 2026-10-27；原置中會把 label 推到螢幕邊）；
+    // 捲不到（最後幾顆）由瀏覽器夾在最右
+    const b = (mBtn.closest('.mobile-division-group') || mBtn).getBoundingClientRect();
     const s = mNav.getBoundingClientRect();
-    mNav.scrollTo({ left: mNav.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior: 'smooth' });
+    const padL = parseFloat(getComputedStyle(mNav).paddingLeft) || 0;
+    mNav.scrollTo({ left: mNav.scrollLeft + b.left - s.left - padL, behavior: 'smooth' });
   }
 
   // works context 切換時 Design Fundamental pill 會 max-width 0.5s 展開/收合（variables.css），
@@ -483,11 +486,10 @@ export function initBFADivisionToggle() {
     label.addEventListener('click', () => btn.click());
   });
 
-  // 手機 works context + sticky release（桌面靠 class-buttons-sticky.js，手機直接 return → 這裡補手機版，比照桌面）。
+  // 手機 works context（桌面靠 class-buttons-sticky.js，手機直接 return → 這裡補手機版，比照桌面）。
   if (window.innerWidth < 768 && typeof ScrollTrigger !== 'undefined') {
     const infoArea = document.getElementById('class-info-area');
     const mobileNav = document.getElementById('mobile-division-nav');
-    const navWrap = mobileNav?.parentElement;
     let hasEnteredWorksMobile = false;
 
     // ① works context：捲到圖文底部 → ctx='works' + 展開 Design Fundamental pill；首次進 works 自動 active 它（#2，比照桌面）。
@@ -526,50 +528,56 @@ export function initBFADivisionToggle() {
       });
     }
 
-    // ② sticky release（#3）：works 說明文字頂（panels content top，扣掉 pt-3xl）到達 nav 底部「再加一個
-    //    nav padding-bottom」就開始放開 → 停住時 pill 與文字的視覺 gap = py-sm 內距 ×2（user 2026-06-11 要現有 gap 的 2 倍）。
-    //    tab 用 translateY 跟著內容 1:1 往上捲走，不會蓋住文字；捲動量 = stickyTop + nav 高度 → 一路移出 viewport 上緣。
-    const worksPanels = document.getElementById('class-works-panels');
-    if (worksPanels && navWrap && typeof gsap !== 'undefined') {
-      const stickyTop = parseFloat(getComputedStyle(navWrap).top) || 128;
-      gsap.timeline({
-        scrollTrigger: {
-          trigger: worksPanels,
-          start: () => {
-            const padTop = parseFloat(getComputedStyle(worksPanels).paddingTop) || 0;
-            const gapExtra = parseFloat(getComputedStyle(mobileNav).paddingBottom) || 16;
-            return `top+=${padTop} ${stickyTop + navWrap.offsetHeight + gapExtra}px`;
-          },
-          end: () => `+=${stickyTop + navWrap.offsetHeight}`,
-          scrub: true,
-          invalidateOnRefresh: true,
-        },
-      })
-        .to(navWrap, { y: () => -(stickyTop + navWrap.offsetHeight), ease: 'none' }, 0);
-    }
-  }
-
-  // 手機 division tab：sticky 釘住後才加底色（user 2026-09-06 二輪）——自然 flow 時透明疊 polygons，
-  // pinned 後下方圖文會捲到 pill 上、要底色遮。sentinel + IntersectionObserver 偵測 pinned，免 scroll listener。
-  // 桌面 tab 疊在 item 上不需白底 → <768 才綁。
-  if (window.innerWidth < 768 && 'IntersectionObserver' in window) {
-    const wrap = document.getElementById('mobile-division-nav')?.parentElement;
-    if (wrap) {
-      const sentinel = document.createElement('div');
-      sentinel.setAttribute('aria-hidden', 'true');
-      sentinel.style.height = '0';
-      wrap.parentNode.insertBefore(sentinel, wrap);
-      // pin 線 = sticky top − sentinel↔wrap 的 margin gap（wrap 的 mt-3xl）：sentinel 抵此線＝wrap 剛 pinned。
-      const stickyTop = parseFloat(getComputedStyle(wrap).top) || 168;
-      const line = Math.max(1, stickyTop - Math.max(0, wrap.offsetTop - sentinel.offsetTop) + 1);
-      // 只認 sentinel 捲到 line「之上」(top < line)＝已 pinned；純 !isIntersecting 會把「sentinel 還在
-      // 畫面下方、根本沒捲到」也判 stuck（初始態誤加白底）。boundingClientRect 不受 rootMargin 影響。
-      const io = new IntersectionObserver(
-        ([e]) => wrap.classList.toggle('is-stuck', e.boundingClientRect.top < line),
-        { rootMargin: `-${line}px 0px 0px 0px`, threshold: 0 }
-      );
-      io.observe(sentinel);
-      registerPageCleanup(() => { io.disconnect(); sentinel.remove(); });
+    // ② division tab＝畫面底固定列（底部 bar 上方，variables.css）：Programs 圖文～works（#class-info-sticky-wrapper）跨過 tab 頂線
+    //    才逐 chip clip-reveal 進場、離開範圍／離頁退場（user 10-27「該出現時才出場、不要從 bar 後面冒出來」）；遮罩＝各 chip 自己。
+    //    出生 .is-div-hidden 整條藏（首繪不閃），設好藏起態才拿掉；範圍外 .is-off＝不擋點擊、SCCD_animateBfaChips 不單獨揭。
+    const divWrap = mobileNav?.parentElement;
+    const range = document.getElementById('class-info-sticky-wrapper');
+    if (divWrap && range && typeof gsap !== 'undefined') {
+      const dirs = new Map();
+      let shown = false;
+      let exiting = false;
+      // 收合中的 Design Fundamental 不動，交給 SCCD_animateBfaChips（勿用 computed visibility 判：init 當下分組鈕也是 hidden）
+      const chips = () => [...mobileNav.querySelectorAll('.class-group-label, .anchor-nav-inner')]
+        .filter((el) => !el.closest('.mobile-division-btn--bfa') || mobileNav.classList.contains('is-works-context'));
+      const animate = (on, onDone) => {
+        const els = chips();
+        gsap.killTweensOf(els);
+        els.forEach((el) => { el.style.transition = 'none'; if (!dirs.has(el)) dirs.set(el, pickNavDir(el)); });
+        const hid = els.map((el) => navChipHidden(el, dirs.get(el)));   // 每次重算：active 換角後方向跟著轉
+        const hidVars = { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate };
+        if (!els.length) { onDone?.(); return; }
+        gsap.fromTo(els, on ? hidVars : { ...NAV_CHIP_SHOWN }, {
+          ...(on ? NAV_CHIP_SHOWN : hidVars), duration: DUR.base, ease: EASE.wipe,
+          stagger: on ? 0.05 : { each: 0.05, from: 'end' }, overwrite: true,
+          ...(on && { clearProps: 'clipPath,translate' }),
+          onComplete: () => { if (on) els.forEach((el) => { el.style.transition = ''; }); onDone?.(); },
+        });
+      };
+      const setShown = (on) => {
+        if (exiting || on === shown) return;
+        shown = on;
+        divWrap.classList.toggle('is-off', !on);
+        animate(on);
+      };
+      divWrap.classList.add('is-off');
+      divWrap.classList.remove('is-div-hidden');   // 同步設藏起態＝首繪前完成、不閃
+      chips().forEach((el) => { dirs.set(el, pickNavDir(el)); gsap.set(el, navChipHidden(el, dirs.get(el))); });
+      const tabTop = () => window.innerHeight - divWrap.getBoundingClientRect().top;   // fixed：tab 頂到視窗底
+      const st = ScrollTrigger.create({
+        trigger: range,
+        start: () => `top bottom-=${tabTop()}`,
+        end: () => `bottom bottom-=${tabTop()}`,
+        invalidateOnRefresh: true,
+        onToggle: (self) => setShown(self.isActive),
+      });
+      if (st.isActive) setShown(true);
+      registerPageExit(() => new Promise((resolve) => {
+        exiting = true;
+        if (!shown) { resolve(); return; }
+        divWrap.classList.add('is-off');
+        animate(false, resolve);
+      }));
     }
   }
 
@@ -590,6 +598,7 @@ export function initBFADivisionToggle() {
         el.style.transition = 'none';   // Tailwind transition-all 會追 GSAP 每幀值（同 class-buttons-sticky chip 進退場）
         if (show) {
           gsap.set(el, navChipHidden(el, pickNavDir()));
+          if (el.closest('.is-off')) return;   // 手機 division tab 整條收著：留藏起態，等整條進場一起揭
           gsap.to(el, { ...NAV_CHIP_SHOWN, duration: DUR.medium, ease: EASE.wipe,
             clearProps: 'clipPath,translate', onComplete: () => { el.style.transition = ''; } });
         } else {

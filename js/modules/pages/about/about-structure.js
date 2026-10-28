@@ -260,7 +260,9 @@ export async function initProgramStructure() {
     if (btn && !btn.classList.contains('active')) btn.click();
     else document.getElementById('class-info-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-  units.forEach((u) => {
+  // 觸控（手機）不跳：tap 是用來亮 Term／Degree（user 2026-10-27），跳分頁只給有 hover 的桌面
+  const canHover = window.matchMedia('(hover: hover)').matches;
+  if (canHover) units.forEach((u) => {
     const tab = NODES[u.ids[0]].tab;
     if (!tab || !document.querySelector(`.class-info-panel[data-division="${CSS.escape(tab)}"]`)) return;
     u.tab = tab;
@@ -284,7 +286,7 @@ export async function initProgramStructure() {
     lineageAll(ids).forEach(unpaint);
     lines.forEach((le) => le.el.style.removeProperty('stroke'));
   };
-  if (window.matchMedia('(hover: hover)').matches) {
+  if (canHover) {
     units.forEach(({ el, ids, chip, tab }) => {
       if (tab) el.addEventListener('click', () => jumpToTab(tab));
       el.addEventListener('mouseenter', () => {
@@ -297,13 +299,12 @@ export async function initProgramStructure() {
       });
     });
   } else {
-    // 觸控（無 hover）：tap chip / bar → lineage 上色；點別顆＝切換、再點同顆＝還原。可跳分頁的 chip＝tap 直接跳（不上色）。
+    // 觸控（無 hover）：tap chip / bar → lineage 上色（連帶亮 Term／Degree bar）；點別顆＝切換、再點同顆＝還原。
     // 元素在 #page-content 內、SPA swap 即解綁（theme:changed 是 window 級、例外走 registerPageCleanup）。
     let tapped = null;   // { el, ids, color }
-    units.forEach(({ el, ids, tab }) => el.addEventListener('click', () => {
+    units.forEach(({ el, ids }) => el.addEventListener('click', () => {
       const same = tapped && tapped.el === el;
       if (tapped) unpaintAll(tapped.ids);
-      if (tab) { tapped = null; jumpToTab(tab); return; }
       tapped = same ? null : { el, ids, color: colorOf(ids[0]) };
       if (tapped) paintAll(ids, tapped.color);
     }));
@@ -444,6 +445,7 @@ export async function initProgramStructure() {
     if (!legendStack || !lines.length || !SCCDHelpers.isDesktopLayout()) {
       levelBoxes.forEach((c) => { c.style.marginTop = ''; });
       lineLen = 0;
+      fitMobileGap(levelBoxes);
       return;
     }
     const lv = [1, 2].map((level) => {
@@ -480,6 +482,15 @@ export async function initProgramStructure() {
     if (links[0]) links[0].style.width = `${Math.max(lineLen, linkBaseW).toFixed(2)}px`;   // 單一 root 沒有連結橫綫
     gapsFor(L).forEach((g, i) => lv[i].boxes.forEach((b) => { b.style.marginTop = `${g.toFixed(2)}px`; }));
     reserveHeights();   // 子列 margin 變了 → 重量父節點佔位高
+  }
+
+  // 直向手機：樹＋說明卡扣掉層距的高 → --prog-fixed-h，CSS 拿可視區剩下的平分給層距（about-structure.css 直向段）。
+  //   扣掉層距＝跟當下層距無關（冪等）；層距變了連綫端點由後面的 cacheEndpoints 重量。
+  function fitMobileGap(levelBoxes) {
+    if (!legendStack || !roots || !(window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches)) return;
+    const gaps = levelBoxes.reduce((s, c) => s + (parseFloat(getComputedStyle(c).marginTop) || 0), 0);
+    const h = legendStack.getBoundingClientRect().bottom - roots.getBoundingClientRect().top;
+    root.style.setProperty('--prog-fixed-h', `${Math.round(h - gaps)}px`);
   }
 
   // ── 連綫：綁 parentBox/childBox，端點快取在 rest 位置（減掉 reveal translate）＋draw 進度 ──
