@@ -1722,6 +1722,7 @@ function windowResized() {
         // 根據新的模式重新計算並調整Canvas尺寸
         if (isMobileMode) {
             updateDesktopScale();   // 跨到手機排版：縮放歸 1、清 --scale
+            if (typeof reserveMobileInputHeight === 'function') reserveMobileInputHeight();   // 寬變了＝輸入框最壞情況行數重量
             // 手機版：使用統一的 resize 機制（如果有的話）
             if (typeof requestCanvasResize === 'function') {
                 requestCanvasResize(true); // 傳入 immediate=true，因為 window resize 沒有 CSS transition

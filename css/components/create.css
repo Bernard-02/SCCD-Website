@@ -282,7 +282,10 @@ body.create-kb-open #site-header {
   display: none;
   animation: create-caret-blink 1s steps(1) infinite;
 }
-#input-box:focus ~ .create-fake-caret { display: block; }
+:is(#input-box, #mobile-input-box):focus ~ .create-fake-caret { display: block; }
+/* 一律顯示大寫：value 由 handleInput 轉大寫，但輸入法組字中（handleInput 跳過）的字母會先以小寫出現（user 10-28） */
+:is(#input-box, #mobile-input-box) { text-transform: uppercase; }
+.mobile-input-area { position: relative; }   /* 手機版面假游標／鏡像的定位框（10-28 實體鍵盤同桌面那套） */
 @keyframes create-caret-blink { 50% { opacity: 0; } }
 .create-caret-mirror {
   position: absolute;
@@ -1133,6 +1136,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   #canvas-container {
     width: auto;
     height: auto;
+    max-width: 100%;
+    max-height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1140,10 +1145,10 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     box-sizing: border-box;
   }
 
-  /* !important 蓋 p5 寫在 canvas 上的 inline 寬高 */
+  /* 顯示尺寸＝p5 依 logo 容器算好的 inline 寬高（getCanvasSize）。⚠️ 別再寫 width/height:100% !important：
+     #canvas-container 是 auto 尺寸、% 無基準 → 退回 canvas 像素屬性（×devicePixelRatio），實機 2–3x 螢幕 canvas
+     放大到吃滿容器寬、往下壓到輸入字（user 10-28；headless 1x 量不到）。max-* 只在容器剛縮、resize 還沒跑時兜底 */
   #canvas-container canvas {
-    width: 100% !important;
-    height: 100% !important;
     max-width: 100%;
     max-height: 100%;
     display: block;
@@ -1217,34 +1222,18 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     min-width: 0;
   }
 
+  /* slider／角度數字樣式同桌面（user 2026-10-27）：手機 --scale＝1 → 4px 方角線＋4×14 直條 thumb＋0.8rem 數字，
+     這裡只管寬度排版（原手機圓點 thumb／14px 數字已撤） */
   .mobile-custom-angle-controls .custom-slider {
     flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
-    height: 3px;
-    border-radius: 3px;
-  }
-
-  /* 手機維持圓點 thumb（觸控好抓）；桌面 control bar 是影片 UI 直條款 */
-  .mobile-custom-angle-controls .custom-slider::-webkit-slider-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    box-shadow: none;
-  }
-
-  .mobile-custom-angle-controls .custom-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    box-shadow: none;
   }
 
   .mobile-custom-angle-controls .angle-input {
     width: 38px;
     flex-shrink: 0;
     text-align: center;
-    font-size: 14px;
     pointer-events: none;
     user-select: none;
   }
@@ -1315,7 +1304,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     gap: 1rem;
     padding: 1rem;
     border: none;
-    border-radius: 0;
+    border-radius: 9999px;   /* 膠囊（user 2026-10-27；同桌面 mode3 膠囊） */
     box-sizing: border-box;
   }
 
@@ -1385,8 +1374,9 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     justify-content: center;
     flex: 0 0 auto;
     width: 100%;
-    /* 固定 height（非 min-height）：字級變化時容器高不變 */
-    height: calc(2rem * 1.2 * 3); /* 3 行 × 2rem × 1.2 */
+    /* 固定 height（非 min-height）：字級變化時容器高不變。
+       --mobile-input-h＝最壞情況（40 個 W）實際行高（mobile.js reserveMobileInputHeight 量）→ 打滿也不溢出；量到前 3 行保底 */
+    height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
     margin-bottom: var(--mobile-content-gap);
     transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease;
     overflow: visible;
@@ -1409,10 +1399,10 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   /* --- 2. 開啟 Custom --- */
 
-  /* 2.1 Standard/Inverse＋Custom：3 行 */
+  /* 2.1 Standard/Inverse＋Custom：同上預留高 */
   #create-app.standard-mode .mobile-input-area.has-custom,
   #create-app.inverse-mode .mobile-input-area.has-custom {
-    height: calc(2rem * 1.2 * 3);
+    height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
     margin-bottom: 0;
     padding: 0;
   }
@@ -1458,7 +1448,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   #mobile-input-box {
     width: 100%;
     height: auto;
-    min-height: calc(2rem * 1.2 * 3);
+    min-height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
     font-size: 2rem;
     font-family: inherit;
     font-weight: 500;
@@ -1622,10 +1612,22 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     height: var(--mobile-btn-size);
   }
 
+  /* icon 大小＝桌面比例換算（user 2026-10-27「依照 pc 的做法」；鈕＝盒高正方形，% 即盒高比）：
+     一般 48/120＝40%；custom 再 ×1.07（桌面 .custom-button-custom scale）；
+     ▶／❚❚／▶❚❚ 高 40/120、寬上限 60/120（▶❚❚ 寬扁 contain＝夾到半盒寬，同桌面 .custom-button-rotate img） */
   .mobile-bottom-btn img {
     width: 40%;
     height: 40%;
     object-fit: contain;
+  }
+  .mobile-custom-btn img {
+    width: calc(40% * 1.07);
+    height: calc(40% * 1.07);
+  }
+  #mobile-rotate-icon {
+    width: auto;
+    height: calc(100% / 3);
+    max-width: 50%;
   }
 
   /* Save icon clip-reveal（升起／沉入＋自轉）由 sketch.js animateSaveButton GSAP 驅動 */
@@ -1635,14 +1637,15 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     will-change: transform;
   }
 
-  .mobile-mode-btn,
-  .mobile-custom-btn,
-  .mobile-rotate-btn {
-    border-radius: 0;
+  /* mode 圓、中間鈕組直角、下載方（user 2026-10-27；同桌面）；色條盒＝膠囊（見 .colorpicker-bar-inner） */
+  .mobile-mode-btn {
+    border-radius: 50%;
   }
 
+  .mobile-custom-btn,
+  .mobile-rotate-btn,
   .mobile-save-btn {
-    border-radius: 50%;
+    border-radius: 0;
   }
 
   .mobile-bottom-btn:active:not(:disabled) {
@@ -1659,10 +1662,13 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.5;
   }
 
-  /* Play icon（JS .play-icon）光學置中右移 */
-  .mobile-rotate-btn.play-icon #mobile-rotate-icon {
+  /* 光學置中右移（同桌面換算）：▶❚❚ 3/120 盒高；▶ 單獨（JS .play-icon）＝glyph 寬 23.3%（glyph＝盒高 1/3） */
+  #mobile-rotate-icon {
     position: relative;
-    left: 2px;
+    left: calc(var(--mobile-btn-size) * 3 / 120);
+  }
+  .mobile-rotate-btn.play-icon #mobile-rotate-icon {
+    left: calc(var(--mobile-btn-size) / 3 * 0.233);
   }
 
   /* 文字 icon 色＝--lib-fg（下方 scope remap 成頁面前景）；img 色由 invert filter 處理 */

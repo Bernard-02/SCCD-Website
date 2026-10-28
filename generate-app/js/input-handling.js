@@ -244,29 +244,36 @@ function handleInput(event) {
     updateUI();
 }
 
-// --- 桌面：輸入法開著（中文等）也能直接打英文（user 2026-10-04）---
-// 網頁關不掉作業系統輸入法，但輸入法只接管「可編輯」欄位 → 滑鼠鍵盤裝置把桌面輸入框設 readonly（輸入法不啟動），
+// --- 實體鍵盤：輸入法開著（中文等）也能直接打英文（user 2026-10-04；10-28 手機版面同一套）---
+// 網頁關不掉作業系統輸入法，但輸入法只接管「可編輯」欄位 → 滑鼠鍵盤裝置把輸入框設 readonly（輸入法不啟動），
 // 字母依實體鍵位 e.code（KeyA–KeyZ，與輸入法／鍵盤配置無關）自己填；Backspace／Delete／貼上／剪下同理自處理，
 // 再發 input 事件走原本 handleInput（大寫／過濾／40 字／彩蛋）。Chrome／Safari 不在 readonly 畫游標 → 補假游標。
+// 桌面 #input-box 與手機版面 #mobile-input-box 都套（窄視窗／平板接鍵盤走手機版面也一樣）。
 // ponytail: 游標固定字尾（方向鍵不動、點字中間不插入；反白選取可整段取代）——這欄只會往後打，要中間編輯再做游標位置模型
-// 觸控（iPad）不套：readonly 叫不出螢幕鍵盤，維持原生輸入框。彩蛋結束還原屬性時要保留 readonly（easter-eggs.js 看 desktopKeyMap）
+// 觸控（手機／iPad 螢幕鍵盤）不套：readonly 叫不出螢幕鍵盤，維持原生輸入框——中文輸入法擋不掉，讓使用者自己切英文
+// （試過組字中不改值＝前文不清，但拼音分隔 ' 會顯示在框裡，user 2026-10-28 不要，撤回）。
+// 彩蛋結束還原屬性時要保留 readonly（easter-eggs.js 看 desktopKeyMap）
 let desktopKeyMap = false;
-let fakeCaret = null, caretMirror = null;
+let keyMapCarets = [];   // [{ ta, caret, mirror }]
 
 function initDesktopKeyMap() {
     desktopKeyMap = false;
-    fakeCaret = caretMirror = null;
+    keyMapCarets = [];
     if (!inputBox || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-    const ta = inputBox.elt;
-    ta.readOnly = true;
     desktopKeyMap = true;
-    fakeCaret = document.createElement('span');
+    [inputBox.elt, document.getElementById('mobile-input-box')].forEach((ta) => ta && bindKeyMap(ta));
+}
+
+function bindKeyMap(ta) {
+    ta.readOnly = true;
+    const fakeCaret = document.createElement('span');
     fakeCaret.className = 'create-fake-caret';
-    caretMirror = document.createElement('div');
+    const caretMirror = document.createElement('div');
     caretMirror.className = 'create-caret-mirror';
     fakeCaret.setAttribute('aria-hidden', 'true');
     caretMirror.setAttribute('aria-hidden', 'true');
     ta.parentElement.append(fakeCaret, caretMirror);
+    keyMapCarets.push({ ta, caret: fakeCaret, mirror: caretMirror });
 
     const commit = (next) => {
         ta.value = next;
@@ -308,30 +315,33 @@ function initDesktopKeyMap() {
     let caretRaf = 0;
     const followCaret = () => {
         updateFakeCaret();
-        caretRaf = (fakeCaret?.isConnected && ta.getAnimations().length) ? requestAnimationFrame(followCaret) : 0;
+        caretRaf = (fakeCaret.isConnected && ta.getAnimations().length) ? requestAnimationFrame(followCaret) : 0;
     };
     ta.addEventListener('transitionrun', () => { if (!caretRaf) caretRaf = requestAnimationFrame(followCaret); });
+    ta.addEventListener('focus', updateFakeCaret);   // 版面切換（桌面↔手機）時另一個框是隱藏的、量到 0 → focus 當下重量
     // 進頁當下 setup 剛寫 --scale，字級正從 120 過渡到縮放值、且 transitionrun 接不到（小螢幕游標卡在 scale 1 的高度）→ 直接跟到過渡跑完
     followCaret();
 }
 
-// 假游標＝字尾位置：同樣式的隱形鏡像 div 放同一份文字＋尾端標記，量標記位置
+// 假游標＝字尾位置：同樣式的隱形鏡像 div 放同一份文字＋尾端標記，量標記位置。
+// 手機版面置中／單行橫捲（mode3）→ 對齊、換行、捲動位置也要照抄
 function updateFakeCaret() {
-    if (!fakeCaret || !inputBox || !fakeCaret.isConnected) return;
-    const ta = inputBox.elt;
-    const cs = getComputedStyle(ta);
-    const m = caretMirror;
-    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight']) {
-        m.style[k] = cs[k];
-    }
-    m.style.width = `${ta.clientWidth}px`;
-    m.style.left = `${ta.offsetLeft}px`;
-    m.style.top = `${ta.offsetTop}px`;
-    m.textContent = ta.value;
-    const mark = document.createElement('span');
-    mark.textContent = '​';
-    m.appendChild(mark);
-    fakeCaret.style.left = `${ta.offsetLeft + mark.offsetLeft}px`;
-    fakeCaret.style.top = `${ta.offsetTop + mark.offsetTop}px`;
-    fakeCaret.style.height = `${mark.offsetHeight}px`;
+    keyMapCarets.forEach(({ ta, caret, mirror: m }) => {
+        if (!caret.isConnected) return;
+        const cs = getComputedStyle(ta);
+        for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'paddingTop', 'paddingLeft', 'paddingRight', 'textAlign', 'whiteSpace', 'textTransform']) {
+            m.style[k] = cs[k];
+        }
+        m.style.width = `${ta.clientWidth}px`;
+        m.style.left = `${ta.offsetLeft}px`;
+        m.style.top = `${ta.offsetTop}px`;
+        m.textContent = ta.value;
+        const mark = document.createElement('span');
+        mark.textContent = '​';
+        m.appendChild(mark);
+        caret.style.left = `${ta.offsetLeft + mark.offsetLeft - ta.scrollLeft}px`;
+        caret.style.top = `${ta.offsetTop + mark.offsetTop - ta.scrollTop}px`;
+        caret.style.height = `${mark.offsetHeight}px`;
+        caret.style.backgroundColor = cs.color;   // 同字色（手機版面字色寫在 textarea、不在父層 currentColor）
+    });
 }

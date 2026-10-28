@@ -239,10 +239,27 @@ function initMobileUI() {
   // → bar 要預設出現（對齊桌面色環邏輯）；cycleModeButton 只在點 mode 鈕時跑、進頁時不會跑（user 2026-06-11）
   applyMobileColorpickerVisibility();
 
-  // 初始化 placeholder 的垂直置中
+  // 初始化 placeholder 的垂直置中（等字型：預留高度要用真字寬量）
   if (mobileElements.inputBox) {
-    updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, '');
+    document.fonts.ready.then(() => {
+      reserveMobileInputHeight();
+      updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, '');
+    });
   }
+}
+
+// 輸入框高＝最壞情況（maxlength 個最寬字 W、小字級）實際要的行高 → 怎麼打都放得下、不溢出；
+// canvas（logo 容器 flex 1）吃剩下的（user 2026-10-27「保證輸入不破版，畫布盡量縮」）。寬度變了（resize／轉向）要重量
+function reserveMobileInputHeight() {
+  const ta = mobileElements.inputBox && mobileElements.inputBox.elt;
+  if (!ta || !mobileHiddenMeasurer) return;
+  const m = mobileHiddenMeasurer.elt;
+  m.style.width = `${ta.clientWidth}px`;
+  m.style.fontSize = '2rem';   // = #mobile-input-box.small-text（>6 字一律小字；≤6 字大字也放得下）
+  m.style.lineHeight = '1.2';
+  m.textContent = 'W'.repeat(ta.maxLength > 0 ? ta.maxLength : 40);
+  ta.parentElement.style.setProperty('--mobile-input-h', `${Math.ceil(m.scrollHeight)}px`);
+  m.textContent = '';
 }
 
 // 綁定手機版事件

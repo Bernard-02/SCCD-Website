@@ -369,6 +369,7 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
   if (inputBox.elt.classList.contains('custom-open')) {
     inputBox.style('padding-top', '0');
     inputBox.style('padding-bottom', '0');
+    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
     return;
   }
 
@@ -377,6 +378,7 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
   if (inputArea && inputArea.classList.contains('keyboard-active')) {
     inputBox.style('padding-top', '0');
     inputBox.style('padding-bottom', '0');
+    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
     return;
   }
 
@@ -397,6 +399,7 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
 
     inputBox.style('padding-top', `${paddingTop}px`);
     inputBox.style('padding-bottom', '0');
+    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
     return;
   }
 
@@ -424,7 +427,6 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
     requestAnimationFrame(() => {
       // 同步 hidden measurer 的字體大小（因為 small-text class 可能剛被加上/移除）
       const currentFontSize = window.getComputedStyle(inputBox.elt).fontSize;
-      const lineHeight = parseFloat(currentFontSize) * 1.2;
       mobileHiddenMeasurer.style('font-size', currentFontSize);
       mobileHiddenMeasurer.style('line-height', '1.2');
       mobileHiddenMeasurer.style('width', inputBox.style('width'));
@@ -437,15 +439,12 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
       const containerHeight = inputBox.elt.offsetHeight;
       const textHeight = mobileHiddenMeasurer.elt.scrollHeight;
 
-      // 計算文字行數（基於實際測量的高度）
-      const estimatedLines = Math.round(textHeight / lineHeight);
-
       // 規則：
-      // - 如果是三行文字，靠上對齊（padding-top: 0），確保三行都可見
-      // - 如果是一行或兩行，垂直居中
+      // - 文字塞滿容器（容器高＝最壞情況預留，見 mobile.js reserveMobileInputHeight）：靠上對齊（padding-top: 0）
+      // - 其餘垂直居中
       let paddingTop;
-      if (estimatedLines >= 3) {
-        // 三行文字：靠上對齊，避免第三行被切到
+      if (textHeight >= containerHeight - 1) {
+        // 塞滿：靠上對齊，避免最後一行被切到
         paddingTop = 0;
         // 同時將 mobile-input-area 的對齊方式改為靠上（覆蓋 CSS 的 align-items: center）
         if (inputArea) {
@@ -464,6 +463,7 @@ function updateMobileInputBoxVerticalAlignment(inputBox, text) {
       // 應用 padding（只設置 top，讓文字自然從上往下排列）
       inputBox.style('padding-top', `${paddingTop}px`);
       inputBox.style('padding-bottom', '0');
+      if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
 
       // 更新記錄
       updateMobileInputBoxVerticalAlignment.lastText = text;

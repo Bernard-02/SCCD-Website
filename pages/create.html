@@ -66,7 +66,7 @@ ROTATE FOR BEST EXPERIENCE</div>
         <section class="display-area desktop-only">
             <!-- 左側：文字輸入區域 -->
             <div class="input-container">
-                <textarea id="input-box" placeholder="TYPE&#10;AND&#10;ENTER" maxlength="40" rows="3" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" enterkeyhint="go"></textarea>
+                <textarea id="input-box" placeholder="TYPE&#10;AND&#10;ENTER" maxlength="40" rows="3" spellcheck="false" autocorrect="off" autocapitalize="characters" autocomplete="off" enterkeyhint="go"></textarea>
             </div>
 
             <!-- 右側：p5.js Canvas 容器 -->
@@ -170,7 +170,10 @@ ROTATE FOR BEST EXPERIENCE</div>
 
             <!-- 輸入框 -->
             <div class="mobile-input-area">
-                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+                <!-- autocapitalize="characters"＝螢幕鍵盤預設大寫（產生器只吃 A–Z，user 10-28「應該是輸入大寫」）；不用 inputmode="email"：
+                     iOS email 鍵盤會無視 autocapitalize、也擋不住中文選字。autocomplete／autocorrect／spellcheck 關＝盡量不出候選字列
+                     （iOS QuickType 最終看使用者系統設定）。實體鍵盤走 input-handling.js 鍵位對映＝中文輸入法也直接打英文 -->
+                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="characters" autocomplete="off"></textarea>
             </div>
 
             <!-- Custom 調整區 -->
