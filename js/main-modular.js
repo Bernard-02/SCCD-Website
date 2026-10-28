@@ -235,7 +235,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       import('./modules/pages/about/class-images-slideshow.js'),
       import('./modules/pages/about/about-structure.js'),
       import('./modules/ui/pause-offscreen-video.js'),
-    ]).then(([, resources, content, timeline, anchor, hAccordion, bfa, polys, sticky, classImgs, structure, pauseVid]) => {
+      import('./modules/ui/snap-scroll.js'),
+    ]).then(([, resources, content, timeline, anchor, hAccordion, bfa, polys, sticky, classImgs, structure, pauseVid, snap]) => {
       if (!alive()) return;
       resources.initResourcesCycling();
       content.initAboutHighlights();
@@ -248,6 +249,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sticky.initClassButtonsSticky();
       classImgs.initClassImagesSlideshow();
       structure.initProgramStructure();
+      snap.initAboutMobileSnap();   // 直向手機方向磁吸（桌面走原生 CSS snap）
       // works 影片離開視窗/換學制隱藏時自動暫停（YouTube iframe，src 已由 fillWorks 設定）
       pauseVid.pauseVideosOffscreen(document.querySelectorAll('.works-video-iframe'));
     });
@@ -477,10 +479,24 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
           yearLabelWrap.appendChild(yearPickerWrap);
         }
       });
+      // 直向手機工具列收到灰卡底（user 2026-10-27，library.css 檔尾）：awards logo ticker 搬進內容欄，才排得進 list 與年份／search 之間
+      if (!SCCDHelpers.isLandscapeGate()) {
+        const grid = document.querySelector('#lib-panel-awards > div[style*="grid"]');
+        const ticker = document.getElementById('library-awards-ticker');
+        if (grid && ticker) grid.append(ticker);
+      }
 
       const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
       bindNavBtnSpin(tabBtns);   // 初始隨機角（此路徑只在手機/矮橫向：無 hover、click 由 setActiveNavBtn 現抽）
       setActiveNavBtn(tabBtns, initialTab, 'data-tab');
+      // active 鈕捲到 bar 中間（同 activities centerSectionNavBtn／about strip，user 2026-10-27）；只動 bar 自己的 scrollLeft
+      const centerTab = (/** @type {string} */ tab, /** @type {ScrollBehavior} */ behavior = 'smooth') => {
+        const btn = tabsRoot?.querySelector(`[data-tab="${tab}"]`);
+        if (!btn || !tabsRoot) return;
+        const b = btn.getBoundingClientRect(), s = tabsRoot.getBoundingClientRect();
+        tabsRoot.scrollTo({ left: tabsRoot.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior });
+      };
+      centerTab(initialTab, 'auto');
 
       // 切 tab 出場動畫（user 2026-09-10「灰卡內容要跟桌面一樣做出場」）：沿用桌面 _doSwitchTab 同款
       // playPanelBodyExit（chrome 即刻藏＋視窗內 rows 全同時收合下沉），出場窗（同桌面 CONTENT_EXIT 0.5s）
@@ -500,6 +516,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         libTabCur = tab;
         const mySeq = ++libTabSeq;
         setActiveNavBtn(tabBtns, tab, 'data-tab');
+        centerTab(tab);
         const currentHash = window.location.hash.slice(1);
         if (currentHash !== tab) {
           history.replaceState(null, '', window.location.pathname + '#' + tab);

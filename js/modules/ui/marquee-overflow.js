@@ -37,6 +37,42 @@ export function marqueeSpeed() {
   return (SCCDHelpers.isMobileLayout()) ? 60 : 80;
 }
 
+/**
+ * 常駐跑馬燈＝CSS keyframe（lists.css list-marquee）：合成器跑、主線程忙也不掉幀（user 2026-10-28：一直跑的用 CSS、
+ * 要接管才用 GSAP）。el 往左捲 distance px 無限循環；reverse＝往右（-distance → 0）。
+ * 停在當下＝el.style.animationPlayState = 'paused'；拆掉＝el.style.animation = ''。
+ * @param {HTMLElement} el
+ * @param {number} distance 一份內容寬（px，正數）
+ * @param {number} duration 秒
+ */
+export function playCssMarquee(el, distance, duration, reverse = false) {
+  el.style.setProperty('--marquee-offset', `-${distance}px`);
+  el.style.animation = `list-marquee ${duration}s linear infinite${reverse ? ' reverse' : ''}`;
+}
+
+/**
+ * window > track > 單份 unit 的標題（lightbox／PDF 標題、ref chip 標題）：先還原單份，溢出才補一份 clone（間距 gap）
+ * 成 dual-copy，回 { distance, duration }；放得下回 null。順手殺 track 上的 GSAP（桌面 hover loop／回彈）。
+ * @param {Element} win
+ * @param {HTMLElement} track
+ * @param {string} unitSel
+ */
+export function prepDualCopy(win, track, unitSel, gap = 24) {
+  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
+  track.style.transform = '';
+  track.style.animation = '';
+  while (track.children.length > 1) track.removeChild(/** @type {Element} */ (track.lastElementChild));
+  const unit = /** @type {HTMLElement | null} */ (track.querySelector(unitSel));
+  if (!unit) return null;
+  const unitWidth = unit.getBoundingClientRect().width;
+  if (unitWidth <= /** @type {HTMLElement} */ (win).clientWidth + 4) return null;   // 4px 容差
+  const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
+  clone.style.marginLeft = `${gap}px`;
+  track.appendChild(clone);
+  const distance = unitWidth + gap;
+  return { distance, duration: Math.max(3, distance / marqueeSpeed()) };
+}
+
 // 離屏暫停 observer：全 util 共用一顆，SPA 換頁 drain 時 disconnect（row 隨 #page-content 銷毀，
 // 不 disconnect 會 strong-ref 整批舊 DOM）。row 進出 viewport → 切 inner 的 animation-play-state。
 let _viewIO = null;

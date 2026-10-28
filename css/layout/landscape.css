@@ -5,6 +5,18 @@
    → 一律抬特異度（#id / main .X / body .X）；@layer 內的 !important 反而贏本檔 !important（見 5i resources）。
    鎖頁（atlas / library / create）body 鎖 h-screen、結構各異，本檔 main > section 選擇器不誤觸它們。 */
 
+/* 2a/2b 的直向手機版（例外：本段不屬 gate）：一屏高度同樣改 svh——100vh＝工具列收起的高，工具列展開時底部被蓋住
+   （user 2026-10-27）。只抓無前綴 class：md:h-screen／md:min-h-screen 是桌面專用，直向本來就沒吃（gate 版用 *= 是因為 ≥768 會吃 md:）。
+   跟下方 2a/2b 同步改 */
+@media (max-width: 767px) {
+  main > section.h-screen {
+    height: 100svh;
+  }
+  main > section.min-h-screen {
+    min-height: 100svh;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* 1) 字級整套沿用手機值：寬 ≥768 的橫向誤吃 md: class，但那些 utility 都消費 --font-size-* →
      覆寫成 variables.css @media(max-width:767px) 的同值即全面回手機尺寸。
@@ -108,39 +120,23 @@
   body [data-mobile-logo-lottie-anchor] {
     top: -28px;
   }
-  /* menu 面板直向大留白（pt-6xl）在 390 高會把選項推出視野 → 壓縮；超過一屏時 nav 本身 overflow-y-auto 可捲。 */
-  body .mobile-nav .site-container {
-    padding-top: var(--spacing-3xl);
-    padding-bottom: var(--spacing-xl);
+  /* menu＝直向手機同款透明疊層（navigation.css overlay 段）、高度放不下直排 → 兩欄並排、頂＝header 帶底 92：
+     右欄 About 組（貼右緣、menu 鈕下）、左欄 Library 組（user 2026-10-27，原全螢幕白底 4 欄）。row-reverse＝HTML 第一組排最右 */
+  #site-header .mobile-nav .site-container {
+    padding-top: 92px;
+    padding-bottom: var(--spacing-md);
   }
-  /* menu 選項 4 欄：欄1-2=About~Admissions、欄3 空（分組間隔）、欄4=Library~CREATE!。
-     兩個 ul 設 display:contents 讓 li 直接當 grid item（li 盒子仍在 → reveal 遮罩/動畫不受影響；ul 的 gap/mt 隨之失效）；
-     .flex-1 spacer 藏掉。auto-flow 做不出分組 → li 顯式釘位。 */
-  body .mobile-nav nav {
-    display: grid;
-    /* 欄寬跟內容走（均分 1fr 會讓「About 關於學系」折行）；欄3 是空的分組間隔 → 1fr 吃掉剩餘寬 */
-    grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
-    gap: var(--spacing-lg) var(--spacing-xl);
-    align-content: center;
+  #site-header .mobile-nav nav {
+    flex-direction: row-reverse;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+  }
+  #site-header .mobile-nav nav > .flex-1 {
+    display: none;
   }
   body .mobile-nav .mobile-nav-link {
     white-space: nowrap;
   }
-  body .mobile-nav nav > ul {
-    display: contents;
-  }
-  body .mobile-nav nav > .flex-1 {
-    display: none;
-  }
-  body .mobile-nav nav > ul:first-of-type li:nth-child(1) { grid-area: 1 / 1; }
-  body .mobile-nav nav > ul:first-of-type li:nth-child(2) { grid-area: 2 / 1; }
-  body .mobile-nav nav > ul:first-of-type li:nth-child(3) { grid-area: 3 / 1; }
-  body .mobile-nav nav > ul:first-of-type li:nth-child(4) { grid-area: 1 / 2; }
-  body .mobile-nav nav > ul:first-of-type li:nth-child(5) { grid-area: 2 / 2; }
-  body .mobile-nav nav > ul:last-of-type li:nth-child(1) { grid-area: 1 / 4; }
-  body .mobile-nav nav > ul:last-of-type li:nth-child(2) { grid-area: 2 / 4; }
-  body .mobile-nav nav > ul:last-of-type li:nth-child(3) { grid-area: 3 / 4; }
-  body .mobile-nav nav > ul:last-of-type li:nth-child(4) { grid-area: 4 / 4; }  /* A.A.（header.html TEMP HIDDEN）復活時仍在欄4 */
   /* 四頁 content section 抬到 .mobile-header-bg（z-40）之上：hero-animation 給 hero 後 section inline
      position:relative; z-index:1（防 hero 殘影）＝stacking context，section 內 z-55 的 fixed nav 被整包壓到帶底下。
      這四頁自帶 header 帶 blocker（z-40 在 section 內）→ 抬高後遮擋照常、nav 浮出。帶本身保留：about/alumni/index 靠它遮捲過透明 header 的內容。
@@ -271,7 +267,7 @@
     width: 100%;
   }
   #courses-detail-panel #courses-back-btn-mobile {
-    display: block;      /* 蓋 md:hidden：滿版蓋掉 dim overlay → 需返回鍵（同 faculty） */
+    display: flex;       /* 蓋 md:hidden：滿版蓋掉 dim overlay → 需返回鍵（同 faculty）；flex＝icon 置中於 44 框 */
   }
   #courses-detail-panel .courses-detail-inner {
     overflow-y: auto;    /* 蓋 md:overflow-hidden：整段捲 */
@@ -430,7 +426,7 @@
     overflow: hidden;
   }
   #faculty-panel #faculty-back-btn-mobile {
-    display: block;                     /* 蓋 md:hidden：滿版 panel 蓋掉 dim overlay → 需返回鍵 */
+    display: flex;                      /* 蓋 md:hidden：滿版 panel 蓋掉 dim overlay → 需返回鍵；flex＝icon 置中於 44 框 */
   }
   #faculty-panel #faculty-close-btn {
     display: none;                      /* 矮橫向走上面手機右側返回鍵；桌面左上角這顆隱藏（#id 蓋 md:flex）*/
@@ -1175,7 +1171,7 @@
     /* sticky top 對齊 header 帶底：!important 蓋 HTML inline top:100（桌面值）→ tabs 與圖文同貼帶底 */
     top: 92px !important;
   }
-  #class-works-area > .md\:hidden {
+  #class-works-area .mobile-division-wrap {
     display: none;              /* portrait 水平 division strip 藏 */
   }
   #class-buttons-sticky .site-container {

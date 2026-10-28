@@ -18,7 +18,7 @@ export function prefersReducedMotion() {
  * 全域開關（user 2026-06-25 拍板）：reduce 模式下把所有「有限」GSAP tween 變成瞬間完成
  * （duration/delay/stagger → 0），讓各頁自有的 GSAP 進場/退場/切換動畫直接到終態，不必逐頁逐函式 gate。
  *
- * - **排除 `repeat: -1` 無限循環**（首頁卡片搖擺、lightbox/檔案室 ticker 的 GSAP 跑馬燈）——
+ * - **排除 `repeat: -1` 無限循環**（首頁卡片搖擺、桌面 hover 才捲的 GSAP 跑馬燈；常駐跑馬燈已改 CSS、由 typography.css blanket 處理）——
  *   把無限 tween 歸零會變成每秒幾千次亂轉/閃；維持原速（持續裝飾動畫，要停得另外處理）。
  * - 同時 patch standalone（gsap.to/from/fromTo）與 timeline 子 tween（Timeline.prototype.*）。
  *   to/from 的 vars 是 args[1]、fromTo 的 toVars 是 args[2]（timeline 的 position 參數不影響這兩個 index）。

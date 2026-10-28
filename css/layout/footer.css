@@ -33,10 +33,15 @@
   .footer-link {
     color: var(--footer-fg, var(--color-white));
   }
+  /* legal 連結全 viewport semibold（user 2026-10-27；桌面段另寫 bold，同值 600） */
+  .footer-privacy a[data-footer-legal] {
+    font-weight: var(--font-weight-semibold);
+  }
 
-  /* 分頁說明文字（後台 footer_tabs.note）：base 不顯示，只有真桌面散佈版開（下方 ≥1024 段）。
-     線性版的一屏高度是算好的，要顯示得另外排版 */
-  .footer-note {
+  /* 分頁說明文字（後台 footer_tabs.note）：base 不顯示，真桌面散佈版與直向手機開（各自段落）。
+     線性版 reveal 會把它包進 clip-reveal wrapper（MOBILE_BLOCK_SELECTOR）→ 不顯示的 viewport 連空 wrapper 一起收、不留 gap */
+  .footer-note,
+  .clip-reveal-wrapper:has(> .footer-note) {
     display: none;
   }
 
@@ -385,18 +390,55 @@
     .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
     .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
     /* ⚠️ 不加列尾 spacer（同 faculty/activities nav 列）：點擊靠左對齊由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝最右顆自然停右側。 */
+
+    /* 白 logo 拿掉（user 2026-10-27）：連 clip-reveal wrapper 一起收（只藏 logo＝空 wrapper 照佔 flex gap） */
+    .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
+      display: none;
+    }
+    /* 文字一律 xs（user 2026-10-27）：同特異度、本段在 <1024 線性 s 段與 tab base 之後＝後出勝 */
+    .footer-random :is(h6, p, a),
+    .footer-privacy :is(p, a),
+    .footer-tab :is(.footer-tab-en, .footer-tab-zh) {
+      font-size: var(--font-size-xs);
+      line-height: var(--line-height-xs);
+    }
+    .footer-tab .footer-tab-zh {
+      margin-top: var(--space-en-zh-xs);
+    }
+    /* Office Hours（後台 footer_tabs.note）：接在該分頁最後一項（地址）之後，排法同資訊卡（粗體標題＋mb-xs＋內文照後台換行） */
+    .footer-random .footer-note,
+    .footer-random > .clip-reveal-wrapper:has(> .footer-note) {
+      display: block;
+    }
+    .footer-random .footer-note-title {
+      margin-bottom: var(--spacing-xs);
+    }
+    .footer-random .footer-note-body {
+      white-space: pre-line;
+    }
+    /* TEL／FAX／E-Mail：內容接在標題右邊一行（user 2026-10-27）；標題欄固定寬＝三行內容左緣對齊。
+       7.5em 依最長標題「E-Mail 電子郵件」（xs bold ~93px）；後台改更長的標題要跟著調 */
+    .footer-random :is(.footer-tel, .footer-fax, .footer-email) {
+      display: flex;
+      align-items: baseline;
+      column-gap: var(--spacing-sm);
+    }
+    .footer-random :is(.footer-tel, .footer-fax, .footer-email) > p {
+      margin-bottom: 0;
+    }
+    .footer-random :is(.footer-tel, .footer-fax, .footer-email) > p:first-child {
+      flex: 0 0 auto;
+      min-width: 7.5em;
+    }
   }
 
-  /* footer 固定一屏（svh：手機工具列 vh 高估）：只在 ≥780 高的手機啟用；矮機（SE 667 級）dept 群組收密仍差 ~145px
-     → 維持長高捲動（檔尾 unlayered 規則）。右欄/資訊區 flex:1 → legal 貼底不隨 tab 內容變。 */
-  @media (max-width: 767px) and (orientation: portrait) and (min-height: 780px) {
-    .footer-shell { height: 100svh; }
-    .footer-right { flex: 1 1 0; min-height: 0; }
-    .footer-random { flex: 1 1 0; min-height: 0; }
-    /* 固定高下 flex 子預設可縮＝內容擠時 tabs 被壓 0 高、privacy 被壓縮吸掉溢出（headless 實測）——一律禁縮，
-     * 塞不下就顯性溢出（量測才看得到真實高度，靠 780 門檻擋掉塞不下的矮機） */
-    .footer-random > * { flex-shrink: 0; }
-    .footer-privacy { flex-shrink: 0; }
+  /* 直向手機 footer 至少一屏（svh：工具列下 vh 高估）、legal＋copyright 貼底，不隨上面分頁內容高低移動（user 2026-10-27）；
+     內容超過一屏才長高。min-height 下在 inner（shell 高 auto＝inner 的 h-full 不成立）；privacy 可能是 reveal wrapper 那層 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    .footer-shell { height: auto; }
+    .footer-inner { min-height: 100svh; }
+    .footer-right { flex: 1 0 auto; }
+    .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) { margin-top: auto; }
   }
 
   /* ===== Desktop scatter (≥1024)：散佈區（tabs 左上、legal 右側、copyright 貼底）===== */
@@ -636,10 +678,10 @@
   }
 }
 
-/* 矮機直向（<780 高）與矮橫向 gate（含 768–1023）：線性內容超過一屏 → footer 長高，不被 100vh + overflow:hidden 裁掉 legal/copyright。
+/* 矮橫向 gate（含 768–1023）：線性內容超過一屏 → footer 長高，不被 100vh + overflow:hidden 裁掉 legal/copyright。
    必須 unlayered 才蓋得過 HTML 的 `overflow-hidden` utility（@layer utilities）與 @layer components 的 height。
-   ⚠️ ≥780 高的直向手機與真桌面不在此列（各自段落設固定高）。 */
-@media (max-width: 767px) and (max-height: 779px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+   ⚠️ 直向手機（layered 段 min-height 100svh）與真桌面不在此列（這裡的 100vh 會比 svh 高、底部多出一截）。 */
+@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   footer.footer-shell,
   footer#site-footer-static {
     height: auto;

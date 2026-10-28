@@ -235,7 +235,7 @@
 @media (max-width: 767px) {
   :root {
     /* 字體大小調整 */
-    --font-size-3xl: 3rem;      /* 48px (桌面 128px) */
+    --font-size-3xl: 3.5rem;    /* 56px (桌面 128px；10-27 由 48 放大，hero 長標放不下由 hero-mobile-sync 縮) */
     --font-size-2xl: 2.5rem;    /* 40px (桌面 96px) */
     --font-size-xl: 1.5rem;     /* 24px (桌面 32px) */
     --font-size-lg: 1.2rem;     /* 18px (桌面 22.4px) */
@@ -243,6 +243,8 @@
     --font-size-s: 0.875rem;    /* 14px (桌面 16px)；⚠️ text-s 的 <input> 另保 16px 免 iOS focus 整頁縮放（見下方 input.text-s） */
     --font-size-xs: 0.8rem;     /* 12.8px */
     --icon-hero: 2rem;          /* 32px (桌面 50px) */
+    /* xl 英中距跟字級等比（24/32 × 8＝6；user 10-27「對齊 pc」：原 8 在 24px 字上比例 1.6 倍鬆）；s/lg 差 <1px 不改 */
+    --space-en-zh-xl: 0.375rem;  /* 6px (桌面 8px) */
 
     /* 間距調整 */
     --spacing-xl: 2rem;        /* 32px (桌面版 48px) */
@@ -398,14 +400,14 @@
   }
 
   /* Works panel 手機：影片上、文字盒下（HTML order）。文字盒內捲掛內層 [data-works-text]（外盒 [data-works-hl] padding 不隨捲動）；
-     max-height＝文字短就 fit 內容高。375 = 307 works 落點 + 24 pt + 20 row-gap + 24 底呼吸，再扣 16:9 影片高
+     max-height＝文字短就 fit 內容高。328 = 180 works 落點 + 24 pt + 20 row-gap + 24 底呼吸 + 80 底部 division nav，再扣 16:9 影片高
      (100vw − 2×container-padding)×9/16；落點／nav 高度配對組見 scroll-snap.css，改要同步。
      −1em＝外盒上下 padding 0.5em×2；max() 150 保小屏最低可讀高。 */
   #class-works-panels {
     padding-top: var(--spacing-md);
   }
   .class-works-panel [data-works-text] {
-    max-height: max(calc(100svh - 375px - (100vw - 2 * var(--container-padding)) * 9 / 16 - 1em), 150px);
+    max-height: max(calc(100svh - 328px - (100vw - 2 * var(--container-padding)) * 9 / 16 - 1em), 150px);
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -416,12 +418,12 @@
   /* Class 圖片（手機＝單圖置中自動輪播；slot opts 在 class-images-slideshow.js），全部 scope 在 .class-info-panel 免影響 degree-show：
      1. about 與 degree-show 共用 .works-container，cards.css 手機規則套 flex＋overflow:auto 會裁旋轉圖 → 還原 block＋visible。
      2. 圖片垂直置中（!important 蓋 gsap inline top）。 */
-  /* 圖／文對半分 nav btn 以下空間：386 = 626 預算（推導見下方 [data-class-text]）扣圖 240；
-     100svh − 386 → 圖容器／文字盒各半，120 floor 保極矮視窗。圖片另由 class-images-slideshow.js 依容器高等比 cap。 */
+  /* 圖／文對半分 nav btn 以下空間：340 = 580 預算（推導見下方 [data-class-text]）扣圖 240；
+     100svh − 340 → 圖容器／文字盒各半，120 floor 保極矮視窗。圖片另由 class-images-slideshow.js 依容器高等比 cap。 */
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
-    height: max(calc((100svh - 386px) / 2), 120px) !important;   /* !important＋較高特異度＝蓋 cards.css 手機 .works-container height:auto!important */
+    height: max(calc((100svh - 340px) / 2), 120px) !important;   /* !important＋較高特異度＝蓋 cards.css 手機 .works-container height:auto!important */
     min-height: 0;
     padding-bottom: 0 !important;   /* cards.css 手機 works-container 的 1rem 預留不適用此容器 */
   }
@@ -439,11 +441,11 @@
   }
 
   /* Class 説明文字盒：內捲掛內層 [data-class-text]（外盒 [data-class-hl] padding 不隨捲動）；固定 height＝各 division 面板等高、切換不跳版。
-     626 預算 = 180 class 落點 + 126 division nav + 24 pt + 240 圖 + 20 row-gap + 24 底呼吸 + 12 實測校正（390×844）；
+     580 預算 = 180 class 落點 + 80 division nav（10-27 BFA 小標併排 126→80） + 24 pt + 240 圖 + 20 row-gap + 24 底呼吸 + 12 實測校正（390×844）；
      與 anchor strip／division nav 高度配對組同步（見 scroll-snap.css）。 */
   .class-info-panel [data-class-text] {
     /* 對半分（見上）；−1em＝外盒 [data-class-hl] 上下 padding 0.5em×2 */
-    height: max(calc((100svh - 386px) / 2 - 1em), 120px);
+    height: max(calc((100svh - 340px) / 2 - 1em), 120px);
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -571,6 +573,18 @@
   #mobile-anchor-strip::-webkit-scrollbar {
     display: none;
   }
+  /* sticky 釘點（矮橫向；直向手機改畫面底 bar，見檔尾 about 直向段） */
+  .mobile-anchor-strip-wrap { top: 88px; }
+  /* division tab＝畫面底固定列，直向手機在底部 bar 上方（user 10-27）；進退場＝JS 逐 chip clip-reveal（bfa-division-toggle.js ②）。
+     出生 .is-div-hidden 藏（HTML 帶，JS 設好藏起態才拿掉＝首繪不閃）；範圍外 .is-off 不擋下方內容點擊 */
+  .mobile-division-wrap {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--about-bar-h, 0px);
+  }
+  .mobile-division-wrap.is-div-hidden { visibility: hidden; }
+  .mobile-division-wrap.is-off { pointer-events: none; }
   /* strip 上方 header logo 帶遮擋：sticky 釘住後捲過的內容會從 logo 後露出 → ::before 向上補底色（同 activities .list-mobile-header-blocker）。
      未釘住時蓋到 hero 尾端——hero bg 同為 theme-bg、無感。 */
   .mobile-anchor-strip-wrap::before {
@@ -610,12 +624,6 @@
     display: none;
   }
 
-  /* 釘住才出現底色：自然 flow 透明（tab 疊 floating polygons），pinned 後下方圖文會捲到 pill 上 → 加底。
-     .is-stuck 由 bfa-division-toggle.js 的 sentinel＋IntersectionObserver toggle。 */
-  .mobile-division-wrap.is-stuck {
-    background: var(--theme-bg);
-  }
-
   /* Pill 配色對齊桌面 .class-division-btn：inactive＝theme-fg 底／theme-bg 字；active＝accent 底（setActiveNavBtn inline）＋黑字（buttons.css）。
      !important：蓋 inverse.css 帶 !important 的 .section-nav-btn 規則。mode-color strict B/W 在 color.css。 */
   #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
@@ -649,8 +657,69 @@
     position: static;
     left: auto;
     bottom: auto;
-    padding: var(--card-pad-s);
-    line-height: 1;
+    padding: var(--card-pad-s);   /* 行距吃 buttons.css 的 --line-height-s（同桌面；10-27 撤 1） */
   }
+}
+
+/* ===== about 直向手機：anchor strip 改固定畫面底部 bar、英中同一行（user 2026-10-27）=====
+   顯隱＝anchor-nav.js 切 .is-bar-hidden（hero 上藏、footer 前收、離頁收）：整條從畫面底緣滑出滑進。
+   頂上只剩 header 帶（0–92）→ 各屏內容從 92 起算（scroll-snap.css：落點貼 section 頂＋section 自己 padding-top 92，下方「92 落點」皆指此）；
+   下方各一屏預算＝舊值 −88（落點 180→92）＋ bar 高。改 bar 高／落點要整組同步（timeline.js 也有一份）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  :root { --about-bar-h: 64px; }   /* 一行 chip 28＋旋轉餘裕；配對值見上 */
+  /* #id 前綴：output.css 的 Tailwind .sticky 也是 unlayered、出在後面，同特異度蓋不掉 */
+  #about-content-wrapper > .mobile-anchor-strip-wrap {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: transform var(--dur-base) var(--ease-wipe);
+    background: none !important;   /* 蓋 HTML inline 白底：整條不墊、inactive 鈕自帶白底（user 10-27）；矮橫向 sticky 版照留 */
+  }
+  .mobile-anchor-strip-wrap.is-bar-hidden { transform: translateY(110%); }
+  .mobile-anchor-strip-wrap::before { content: none; }   /* 頂部 header 帶遮擋只給 sticky 版 */
+  #mobile-anchor-strip {
+    height: var(--about-bar-h);
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  #mobile-anchor-strip .anchor-nav-inner {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.3em;   /* ≈ 一個空白 */
+  }
+
+  /* 112 = (92 落點 + 24 section pt + 20 row gap + 24 底呼吸 + 64 bar) / 2 */
+  #overview [data-overview-text] { max-height: calc(50svh - 112px - 1em); }
+  /* 316 = 556 預算（92 落點 + 80 底部 division nav + 24 pt + 240 圖 + 20 + 24 + 12 + 64 bar）扣圖 240 */
+  .class-info-panel .division-images { height: max(calc((100svh - 316px) / 2), 120px) !important; }
+  .class-info-panel [data-class-text] { height: max(calc((100svh - 316px) / 2 - 1em), 120px); }
+  /* division tab 往下貼近底部 bar（user 10-27「到 nav btn row 再小一點」：chip 間 ~24→~16）；
+     只吃進 bar 頂的空白（bar chip 上方 ~14），不壓到 bar chip 的點擊區 */
+  .mobile-division-wrap { bottom: calc(var(--about-bar-h) - var(--spacing-xs)); }
+
+  /* Works 說明卡：在「playlist 底 → 底部 division nav 頂」剩下的空間垂直置中（user 10-27）。
+     room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 87 playlist（88 − 1 疊縫）−（80 division nav − 8 下移）− bar；
+     文字欄吃滿 room、拉回 grid row gap（gap 不算進置中空間）；上下至少留 md（文字長時不貼 playlist／division tab），
+     文字盒放不下就內捲 */
+  .class-works-panel {
+    --works-text-room: calc(100svh - 92px - var(--spacing-md) - (100vw - 2 * var(--container-padding)) * 9 / 16 - 87px - 80px + var(--spacing-xs) - var(--about-bar-h));
+  }
+  .class-works-panel .grid-20 > :first-child {
+    min-height: var(--works-text-room);
+    margin-top: calc(-1 * var(--spacing-gutter));
+    padding-block: var(--spacing-md);
+    display: flex;
+    align-items: center;
+  }
+  .class-works-panel [data-works-text] {
+    max-height: max(calc(var(--works-text-room) - 2 * var(--spacing-md) - 1em), 4em);
+  }
+  /* 481 = 舊 505 −88 +64（resources 落點 178→90） */
+  .colored-accordion .accordion-text-wrap { height: max(calc(100svh - 481px), 150px); }
+  /* history 末屏：area 已讓出 bar（timeline.js），section 底再補 bar 高＝照樣填到畫面底、footer 不露頭
+     （露一截會被手機 footer 磁吸整張吸上來）。#id 前綴蓋 lists.css 直向段的 padding-bottom:0 */
+  #about-content-wrapper #history { padding-bottom: var(--about-bar-h); }
 }
 

@@ -710,7 +710,7 @@ let logoSwapGate = null;
 // VT 期間凍住的 GSAP（舊快照是靜態圖、新畫面即時 → 過渡中還在動＝殘影，user 2026-10-03）。連點時新 VT 接手整包，
 // 最後一個 finished 才 resume。只凍「正在跑／排程中」的；本來就 paused 的（ScrollTrigger scrub、等 .play() 的）不碰，
 // update 內才建的 tween（鉛筆滑入等）照跑。CSS animation 由 html.mode-vt 凍（typography.css）、rAF 迴圈各自看 class。
-// 目標在「會動的層」（vt-live-N，只顯示即時畫面）裡的不凍：漂浮卡 3D 擺動、awards ticker 照跑
+// 目標在「會動的層」（vt-live-N，只顯示即時畫面）裡的不凍：漂浮卡 3D 擺動照跑（awards ticker／歷史照片帶已改 CSS，由 typography.css live 層 running 規則放行）
 /** @type {any[]} */
 let vtFrozen = [];
 /** @param {() => void} update */

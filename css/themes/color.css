@@ -866,13 +866,6 @@ body.mode-color [data-bar="mode"] .theme-toggle-btn {
   color: var(--theme-fg) !important;
 }
 
-/* mobile menu-btn 跟 mode-btn 同款圓底：mode-color bg 跟 page bg、icon 對比 theme-fg */
-body.mode-color .mobile-header-btn {
-  background: var(--theme-bg) !important;
-  color: var(--theme-fg) !important;
-  transition: none !important;
-}
-
 /* ===== Class Division Buttons + Group Labels（about 學制 tab）=====
    inactive＝反色 strict chip（fg-inverse 底 / fg 字；不融底，吃 hue 色看不清）；hover / active＝strict B/W。
    !important 蓋 JS inline 色；label 無 .active，用 :has(+) 跟 sibling btn 聯動 */

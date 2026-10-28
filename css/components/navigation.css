@@ -175,6 +175,28 @@
     transition: transform var(--dur-fast) var(--ease-standard) !important;
   }
 }
+/* ===== 手機 nav btn 切換不 fade（user 2026-10-27，全站）=====
+   切 active 時底／字色瞬間換，角度／位移／透明度照舊補間＝上面桌面 hover-bound 那套 instant 寫法搬到「非真桌面」全部 chip。
+   body 前綴：上面 @layer components 被 Tailwind v3 拆掉、輸出在 output.css 更後面＝同特異度會輸給 transition:all；
+   atlas 同理壓 atlas.css（它後載）。mode3 inactive 加 button 元素 (0,4,2) 壓 color.css (0,4,1)、
+   仍輸 mode 切換窗口規則 (0,5,1)＝換 mode 照樣跟大背景一起淡 */
+@media (max-width: 1023px), (max-height: 500px) {
+  body .anchor-nav-inner,
+  body .anchor-nav-btn div,
+  body .atlas-filter-btn .anchor-nav-inner,
+  body .atlas-filter-btn.atlas-filter-revealed .anchor-nav-inner {
+    transition-property: transform, translate, opacity;   /* 保留各自的 duration/ease 清單（atlas translate 照舊對位） */
+  }
+  body.mode-color button:is(.anchor-nav-btn, .section-nav-btn, .faculty-filter-btn, .activities-section-btn, .courses-program-btn, .activities-filter-btn, .courses-filter-btn, .atlas-filter-btn):not(.active) .anchor-nav-inner {
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard) !important;
+  }
+  /* about 分組鈕／alumni 城市 tab／curriculum BFA 小標題：同上（element 前綴壓 Tailwind transition-all） */
+  button.class-division-btn,
+  span.class-group-label,
+  .courses-program-group .courses-bfa-label {
+    transition: transform var(--dur-fast) var(--ease-standard);
+  }
+}
 /* about 分組鈕的 BFA 小標題 absolute 浮在 btn 上方、中間 8px 縫落在「小標題＋btn」父層盒外 → 游標從小標題滑到 btn
    會先觸發離開、再進入＝重抽色。補一條透明橋把縫併進父層（多蓋 6px 吃旋轉角）；小標題 z-index 2 疊在橋上、點擊不受影響。
    矮橫向小標題隱藏、直排時橋會蓋到上一顆 → min-height 501 排除 */
@@ -207,7 +229,7 @@
 
 /* ===== 768–1023：header 換手機排 =====
    內容照吃桌面 md: 版面，只有 header 塞不下 → 同矮橫向 landscape.css 5b：純 CSS 藏桌面排、顯示手機排
-   （Lottie logo + mode 鈕 + 漢堡）＋手機全螢幕選單。mobile-menu.js 與手機 logo 初始化不看寬度 → 純 CSS 顯隱即可用。
+   （Lottie logo + mode 鈕 + 漢堡）＋選單（2026-10-27 起同直向手機透明疊層、兩欄見 landscape.css 5b）。mobile-menu.js 與手機 logo 初始化不看寬度 → 純 CSS 顯隱即可用。
    #site-header 提特異度蓋 .hidden/md:flex/md:hidden utility。 */
 @media (min-width: 768px) and (max-width: 1023px) {
   #site-header header .site-container > .md\:flex {
@@ -228,6 +250,16 @@
     display: none;
   }
 }
+/* 首頁不要底色帶（user 2026-10-27）：浮卡／news 透到 logo 與黑方塊鈕後方。:has(#id) 權重壓過上面的 display:block */
+body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
+  display: none;
+}
+/* about／faculty／curriculum／activities／admission 直向手機也不要（user 2026-10-27／28）：nav 移到畫面底 bar 後頂上不用遮罩（about：variables.css 檔尾；faculty：lists.css .nav-bottom-bar；curriculum：courses.css 直向段） */
+@media (max-width: 767px) and (orientation: portrait) {
+  body:has(#about-content-wrapper, #faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section) #site-header .mobile-header-bg {
+    display: none;
+  }
+}
 
 /* ===== 桌面（≥1024）漢堡 menu =====
    #menu-btn 開同一個 .mobile-nav 面板（mobile-menu.js，gate 同 DESKTOP_MENU_MQ）：透明全屏層、不鎖捲動也不吃事件
@@ -244,21 +276,15 @@
   inherits: true;
   initial-value: 0px;
 }
-@media (min-width: 1024px) and (min-height: 501px) {
-  /* 桌面 logo 以縮小態為準：100 的中線對齊 mode／menu 鈕中線（user 2026-10-20，原與鈕頂齊 48）→ 從鈕頂拉回 26＝--header-logo-top。
-     大 logo 180 同錨點（左上角）縮放＝頂也是 --header-logo-top */
-  #site-header a:has(> #header-logo) { margin-top: calc(var(--header-logo-top) - var(--header-btn-top)); }
+/* 直向手機也走這套（user 2026-10-27「menu 跟 pc 一樣、在右邊、沒有全螢幕白底」）；矮橫向／768–1023 同日跟進（user 2026-10-27，
+   放不下直排 → landscape.css 5b 排成兩欄）。gate＝mobile-menu.js OVERLAY_MENU_MQ＋LANDSCAPE_GATE */
+@media (min-width: 1024px) and (min-height: 501px), (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* 面板不吃事件（menu 開著畫面仍可 scroll）→ 只有選項本身可點；點外面關閉由 mobile-menu.js 掛 document 監聽。
      雙 id：color.css 的 .bg-white !important 帶 :not(#faculty-panel)＝1 id 權重，單 id 蓋不過 → mode3 面板變實色蓋掉內容 */
   #site-header #mobile-nav-panel {
     display: flex;
     background: transparent !important;
     pointer-events: none;
-  }
-  /* 第一顆 top＝漢堡鈕底（鈕頂＋48）與 --nav-line 的中點；下組貼底、底距＝漢堡鈕離頂距離 */
-  #site-header .mobile-nav .site-container {
-    padding-top: calc((var(--nav-line) + var(--header-btn-top) + 48px) / 2);
-    padding-bottom: var(--header-btn-top);
   }
   #site-header .mobile-nav nav {
     overflow: visible; /* 蓋 overflow-x-hidden：靠右旋轉 btn 的凸角不被切 */
@@ -288,24 +314,47 @@
   #site-header .mobile-nav-link.active span {
     color: var(--color-black) !important;
   }
-  /* hover＝三原色底黑字（--menu-hover 由 mobile-menu.js mouseenter 抽），active 不變 */
-  #site-header .mobile-nav-link:not(.active):hover {
-    background: var(--menu-hover, var(--color-pink));
-  }
-  #site-header .mobile-nav-link:not(.active):hover,
-  #site-header .mobile-nav-link:not(.active):hover span {
-    color: var(--color-black) !important;
+  /* hover＝三原色底黑字（--menu-hover 由 mobile-menu.js mouseenter 抽），active 不變；(hover:hover)＝手機 tap 不黏色 */
+  @media (hover: hover) {
+    #site-header .mobile-nav-link:not(.active):hover {
+      background: var(--menu-hover, var(--color-pink));
+    }
+    #site-header .mobile-nav-link:not(.active):hover,
+    #site-header .mobile-nav-link:not(.active):hover span {
+      color: var(--color-black) !important;
+    }
+    body.mode-color #site-header .mobile-nav-link:hover {
+      background: var(--theme-fg-inverse);
+    }
+    body.mode-color #site-header .mobile-nav-link:hover,
+    body.mode-color #site-header .mobile-nav-link:hover span {
+      color: var(--theme-fg) !important;
+    }
   }
   /* mode3：三原色撞 hue 底 → strict B/W 翻反色（同全站 mode3 active / hover 慣例） */
-  body.mode-color #site-header .mobile-nav-link.active,
-  body.mode-color #site-header .mobile-nav-link:hover {
+  body.mode-color #site-header .mobile-nav-link.active {
     background: var(--theme-fg-inverse);
   }
   body.mode-color #site-header .mobile-nav-link.active,
-  body.mode-color #site-header .mobile-nav-link.active span,
-  body.mode-color #site-header .mobile-nav-link:hover,
-  body.mode-color #site-header .mobile-nav-link:hover span {
+  body.mode-color #site-header .mobile-nav-link.active span {
     color: var(--theme-fg) !important;
+  }
+}
+/* 直向手機：第一顆頂＝header 帶底 92（同 .mobile-header-bg）；下組貼底、底距＝鈕離頂（header pt-lg） */
+@media (max-width: 767px) and (orientation: portrait) {
+  #site-header .mobile-nav .site-container {
+    padding-top: 92px;
+    padding-bottom: var(--spacing-lg);
+  }
+}
+@media (min-width: 1024px) and (min-height: 501px) {
+  /* 桌面 logo 以縮小態為準：100 的中線對齊 mode／menu 鈕中線（user 2026-10-20，原與鈕頂齊 48）→ 從鈕頂拉回 26＝--header-logo-top。
+     大 logo 180 同錨點（左上角）縮放＝頂也是 --header-logo-top */
+  #site-header a:has(> #header-logo) { margin-top: calc(var(--header-logo-top) - var(--header-btn-top)); }
+  /* 第一顆 top＝漢堡鈕底（鈕頂＋48）與 --nav-line 的中點；下組貼底、底距＝漢堡鈕離頂距離 */
+  #site-header .mobile-nav .site-container {
+    padding-top: calc((var(--nav-line) + var(--header-btn-top) + 48px) / 2);
+    padding-bottom: var(--header-btn-top);
   }
 
   /* 左下「當前頁」卡：底色/padding 同 menu 選項，文字同頁內 nav btn（text-s 粗體、英中距 --space-en-zh-s）；

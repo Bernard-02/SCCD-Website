@@ -112,14 +112,38 @@
   }
 
   /* ===== Mobile Header Buttons =====
-     44×44 觸控規範；icon 走 currentColor；mode-aware bg 由 themes/inverse.css + color.css 覆寫 */
+     44×44 觸控規範；底色＝桌面 #mode-btn/#menu-btn 同款黑方塊（theme-fg 底＋fg-inverse icon，user 2026-10-27）。
+     #site-header＋!important＝同桌面：蓋 themes 的 [data-bar="mode"] page-bg 規則（0,2,1）與 body.lightbox-open 白 icon */
   .mobile-header-btn {
     width: 44px;
     height: 44px;
-    background: var(--color-white);
-    color: var(--color-black);
-    /* transform transition：mobile-menu.js 對外殼套隨機旋轉，換角需平滑；clip-path 由 lightbox-shell GSAP 控，不進 transition */
-    transition: background var(--transition-fast), color var(--transition-fast), transform var(--dur-base) ease;
+    /* 角度＝--hdr-rot（同桌面 #mode-btn/#menu-btn；mobile-menu.js 點擊重抽）：寫 var 不寫 inline transform——header.js 收展鈕時
+       lendCssRotToMask 把角借給遮罩（斜鈕在同角遮罩內滑、不被正遮罩切角）、展完 clearProps 角度自己回來（inline 會被清成 0°）。
+       transform transition：換角平滑；clip-path 由 lightbox-shell GSAP 控，不進 transition */
+    transform: rotate(var(--hdr-rot, 0deg));
+    transition: transform var(--dur-base) ease;
+  }
+  #site-header .mobile-header-btn {
+    background: var(--theme-fg) !important;
+    color: var(--theme-fg-inverse) !important;
+  }
+  #site-header .mobile-header-btn .theme-toggle-btn {
+    color: var(--theme-fg-inverse) !important;
+    width: 100%;   /* 同桌面：撐滿框、整顆可點 */
+    height: 100%;
+  }
+  /* icon 28＝四邊 8，同桌面 48 框／icon 32 的內距（44 觸控框不動；同手機 lightbox 黑方塊 44/28） */
+  #site-header .mobile-header-btn .icon {
+    font-size: 28px;
+  }
+  /* menu 開著＝同桌面 #menu-btn.is-open：三原色底黑 icon（--menu-btn-accent 開啟時由 mobile-menu.js 抽）、mode3 黑白互換 */
+  #site-header .mobile-header-btn.is-open {
+    background: var(--menu-btn-accent, var(--color-pink)) !important;
+    color: var(--color-black) !important;
+  }
+  body.mode-color #site-header .mobile-header-btn.is-open {
+    background: var(--theme-fg-inverse) !important;
+    color: var(--theme-fg) !important;
   }
   /* ===== Section Nav Buttons（共用基底）=====
      新 instance 加 .section-nav-btn 即可 */

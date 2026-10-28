@@ -7,19 +7,22 @@
 import { setupClipReveal } from './modules/ui/scroll-animate.js';
 import { cycleHeaderBtn } from './header.js';
 import { DUR, EASE } from './modules/ui/motion.js';
+import { randomSpinAngle } from './modules/ui/arrow-spin.js';
 
-// 套 random rotation（user pattern：每次點開角度不一樣，跟 footer items / hero title 同款）
-// 走 CSS transition 平滑切換而非 GSAP，避免跟 hidden toggle 時序競爭
+// 手機 header 鈕抽新角：每點一次都換、跟現角保證有差（randomSpinAngle，全站 −4~+6；user 2026-10-27）。
+// 寫 --hdr-rot（buttons.css transform 吃它、CSS transition 平滑）不寫 inline transform：header.js 收展鈕才借得到角給遮罩、展完不被清成 0
 function applyRandomRotation(el) {
   if (!el) return;
-  const deg = SCCDHelpers.getRandomRotation(); // -4~6 排除 0
-  el.style.transform = `rotate(${deg}deg)`;
+  const prev = parseFloat(el.style.getPropertyValue('--hdr-rot')) || 0;
+  el.style.setProperty('--hdr-rot', `${randomSpinAngle(prev)}deg`);
 }
 
-// 桌面 menu（≥1200，2026-09-27）：同一個 .mobile-nav 面板，CSS 改成透明底＋靠右旋轉 btn（navigation.css）。
-// gate 同 navigation.css ≥1200 段；min-height 排除矮橫向（走手機 header）
+// 透明疊層 menu（桌面 2026-09-27；直向手機 user 2026-10-27 改跟桌面一樣）：同一個 .mobile-nav 面板，CSS 改成透明底＋靠右旋轉 btn、
+// 不鎖捲動、點外面關（navigation.css 同式 media）。矮橫向／768–1023 同日跟進（兩欄，landscape.css 5b）
 const DESKTOP_MENU_MQ = '(min-width: 1024px) and (min-height: 501px)';
-const isDesktopMenu = () => window.matchMedia(DESKTOP_MENU_MQ).matches;
+const OVERLAY_MENU_MQ = `${DESKTOP_MENU_MQ}, (max-width: 767px) and (orientation: portrait)`;
+const isDesktopMenu = () => window.matchMedia(DESKTOP_MENU_MQ).matches;   // 只剩 hover 抽角用（手機 tap 不抽）
+const isOverlayMenu = () => window.matchMedia(OVERLAY_MENU_MQ).matches || SCCDHelpers.isLandscapeGate();
 // 桌面實色 btn 藏起時多滑的 px：剛好 yPercent 100 貼遮罩邊，旋轉遮罩的反鋸齒會留一條縫（同 header.js BAR_HIDE_BUFFER）
 const DESKTOP_HIDE_BUFFER = 12;
 const randRot = () => `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
@@ -49,6 +52,9 @@ export function initMobileMenu() {
     iconOpen.forEach(i => { i.style.display = open ? 'none' : ''; });
     iconClose.forEach(i => { i.style.display = open ? '' : 'none'; });
     // 開合態（.is-open＝開著的底色）跟 icon 一起在「換」那刻切＝出場的還是舊樣子；桌面鈕沒顯示時 cycleHeaderBtn 直接換
+    // 手機鈕同桌面 open 態（buttons.css .mobile-header-btn.is-open）：沒 hover 可預抽 → 每次開抽一色
+    if (open) menuBtnBox?.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
+    menuBtnBox?.classList.toggle('is-open', open);
     const swap = () => {
       deskMenuBtn?.classList.toggle('is-open', open);
       if (swapIcon) swapIcon.className = open ? 'icon icon-arrow-right' : 'icon icon-menu';
@@ -140,11 +146,11 @@ export function initMobileMenu() {
   }
 
   function openMenu() {
-    const desktop = isDesktopMenu();
-    if (desktop) watchScrollClose(true);
+    const overlay = isOverlayMenu();
+    if (overlay) watchScrollClose(true);
     // 桌面面板透明、頁面看得到 → 暫停 loop 會看到凍結，不停（close 端的 resume 呼叫無害）
-    if (!desktop) setPageLoopsPaused(true);
-    const hideY = desktop ? DESKTOP_HIDE_BUFFER : 0;
+    if (!overlay) setPageLoopsPaused(true);
+    const hideY = overlay ? DESKTOP_HIDE_BUFFER : 0;
     // ⚠️ 先把選項藏好（clip wrapper + yPercent:100）再讓 nav 可見（user 2026-06-24 報「選項沒 stagger、閃一下出現」）：
     // 上次 reveal onComplete 的 clearProps:'transform' 讓選項停在全顯態 → 若先 .open 再 set hidden，
     // nav 一可見會閃一幀全顯選項才被壓回隱藏。把 hide 提到 .open 之前，這一幀不存在。
@@ -155,11 +161,11 @@ export function initMobileMenu() {
       menuItems.forEach(a => {
         const w = a.parentElement;
         if (w?.classList.contains('clip-reveal-wrapper')) {
-          w.style.transform = desktop ? (w.style.transform || randRot()) : '';
+          w.style.transform = overlay ? (w.style.transform || randRot()) : '';
         }
       });
     }
-    if (desktop) {
+    if (overlay) {
       const cur = nav.querySelector('.mobile-nav-link.active')?.getAttribute('href') || '';
       if (cur !== activeAccentFor) {
         activeAccentFor = cur;
@@ -185,7 +191,7 @@ export function initMobileMenu() {
       gsap.to(nav, {
         x: '0%',
         // 桌面面板透明：不滑入（無位移），直接到位、選項 clip-reveal 進場
-        duration: desktop ? 0 : DUR.fast,
+        duration: overlay ? 0 : DUR.fast,
         ease: EASE.enterSoft,
         onComplete: () => {
           if (!menuItems || !menuItems.length) { busy = false; return; }
@@ -209,9 +215,8 @@ export function initMobileMenu() {
       nav.style.transform = 'translateX(0%)';
     }
     setIcons(true);
-    applyRandomRotation(menuBtnBox);
-    applyRandomRotation(modeBtnBox);
-    if (!desktop) lockScroll();
+    applyRandomRotation(menuBtnBox);   // 只轉自己（mode 鈕點自己才轉，見檔尾）
+    if (!overlay) lockScroll();
     // 無障礙：開啟時把鍵盤焦點移入選單第一項（關閉時 Escape / 點按鈕還給漢堡按鈕）
     menuItems?.[0]?.focus?.();
   }
@@ -219,13 +224,12 @@ export function initMobileMenu() {
   // close: 回傳 Promise 在動畫完成後 resolve（nav link click 場景用來決定何時 navigate）
   // 退場語義 = 進場反向：items 倒序 yPercent 0→100 全部播完才 nav slide-out（不跟 nav 一起）
   function closeMenu() {
-    const desktop = isDesktopMenu();
+    const overlay = isOverlayMenu();
     watchScrollClose(false);
     nav.classList.remove('open');
     btns.forEach(b => b.setAttribute('aria-expanded', 'false'));
     setIcons(false);
-    applyRandomRotation(menuBtnBox);
-    applyRandomRotation(modeBtnBox);
+    applyRandomRotation(menuBtnBox);   // 關＝點鈕／點選項換頁／點外面都算，一律換角
     unlockScroll();
     return new Promise(resolve => {
       if (typeof gsap !== 'undefined') {
@@ -239,13 +243,13 @@ export function initMobileMenu() {
         // 進場是 stagger from start（第一個先進）；退場語義反向 = 最後一個先退（from end）
         // items 全部退場結束時間 = duration + stagger×(N-1)；之後才 nav slide-out
         // 手機加 0.05s buffer 讓 items 真的完全收進去（視覺上看到才開始 slide）；桌面不滑出、buffer 只是死時間
-        const itemsTotal = itemCount > 0 ? itemDur + itemStagger * (itemCount - 1) + (desktop ? 0 : 0.05) : 0;
+        const itemsTotal = itemCount > 0 ? itemDur + itemStagger * (itemCount - 1) + (overlay ? 0 : 0.05) : 0;
         if (itemCount > 0) {
           revealTween?.kill(); revealTween = null;   // 開啟中途收：見 revealTween 宣告
           gsap.killTweensOf(menuItems);
           gsap.to(menuItems, {
             yPercent: 110,
-            y: desktop ? DESKTOP_HIDE_BUFFER : 0,
+            y: overlay ? DESKTOP_HIDE_BUFFER : 0,
             duration: itemDur,
             stagger: { each: itemStagger, from: 'end' },
             ease: EASE.exitSoft,
@@ -257,7 +261,7 @@ export function initMobileMenu() {
         }
         gsap.to(nav, {
           x: '-100%',
-          duration: desktop ? 0 : DUR.fast, // 桌面不滑出（同開啟）
+          duration: overlay ? 0 : DUR.fast, // 桌面不滑出（同開啟）
           ease: EASE.exitSoft,
           delay: itemsTotal,
           // resume 保險（itemCount 0 / items tween 被 kill 的殘局；重複 loop() 無害）；離頁場景 _p5 已移除 = no-op
@@ -287,7 +291,7 @@ export function initMobileMenu() {
   // capture 階段（頁面元素 stopPropagation 也收得到）、不攔截（點到的頁面元素照常作用）。
   // 排除選單項目、漢堡、mode 鈕（開著 menu 也能切 mode）。initMobileMenu 只跑一次，listener 不累積。
   document.addEventListener('click', (e) => {
-    if (!isDesktopMenu() || !nav.classList.contains('open')) return;   // 開啟中也可關（同漢堡鈕）
+    if (!isOverlayMenu() || !nav.classList.contains('open')) return;   // 開啟中也可關（同漢堡鈕）
     if (e.target.closest?.('.mobile-nav-link, .mobile-menu-btn, .theme-toggle-btn')) return;
     closeMenu();
   }, true);
@@ -316,7 +320,7 @@ export function initMobileMenu() {
         // 桌面 active 色＝點下去那刻的 hover 色（同 nav btn：hover 預覽、click 定案；user 2026-09-28）。
         // 要當下寫：navigateTo 一進來就把 .active 移到這顆（router.js clearNavActive/setNavActive）→ 晚寫＝退場途中
         // 它先變舊頁的 accent。舊 active 同時已失去 .active，不受影響。activeAccentFor 同步＝下次開不重抽
-        const accent = isDesktopMenu() && !link.classList.contains('active') && link.style.getPropertyValue('--menu-hover');
+        const accent = isOverlayMenu() && !link.classList.contains('active') && link.style.getPropertyValue('--menu-hover');
         if (accent) { nav.style.setProperty('--menu-accent', accent); activeAccentFor = link.getAttribute('href'); }
         closeMenu(); // 不 await，動畫獨立跑完；router 隨後（同一 click 冒泡）啟動 exit + fetch
       });
@@ -332,8 +336,9 @@ export function initMobileMenu() {
     });
   });
 
-  // mount 時兩個 btn 都先給隨機角度
+  // mount 時兩個 btn 都先給隨機角度；mode 鈕每點一次換角（手機鈕直接換 icon、不走 cycleHeaderBtn，換角＝CSS transition）
   applyRandomRotation(menuBtnBox);
   applyRandomRotation(modeBtnBox);
+  modeBtnBox?.addEventListener('click', () => applyRandomRotation(modeBtnBox));
 
 }
