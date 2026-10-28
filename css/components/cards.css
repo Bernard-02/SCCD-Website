@@ -424,13 +424,27 @@
     .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child) + span {
       margin-top: 0.25rem;
     }
-    /* 手機 row 間距比桌面大（覆蓋 .faculty-rows 基準 sm → lg） */
+    /* 詳情各段 gap 一律＝職稱→第一個 section 標題（文字框 ≈18；user 10-27「以主任→Education 為主」）：
+       筆與筆（這條）、標題→第一筆（title col pb）、分類之間（#faculty-detail-sections gap）。
+       各條數字不同＝h3 leading-none／p 行距的字框上下溢出量不同，視覺距離相同 */
     .faculty-rows {
-      gap: var(--spacing-lg);
+      gap: calc(var(--spacing-sm) + 2px);
     }
-    /* lead（系所+多個職級/職稱）例外：維持 sm，各職稱間距與 dept→職稱（mb-sm 16）一致，最後一個不被 lg gap 孤立。 */
+    /* lead 職稱列：p 行距自帶上下各 ~0.8 → sm 視覺就 ≈18 */
     .faculty-lead-rows {
       gap: var(--spacing-sm);
+    }
+    /* + 下一個標題欄 pt 12 − 字框 2 ≈ 18；#id×2 蓋 HTML gap-2xl utility（矮橫向 landscape.css 同權重後出、照舊） */
+    #faculty-panel #faculty-detail-sections {
+      gap: var(--spacing-xs);
+    }
+    /* 捲到底：最後一筆→畫面底＝slide-in 最頂 padding（返回鍵／logo 那排離頂 32＝header pt-lg；user 10-27），蓋 HTML pb-2xl。
+       直向限定：矮橫向右欄另有 landscape.css 的 panel pb */
+    @media (orientation: portrait) {
+      #faculty-panel #faculty-detail-sections { padding-bottom: var(--spacing-lg); }
+    }
+    #faculty-detail-sections > div {
+      gap: 0;   /* 蓋 buildSection 的 gap-xs：標題→第一筆全由 title col pb 給（有底色、釘住時一致） */
     }
 
     /* 獲獎 row：左右兩欄各自獨立 flow（country 緊貼 year 下、category 緊貼 name 下；grid 共用 row 高必耦合其一）：
@@ -490,13 +504,14 @@
       z-index: 5;
       background: var(--faculty-panel-bg, transparent);
       flex-direction: row;
-      align-items: flex-start;   /* 圖頂對齊名字頂 */
+      align-items: flex-end;   /* 名字底對齊照片底（user 10-27；原圖頂對齊名字頂） */
       gap: var(--spacing-lg);
       /* pt 1rem：仍夠 rotate(-4deg) 頂角不被 header 帶蓋 */
       padding-top: var(--spacing-sm);
       /* pb：開場 Education 距 profile 的空間＝之後每個 title 釘住時的空間（同一值→結構上一致）；
-         放 pb 而非 gap → 這段有 profile bg，捲過的內容不從縫隙露出 */
-      padding-bottom: var(--spacing-lg);
+         放 pb 而非 gap → 這段有 profile bg，捲過的內容不從縫隙露出。
+         照片→職稱＝職稱列間距（user 10-27 三段等距）：+6＝照片 ±3~6° 旋轉後下角凸出 layout 底的平均量（角度隨輪播變、差 ±1px） */
+      padding-bottom: calc(var(--spacing-sm) + 6px);
       /* 自身一層 compositing layer：pinned sticky 沒有 layer 時每幀重繪 → 捲動抖（title col 同款） */
       transform: translateZ(0);
       /* 底邊多畫 1px 同色：profile 高度帶小數，與 title layer 各自光柵化差半像素 → 捲動中交界閃 1px 縫；
@@ -514,6 +529,8 @@
       flex: 1;
       min-width: 0;
     }
+    /* 直向手機職稱改進 lead、titles 留空 → 空的 mt-lg 會撐高名字欄、把 lead 往下推（10-27 照片→職稱 gap 對齊） */
+    #faculty-detail-titles:empty { display: none; }
 
     /* 系所 + 職級/職稱（lead）：不旋轉、單獨一塊、sticky 釘在 profile 下緣（JS 渲染進 #faculty-detail-lead，桌機手機同款）。
        top = profile 實高（--faculty-profile-h）；translateZ(0) 免 pinned 重繪抖；box-shadow 1px 補 sub-pixel 縫（同 profile/title）。 */
@@ -522,7 +539,8 @@
       top: var(--faculty-profile-h, 0px);
       z-index: 4;
       background: var(--faculty-panel-bg, transparent);
-      padding-bottom: var(--spacing-sm);
+      /* 職稱→section 標題＝職稱列間距 sm（user 10-27 三段等距）：+ 標題欄 pt 12 − h3 leading-none 字框上溢 ~2 */
+      padding-bottom: calc(var(--spacing-sm) - 10px);
       transform: translateZ(0);
       box-shadow: 0 1px 0 var(--faculty-panel-bg, transparent);
     }
@@ -534,9 +552,9 @@
       top: calc(var(--faculty-profile-h, 0px) + var(--faculty-lead-h, 0px));
       z-index: 2;
       margin-bottom: 0;
-      /* 上下 padding：釘住時捲過的內容不貼標題字（bg 蓋住 padding 區、無縫） */
+      /* 上下 padding：釘住時捲過的內容不貼標題字（bg 蓋住 padding 區、無縫）；pb＝標題→第一筆 ≈18（見 .faculty-rows 註解） */
       padding-top: 0.75rem;
-      padding-bottom: var(--spacing-sm);
+      padding-bottom: calc(var(--spacing-sm) + 3px);
       transform: translateZ(0); /* 同 profile block：釘住時走 compositor 不逐幀重繪 */
     }
   }
@@ -550,15 +568,25 @@
   /* 手機返回鍵：釘在 header 右側 menu 鈕位置（panel 不捲、absolute 即固定）；高度 = header 高 + 置中 → 對齊 menu 鈕。
      不包 max-width media：矮橫向用 #id 規則 display:block 重新顯示，定位要一起生效；desktop 由 md:hidden 收掉。
      align-content 給 landscape 蓋成 block 時仍垂直置中 */
+  /* 10-27 user：觸控框 44×44＋同 header 鈕黑方塊（buttons.css .mobile-header-btn 44／icon 28）＝跟 menu 鈕同框同位；
+     原版只有 icon 20 寬可點。top＝header 高 − 底 pb(md) − 44：直向 32、矮橫向 24，兩版都對齊 menu 鈕（curriculum 共用） */
   .faculty-back-header {
     position: absolute;
-    top: 0;
+    top: calc(var(--header-height, 100px) - var(--spacing-md) - 44px);
     right: var(--container-padding);
-    height: var(--header-height, 80px);
+    width: 44px;
+    height: 44px;
+    padding: 0;
     display: flex;
     align-items: center;
-    align-content: center;
+    justify-content: center;
+    background: var(--theme-fg) !important;   /* 蓋 HTML bg-transparent utility */
     z-index: 20;
+  }
+  /* icon 勿掛 .text-black：themes 的 .text-black 規則（#faculty-slide-in 等，權重更高）會把它翻成 theme-fg＝跟方塊同色（mode3 白底白箭頭） */
+  .faculty-back-header .icon {
+    font-size: 28px;
+    color: var(--theme-fg-inverse);
   }
 
   /* 桌面 slide-in 黑方塊返回鍵（faculty / curriculum 共用）：方塊中線＝panel 左緣、貼畫面底、隨機旋轉（JS 套 transform）。
@@ -711,4 +739,9 @@
     }
   }
 
+}
+
+/* faculty 詳情線框 logo 恆轉（faculty-slide-in.js）：動 rotate 個別屬性＝跟 GSAP 寫的 transform 疊加；48s/圈＝/create placeholder 基礎轉速 */
+@keyframes faculty-wf-spin {
+  to { rotate: 360deg; }
 }

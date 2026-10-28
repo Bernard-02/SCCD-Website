@@ -5,7 +5,7 @@
 
 import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
+import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, bindLandscapeNavGate, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { waitForHeroAnimDone } from '../pages/hero-animation.js';
@@ -327,7 +327,11 @@ export function initFacultyFilter(initialSection = null, unlock) {
   // 每顆固定一個隨機方向（reveal/hide 來回一致）；px 向量依當下寬高/角度、每次要藏重算
   const navDir = new Map(navInners.map(inner => [inner, pickNavDir(inner)]));
   const exitInners = navInners;   // 離頁退場目標（矮橫向 header 帶同一組）
-  if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
+  // 直向手機：nav＝畫面底 bar，整條滑進滑出（bindMobileBottomBar），chip 不另逐顆進退場
+  const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#faculty-cards .nav-bottom-bar'));
+  const isBottomBar = !!bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate();
+  if (isBottomBar) bindMobileBottomBar(bottomBar);
+  else if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
     const section = document.getElementById('faculty-cards');
     const isLandscapeGate = SCCDHelpers.isLandscapeGate();

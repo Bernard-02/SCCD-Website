@@ -32,6 +32,8 @@ function stopFacultyImgCycle(preserveVisual = false) {
   const wf = document.getElementById('faculty-detail-wireframe');
   if (img) {
     if (typeof gsap !== 'undefined') gsap.killTweensOf([img, img.parentElement, wf].filter(Boolean));
+    // 線框恆轉（CSS）：保留畫面＝停在當下角度，否則歸零（同下方 transform）
+    [img, wf].forEach(el => { if (el) { if (preserveVisual) el.style.animationPlayState = 'paused'; else el.style.animation = ''; } });
     if (!preserveVisual) {
       // clearProps 連 GSAP transform cache 一起歸零：外部清 style 不會同步 cache，下一輪 cycle 會從殘值起跳
       if (typeof gsap !== 'undefined') gsap.set(img, { clearProps: 'transform' });
@@ -158,6 +160,12 @@ export function initFacultySlideIn() {
     closeBtn.dataset.hoverRotBound = '1';
     bindArrowSpin(closeBtn, d => { closeBtn.style.transform = `rotate(${d}deg)`; });
     bindNavBtnHover(closeBtn);   // hover 隨機三原色（cards.css .slide-in-back-square 段；user 2026-09-28 全站黑方塊鈕）
+  }
+  // 手機／矮橫向返回鍵（.faculty-back-header 黑方塊）：每點一次換角（user 2026-10-27，同手機 header 鈕；沒 hover＝arrow-spin 點擊重抽）
+  if (backBtnMobile && !backBtnMobile.dataset.hoverRotBound) {
+    backBtnMobile.dataset.hoverRotBound = '1';
+    backBtnMobile.style.transition = 'transform var(--dur-base) ease';
+    bindArrowSpin(backBtnMobile, d => { backBtnMobile.style.transform = `rotate(${d}deg)`; }).reroll();
   }
   const facultyCards = document.querySelectorAll('.faculty-card');
 
@@ -364,9 +372,8 @@ export function initFacultySlideIn() {
         // （baseSpeeds 0.125°/frame @60fps ≈ 7.5°/s → 48s/圈，見 generate-app/js/variables.js）。
         // 沒照片者轉主圖（＝線框）、有照片者轉墊底線框層；照片本身不轉。舊 tween 由 stopFacultyImgCycle 殺。
         const wfSpinEl = phUrl ? imgElement : (wfUrl ? wfLayer : null);
-        if (wfSpinEl && typeof gsap !== 'undefined' && !prefersReducedMotion()) {
-          gsap.to(wfSpinEl, { rotation: '+=360', duration: 48, ease: 'none', repeat: -1 });
-        }
+        // CSS keyframe 動 rotate 個別屬性（cards.css faculty-wf-spin）：合成器跑、跟 GSAP 寫的 transform 疊加不互踩
+        if (wfSpinEl && !prefersReducedMotion()) wfSpinEl.style.animation = 'faculty-wf-spin 48s linear infinite';
       }
 
       // 姓名 + titles 旋轉：fulltime/admin 桌面手機都套（2026-05-26 user 要求手機也旋轉；

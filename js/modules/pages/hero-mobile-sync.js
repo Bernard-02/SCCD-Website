@@ -76,6 +76,22 @@ export function initHeroMobileSync() {
       el.appendChild(inner);
     });
     mobile.classList.add('hero-mobile-rand');
+    // 圖角度 ±3°（同桌面 banner）；尺寸由 hero.css 依角度反推
+    const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
+    const deg = Math.random() * 6 - 3;
+    bg?.style.setProperty('--hero-bg-rot', `${deg.toFixed(2)}deg`);
+    bg?.style.setProperty('--hero-bg-tilt', `${Math.abs(deg).toFixed(2)}deg`);
+    // 3xl 大標放不下（375 寬 CURRICULUM／ADMISSIONS）→ 等比縮到剛好（user 2026-10-27 手機 3xl 放大）
+    const fitTitle = () => {
+      const t = /** @type {HTMLElement | null} */ (stack.querySelector('.hero-mobile-title'));
+      if (!t) return;
+      t.style.fontSize = '';
+      const cs = getComputedStyle(t);
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      if (t.scrollWidth > t.clientWidth) t.style.fontSize = `${Math.floor(parseFloat(cs.fontSize) * (t.clientWidth - pad) / (t.scrollWidth - pad) * 2) / 2}px`;
+    };
+    fitTitle();
+    document.fonts?.ready.then(fitTitle);
   }
 
   // Sync 完才 reveal，避免首屏空殼閃白（CSS 預設 visibility:hidden）

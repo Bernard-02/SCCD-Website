@@ -83,8 +83,9 @@
           <div class="w-full md:col-span-3 inner-scroll-nav-col">
             <!-- 手機：水平 scroll bar；scrollbar 隱藏走 no-scrollbar（faculty.html 已內嵌規則）
                  padding-y 給 btn 旋轉 clearance（rotate 後突角不被 overflow 裁切），桌面 md:py-0 還原
-                 桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]） -->
-            <div class="flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-[var(--nav-btn-gap)] mb-xs md:mb-0 -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
+                 桌面 inner-scroll frame：nav-col padding-top 把 nav 推到 content 區頂、頂部對齊（取代舊 md:sticky md:top-[200px]）
+                 直向手機：.nav-bottom-bar＝畫面底固定 bar、英中一行（同 about，lists.css）；.is-bar-hidden 出生就帶＝hero 上不閃，JS 切 -->
+            <div class="nav-bottom-bar is-bar-hidden flex flex-row gap-md overflow-x-auto no-scrollbar md:overflow-x-visible md:flex-col md:gap-[var(--nav-btn-gap)] mb-xs md:mb-0 -mx-md px-md md:mx-0 md:px-0 py-md md:py-0">
               <button class="faculty-filter-btn shrink-0 active text-left" data-filter="fulltime">
                 <span class="anchor-nav-inner"><span data-label-key="faculty.fulltime" data-label-part="en">Full-time Professors</span><span data-label-key="faculty.fulltime" data-label-part="zh">專任教師</span></span>
               </button>
@@ -133,7 +134,7 @@
       <!-- 手機返回鍵：釘在 header 右側 menu 鈕位置（slide-in 開啟時 menu/mode 鈕已被 lightbox-shell clip 收掉）；
            z-20 蓋過 header 遮擋帶（z-10）；佈局在 cards.css .faculty-back-header -->
       <button id="faculty-back-btn-mobile" class="md:hidden faculty-back-header cursor-pointer bg-transparent">
-        <span class="icon icon-arrow-right text-black icon-m"></span>
+        <span class="icon icon-arrow-right icon-m"></span>
       </button>
 
       <!-- Content Container（panel overflow-hidden + 內 flex-col；右欄獨立 scroll wrapper 自己裁切） -->

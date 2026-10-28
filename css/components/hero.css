@@ -44,6 +44,11 @@
   }
   @media (max-width: 767px) {
     .about-hero-name { font-size: 6.4vw; }
+    /* 手機上下疊：中英整組在畫面置中、組內兩塊靠左對齊（欄寬＝畫面上那幾筆最寬的，about-data-loader 寫 --hero-names-w；封頂容器寬） */
+    .about-hero-names { grid-template-columns: minmax(0, var(--hero-names-w, max-content)); justify-content: center; }
+    .about-hero-stack { justify-items: start; }
+    /* 沒在畫面上的那幾筆維持自然寬（不被窄欄擠到換行）＝格高照舊是全部最高那筆、換名不推中文 */
+    .about-hero-stack > :not(:has([data-hero-logo])) { width: max-content; }
   }
 
   .hero-text-en,
@@ -214,9 +219,17 @@
       max-height: max(6rem, calc(50svh - 220px));
       overflow-y: auto;
     }
+    /* 圖＝比照桌面（DESK_HERO_PAD）：四邊 padding 內最大、可疊到 logo 下（user 2026-10-27）——區域＝一屏四邊各 container padding（頂≈logo 頂）；
+       hero-mobile-sync 抽 ±3° 寫 --hero-bg-rot／--hero-bg-tilt(絕對值)，寬高用 sin/cos 反推＝轉完外框剛好貼區域 */
     .hero-mobile-rand .hero-mobile-bg {
-      height: calc(100svh - 240px);
+      --a: var(--hero-bg-tilt, 3deg);
+      --rw: calc(100vw - 2 * var(--container-padding));
+      --rh: calc(100svh - 2 * var(--container-padding));
+      top: calc(var(--container-padding) + var(--rh) / 2);
+      width: calc((var(--rw) * cos(var(--a)) - var(--rh) * sin(var(--a))) / cos(2 * var(--a)));
+      height: calc((var(--rh) * cos(var(--a)) - var(--rw) * sin(var(--a))) / cos(2 * var(--a)));
       aspect-ratio: auto;
+      transform: translate(-50%, -50%) rotate(var(--hero-bg-rot, -3deg));
     }
   }
 
