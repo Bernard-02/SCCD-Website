@@ -20,7 +20,7 @@ import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { createDeskCard } from '../ui/desk-card.js';
-import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -133,7 +133,7 @@ function renderCard(chip) {
 // 不能少 emit cell 否則 grid auto-flow 會把後續 type-label 推到空欄位錯亂整張表
 const TOTAL_YEAR_COLS = 4;
 
-// 手機版（2026-07-09 改版）：頂部「年級 btn bar」直接切換（排在 program nav 下方），
+// 手機版（2026-07-09 改版）：「年級 btn bar」直接切換（直向手機 10-27 起＝畫面底 bar），
 // 每個年級一個 block、同時只顯示一個；block 內必修/選修 label 在卡片上方、卡片滿寬直排。
 // 年級 btn 沿用 .courses-filter-btn（activities 子濾鏡同款 pill，buttons.css + 三 mode themes 現成）。
 // 兩種 DOM 結構共存（CSS media query 切顯示），同 program 的卡片各自存在 → 點擊兩邊都能觸發
@@ -143,7 +143,7 @@ function buildMobileHTML(program, courses) {
   const realChips = flattenToChips(courses);
 
   const bar = `
-    <div class="courses-mobile-grade-bar">
+    <div class="courses-mobile-grade-bar nav-bottom-bar is-bar-hidden">
       ${grades.map((g, i) => `
         <button class="courses-mobile-grade-btn courses-filter-btn whitespace-nowrap${i === 0 ? ' active' : ''}" data-grade="${g.key}">
           <span class="anchor-nav-inner">${g.en} ${g.zh}</span>
@@ -409,6 +409,13 @@ function openCourseSlideIn(card, onOpened) {
   coursesReturnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
+  // 手機／矮橫向返回鍵（.faculty-back-header 黑方塊）：每點一次換角（user 2026-10-27，同手機 header 鈕；沒 hover＝arrow-spin 點擊重抽）
+  const backMobile = document.getElementById('courses-back-btn-mobile');
+  if (backMobile && !backMobile.dataset.hoverRotBound) {
+    backMobile.dataset.hoverRotBound = '1';
+    backMobile.style.transition = 'transform var(--dur-base) ease';
+    bindArrowSpin(backMobile, d => { backMobile.style.transform = `rotate(${d}deg)`; }).reroll();
+  }
   // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
   const backBtn = document.getElementById('courses-back-btn-desktop');
   if (backBtn) {
@@ -739,6 +746,9 @@ export async function renderCoursesGrid(program) {
     grid.parentElement?.insertBefore(mobileGrid, grid.nextSibling);
   }
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
+  // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27）
+  const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
+  if (gradeBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) bindMobileBottomBar(gradeBar);
 
   // 年級 bar：初始 active 套 accent 樣式 + 點擊切換（delegation，一次性）
   const firstGradeBtn = mobileGrid.querySelector('.courses-mobile-grade-btn');
@@ -759,6 +769,8 @@ export async function renderCoursesGrid(program) {
           const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
           bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
         }
+        // 直向手機：年級 bar 在畫面底、可能正捲在清單下段 → 換年級一律回 section 頂（user 2026-10-27）
+        scrollToSectionTopNow(mg.closest('#courses-content-section'));
         activateGrade(mg, btn.getAttribute('data-grade') || '');
       });
     }

@@ -9,7 +9,7 @@ import { revalidateActivitiesData, beginActivitiesVisit } from './activities-sou
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer, loadDeferredMedia } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
 import { playAdmissionPanelExit, playAdmissionPanelReveal, setupAdmissionReveal } from './admission-data-loader.js';
 import { playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { snapRowsShown, exitRows, hideRows, revealRows, clearZebraCover } from '../ui/list-row-reveal.js';
@@ -454,8 +454,12 @@ let _chipRevealSTs = [];
 // 子 tab chip 是否被「捲離 section」clip 收起（2026-07-13，比照 nav btn 的 scroll hide/reveal）：
 // true 時離頁 playFilterChipsExit 不再重播（fromTo(0→100) 會先閃現一幀）；任何 reveal 路徑歸 false。
 let chipsScrollHidden = false;
+// 直向手機 tab 列固定在底 bar 上方（user 2026-10-28）：範圍外（hero／footer）不准揭——切分頁／初載的 reveal 路徑一律改成藏著、
+// 等 setupSectionNavReveal 的範圍 trigger 進場才補播（chipsScrollHidden 同一套）。桌面／矮橫向恆 false
+let chipsOutOfRange = false;
 function playFilterChipsReveal(panel, { useScrollTrigger = false } = {}) {
   if (typeof gsap === 'undefined') return;
+  if (chipsOutOfRange) { hideFilterChips(panel); chipsScrollHidden = true; return; }
   chipsScrollHidden = false;
   const inners = filterChipInners(panel);
   if (!inners.length) return;
@@ -516,7 +520,50 @@ function playFilterChipsExit(panel) {
 // computed=none 補不間）、from:'end' 反向 stagger。⚠️ .anchor-nav-inner 帶 navigation.css `transition: all`（含 clip/translate）
 // → 動畫期間 inner.style.transition='none' 免 CSS transition 追 GSAP 卡頓，跑完還原（hover/切分頁仍要那條 transition）。
 
+// ⚠️ 手機直向：section 高度隨可見 panel 內容成長（切分頁換內容、封面圖非同步載入撐高卡片、大清單 lazy 續建、
+//   accordion 展開）。桌面是固定 md:h-screen frame（內容在 box 內捲、section 不長高）故此 RO 不會 fire。
+//   hide/reveal ScrollTrigger 是 init 時以「空 section(min-h:100vh)」量的 start/end（end 卡在空高的底 ≈1543）
+//   → 不隨內容成長重算的話，onLeave(hide) 會在「捲到那條空高底線」就 fire＝清單還沒到底 nav 就 clip 收起
+//   （user 2026-09-06；桌面因 frame 不長高無此問題）。RO 觀察 section 高度變化 → settle 去抖後 refresh 重算 end
+//   到真底。debounce（非每幀）避開 accordion/marquee 動畫期間連續 resize 狂 refresh 掉幀。
+function refreshTriggersOnGrow(section) {
+  if (typeof ResizeObserver === 'undefined') return;
+  let t = 0, lastH = 0;
+  const ro = new ResizeObserver((entries) => {
+    const h = Math.round(entries[0].contentRect.height);
+    if (h === lastH) return;   // 寬度變／同高的雜訊不觸發
+    lastH = h;
+    clearTimeout(t);
+    t = window.setTimeout(() => { if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh(); }, 150);
+  });
+  ro.observe(section);
+  registerPageCleanup(() => { clearTimeout(t); ro.disconnect(); });
+}
+
 function setupSectionNavReveal() {
+  chipsOutOfRange = false;   // 模組旗標跨 SPA 換頁殘留 → 每次進頁先歸零，直向分支再依範圍設
+  // 直向手機（user 2026-10-28）：nav＝畫面底 bar（lists.css .nav-bottom-bar），整條滑進滑出、chip 不另逐顆進退場（同 faculty）；
+  // 子分頁 tab 列固定在底 bar 上方 → 範圍跟底 bar 同拍（hero 底過 100 才現、footer 頂過 75% 線收），逐 chip 進退沿用 scroll 收放那套
+  const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#activities-content-section .nav-bottom-bar'));
+  if (bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) {
+    bindMobileBottomBar(bottomBar);
+    const sec = document.getElementById('activities-content-section');
+    if (!sec || typeof ScrollTrigger === 'undefined') return;
+    const panelNow = () => /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
+    const st = ScrollTrigger.create({
+      trigger: sec, start: 'top top+=100', end: 'bottom 75%',
+      onToggle: (self) => {
+        chipsOutOfRange = !self.isActive;
+        const panel = panelNow();
+        if (!panel) return;
+        if (self.isActive) { if (chipsScrollHidden) playFilterChipsReveal(panel); }
+        else { playFilterChipsExit(panel); chipsScrollHidden = true; }
+      },
+    });
+    chipsOutOfRange = !st.isActive;
+    refreshTriggersOnGrow(sec);   // end 要跟著清單長高重算，否則捲到「空 section 底線」就誤判離開範圍、tab 被收掉
+    return;
+  }
   if (typeof gsap === 'undefined') return;
   if (prefersReducedMotion()) return;  // 減少動態：nav chip 不隱藏/不進退場，維持靜態可見
   const inners = Array.from(document.querySelectorAll('.activities-section-bar .activities-section-btn .anchor-nav-inner'));
@@ -606,24 +653,7 @@ function setupSectionNavReveal() {
     // 初載已在視窗內：ScrollTrigger 不補 fire onEnter，手動播一次
     if (section.getBoundingClientRect().top < window.innerHeight * 0.9) reveal();
 
-    // ⚠️ 手機直向：section 高度隨可見 panel 內容成長（切分頁換內容、封面圖非同步載入撐高卡片、大清單 lazy 續建、
-    //   accordion 展開）。桌面是固定 md:h-screen frame（內容在 box 內捲、section 不長高）故此 RO 不會 fire。
-    //   上面的 hide/reveal ScrollTrigger 是 init 時以「空 section(min-h:100vh)」量的 start/end（end 卡在空高的底 ≈1543）
-    //   → 不隨內容成長重算的話，onLeave(hide) 會在「捲到那條空高底線」就 fire＝清單還沒到底 nav 就 clip 收起
-    //   （user 2026-09-06；桌面因 frame 不長高無此問題）。RO 觀察 section 高度變化 → settle 去抖後 refresh 重算 end
-    //   到真底。debounce（非每幀）避開 accordion/marquee 動畫期間連續 resize 狂 refresh 掉幀。
-    if (typeof ResizeObserver !== 'undefined') {
-      let t = 0, lastH = 0;
-      const ro = new ResizeObserver((entries) => {
-        const h = Math.round(entries[0].contentRect.height);
-        if (h === lastH) return;   // 寬度變／同高的雜訊不觸發
-        lastH = h;
-        clearTimeout(t);
-        t = window.setTimeout(() => { if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh(); }, 150);
-      });
-      ro.observe(section);
-      registerPageCleanup(() => { clearTimeout(t); ro.disconnect(); });
-    }
+    refreshTriggersOnGrow(section);
   }
 
   // SPA 離頁退場（與 scroll hide 同動畫，但 onComplete resolve 給 page-exit await）
@@ -640,26 +670,6 @@ function setupSectionNavReveal() {
 
 // 桌面 inner-scroll box 幾何改純 CSS（2026-06-30 通用化，見 css/components/lists.css .inner-scroll-* class）：
 // box 高度固定填滿 [header+pad, 100vh−pad]、頂部對齊 → 不再 JS 量 nav 寫 --activities-box-*（原 sizeContentBoxToNav 已移除）。
-
-// 手機直向 sticky 疊層（2026-07-13，lists.css portrait 區塊配套）：nav strip 釘 88、filter bar 釘 nav 正下方。
-// nav 實高（單行 strip，內容穩定）在此量一次設 --act-filter-top = navTop + navH − 1（1px 疊縫防 sub-pixel 透縫）；
-// navTop 讀 computed（CSS 88 為單一來源）。ResizeObserver 跟著（字體 swap 後高度微變自癒）。
-function initMobileStickyBars() {
-  if (window.innerWidth >= 768 || !window.matchMedia('(orientation: portrait)').matches) return;
-  const section = document.getElementById('activities-content-section');
-  const navCol = /** @type {HTMLElement | null} */ (section && section.querySelector('.activities-nav-col'));
-  if (!section || !navCol) return;
-  const setTop = () => {
-    const navTop = parseFloat(getComputedStyle(navCol).top) || 88;
-    section.style.setProperty('--act-filter-top', Math.round(navTop + navCol.offsetHeight - 1) + 'px');
-  };
-  setTop();
-  if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(setTop);
-    ro.observe(navCol);
-    registerPageCleanup(() => ro.disconnect());
-  }
-}
 
 // （2026-09-05）舊 initBoxSnapHandoff（box 邊界兩段手勢閘交棒 window，2026-06-30/07-04）已退役：
 // 改為 bindFrameScrollSplit 空間分區模型——col 1-3 nav 欄捲 window（去 footer/hero）、col 4 起一律內部捲
@@ -705,9 +715,6 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(document.getElementById('activities-content-section'));
-
-  // 手機直向：量 nav 高設 --act-filter-top（filter bar sticky 釘點，lists.css portrait 區塊配套）
-  initMobileStickyBars();
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入（DOM 已換、但資料快取跨頁保留＝秒開）
   Object.keys(loaded).forEach(k => delete loaded[k]);
@@ -858,6 +865,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     btn.addEventListener('click', () => {
       const section = btn.getAttribute('data-section');
       userSwitchedSection = true;
+      if (!btn.classList.contains('active')) scrollToSectionTopNow(document.getElementById('activities-content-section'));
       switchToSection(section, btns, true);
       // 手機 section nav 是水平 scroll strip（9 顆，overflow-x:auto）：點到的 btn 可能被捲到部分出界
       // → 捲 strip 讓它落在畫面中間（user 2026-07-03，比照 curriculum 但改置中）。
@@ -1259,6 +1267,7 @@ function initExhibitionsTypeFilter() {
       // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
       // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
       if (subFilterSwitching || btn.classList.contains('active')) return;
+      scrollToSectionTopNow(document.getElementById('activities-content-section'));   // 直向手機：tab 在畫面底 → 點下就回 section 頂
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');
@@ -1310,6 +1319,7 @@ function initVisitsTypeFilter() {
       // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
       // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
       if (subFilterSwitching || btn.classList.contains('active')) return;
+      scrollToSectionTopNow(document.getElementById('activities-content-section'));   // 直向手機：tab 在畫面底 → 點下就回 section 頂
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');

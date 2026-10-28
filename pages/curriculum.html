@@ -79,7 +79,7 @@
           <!-- Left column: program btn bar（桌面 cols 1-3；mobile 直接 flex-col 自然流）
                桌面 inner-scroll frame：外層 nav-col wrapper（占 col-span-3）padding-top 把 bar 推到 content 區頂、頂部對齊；
                bar 寬 100%＝欄界（courses.css），btn 貼文字寬由 fitProgramBtns 量。 -->
-          <div class="md:col-span-3 inner-scroll-nav-col">
+          <div class="md:col-span-3 inner-scroll-nav-col is-div-hidden">
           <div class="courses-program-bar flex flex-col items-start gap-lg md:gap-[var(--nav-btn-gap)] mb-md md:mb-0">
             <div class="courses-program-group flex flex-col items-start gap-xs md:gap-[var(--nav-btn-sub-gap)]">
               <span class="courses-bfa-label"><span data-label-key="curriculum.group.bfa" data-label-part="en">BFA</span><span data-label-key="curriculum.group.bfa" data-label-part="zh">學士班</span></span>
@@ -131,7 +131,7 @@
         <!-- 手機返回鍵：釘在 header 右側 menu 鈕位（同 faculty slide-in，.faculty-back-header 佈局在 cards.css）；
              關閉走 courses-map.js 的 document 級 delegation（比對 #courses-back-btn-mobile） -->
         <button id="courses-back-btn-mobile" class="md:hidden faculty-back-header cursor-pointer bg-transparent" aria-label="返回">
-          <span class="icon icon-arrow-right text-black icon-m"></span>
+          <span class="icon icon-arrow-right icon-m"></span>
         </button>
         <!-- 桌面（仿 faculty slide-in 右欄）：inner md:overflow-hidden 不捲，title 固定在上、desc 在獨立 .list-scroll box 內捲動 → 右側細黑 scrollbar。
              手機：inner overflow-y-auto 整段捲、title sticky 黏頂（見 .courses-detail-title-sticky）。

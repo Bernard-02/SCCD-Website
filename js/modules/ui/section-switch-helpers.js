@@ -13,6 +13,7 @@ import { fitCardToText, navChipHidden, NAV_CHIP_SHOWN, randomRevealDir } from '.
 import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR, EASE } from './motion.js';
+import { scrollWindowNoSnap } from './snap-scroll.js';
 
 // nav btn 隨機角互動的桌面 gate（同 arrow-spin：桌面且非矮橫向才有 hover）
 export function isNavSpinDesktop() {
@@ -462,6 +463,51 @@ export function bindLandscapeNavGate(section, targets, navDir, { revealedClass, 
     footerIO.observe(footerEl);
     registerPageCleanup(() => footerIO.disconnect());
   }
+}
+
+// 直向手機 nav＝畫面底固定 bar（.nav-bottom-bar，lists.css；user 2026-10-27 先 faculty，about 同款寫在 anchor-nav.js mobileBar 段）：
+// hero 上藏、footer 頂過 75% 線收、離頁整條滑出＝切 .is-bar-hidden（CSS transition）。hero 門檻 -100＝hero 底過 header 帶。
+// 兩顆 IO 各記 flag 統一 apply（各自 toggle 會被初始 delivery 順序互蓋，同上）。
+/** @param {HTMLElement} bar */
+// 直向手機 nav／tab 在畫面底（user 2026-10-28，同 curriculum）：點下當下就平滑回 section 頂（內容由 section pt 92 讓出 header 帶）。
+// 各頁切換流程尾端另有一次 instant 對齊，要等舊內容退場（~0.6s）才跳＝慢半拍又生硬；這裡先到位、那次就變 no-op。
+// 走 GSAP 補間不走原生 smooth：第一次切到的清單建完會 ScrollTrigger.refresh()，會砍斷原生 smooth（停在原地、等那次 instant 才跳）
+/** @param {HTMLElement|null} section */
+export function scrollToSectionTopNow(section) {
+  if (!section || !SCCDHelpers.isMobileLayout() || SCCDHelpers.isLandscapeGate()) return;
+  const top = section.getBoundingClientRect().top + window.scrollY;
+  const dist = Math.abs(window.scrollY - top);
+  if (dist <= 1) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo({ top, behavior: 'instant' }); return; }
+  // 時長依距離（同 activities deep-link smooth：固定短時長捲過 >1 屏像跳下去）
+  scrollWindowNoSnap(top, { duration: Math.min(1.1, Math.max(DUR.medium, dist / 1200)), ease: EASE.move });
+}
+
+export function bindMobileBottomBar(bar) {
+  const heroEl = document.querySelector('#page-content > section');
+  const footerEl = document.getElementById('site-footer');
+  // 初始狀態當下量、不等 IO 首發（判準同下方兩顆 IO 的 rootMargin）：curriculum 年級 bar 每分頁一條、切到才渲染，
+  // 等 IO 會先藏再從底滑上來一次；該顯示就直接顯示（關 transition 套一次）
+  let heroVis = !!heroEl && heroEl.getBoundingClientRect().bottom > 100;
+  let footerVis = !!footerEl && footerEl.getBoundingClientRect().top < window.innerHeight * 0.75;
+  let exiting = false;
+  const apply = () => { if (!exiting) bar.classList.toggle('is-bar-hidden', heroVis || footerVis); };
+  bar.style.transition = 'none';
+  apply();
+  void bar.offsetHeight;
+  bar.style.transition = '';
+  /** @type {[Element, IntersectionObserver][]} */
+  const ios = [];
+  if (heroEl) ios.push([heroEl, new IntersectionObserver(([e]) => { heroVis = e.isIntersecting; apply(); }, { rootMargin: '-100px 0px 0px 0px' })]);
+  if (footerEl) ios.push([footerEl, new IntersectionObserver(([e]) => { footerVis = e.isIntersecting; apply(); }, { rootMargin: '0px 0px -25% 0px' })]);
+  ios.forEach(([el, io]) => io.observe(el));
+  registerPageCleanup(() => ios.forEach(([, io]) => io.disconnect()));
+  registerPageExit(() => new Promise(resolve => {
+    exiting = true;
+    if (bar.classList.contains('is-bar-hidden')) { resolve(); return; }
+    bar.classList.add('is-bar-hidden');
+    setTimeout(resolve, DUR.base * 1000);
+  }));
 }
 
 // box 是否「真的是捲動容器」：矮橫向 landscape gate 把 activities/admission 的 100vh frame 拆掉（overflow 改 visible、

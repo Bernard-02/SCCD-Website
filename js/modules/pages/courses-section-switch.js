@@ -13,7 +13,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel, ensureMobileGradeForSlug } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -156,39 +156,6 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
   bindFrameScrollSplit(sectionEl);
 
-  // 手機直向三層 sticky（program nav / 年級 bar / 類型 label）：原本硬編 T1/T2/T3(112/216/287) 是 375×812 一次性
-  // 校準，group label 變兩行(高 ~53)後 → ①label 被 bar overflow 上緣裁（padding-top 40 不夠）②nav 實高(101)≠假設(108.6)
-  // → 年級 bar(216) 與 nav 底(213) 差 3px 縫、下面內容漏出（user 2026-09-06 兩報）。改成**量實高寫 CSS var**：
-  //   --courses-bar-padtop = 最高 group label 高 + gap 8 + buffer 8（label 絕對定位在 btn 上方，padTop 要容得下才不被裁）
-  //   --courses-grade-top  = 112 + nav 實高 − 2(tuck 消縫，nav 帶蓋 grade 頂旋轉角)
-  //   --courses-rowlabel-top = gradeTop + 年級 bar 實高 + 16(grade↔block 自然 gap = grid gap sm)
-  //   ⚠️ label 用 +16（非 −2 tuck）：−2 讓 label pinned 貼齊 grade 底，但自然流中 label 在 grade 下方 16px
-  //      → 捲動時 label 要「追趕」16px 貼上 grade＝往上位移（user 2026-09-08 報 required tag 捲動跳動）。
-  //      改 +16＝label 與 grade 同拍 pin、恆保 16px 自然間距不追趕（gap 由 label ::before 24px 蓋住不露縫）。
-  // 桌面/矮橫向清掉 var（走各自規則）。T1=112 仍是「貼 fixed header」錨定值，不量。
-  const updateCoursesMobileSticky = () => {
-    if (!sectionEl) return;
-    const portrait = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
-    if (!portrait) {
-      sectionEl.style.removeProperty('--courses-bar-padtop');
-      sectionEl.style.removeProperty('--courses-grade-top');
-      sectionEl.style.removeProperty('--courses-rowlabel-top');
-      return;
-    }
-    const T1 = 112;
-    const labels = [...sectionEl.querySelectorAll('.courses-bfa-label')].filter(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
-    const labelH = labels.length ? Math.max(...labels.map(el => el.getBoundingClientRect().height)) : 0;
-    if (labelH) sectionEl.style.setProperty('--courses-bar-padtop', `${Math.ceil(labelH) + 16}px`);
-    const navCol = /** @type {HTMLElement|null} */ (sectionEl.querySelector('.inner-scroll-nav-col'));
-    if (!navCol) return;
-    const gradeTop = T1 + navCol.offsetHeight - 2;   // offsetHeight 讀取強制 reflow → 已套上面新 padTop
-    sectionEl.style.setProperty('--courses-grade-top', `${gradeTop}px`);
-    const grade = [...sectionEl.querySelectorAll('.courses-mobile-grade-bar')].find(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
-    if (grade) sectionEl.style.setProperty('--courses-rowlabel-top', `${gradeTop + /** @type {HTMLElement} */ (grade).offsetHeight + 16}px`);
-  };
-  window.addEventListener('resize', updateCoursesMobileSticky);
-  registerPageCleanup(() => window.removeEventListener('resize', updateCoursesMobileSticky));
-
   // ?program= deep-link：只有從首頁 floating course card 點進來的 SPA 導航（fromUserNav）才套指定 program + 跑導航動畫。
   // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）→ 清掉 query、回 default program（= 直接點 curriculum 的樣子，user 2026-06-04）。
   const params = new URLSearchParams(window.location.search);
@@ -213,9 +180,6 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   const deepLinkAutoNav = hasQueryDeepLink && fromUserNav;
 
   const initSwitchPromise = switchToProgram(initialProgram, programBtns, false);
-  // 初始 program 渲染完（年級 bar 進 DOM）才量三層 sticky 高；字型晚到會改 label/nav 高 → fonts.ready 再量一次
-  initSwitchPromise.then(updateCoursesMobileSticky);
-  if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(updateCoursesMobileSticky);
 
   // deep-link 導航動畫（只在使用者從首頁 floating course card 點進來的 SPA 導航才播）：
   //   ① 等 hero 進場才往下捲 — waitForHeroAnimDone()（hero onComplete 時 resolve，但封頂 ~0.9s：hero 多組時
@@ -298,6 +262,9 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
 
   programBtns.forEach(btn => {
     btn.addEventListener('click', () => {
+      // 直向手機：program 列在畫面底、可能正捲在清單下段 → 點下當下就回 section 頂（同年級 bar，user 2026-10-28）。
+      // switchToProgram 尾端那次 scrollSectionIntoView 要等退場跑完，期間清單變短、footer 露頭會被 footer 磁吸往下拉一截再拉回
+      if (!btn.classList.contains('active')) scrollToSectionTopNow(sectionEl);
       switchToProgram(btn.getAttribute('data-program'), programBtns, true);
       // 手機 program bar 是水平 scroll strip：點到的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣。
       // 只動 bar 自己的 scrollLeft（不用 scrollIntoView，避免它連帶動垂直/viewport）；桌面是 vertical sticky 不需要。
@@ -337,7 +304,39 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   let navRevealed = false;
   // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機、reveal/hide 來回一致）；離頁退場的 navExit 也吃這份
   const navDir = new Map(navTargets.map(el => [el, pickNavDir(el)]));
-  if (typeof gsap !== 'undefined' && navTargets.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
+  const navCol = /** @type {HTMLElement|null} */ (sectionEl ? sectionEl.querySelector('.inner-scroll-nav-col') : null);
+  if (navCol && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate() && typeof ScrollTrigger !== 'undefined') {
+    // 直向手機：program bar＝底部年級 bar 上方固定列（courses.css 直向段，同 about division tab；user 2026-10-27）。
+    // 範圍跟底 bar 同拍（bindMobileBottomBar：hero 底過 100 才現、footer 頂過 75% 線收）＝兩條一起進退；
+    // 進退＝逐 chip clip-reveal；範圍外 .is-off 不擋點擊；HTML 出生 .is-div-hidden，同步設好藏起態才拿掉＝首繪不閃。
+    const anim = typeof gsap !== 'undefined' && !prefersReducedMotion();
+    const setShown = (/** @type {boolean} */ on) => {
+      if (on === navRevealed) return;
+      navRevealed = on;
+      navCol.classList.toggle('is-off', !on);
+      if (!anim) { navCol.classList.toggle('is-div-hidden', !on); return; }
+      gsap.killTweensOf(navTargets);
+      navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; });
+      const hid = navTargets.map(el => navChipHidden(el, navDir.get(el)));   // 每次重算：active 換角後方向跟著轉
+      const hidVars = { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate };
+      gsap.fromTo(navTargets, on ? hidVars : { ...NAV_CHIP_SHOWN }, {
+        ...(on ? NAV_CHIP_SHOWN : hidVars), duration: DUR.base, ease: EASE.wipe,
+        stagger: on ? 0.04 : { each: 0.04, from: 'end' }, overwrite: true,
+        ...(on && { clearProps: 'clipPath,translate' }),
+        onComplete: () => { if (on) navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = ''; }); },
+      });
+    };
+    navCol.classList.add('is-off');
+    if (anim) {
+      navCol.classList.remove('is-div-hidden');
+      navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, navChipHidden(el, navDir.get(el))); });
+    }
+    const st = ScrollTrigger.create({
+      trigger: sectionEl, start: 'top top+=100', end: 'bottom 75%',
+      onToggle: (self) => setShown(self.isActive),
+    });
+    if (st.isActive) setShown(true);
+  } else if (typeof gsap !== 'undefined' && navTargets.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navTargets.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; gsap.set(el, navChipHidden(el, navDir.get(el))); });
 
     // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、

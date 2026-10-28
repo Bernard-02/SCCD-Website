@@ -9,7 +9,7 @@ import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
-import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 
 let lightboxEl = null;
@@ -908,25 +908,8 @@ function setupTitleMarquee() {
   const win   = /** @type {HTMLElement | null} */ (titleEl.querySelector('.alb-title-window'));
   const track = /** @type {HTMLElement | null} */ (titleEl.querySelector('.alb-title-track'));
   if (!win || !track) return;
-  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-  track.style.transform = '';
-  // reset dual-copy（caller 可能多次 renderTitle）
-  while (track.children.length > 1) track.removeChild(track.lastElementChild);
-  const unit = /** @type {HTMLElement | null} */ (track.querySelector('.alb-title-unit'));
-  if (!unit) return;
-  const unitWidth = unit.getBoundingClientRect().width;
-  const winWidth  = win.clientWidth;
-  if (unitWidth <= winWidth + 4) return;  // 4px tolerance
-  // dual-copy seamless loop
-  const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-  clone.style.marginLeft = '24px';
-  track.appendChild(clone);
-  const distance = unitWidth + 24;
-  if (typeof gsap !== 'undefined') {
-    gsap.fromTo(track, { x: 0 }, {
-      x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1,
-    });
-  }
+  const m = prepDualCopy(win, track, '.alb-title-unit');   // caller 可能多次 renderTitle：每次先還原單份
+  if (m) playCssMarquee(track, m.distance, m.duration);
 }
 
 // ── 關閉 ────────────────────────────────────────────────────────
@@ -942,10 +925,8 @@ function closeLightbox() {
   SCCDHelpers.holdHover(heldBtn);
   lightboxEl.style.opacity = '0';
   if (lbEntered) { exitLightboxMode(); lbEntered = false; }
-  // 停 title marquee tween 避免關閉後仍在背景 rAF 跑
-  if (typeof gsap !== 'undefined' && titleEl) {
-    titleEl.querySelectorAll('.alb-title-track').forEach(el => gsap.killTweensOf(el));
-  }
+  // 停 title marquee：凍在當下位置（淡出中不跳回起點）；下次開 setupTitleMarquee 會重設
+  titleEl?.querySelectorAll('.alb-title-track').forEach(el => { /** @type {HTMLElement} */ (el).style.animationPlayState = 'paused'; });
   closeHideTimer = setTimeout(() => {
     SCCDHelpers.releaseHover(heldBtn);
     lightboxEl.style.display = 'none';

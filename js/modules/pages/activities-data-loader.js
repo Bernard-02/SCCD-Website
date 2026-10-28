@@ -1924,7 +1924,11 @@ export async function loadListInto(containerId, url, options = {}) {
     ? document.querySelector(`${panelSelector} .activities-filter-bar`)
     : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
-  const stickyActive = window.innerWidth >= 768 || filterBarSticky;
+  // activities／admission 直向手機（user 2026-10-28：nav／tab 移到畫面底、filter bar 回 flow、header 白底拿掉）：
+  // 開啟的 title 釘 header 帶下 92（同 curriculum 類型標籤）。alumni 等其他 loadListInto 頁不套
+  const portraitPin = !filterBarSticky && window.matchMedia('(max-width: 767px) and (orientation: portrait)').matches
+    && !!container.closest('#activities-content-section, #admission-content-section');
+  const stickyActive = window.innerWidth >= 768 || filterBarSticky || portraitPin;
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝
   //   剛被批次弄髒的 DOM 上 forced recalc（profiler self 8s）。bar 高只在「bar 自己 resize」時變（bar-hidden/
   //   搜尋收合/viewport），由下方 ResizeObserver 專責失效重量；批次只改 list DOM、bar 高不變 → 用快取零讀取。
@@ -1933,7 +1937,7 @@ export async function loadListInto(containerId, url, options = {}) {
   const updateStickyTop = () => {
     if (!stickyActive) return;
     if (_barH < 0) measureBar();
-    const top = filterBar ? _barTop + _barH - 1 : _barTop;
+    const top = portraitPin ? 92 : filterBar ? _barTop + _barH - 1 : _barTop;
     container.style.setProperty('--list-header-sticky-top', top + 'px');
     if (showYearToggle) container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
     // 九輪 Part 4：pin-IO 重建改 trailing debounce——bar 收合 0.3s transition 讓 RO 每幀 fire，每次 refresh 都重建

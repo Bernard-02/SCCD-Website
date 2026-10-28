@@ -12,7 +12,7 @@ import { SECTION_LABELS } from './activities-data-loader.js';
 import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { applyMarqueeOverflow, bindMarqueeReturn, marqueeSpeed } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn, prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { isHlsUrl, isDirectVideoUrl } from '../ui/video-player.js';
@@ -1666,25 +1666,16 @@ function alignLabelColumn(card, popover) {
   if (maxW > 0) card.style.setProperty('--ref-label-w', `${Math.ceil(maxW)}px`);
 }
 
-// chip title 溢出 → dual-copy 並跑 marquee（複用 lightbox-ref-btn 演算法）
+// chip title 溢出 → dual-copy 並跑 marquee（prepDualCopy，同 lightbox-ref-btn）
 function playRefChipMarquee(chip) {
   const win = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-window'));
   const track = /** @type {HTMLElement | null} */ (chip.querySelector('.lightbox-ref-chip-title-track'));
   if (!win || !track) return;
-  if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-  track.style.transform = '';
-  while (track.children.length > 1) track.removeChild(track.lastElementChild);
-  const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
-  if (!unit) return;
-  const unitWidth = unit.getBoundingClientRect().width;
-  if (unitWidth <= win.clientWidth + 4) return;
-  const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-  clone.style.marginLeft = '24px';
-  track.appendChild(clone);
-  const distance = unitWidth + 24;
-  if (typeof gsap !== 'undefined') {
-    gsap.fromTo(track, { x: 0 }, { x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1 });
-  }
+  const m = prepDualCopy(win, track, '.lightbox-ref-chip-title-unit');
+  if (!m) return;
+  // 手機常駐循環走 CSS；桌面 hover 才跑、放開要回彈＝GSAP（同 lightbox-ref-btn playRow）
+  if (SCCDHelpers.isMobileLayout()) playCssMarquee(track, m.distance, m.duration);
+  else if (typeof gsap !== 'undefined') gsap.fromTo(track, { x: 0 }, { x: -m.distance, duration: m.duration, ease: 'none', repeat: -1 });
 }
 // 還原成靜態截斷單份（桌面 resting / hover 離開 snap 回原點）
 // animate=true（hover 離開）→ 從當下平滑補間回原點再拆 clone（user 2026-08-19 B）；省略＝立即歸零（resting）。

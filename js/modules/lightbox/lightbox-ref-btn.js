@@ -22,7 +22,7 @@
 import { setupClipReveal } from '../ui/scroll-animate.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
-import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 import { escapeHtml } from '../ui/escape-html.js';
 
 // ⚠️ pathname 形式 + SITE_BASE_PATHNAME 前綴（同 library-panels ref row）：完整 http URL 會被 router
@@ -165,21 +165,14 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     const win = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-window'));
     const track = /** @type {HTMLElement | null} */ (rowEl.querySelector('.lightbox-ref-chip-title-track'));
     if (!win || !track) return null;
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-    track.style.transform = '';
-    while (track.children.length > 1) track.removeChild(track.lastElementChild);
-    const unit = /** @type {HTMLElement | null} */ (track.querySelector('.lightbox-ref-chip-title-unit'));
-    if (!unit) return null;
-    const unitWidth = unit.getBoundingClientRect().width;
-    if (unitWidth <= win.clientWidth + 4) return null;
-    const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-    clone.style.marginLeft = '24px';
-    track.appendChild(clone);
-    const distance = unitWidth + 24;
-    return { track, distance, duration: Math.max(3, distance / marqueeSpeed()) };
+    const m = prepDualCopy(win, track, '.lightbox-ref-chip-title-unit');
+    return m && { track, ...m };
   }
   function playRow(prep) {
-    if (!prep || typeof gsap === 'undefined') return;
+    if (!prep) return;
+    // 手機常駐循環走 CSS keyframe（lists.css list-marquee，合成器跑）；桌面 hover 才跑、放開要從當下回彈＝GSAP 接管
+    if (isMobileViewport()) { playCssMarquee(prep.track, prep.distance, prep.duration); return; }
+    if (typeof gsap === 'undefined') return;
     gsap.fromTo(prep.track, { x: 0 }, { x: -prep.distance, duration: prep.duration, ease: 'none', repeat: -1 });
   }
   // 還原成靜態截斷單份。animate=true（hover 離開）→ 從當下平滑補間回原點再拆 clone（user 2026-08-19 B）；

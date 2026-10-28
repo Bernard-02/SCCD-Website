@@ -3,14 +3,14 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
-import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
   playAdmissionPanelExit,
   playAdmissionPanelReveal,
   setupAdmissionReveal,
 } from './admission-data-loader.js';
-import { resetListAccordionsInPanel, refreshStickyPinObservers } from '../accordions/list-accordion.js';
+import { resetListAccordionsInPanel } from '../accordions/list-accordion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
@@ -131,6 +131,9 @@ function scrollSectionIntoView(el, behavior = 'smooth', onDone) {
 // transition:'none' 解 .anchor-nav-inner 的 navigation.css `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管（卡頓），跑完還原。
 
 function setupSectionNavReveal() {
+  // 直向手機：nav＝畫面底 bar（lists.css .nav-bottom-bar），整條滑進滑出、chip 不另逐顆進退場（同 faculty；user 2026-10-28）
+  const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#admission-content-section .nav-bottom-bar'));
+  if (bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) { bindMobileBottomBar(bottomBar); return; }
   if (typeof gsap === 'undefined') return;
   const inners = Array.from(document.querySelectorAll('.activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
@@ -173,43 +176,6 @@ function setupSectionNavReveal() {
   }));
 }
 
-// 手機直向：nav strip 全程 sticky（lists.css portrait 區塊釘 88）→ 量 nav 實高，把展開的 list title
-// 釘在 nav 正下方。admission 無 filter bar（activities 是釘 bar 下方，updateStickyTop 那條走不到）→
-// 直接設 --list-header-sticky-top = 88 + navH 到 list 容器（getListStickyTop / CSS sticky top / pin-IO 三者共用它）。
-// 桌面/矮橫向不設（桌面 loadListInto updateStickyTop 已設 0＝box 頂；矮橫向拆 frame → getListStickyTop fallback）。
-function initAdmissionMobileSticky() {
-  const section = document.getElementById('admission-content-section');
-  const navCol = /** @type {HTMLElement | null} */ (section?.querySelector('.inner-scroll-nav-col'));
-  const containers = /** @type {HTMLElement[]} */ ([
-    document.getElementById('admission-list'),
-    document.getElementById('summer-camp-list'),  // lazy load，先設 var（inherited），list 進 DOM 後沿用
-  ].filter(Boolean));
-  if (!navCol || !containers.length) return;
-
-  const portrait = window.matchMedia('(max-width: 767px) and (orientation: portrait)');
-  const navInner = /** @type {HTMLElement | null} */ (navCol.firstElementChild);
-  const update = () => {
-    // 桌面/矮橫向不碰：--list-header-sticky-top 由 loadListInto updateStickyTop 設 0（box 頂）—— 別 remove 掉害它 fallback 200
-    if (!portrait.matches) return;
-    // 釘在 navInner（buttons）底、不含其 mb-xl（2026-07-18 縫隙修，反轉 07-17「量 navCol」）：
-    //   nav 底色同步收到 buttons 底（lists.css bg 掛 navCol > div）→ title 貼 buttons 底不被蓋、
-    //   捲過的 list box 也到 buttons 下才被吃，消掉 buttons 與 box/title 間 ~32px 隱形空帶。
-    //   （07-17「量 navInner 會讓 title 頂被 nav 底色切掉」的前提是 bg 蓋滿 navCol，已隨 CSS 一起反轉。）
-    // 88 = nav sticky top（lists.css）；−1 疊縫防 sub-pixel 透縫。
-    const top = Math.round(88 + (navInner ? navInner.offsetHeight : navCol.offsetHeight) - 1);
-    containers.forEach(c => {
-      c.style.setProperty('--list-header-sticky-top', top + 'px');
-      refreshStickyPinObservers(c);  // 釘點變了 → 開著的 header pin-IO 跟上（無 active header 時 no-op）
-    });
-  };
-  update();
-  if (typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(update);
-    ro.observe(navInner || navCol);  // 釘點量 navInner → 觀察它（buttons 換行時跟上）
-    registerPageCleanup(() => ro.disconnect());
-  }
-}
-
 // fromUserNav：true=使用者點連結的 SPA 導航（首頁 floating camp 海報）；false=初始載入 / refresh / 上一頁下一頁。
 // 只有 fromUserNav 才套 ?section=/?item= deep-link 並跑導航動畫；refresh 視為全新頁面（清 query、停 default news）。
 // unlock：deep-link 呈現完的解鎖鑰匙（main-modular 換頁 init 時取好傳入；本函式要等資料載完才跑，不能在這裡才取）
@@ -238,9 +204,6 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
 
   // 左側 section nav clip-path 進場（section 進視窗 once）+ 離頁退場，比照 faculty/activities nav
   setupSectionNavReveal();
-
-  // 手機直向 nav sticky 疊層：量 nav 高把展開 list title 釘在 nav 下方（比照 activities，見函式註解）
-  initAdmissionMobileSticky();
 
   // hover-dim 只在滑鼠真的移動後才生效（打開短 list 捲到頂→cursor 底下換 item 不誤觸半透明，比照 activities）
   initHoverDimMoveGuard(document.getElementById('admission-content-section'));
@@ -315,7 +278,10 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
     }
   }
 
-  btns.forEach(btn => btn.addEventListener('click', () => switchSection(btn.dataset.section, true)));
+  btns.forEach(btn => btn.addEventListener('click', () => {
+    if (!btn.classList.contains('active')) scrollToSectionTopNow(document.getElementById('admission-content-section'));   // 直向手機：nav 在畫面底 → 點下就回 section 頂
+    switchSection(btn.dataset.section, true);
+  }));
 
   // ?section= / ?item= deep-link（首頁 floating camp 海報導航）：只有 fromUserNav 才套指定 section + 跑導航動畫。
   const params = new URLSearchParams(window.location.search);

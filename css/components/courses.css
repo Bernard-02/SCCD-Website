@@ -119,7 +119,7 @@
 
   /* 桌面 nav 垂直間距：BFA 小標題在 flow 裡（relative）；組與組（bar）之間＝全站 --nav-btn-gap、
      組內 BFA 小標→組別鈕（group）＝--nav-btn-sub-gap（HTML md:gap-[var(...)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
-     矮橫向（landscape.css）／直向手機（absolute、JS --courses-bar-padtop）各有規則，min-height 501 排除矮橫向。 */
+     矮橫向（landscape.css）／直向手機（static 併排在鈕左）各有規則，min-height 501 排除矮橫向。 */
   /* 第一層（BFA 小標題、MDES）貼 logo 框左緣（＝欄左緣 0）、第二層組別鈕內縮 12（user 2026-10-21；原第一層 -12 外凸、組別貼 logo） */
   @media (min-width: 1024px) and (min-height: 501px) {
     .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
@@ -486,96 +486,59 @@
     gap: var(--spacing-sm);
   }
 
-  /* ===== Mobile 直向：nav / 年級 bar / 類型 label 三層 sticky =====
-     錨定值固定 px（375×812 實測）：
-       T1 112 = program bar 頂（mobile logo 底 82 + 視覺溢出 + 呼吸）
-       T2 = T1 + nav 實高 − tuck（JS 量寫 --courses-grade-top）
-       T3 = T2 + 年級 bar 實高 + 16（JS 量寫 --courses-rowlabel-top）
-     縫隙策略：padding 長在自己盒內，tuck 只吃 padding 不吃內容（否則 pinned 時 pill 旋轉角被上一層蓋掉）。
-     label 換手＝推擠交接：row gap 0、間距搬進 cells padding → 下一個 label 頂直接把上一個推出去、無空窗。
-     z 由上而下 5/4/3；bg 全 var(--theme-bg)。三層 sticky 全加 translateZ(0)：pinned sticky 無自己
-     compositor layer 時逐幀 repaint → pill 抖動 + 交界 sub-pixel 縫。portrait 限定：矮橫向 nav 進 header（landscape.css）不套。 */
+  /* ===== 直向手機（user 2026-10-27，同 about／faculty）=====
+     年級 bar＝畫面底 bar（.nav-bottom-bar，lists.css；courses-map.js 綁 bindMobileBottomBar）；
+     program bar＝底 bar 上方固定列、BFA 學士班小標在鈕左併排（同 about division tab），範圍內才逐 chip clip-reveal
+     （courses-section-switch.js），出生 .is-div-hidden 藏、範圍外 .is-off 不擋點擊；必修／選修在卡片左欄 sticky。
+     header 白底已拿掉（navigation.css）→ 頂上不再有 nav／年級／類型三層 sticky 白帶（類型標籤改左欄 sticky、不墊底色）。矮橫向 nav 進 header（landscape.css）不套。 */
   @media (max-width: 767px) and (orientation: portrait) {
+    /* 卡片從 header 帶下（92，同 about／faculty）開始；底補兩條 bar（底 bar＋program 列 80 實測）＝捲到底最後一張不被蓋 */
     #courses-content-section {
-      padding-top: 112px;
+      padding-top: 92px;
+      padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h) + 80px);
     }
-    #courses-content-section .courses-content-row {
-      gap: 0;
-    }
-    /* padding-top 給 bar 上方 absolute 的 BFA/MDes 學位標 clearance，不被 bar overflow 上緣裁。
-       ⚠️ label 兩行實高 ~53，吃 JS 量的 --courses-bar-padtop（labelH+16；courses-section-switch.js）。 */
-    #courses-content-section .courses-program-bar {
-      margin-bottom: 0;
-      padding-top: var(--courses-bar-padtop, 40px);
-    }
-    /* label ↔ btn gap 比照 about .class-group-label（bottom: 100% + xs）；left 0 對齊主 btn 左緣 */
-    #courses-content-section .courses-bfa-label {
-      bottom: calc(100% + var(--spacing-xs));
-      left: 0;
-    }
+    #courses-content-section .courses-content-row { gap: 0; }
+    /* 下移 xs 收窄兩列間距＝同 about .mobile-division-wrap（variables.css 直向段） */
     #courses-content-section .inner-scroll-nav-col {
-      position: sticky;
-      top: 112px;
-      z-index: 5;
-      background: var(--theme-bg);
-      transform: translateZ(0);
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--mobile-bar-h) - var(--spacing-xs));
+      z-index: 40;
     }
-    /* 蓋住 viewport 頂 ~T1 的破口（卡片捲過 header 區不露出）；自然流時上溢部分被 section overflow-y:clip 裁掉 */
-    #courses-content-section .inner-scroll-nav-col::before {
-      content: '';
-      position: absolute;
-      bottom: 100%;
-      left: calc(var(--container-padding) * -1);
-      right: calc(var(--container-padding) * -1);
-      height: 114px;
-      background: var(--theme-bg);
+    #courses-content-section .inner-scroll-nav-col.is-div-hidden { visibility: hidden; }
+    #courses-content-section .inner-scroll-nav-col.is-off { pointer-events: none; }
+    /* 上下 sm＝active 旋轉角 clearance（同 about #mobile-division-nav py-sm）；項目間 md、底對齊同 about（#id 蓋 HTML items-start） */
+    #courses-content-section .courses-program-bar {
+      margin: 0;
+      padding: var(--spacing-sm) var(--container-padding);
+      gap: var(--spacing-md);
+      align-items: flex-end;
     }
-    #courses-content-section .courses-mobile-grade-bar {
-      position: sticky;
-      top: var(--courses-grade-top, 216px);   /* = 112 + nav 實高 − 2；JS 量寫（courses-section-switch.js）消 nav↔grade 縫 */
-      z-index: 4;
-      background: var(--theme-bg);
-      transform: translateZ(0);
-      /* nav 帶（z-5、opaque）底緣比 grade bar top 低 → tuck ~4.6px 蓋住 nav↔grade 縫（grade bar 有 overflow、不能靠 ::before 補口）。
-         tuck 會覆掉 active pill 旋轉頂角 → 改把 pill 往下推：top padding 16，旋轉頂角清開 nav 底約 5px（吸收 nav 高度變動）。 */
-      padding-top: var(--spacing-sm);
+    #courses-content-section .courses-program-group {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: var(--spacing-xs);
     }
-    #courses-content-section .courses-grid-mobile {
-      gap: var(--spacing-sm);
+    #courses-content-section .courses-bfa-label { position: static; }
+    /* 必修／選修（英上中下）在左欄、卡片在右欄（user 10-27）：卡片 max-width 100%＝右欄寬（跟手機寬走），
+       放不下的標題照舊 nowrap＋自動 marquee。每列各自一個 grid（subgrid 共用左欄寬＝兩列卡片左緣對齊）：
+       sticky 的約束框＝自己那列 → 標籤釘在 header 帶下（92），捲到列尾被推走、換下一列接手。
+       :not(.hidden)：#id 權重會蓋掉 Tailwind .hidden、非當前年級的 block 跑出來 */
+    #courses-content-section .courses-mobile-grade-block:not(.hidden) {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      column-gap: var(--courses-grid-col-gap);
     }
-    /* label 下 padding 16 併掉 row gap（初始版面不變）：釘住時 bg 延伸到字下 16px，捲過的內容不貼字 */
     #courses-content-section .courses-mobile-row {
-      /* flex-column → block：sticky flex-item 會繞自身高上下震盪（sticky-in-flex quirk）＝捲動時 label 位移。
-         block 下 label 為乾淨 block sticky，配 rowlabelTop 與 grade 同拍 pin、恆保 16px 間距。子項本來就直排，視覺不變。 */
-      display: block;
-      gap: 0;
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+      align-items: start;
     }
     #courses-content-section .courses-mobile-row-label {
       position: sticky;
-      top: var(--courses-rowlabel-top, 285px);   /* = gradeTop + 年級 bar 實高 + 16；label 隨 grade 同拍 pin 不追趕；JS 量寫（courses-section-switch.js） */
-      z-index: 3;
-      align-self: stretch;
-      padding-bottom: var(--spacing-sm);
-      background: var(--theme-bg);
-      transform: translateZ(0);
-    }
-    /* 年級 bar ↔ label 之間 gap 的破口（年級 bar 有 overflow 不能掛 ::before → 蓋補掛在 label 上）。
-       高度 = gap 20 + 4px tuck 進年級 bar 底 + 1px 壓進 label。
-       ⚠️ bottom calc(100% - 1px)：零重疊時 sticky 釘在小數 px 兩塊各自 round 露 1px 縫 → 後方卡片透出；同 nav/年級 bar 的 tuck 重疊手法。 */
-    #courses-content-section .courses-mobile-row-label::before {
-      content: '';
-      position: absolute;
-      bottom: calc(100% - 1px);
-      left: calc(var(--container-padding) * -1);
-      right: calc(var(--container-padding) * -1);
-      height: 25px;
-      background: var(--theme-bg);
-    }
-    /* 卡片 ±2° 旋轉角外溢 ~4-6px：cells 尾端墊 12px → row 收場時 label bg 蓋得住最後一張卡的旋轉角；
-       頂端墊 12px → 第一張卡旋轉角推出 label 的 opaque padding-bottom 區，否則頂角被切平（桌面對應 buffer 在 required-row margin-top） */
-    #courses-content-section .courses-mobile-cells {
-      padding-top: 12px;
-      padding-bottom: 12px;
+      top: 92px;
     }
   }
 
