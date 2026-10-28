@@ -708,27 +708,6 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   border-top: 2px solid var(--lib-fg);
 }
 
-/* opacity transition 只給觸控「ref 展開中」dim 用（桌面 hover dim 已撤）。
-   年份標籤是 sticky bar 帶不透明 --lib-bg 底 → 只淡內層 .year-label-text、bar 底不淡（否則列透進標籤） */
-.award-record-item,
-.year-label-text {
-  transition: opacity var(--dur-fast) ease;
-}
-
-/* 觸控 dim 只在 award ref 展開中生效：item data-ref-open=1、list 容器 data-ref-open、year-block .is-ref-open
-   （library-panels.js setRefOpenFlag；收合動畫完成才移除） */
-@media (hover: none) {
-  #library-awards-list[data-ref-open] .award-record-item:not([data-ref-open="1"]) {
-    opacity: 0.25;
-  }
-  #library-awards-list[data-ref-open] .year-label-text {
-    opacity: 0.25;
-  }
-  #library-awards-list .year-block.is-ref-open .year-label-text {
-    opacity: 1;
-  }
-}
-
 /* ── Files Grid（card layout）────────────────────────────────── */
 .files-grid {
   display: grid;
@@ -1292,11 +1271,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     display: none !important;
   }
 
+  /* 手機固定 16px：<16px focus 會被 iOS Safari 整頁放大（同 activities 搜尋框 lists.css）；!important 蓋 HTML inline xs */
   #library-awards-search,
   #library-press-search,
   #library-files-search,
   #library-album-search {
     min-width: 0 !important;
+    font-size: 16px !important;
   }
 
   /* 桌面 awards list 的 grid-column 偏移在手機（flex column）無意義 → 歸零 */
@@ -1708,45 +1689,162 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     min-width: 0;                          /* min-width:0：容 marquee 裁切 */
   }
 
-  /* Album 手機簡化：row 改 flex column（titles 上／thumbs 下）；thumb 改走 flow（拿掉 absolute），保留 inline rotate */
+  /* Album 手機＝同 press（user 2026-10-27，原「標題下一排橫捲縮圖」）：左標題、右單張縮圖（JS 手機只出第一張，點開 lightbox 照樣看全部），
+     slot／尺寸同 press（寬 5rem、max 5rem×4.5rem 等比）。保留 inline rotate */
   #library-album-list .album-files-item-row {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: var(--spacing-sm) !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    column-gap: var(--spacing-sm) !important;
   }
+  /* min-height 4.5rem＝圖還沒載入就預留列高：載入後不推動下方列（deep-link 捲動中目標才不被推走） */
   #library-album-list .album-thumb-strip-wrap {
-    padding-right: 0 !important;
-    justify-content: flex-start !important;
-    min-height: 0 !important;
-    min-width: 0 !important;   /* 讓 wrap 收斂到 row 寬，strip 才能「溢出捲動」而非把 row 撐寬 */
+    align-self: start;
+    justify-content: flex-end;
+    width: 5rem;
+    min-height: 4.5rem;
   }
-  /* 手機＝單排可 drag 的橫向 scroll strip（觸控原生 drag）。⚠️overflow-y 須顯式 hidden，否則只設 x 會 coerce 成 y:auto。
-     padding 四邊 xs：旋轉縮圖角超出 box，捲動裁切框＝padding box → 四邊都要緩衝（只補左右縱向角會被裁） */
   #library-album-list .album-thumb-strip {
     position: static !important;
-    width: 100% !important;
+    width: auto !important;
     height: auto !important;
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;   /* 縮圖高度不一 → 垂直置中 */
-    gap: var(--spacing-sm) !important;
-    min-width: 0 !important;
-    /* 預留縮圖列完整高度（含上下 padding，border-box）：否則圖 load 後 strip 72→88px，deep-link 捲動中目標被推走、要捲兩次 */
-    min-height: calc(4.5rem + 2 * var(--spacing-xs)) !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    padding: var(--spacing-xs) !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
   }
-  #library-album-list .album-thumb-strip::-webkit-scrollbar { display: none; }
+  /* applyRatio 依桌面 8rem×4.5rem 寫的 inline 寬高 → 蓋回 auto，交給 img max 等比縮 */
   #library-album-list .album-thumb {
     position: static !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: auto !important;
+    width: auto !important;
+    height: auto !important;
     margin: 0 !important;
-    flex-shrink: 0 !important;   /* nowrap 下不被壓縮，內容溢出→strip 橫向捲動 */
+  }
+  #library-album-list .album-thumb img {
+    width: auto !important;
+    height: auto !important;
+    max-width: 5rem;
+    max-height: 4.5rem;
+  }
+}
+
+/* ── 直向手機：工具列全收到灰卡底、英中一行（user 2026-10-27）──
+   由上而下：list →（awards logo ticker）→ 年份 → 分類選項（files／album）→ search＋date → tab bar。
+   年份／search 列＝最低觸控高 44（user 要「最低可點擊的大小」），三列之間不另加 gap、只留各自觸控區的上下空白。
+   min-height:501＝非矮橫向 gate（同 main-modular.js !isLandscapeGate 搬 ticker 的判斷）；矮橫向維持上面的排法 */
+@media (max-width: 767px) and (min-height: 501px) {
+  /* search＋分類 wrapper 拆掉（同 awards right-col）：兩者才能各自排序、夾住年份 */
+  #lib-panel-press > div[style*="grid"] > div:nth-child(2),
+  #lib-panel-files > div[style*="grid"] > div:nth-child(2),
+  #lib-panel-album > div[style*="grid"] > div:nth-child(2) {
+    display: contents !important;
+  }
+  #library-awards-scroll,
+  #library-press-scroll,
+  #library-files-scroll,
+  #library-album-scroll { order: 1 !important; }
+  /* ticker 已搬進內容欄：左右對齊交給內容欄 padding。上補 sm＝下方年份鈕 44 觸控區裡字上面的空白（約 13＋字身留白），
+     上下看起來才等距（不補＝上 8、下約 24） */
+  #library-awards-ticker {
+    order: 2 !important;
+    padding: var(--spacing-sm) 0 0 !important;
+  }
+  #lib-panel-awards > div[style*="grid"] > div:first-child,
+  #lib-panel-press > div[style*="grid"] > div:first-child,
+  #lib-panel-files > div[style*="grid"] > div:first-child,
+  #lib-panel-album > div[style*="grid"] > div:first-child { order: 3 !important; }
+  #library-files-cat-filter,
+  #library-album-cat-filter {
+    order: 4 !important;
+    padding-bottom: 0;
+    margin-top: calc(-1 * var(--spacing-xs));   /* 抵掉內容欄 gap */
+  }
+  /* 一行後鈕只剩 15 高 → 上下 xs 補觸控區（兩行時約 36）；英中空格已由 .cat-btn-en margin-right 0.3em 給 */
+  #library-files-cat-filter .lib-files-cat-btn,
+  #library-album-cat-filter .lib-album-cat-btn { padding: var(--spacing-xs) 0; gap: 0 !important; }
+  /* search 列：高 44、input 撐滿列高＝整列可點；margin 蓋 files／album inline mb:sm＋抵掉內容欄 gap */
+  #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
+  #lib-panel-press > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
+  #lib-panel-files > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
+  #lib-panel-album > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+    order: 5 !important;
+    height: 44px;
+    align-items: stretch !important;
+    margin: calc(-1 * var(--spacing-xs)) 0 0 !important;
+  }
+  #library-card-content [style*="align-items: flex-end"][style*="display: flex"] > div { padding-bottom: 0 !important; }
+  #library-card-content input[id$="-search"] { align-self: stretch; }
+  /* placeholder 字級 s（user 10-27 嫌 16 大）：只縮 placeholder，input 本身保 16＝iOS focus 不整頁放大（上面手機段） */
+  #library-card-content input[id$="-search"]::placeholder { color: var(--lib-fg); font-size: var(--font-size-s); }
+  /* 灰卡到 header：md→sm（user 10-27「再少一點」） */
+  #library-card-main { margin-top: var(--spacing-sm) !important; }
+  /* 卡底 padding 拿掉：search 列 44 自帶的上下空白（icon 距卡底 15）≈ 左右 padding sm */
+  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] { padding-bottom: 0 !important; }
+  /* 年份鈕：高＝44 本身，不再加 padding（原 sm 上下＝約 51） */
+  [id^="library-"][id$="-year-picker"] button,
+  #library-year-picker button { padding-top: 0 !important; padding-bottom: 0 !important; }
+
+  /* award（user 10-27）：主列只留 [國旗][獎名＋得獎人][chevron]；主辦／名次收進 chevron 展開區 .award-detail（ref 之上）。
+     模板依 portraitDetail 出（library-panels.js buildAwardItemHtml）。獎名換行，其餘一行、超過 marquee */
+  #library-awards-list .award-row {
+    grid-template-columns: 1.5em minmax(0, 1fr) 1.5em !important;
+  }
+  /* 獎名→得獎人＝列的上下 padding（sm，user 10-27）；直向 .award-mid 只剩這兩格 */
+  #library-awards-list .award-mid { gap: var(--spacing-sm) !important; }
+  /* 得獎人：多位往右排、gap md；整排超過欄寬＝整排 marquee（JS runMarqueeOverflow 量 .award-mid .award-winners）。
+     動畫掛兩份 copy 不掛 track：上面手機段 track 的 transform:none !important 會壓過 keyframe；
+     play-state 跟 track（離屏暫停 IO 寫在 track inline） */
+  #library-awards-list .award-mid > .award-cell-mask > .award-winners { overflow: hidden !important; }
+  #library-awards-list .award-mid .award-winners-track {
+    flex-direction: row !important;
+    gap: var(--spacing-md) !important;
+    width: max-content !important;
+  }
+  #library-awards-list .award-mid .award-winners.is-overflow .award-winners-track { gap: 0 !important; }
+  #library-awards-list .award-mid .award-winners-track > .marquee-copy {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--spacing-md);
+    padding-right: var(--spacing-md);   /* 兩份接縫＝得獎人間距 */
+  }
+  #library-awards-list .award-mid .award-winners.is-overflow .award-winners-track > .marquee-copy {
+    animation: press-marquee var(--marquee-duration, 8s) linear infinite;
+    animation-play-state: inherit;
+  }
+  #library-awards-list .award-mid .award-winner-pair { width: auto !important; }
+  #library-awards-list .award-mid :is(.award-winner-en, .award-winner-zh) { white-space: nowrap !important; }
+  /* 展開區：主辦／名次，左右對齊主列第 2 欄（row padding sm＋國旗欄 1.5em＋欄距 sm）；結構同得獎人＝手機行級 marquee 自動掃 */
+  #library-awards-list .award-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;   /* 同 .award-mid 格距 */
+    padding: 0 calc(1.5em + 2 * var(--spacing-sm)) var(--spacing-sm);
+  }
+  #library-awards-list .award-detail :is(.award-winner-en, .award-winner-zh) {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+  #library-awards-list .award-detail .award-marquee-inner {
+    display: inline-block !important;
+    white-space: nowrap !important;
+  }
+
+  /* 選項、tab 鈕：英中一行（同 about 直向底 bar） */
+  #library-files-cat-filter .lib-files-cat-btn,
+  #library-album-cat-filter .lib-album-cat-btn,
+  #library-mobile-tabs .anchor-nav-inner {
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: 0.3em;   /* ≈ 一個空白 */
+  }
+
+  /* date：同桌面工具列只顯時間 icon（方向由 icon 表達，setSortIcons 換）。search／date icon 都 20＝桌面工具列 --tool-icon */
+  .library-sort-btn .lib-sort-label,
+  .library-sort-btn .sort-arrow { display: none; }
+  .library-sort-btn .lib-sort-time {
+    display: block;
+    font-size: 20px;
+    width: calc(1em * 204.12 / 184.06);
+  }
+  #library-card-content label.icon-search { font-size: 20px; }
+  /* 觸控區 44×44（高由 search 列撐），icon 貼右＝跟內容右緣對齊 */
+  .library-sort-btn {
+    width: 44px;
+    padding: 0;
+    justify-content: flex-end;
   }
 }

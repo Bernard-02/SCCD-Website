@@ -12,7 +12,7 @@ import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_F
 import { DUR, EASE } from '../ui/motion.js';
 import { revealHidden, navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
-import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 
@@ -897,23 +897,8 @@ export function initPdfViewer() {
     const win   = titleEl.querySelector('.pdf-title-window');
     const track = /** @type {HTMLElement | null} */ (titleEl.querySelector('.pdf-title-track'));
     if (!win || !track) return;
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(track);
-    track.style.transform = '';
-    while (track.children.length > 1) track.removeChild(track.lastElementChild);
-    const unit = /** @type {HTMLElement | null} */ (track.querySelector('.pdf-title-unit'));
-    if (!unit) return;
-    const unitWidth = unit.getBoundingClientRect().width;
-    const winWidth  = /** @type {HTMLElement} */ (win).clientWidth;
-    if (unitWidth <= winWidth + 4) return;
-    const clone = /** @type {HTMLElement} */ (unit.cloneNode(true));
-    clone.style.marginLeft = '24px';
-    track.appendChild(clone);
-    const distance = unitWidth + 24;
-    if (typeof gsap !== 'undefined') {
-      gsap.fromTo(track, { x: 0 }, {
-        x: -distance, duration: Math.max(3, distance / marqueeSpeed()), ease: 'none', repeat: -1,
-      });
-    }
+    const m = prepDualCopy(win, track, '.pdf-title-unit');
+    if (m) playCssMarquee(track, m.distance, m.duration);
   }
 
   function renderBackPill(color) {
@@ -1119,10 +1104,8 @@ export function initPdfViewer() {
     // exitLightboxMode：show bars + 移除 body.lightbox-open → theme-toggle MutationObserver
     // 自動把 logo 切回 standard/inverse/wireframe（依當前 mode）
     exitLightboxMode();
-    // 停 title marquee tween（同 activities-lightbox cleanup）
-    if (typeof gsap !== 'undefined' && titleEl) {
-      titleEl.querySelectorAll('.pdf-title-track').forEach(el => gsap.killTweensOf(el));
-    }
+    // 停 title marquee：凍在當下位置（同 activities-lightbox cleanup）
+    titleEl?.querySelectorAll('.pdf-title-track').forEach(el => { /** @type {HTMLElement} */ (el).style.animationPlayState = 'paused'; });
     return new Promise(resolve => {
       setTimeout(() => {
         SCCDHelpers.releaseHover(heldBtn);

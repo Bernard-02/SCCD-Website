@@ -5,7 +5,7 @@
  * 負責 Awards / Press / Files / Album 四個 panel 的資料載入、渲染、篩選邏輯
  */
 
-import { applyMarqueeOverflow, bindMarqueeReturn, buildSyncedMarqueeTimeline, marqueeSpeed } from '../ui/marquee-overflow.js';
+import { applyMarqueeOverflow, bindMarqueeReturn, buildSyncedMarqueeTimeline, marqueeSpeed, playCssMarquee } from '../ui/marquee-overflow.js';
 import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
 import { countryName } from '../../data/country-names.js';
@@ -1115,6 +1115,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }, true);
 
     // ── 渲染 ──
+    // 直向手機（user 2026-10-27）：主列只出獎名＋得獎人，主辦／名次收進 chevron 展開區（ref 之上）；樣式 library.css 檔尾直向段
+    const portraitDetail = SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate();
     // 每行包 .award-cell-line > .award-cell-inner：矮橫向窄欄 crop 時逐行 marquee 用
     //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
     const cellLine = (txt, weight) =>
@@ -1272,13 +1274,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         </button>`;
     }).join('');
 
-    // 觸控 dim 的容器旗標（library.css (hover:none) 規則吃 #library-awards-list[data-ref-open]＋.year-block.is-ref-open，
-    // 取代舊 :has() 版——:has 錨點失效會拖整表 style 重算）。一次只開一項，旗標直接 set/delete。
-    function setRefOpenFlag(item, on) {
-      if (on) listEl.dataset.refOpen = '1'; else delete listEl.dataset.refOpen;
-      item.closest('.year-block')?.classList.toggle('is-ref-open', on);
-    }
-
     // 收合單一 award ref 手風琴 + 清底色。instant=無動畫（切 panel reset 用）；動畫版＝開新項時先收其他項。
     function collapseAwardItem(item, { instant = false, matchOpen = false } = {}) {
       const wrap = /** @type {HTMLElement | null} */ (item.querySelector('.award-ref-wrap'));
@@ -1287,7 +1282,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       const chevron = item.querySelector('.award-ref-toggle .icon');
       const cleanup = () => {
         delete item.dataset.refOpen;
-        setRefOpenFlag(item, false);
         item.style.removeProperty('--item-color');
         item.style.removeProperty('--item-color-deep');
         item.style.background = '';
@@ -1339,7 +1333,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           const flat = (arr) => arr.map(o => `${o.en} ${o.zh}`).join(' ');
           const searchText = [item.competition_en, item.competition, flat(categories), winnerSearch, flat(ranks), flat(organizers)]
             .filter(Boolean).join(' ').toLowerCase();
-          const hasExpand = refs.length > 0;
+          const detailHtml = portraitDetail && (organizers.length || ranks.length)
+            ? `<div class="award-detail">${organizers.length ? hmarqueeCell(organizersDisplay, ' award-winners-col') : ''}${ranks.length ? hmarqueeCell(ranks, ' award-winners-col') : ''}</div>`
+            : '';
+          const hasExpand = refs.length > 0 || !!detailHtml;
           // 有 ref → pointer cursor（暗示可展開）；無 ref → default
           const cursorStyle = hasExpand
             ? `cursor:var(--cursor-pointer);`
@@ -1347,7 +1344,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // ref 鈕：收合態下 chevron（user 2026-06-22）。chevron-list base 朝左：rotate(-90deg)=朝下、90=上（icon.css 註解上下標反了，以此為準）。
           // 整列可點開合（見下方 click handler），chevron 為視覺提示；點它 bubble 到 item 一樣觸發開合。
           const refBtnHtml = hasExpand ? `
-            <button class="award-ref-toggle" aria-label="Show references"
+            <button class="award-ref-toggle" aria-label="${detailHtml ? 'Show details' : 'Show references'}"
                     style="background:none;border:none;padding:0;color:inherit;cursor:var(--cursor-pointer);line-height:1;">
               <span class="icon icon-chevron-list icon-s" style="transform:rotate(-90deg);"></span>
             </button>` : '';
@@ -1360,7 +1357,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 動畫只動 wrap height，無任何 margin/padding tween，list 總高＝原高＋ref 塊、除插入外零位移。
           const refWrapHtml = hasExpand ? `
             <div class="award-ref-wrap" style="height:0;overflow:hidden;">
-              <div class="flex flex-col">${buildRefRowsHtml(refs, item.id)}</div>
+              <div class="flex flex-col">${detailHtml}${buildRefRowsHtml(refs, item.id)}</div>
             </div>` : '';
           // award-mid 桌面 display:contents → 內 4 cell 落 col 2-5（競賽名稱 / 主辦單位 / 獎項 / 名次）；
           // 手機 flex-column 內部直排。主辦單位插在競賽名稱與獎項之間 = 主表第 3 欄、對齊 ref title 欄。
@@ -1371,6 +1368,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           //   每欄各滑自己的高度＝都從自己框邊進場。遮罩只在揭露期 clip（item 掛 .award-cell-clip，library.css），
           //   平時 visible＝ref chevron 開合旋轉的角不被切。直接烙在模板＝hide 時不必逐列搬 DOM（670 列）。
           //   外層 .award-row 的 clip-reveal-wrapper 是 09-29 整列滑動時的窗，現已不動、保留無害。
+          const winnersCell = `<div class="award-cell-mask"><div class="award-winners award-winners-col flex flex-col${(winners.length === 1 || winners.every(w => w.zh && !w.en)) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div></div>`;
           return `
             <div class="award-record-item py-[0.5rem]${zebra}"
                  style="font-size: var(--font-size-xs);${cursorStyle}"
@@ -1379,10 +1377,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
                 <div class="award-cell-mask"><div style="display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div></div>
                 <div class="award-mid">
                   <div class="award-cell-mask"><div class="truncate flex flex-col award-cell-hover${(item.competition_en && item.competition) ? '' : ' award-cell-center'}" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div></div>
+                  ${portraitDetail ? winnersCell : `
                   <div class="award-cell-mask">${hmarqueeCell(organizersDisplay, ' award-winners-col')}</div>
-                  <div class="award-cell-mask">${hmarqueeCell(ranks, (isSingleLangList(ranks) ? ' award-cell-center' : '') + ' award-winners-col')}</div>
+                  <div class="award-cell-mask">${hmarqueeCell(ranks, (isSingleLangList(ranks) ? ' award-cell-center' : '') + ' award-winners-col')}</div>`}
                 </div>
-                <div class="award-cell-mask"><div class="award-winners award-winners-col flex flex-col${(winners.length === 1 || winners.every(w => w.zh && !w.en)) ? ' award-winners-zh-only' : ''}" style="min-width:0;">${buildWinnersHtml(winners)}</div></div>
+                ${portraitDetail ? '' : winnersCell}
                 <div class="award-cell-mask"><div class="award-ref-cell" style="display:flex;justify-content:flex-end;">${refBtnHtml}</div></div>
               </div></div>
               ${refWrapHtml}
@@ -1501,7 +1500,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             });
             // 開：立刻鎖 accent 底 + deep ref（同 activities proceedOpen）
             item.dataset.refOpen = '1';
-            setRefOpenFlag(item, true);
             const color = item.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
             item.dataset.accentHex = color;
             item.style.background = color;
@@ -1513,7 +1511,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 期間 mouseleave 把底色清掉。
           const onCloseDone = () => {
             delete item.dataset.refOpen;
-            setRefOpenFlag(item, false);
             item.style.removeProperty('--item-color');
             item.style.removeProperty('--item-color-deep');
             if (SCCDHelpers.isDesktopLayout() && item.matches(':hover')) {
@@ -1607,6 +1604,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         // 手機／矮橫向照舊：溢出自動循環（applyMarqueeOverflow 自帶 reset——轉向殘留的兩份 copy 自癒）
         runMarqueeOverflow(scope, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
         runMarqueeOverflow(scope, '.award-cell-line', '.award-cell-inner');
+        // 直向手機得獎人橫排：整排超過欄寬才捲（行級上面那條量不到——每位自然寬、行不溢出）
+        if (portraitDetail) runMarqueeOverflow(scope, '.award-mid .award-winners', '.award-winners-track');
       } else {
         // 桌面（user 2026-09-13）：col 內容溢出 → hover 才捲＋放開平滑回彈（全站慣例 B、hover 單元＝各 cell）。
         // :not(.is-hmarquee) 排除多得獎人橫捲 track（那套自有 hover 行為）→ 必在 applyWinnersHMarquee 之後掃。
@@ -1878,6 +1877,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         track.style.cssText = 'display:flex;gap:var(--spacing-2xl);padding-right:var(--spacing-2xl);flex-shrink:0;align-items:center;';
         shuffled.forEach(src => {
           const img = document.createElement('img');
+          img.decoding = 'async';   // 捲動中陸續載入的 logo 不在主線程同步解碼
           img.src = src; img.alt = 'Award';
           img.style.cssText = 'height:40px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;'; // ticker logo 桌面 40px（user 2026-09-13 終版；手機 30px 在 library.css）
           img.onerror = () => { img.style.display = 'none'; };
@@ -1918,18 +1918,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         if (!trackW) return;
         tickerStarted = true;
         setTimeout(tickerSlideIn, chromeStartRemaining());  // §46：ready 即滑入、只等 chrome 起跑那刻（撤 §42 等整個 busy 窗＝看起來在等 list）
-        if (typeof gsap !== 'undefined') {
-          // 往右捲（user 2026-09-12）：dual-copy 先整體左移一個 track（t2 填滿視窗）再滑回 0＝內容往右、t1 由左緣無縫接入。
-          // ⚠️ 直接把 -= 改 += 會在左緣露空白（左邊沒副本可補）；改用 fromTo(-trackW → 0) 讓另一份副本永遠覆蓋左緣。
-          gsap.fromTo([t1, t2], { x: -trackW }, { x: 0, ease: 'none', duration: trackW / 80, repeat: -1 });
-          // ticker 單純等速跑、無 hover 互動（user 2026-06-09 移除：hover 減速 + hover 圖片 dim 兩效果）
-        } else {
-          // Fallback: 環境沒讀到 GSAP 用 CSS 動畫（同往右：from -trackW → to 0）
-          const style = document.createElement('style');
-          style.textContent = `@keyframes awards-ticker { from { transform: translateX(-${trackW}px); } to { transform: translateX(0); } }`;
-          document.head.appendChild(style);
-          tickerWrapper.style.animation = `awards-ticker ${Math.round(trackW / 80)}s linear infinite`;
-        }
+        // 往右捲（user 2026-09-12）＝reverse：-trackW → 0，另一份副本永遠蓋住左緣（0 往 +trackW 走左緣會露空白）。
+        //   CSS 常駐跑馬燈（user 2026-10-27 手機卡到爆：原 GSAP 每幀在主線程寫）；動 wrapper transform，與進場的 translate 不互踩。
+        //   單純等速跑、無 hover 互動（user 2026-06-09 移除 hover 減速／dim）
+        playCssMarquee(/** @type {HTMLElement} */ (tickerWrapper), trackW, trackW / 80, true);
       };
       const armTicker = () => {
         // 手機：logo 已用 CSS aspect-ratio 預留寬度 → layout 一好（1 rAF）就量得到 trackW，不必等圖載入
@@ -2908,7 +2900,9 @@ async function initAlbumPanel() {
           // thumbnails: 預設只顯示前 3 張（2026-06-01 user 改：「預設 thumbnail 最多 3 張不會全部呈現」）
           // 點進 lightbox 後仍可看完整 media list（lightbox 取 item.media 不受此 slice 影響）
           // 桌面 CSS 仍套舊 absolute stack 視覺，手機 CSS 改 flex-wrap 排成自然 row（library.css album 手機 rule）
-          const thumbMedia = (item.media || []).slice(0, 3);
+          // 手機（<768，同 library.css album 手機段）只出第一張（user 2026-10-27 同 press 單縮圖）：不能 CSS 藏——
+          //   display:none 的 lazy 圖永遠不載，thumbsReady 等全部載好＝整列縮圖永遠不揭
+          const thumbMedia = (item.media || []).slice(0, window.innerWidth < 768 ? 1 : 3);
           const thumbsHtml = thumbMedia.map((m, ti) => {
             const finalDeg = albumThumbDeg();
             const src = m.thumb || m.src;
@@ -3423,19 +3417,21 @@ function slideThumbIn(item) {
     // 零位移也補位移對齊 clip-reveal 語彙。桌面兩型不動（§31 press translate／album 原地 clip 是桌面定案）。
     // translate 個別屬性與 press 縮圖的 inline transform:rotate 疊加共存，揭完清殘值（旋轉凸角還原）。
     if (window.innerWidth < 768) {
-      container.style.transition = 'none';
-      container.style.clipPath = 'inset(100% 0 0 0)';
-      container.style.translate = '0 0.5rem';
+      // album 動那一張縮圖本身（手機只出一張）＝遮罩跟著縮圖轉、同 press；動外層 strip＝直邊遮罩切掉旋轉凸角（user 2026-10-27）
+      const el = /** @type {HTMLElement} */ (isAlbum ? container.querySelector('.album-thumb') || container : container);
+      el.style.transition = 'none';
+      el.style.clipPath = 'inset(100% 0 0 0)';
+      el.style.translate = '0 0.5rem';
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        container.style.transition = `clip-path ${DUR.medium}s ease-out, translate ${DUR.medium}s ease-out`;
-        container.style.clipPath = 'inset(0 0 0 0)';
-        container.style.translate = '0 0';
+        el.style.transition = `clip-path ${DUR.medium}s ease-out, translate ${DUR.medium}s ease-out`;
+        el.style.clipPath = 'inset(0 0 0 0)';
+        el.style.translate = '0 0';
         const done = (e) => {
-          if (e.target !== container || e.propertyName !== 'clip-path') return;
-          container.style.transition = ''; container.style.clipPath = ''; container.style.translate = '';
-          container.removeEventListener('transitionend', done);
+          if (e.target !== el || e.propertyName !== 'clip-path') return;
+          el.style.transition = ''; el.style.clipPath = ''; el.style.translate = '';
+          el.removeEventListener('transitionend', done);
         };
-        container.addEventListener('transitionend', done);
+        el.addEventListener('transitionend', done);
       }));
       return;
     }
@@ -3811,6 +3807,7 @@ function clearStaleReveal(el) {
   //   overflow:clip／透明底 → 一併清（transition 清回 ''＝還原 CSS 的 filter／overlay opacity hover 過渡；同幀清 transform 不會被補間）
   h.querySelectorAll('.album-thumb, .press-item-thumb').forEach(t => {
     /** @type {HTMLElement} */ (t).style.overflow = ''; /** @type {HTMLElement} */ (t).style.background = '';
+    /** @type {HTMLElement} */ (t).style.clipPath = ''; /** @type {HTMLElement} */ (t).style.translate = '';   // 手機揭場動縮圖本身（slideThumbIn）的殘值
     [...t.children].forEach(c => { /** @type {HTMLElement} */ (c).style.transition = ''; /** @type {HTMLElement} */ (c).style.transform = ''; });
   });
   const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) wrap.style.overflow = '';
