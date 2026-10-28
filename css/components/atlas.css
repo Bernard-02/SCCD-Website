@@ -1130,7 +1130,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   line-height: var(--line-height-s);
   /* 藏起＝滑出遮罩左緣外：-24px = 12（clip-margin）+ 12（active inner 旋轉角外溢；只推 -12 會露一條）。
      transition 宣告在目標態：本條掌管退場、下條掌管進場；translate 列在 all 之後覆蓋其 timing */
-  translate: calc(-100% - 24px) 0;
+  translate: var(--tab-hide, calc(-100% - 24px) 0);   /* 四向隨機：atlas.js pickTabHide 寫 --tab-hide（user 2026-10-28） */
   transition: all var(--dur-fast) var(--ease-standard),
               translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
@@ -1165,7 +1165,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   color: black !important;
 }
 
-/* ── 手機版：預設 list view；底部兩層 bar（三顆分類 tab + 最底星雲/list 切換鈕）；直式點星雲顯示轉向提示 #atlas-rotate-hint。
+/* ── 手機版：預設 list view；底部兩層 bar（三顆分類 tab + 最底星雲/list 切換鈕）；直式整頁只顯示轉向提示 #atlas-rotate-hint（見下方直式段）。
    alumni tab = host/employ；faculty/partners 不顯示 col title（calcListPageSize 手機分支同步不扣 TITLEBLOCK_H）── */
 @media (max-width: 767px) {
   .atlas-name {
@@ -1220,7 +1220,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-layout-opt {
     width: 44px;
     height: 44px;
-    font-size: 24px;
+    font-size: 28px;   /* icon 四邊留 8＝同桌面 48／32（user 2026-10-28；同手機 header 鈕 44／28） */
   }
   /* 三顆分類 tab，疊在 layout btn 上方：16 + 48 + 32 呼吸 = 96 */
   #atlas-filter {
@@ -1320,9 +1320,9 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-list-sub-col.is-full {
     justify-content: space-between;
   }
-  /* 直式星雲轉向提示（仿 /create #landscape-overlay）；z 60：蓋過 atlas UI(50)、低於 layout btn(70) */
+  /* 直式轉向提示（仿 /create #landscape-overlay）；z 60：蓋過 atlas UI(50)、低於 layout btn(70)＝切換鈕照樣可點 */
   #atlas-rotate-hint {
-    display: none; /* 由 atlas.js syncMobileMapOrientation 控制 */
+    display: none;   /* 只在直式顯示（下方直式段） */
     position: fixed;
     inset: 0;
     z-index: 60;
@@ -1338,11 +1338,60 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 48px;
   }
   #atlas-rotate-hint .atlas-rotate-hint-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-en-zh-s);
     font-size: var(--font-size-s);
-    line-height: 1.4;
-    white-space: pre-wrap;
+    line-height: var(--line-height-s);
     text-align: left;
     font-weight: var(--font-weight-bold);
+  }
+}
+/* 直式手機不提供星雲（user 2026-10-27/28）：星雲 view 轉向提示蓋滿、切 list 時 atlas.js 設 [hidden]。其他 viewport 一律藏 */
+#atlas-rotate-hint { display: none; }
+@media (max-width: 767px) and (orientation: portrait) {
+  #atlas-rotate-hint { display: flex; }
+  #atlas-rotate-hint[hidden] { display: none; }
+
+  /* ── 直式 list（user 2026-10-28）── */
+  /* 分類 tab 英中一行 */
+  #atlas-filter .atlas-filter-btn .anchor-nav-inner {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.3em;
+  }
+  /* tab↔切換鈕收到 sm：切換鈕頂 62（bottom 18＋44）＋ 16，−4＝#atlas-filter 上下 padding（旋轉餘裕）。
+     右側出血到畫面邊（user 2026-10-28「右邊不需要 padding 遮擋」）：tab 被畫面右緣切、捲到底再由 padding-right 留出 container 邊距 */
+  #atlas-filter {
+    bottom: calc(18px + 44px + var(--spacing-sm) - 4px);
+    right: 0;
+    padding-right: var(--container-padding, 24px);
+  }
+  /* list 底＝tab 頂上 16：tab 底 74＋一行 tab ~36＋16（atlas.js calcListPageSize 直向 fallback 同步） */
+  #atlas-list-view { bottom: 126px; }
+  /* 每筆一列：左名稱、右副標（atlas.js 直向單 sub-col）；過寬照舊 applyListMarquee 跑 marquee。
+     ghost 量高的 item 同結構（第一個子＝名稱、其餘＝副標）；cover 是 absolute、不排進格 */
+  #atlas-list-view .atlas-list-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: var(--spacing-sm);
+    align-content: start;
+    /* 每格貼內容高、不 stretch：名稱行的 .atlas-list-line-clip 是進場遮罩，被撐成整筆高（副標 3 行時）
+       ＝字從下方滑進來時一開始就在遮罩內＝全程看得到位移（user 2026-10-28「遮罩沒做乾淨」） */
+    align-items: start;
+  }
+  #atlas-list-view .atlas-list-item > :first-child { grid-column: 1; grid-row: 1 / span 3; }
+  #atlas-list-view .atlas-list-item > :not(:first-child):not(.atlas-name-cover) { grid-column: 2; }
+  /* alumni＝主持／就職上下兩段（各一列＝各半高）；翻頁箭頭在標題卡那列最右邊（atlas.js 掛欄上、這裡釘右上）→ 欄底不留 chevron 帶 */
+  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) { grid-column: span 2; }
+  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-col-items { padding-bottom: 0; }
+  /* 每段只放得下 2～4 筆：滿頁也靠上排、固定間距（撐開會在矮機兩筆中間空一大塊） */
+  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-sub-col.is-full { justify-content: flex-start; }
+  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) > .atlas-list-nav-item {
+    top: 0;
+    bottom: auto;
+    left: auto;
+    right: 0;
   }
 }
 
@@ -1383,8 +1432,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 #atlas-stage.atlas-dot-mode .atlas-line.atlas-line-highlight {
   stroke-width: calc(1.4px / (var(--atlas-zoom-scale, 1) * var(--atlas-line-scale, 1)));
 }
-/* A/C/em chip text 模式反向縮放：視覺恆 ~12px，zoom 只拉開間距 */
-#atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+/* A/C/em 文字態＝每顆 .atlas-as-text（atlas.js syncTextRegion：過 zoom 門檻＋在畫面內才掛；user 2026-10-27
+   「放大時是區域變成文字、看不到的維持圓點」）——不看 stage 的 .atlas-text-zoom（co chip 字級與 tap 判斷仍用它）。
+   反向縮放：視覺恆 ~12px，zoom 只拉開間距 */
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
   font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
@@ -1395,15 +1446,15 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   transition: opacity 0.25s ease;
 }
 /* 圓點模式（未過 zoom 門檻）：文字隱藏、B chip 底透明（inline 要 !important 蓋） */
-#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
   background-color: transparent !important;
 }
-#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
-#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-en,
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-zh {
   opacity: 0;
 }
 /* view/page 切換的 cover 層在圓點模式會閃整片文字 box 色塊 → 收掉 */
-#atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-cover {
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name-cover {
   display: none;
 }
 /* 圓點本體：畫在 anchor 端（box 起點）而非 box 中心 —— layout clamp 只保證 anchor 在畫面內 */
@@ -1418,6 +1469,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   border-radius: 50%;
   background-color: var(--atlas-chip-c, currentColor);
   pointer-events: none;
+  /* 預設視圖（zoom 1）半透明、放大到 1.5 倍漸回 1（user 2026-10-27）：吃 JS 逐幀寫的 --atlas-line-scale（＝zoom） */
+  opacity: clamp(0.5, calc(var(--atlas-line-scale, 1) - 0.5), 1);
   transition: opacity 0.25s ease;
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor.atlas-side-left:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
@@ -1425,7 +1478,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   right: 0;
   margin: -5px -5px 0 0;
 }
-#atlas-stage.atlas-dot-mode.atlas-text-zoom .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
   opacity: 0;
 }
 
@@ -1433,7 +1486,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* dot 態 A/C/em label opacity:0 但仍佔位、蓋在 co chip 上偷走 elementFromPoint → 關 hit-test。
      直向不套（直向 tap label 直開卡需 hit-test） */
-  #atlas-stage.atlas-dot-mode:not(.atlas-text-zoom) .atlas-anchor:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
+  #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
     pointer-events: none;
   }
   /* ── list view：三顆 tab 進 header 列（logo 右側）、單分類 3 sub-col、alumni 左欄子分頁鈕；tab 顯隱由 JS 控 ── */

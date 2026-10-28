@@ -2702,9 +2702,10 @@ export async function initAtlas(options = {}) {
         textZoomOn = on;
         stage.classList.toggle('atlas-text-zoom', on);
         syncZoomFontVar();   // 門檻交界立即同步（文字浮現那刻字級就是對的）
+        syncTextRegion();
       }
       if (!fontSyncTimer) {
-        fontSyncTimer = setTimeout(() => { fontSyncTimer = null; syncZoomFontVar(); }, 150);
+        fontSyncTimer = setTimeout(() => { fontSyncTimer = null; syncZoomFontVar(); syncTextRegion(); }, 150);
       }
     } else {
       // 桌面 zoom：BOX_PADDING 是 content px、跟內容一起被 zoom 放大 → 高倍時線端離 chip 一大截
@@ -2718,6 +2719,24 @@ export async function initAtlas(options = {}) {
         items.forEach(it => { it._boxPad = pad; });
       }
     }
+  }
+
+  // 文字區域（user 2026-10-27「放大時是區域變成文字、看不到的 item 維持圓點」）：過門檻後只有畫面內（＋邊距）的
+  //   A/C/em 掛 .atlas-as-text（CSS 文字態看它）；pan/zoom 跟 syncZoomFontVar 同一個 150ms 節流重算。
+  //   先全部量完再一次寫 class（讀寫分離，免逐顆 forced reflow）；co chip／D 方塊不參與（本來就常駐字／方塊）。
+  //   量「圓點位置」（span 起點，side-left＝右緣；同 handleTap dotPoint）——span 盒在圓點態不反向縮放、會跟 zoom 放大，
+  //   拿盒子判斷會把畫面外的大盒算進來；chip 往起點的一側長，那側多留一顆 chip 寬（TEXT_CHIP_W）。
+  const TEXT_REGION_PAD = 16, TEXT_CHIP_W = 200;
+  function syncTextRegion() {
+    const r = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };   // 視窗（stage 外溢出的內容照樣看得到）
+    const want = items.map(it => {
+      if (!textZoomOn || !it._span || it.category === 'D') return false;
+      const b = it._span.getBoundingClientRect();
+      const x = it._isSideLeft ? b.right : b.left, y = b.top + b.height / 2;
+      const padL = it._isSideLeft ? TEXT_REGION_PAD : TEXT_CHIP_W, padR = it._isSideLeft ? TEXT_CHIP_W : TEXT_REGION_PAD;
+      return x > r.left - padL && x < r.right + padR && y > r.top - TEXT_REGION_PAD && y < r.bottom + TEXT_REGION_PAD;
+    });
+    items.forEach((it, i) => { if (it._anchor) it._anchor.classList.toggle('atlas-as-text', want[i]); });
   }
 
   // will-change toggle：互動期間 promote layer 保流暢，idle 後移除讓瀏覽器
@@ -3163,6 +3182,17 @@ export async function initAtlas(options = {}) {
   // 提前宣告：手機 introTween 為 null → revealFilters 同步跑，宣告留在 Layout toggle 段會踩 TDZ
   const layoutBtn = $('#atlas-layout-btn');
   const btns = /** @type {HTMLElement[]} */ ([...$$('.atlas-filter-btn')]);
+  // 分類 tab 進退場四向隨機（user 2026-10-28「四周進出」；原一律滑出左緣）：每顆 --tab-hide 記藏起方向（atlas.css），
+  //   完整滑入後才替下一輪重抽——藏著時換向會在遮罩內斜滑過一段＝看得到
+  const TAB_HIDE = ['calc(-100% - 24px) 0', 'calc(100% + 24px) 0', '0 calc(-100% - 24px)', '0 calc(100% + 24px)'];
+  /** @param {HTMLElement} b */
+  const pickTabHide = (b) => b.style.setProperty('--tab-hide', TAB_HIDE[Math.floor(Math.random() * TAB_HIDE.length)]);
+  btns.forEach(b => {
+    pickTabHide(b);
+    b.querySelector('.anchor-nav-inner')?.addEventListener('transitionend', (e) => {
+      if (/** @type {TransitionEvent} */ (e).propertyName === 'translate' && b.classList.contains('atlas-filter-revealed')) pickTabHide(b);
+    });
+  });
   // 桌面：多選 filter（預設全開）；手機：單選分類 tab（預設 faculty）
   const selected = new Set(isMobileAtlas ? ['faculty'] : btns.map(b => b.dataset.filter));
 
@@ -4141,12 +4171,14 @@ export async function initAtlas(options = {}) {
     if (cat === 'faculty') listView.style.setProperty('--list-row1-pad', `${pad}px`);
   }
 
-  // 直向手機 alumni tab：host/employ 左右並排（grid span 1 各半寬）→ 每欄只排單一 sub-col，
-  // chevron nav 各自跨自己那半欄（user 2026-07-06）；CSS 手機 media block grid-column 規則同步。
+  // 直向手機一律單 sub-col（user 2026-10-28：每筆一列＝左名稱、右副標，atlas.css 直式段；原 faculty/partners 兩欄）；
+  // alumni tab＝host/employ 上下兩段（原左右並排）、各自翻頁箭頭在標題卡右邊（build 把 nav 搬進 titleblock）。
   // 橫向 gate 不適用（一次只顯示一個 subgroup、全寬 3 欄）
+  const isMobileSingleSubCol = (/** @type {string} [_cat] */ _cat) => isMobileAtlas && !isLandscapeGateAtlas;
+  // 直向 alumni：翻頁箭頭在標題卡右邊（不佔欄底 chevron 帶）
   /** @param {string} cat */
-  const isMobileSingleSubCol = (cat) => isMobileAtlas && !isLandscapeGateAtlas && (cat === 'host' || cat === 'employ');
-  // 每欄 sub-col 數：直向 alumni=1、橫向 gate=3（user 2026-07-07 三欄 layout）、其餘（直向/桌面）=2
+  const isPortraitAlumniCol = (cat) => isMobileSingleSubCol() && (cat === 'host' || cat === 'employ');
+  // 每欄 sub-col 數：直向=1、橫向 gate=3（user 2026-07-07 三欄 layout）、桌面=2
   /** @param {string} cat */
   const listSubCols = (cat) => isMobileSingleSubCol(cat) ? 1 : (isLandscapeGateAtlas ? 3 : (listSingle ? 1 : 2));
 
@@ -4199,7 +4231,7 @@ export async function initAtlas(options = {}) {
       // 橫向 gate：tab 在 header 列、無底部 bar → top 104 / bottom 12（CSS gate 同步）、titleblock 全隱不扣
       const avail = isLandscapeGateAtlas
         ? window.innerHeight - 104 - 12 - 12
-        : window.innerHeight - 168 - (headerH + 24) - 12;   // 直向：top header+24、bottom 168（CSS 同步，user 2026-07-09 起始抬高+底部拉開）
+        : window.innerHeight - 126 - (headerH + 24) - 12;   // 直向：top header+24、bottom 126（CSS 直式段同步；10-28 tab 一行＋貼近切換鈕，原 168）
       const isAlumniCol = !isLandscapeGateAtlas && (cat === 'host' || cat === 'employ');
       const colH = avail;
       // chevron 改跨整欄貼底（同桌面，user 2026-07-03）→ items 區扣 chevron 帶，最後一排不壓到 nav
@@ -4209,9 +4241,10 @@ export async function initAtlas(options = {}) {
       // 會白白少排一行）；欄 display:none 量到 0 → fallback 公式（tab 首次切到該欄時會重 render 再量）
       const itemsBox = col ? /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-items')) : null;
       const realBoxH = itemsBox ? itemsBox.clientHeight : 0;
+      const band = isPortraitAlumniCol(cat) ? 0 : CHEVRON_BAND_MOBILE;   // 直向 alumni 箭頭在標題卡旁
       const containerH = realBoxH > 0
-        ? realBoxH - CHEVRON_BAND_MOBILE
-        : colH - (isAlumniCol ? TITLEBLOCK_H : 0) - CHEVRON_BAND_MOBILE;
+        ? realBoxH - band
+        : colH - (isAlumniCol ? TITLEBLOCK_H : 0) - band;
       const itemH = ITEM_H_PER_CAT[cat] || 84;
       // 行數以「全分類最高 item + 固定 gap」估最壞情況（rows*(h+g) ≤ C+g）→ 自然高排列永不溢出；
       // gap 固定 = 視覺間距每頁、每 item 一致（不再依 leftover 均分）
@@ -4462,7 +4495,9 @@ export async function initAtlas(options = {}) {
     function build(enterDirsHint) {
       // 翻頁／重排沿用同一顆 nav 鈕、不重建（user 2026-10-20「hover next 鈕不動會閃一下」）：在游標下重生的新鈕
       // 要等滑鼠動了瀏覽器才判 :hover → 停著不動＝先黑一幀再變回 hover 色。只換子欄，nav 留在 DOM 原地
-      let navItem = /** @type {HTMLElement|null} */ (itemsEl.querySelector(':scope > .atlas-list-nav-item'));
+      let navItem = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item'));
+      // 直向 alumni：箭頭掛欄本身、CSS 釘欄右上（標題卡那列最右邊；不放進 titleblock＝它整塊微傾、右端會上下偏）；其餘貼欄底（itemsEl）
+      const navHost = isPortraitAlumniCol(cat) ? col : itemsEl;
       evacuateListNodes(itemsEl);   // 單一節點：先撤回星雲 anchor，清子欄才不會炸掉節點
       itemsEl.querySelectorAll(':scope > .atlas-list-sub-col').forEach(sc => sc.remove());
 
@@ -4524,9 +4559,9 @@ export async function initAtlas(options = {}) {
       }
 
       // nav 在 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）；子欄插在它前面
-      subCols.forEach(sc => itemsEl.insertBefore(sc, navItem.isConnected ? navItem : null));
+      subCols.forEach(sc => itemsEl.insertBefore(sc, navItem.parentElement === itemsEl ? navItem : null));
       if (isNewNav) {
-        itemsEl.appendChild(navItem);
+        navHost.appendChild(navItem);
         // 新鈕（首次建欄）可能就位於游標下：等假 mouseenter 補發過去（次幀）才落旗、才綁 hover 隨機三原色
         listNavReparenting = true;
         requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; bindNavBtnHover(nextBtn); }));
@@ -5273,6 +5308,12 @@ export async function initAtlas(options = {}) {
       if (isMobileAtlas) {
         // 手機：單選 tab 切換 list 分類（無 map view，點已選中的 tab 不動作）
         if (!k || selected.has(k)) return;
+        // tab 列可左右滑：點到的捲到畫面中間（同 about／activities 手機 nav strip；user 2026-10-28）。
+        //   以畫面中線為準：直式 tab 列左留 container padding、右出血到畫面邊，列自己的中線偏右
+        if (filterEl) {
+          const r = b.getBoundingClientRect();
+          filterEl.scrollTo({ left: filterEl.scrollLeft + (r.left + r.width / 2) - window.innerWidth / 2, behavior: 'smooth' });
+        }
         selected.clear();
         selected.add(k);
         apply(true);
@@ -5281,8 +5322,11 @@ export async function initAtlas(options = {}) {
           const colEl = /** @type {HTMLElement} */ (col);
           if (colEl.style.display === 'none') return;
           const cat = /** @type {string} */ (colEl.dataset.category);
+          // 首次顯示的欄：build 的 rAF 會量實高重排並自己重播進場 → 這裡的進場延後起跑（只先藏起），
+          //   否則跑了 ~80ms 被重排打斷、從頭再來＝半路閃一下（user 2026-10-28）
+          const firstShow = !colEl.dataset.measured;
           renderListPage(colEl, cat, listPageState[cat] || 0, true);
-          playColEnterAnim(colEl, cat, 0);
+          playColEnterAnim(colEl, cat, firstShow ? 0.15 : 0);
         });
         return;
       }
@@ -6414,11 +6458,14 @@ export async function initAtlas(options = {}) {
 
   // ── 手機星雲模式（user 2026-06-12）──────────────────────────────
   // map 佈局是 init 時以當下尺寸算的（不隨 resize 重排，桌面同樣行為），整片置中可平移視角，先以可瀏覽為準。
+  // 直式不提供星雲（user 2026-10-27/28，推翻 07-09「直向也走圓點星雲」）：直式 map view＝轉向提示蓋著（CSS 直式才顯示）、
+  //   stage 收起＝停 float rAF；左下切換鈕照留、list 照常可看（switchToMobileList 設 hidden）。跨 gate 轉向由 orientation-reload 重載。
+  //   提示元素只在 atlas 頁 HTML（待機 overlay 沒有）→ 待機照走星雲。
+  const rotateHint = $('#atlas-rotate-hint');
   function syncMobileMapOrientation() {
     if (!isMobileAtlas || currentView !== 'map') return;
-    // 直向手機也走圓點星雲（user 2026-07-09「atlas 做成跟橫向手機一樣」）→ 不再顯示轉向提示，
-    // 直向/橫向 map view 一律顯示 stage。跨 gate 轉向仍由 orientation-reload 重載重排。
-    stage.style.display = '';
+    if (rotateHint) rotateHint.hidden = false;
+    stage.style.display = (isPortraitDotAtlas && rotateHint) ? 'none' : '';
     refreshFloatRunning();
   }
 
@@ -6500,6 +6547,7 @@ export async function initAtlas(options = {}) {
   function switchToMobileList() {
     if (currentView === 'list') return;
     currentView = 'list';
+    if (rotateHint) rotateHint.hidden = true;
     // 星雲出場（user 2026-07-07）：stage 顯示中 chip clip 收 + 城市線退場，跑完才切 list（直向手機也走星雲，
     // 2026-07-09 拿掉 isLandscape() gate＝直向橫向都有出場）。clipPath 殘留由回程進場動畫重設。
     if (typeof gsap !== 'undefined' && stage.style.display !== 'none') {
