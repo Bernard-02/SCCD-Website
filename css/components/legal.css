@@ -22,25 +22,22 @@
     padding-bottom: var(--spacing-3xl);
     /* 不加 padding-left：靠 site-container 的 gutter 對齊整頁基線 */
   }
-  /* 真桌面左下「當前頁」卡（navigation.css #page-indicator）已顯示頁名 → 標題 chip 視覺隱藏。
-     不用 display:none：h1 留給讀屏／SEO；hero-animation 照常建進退場、hero done 訊號照發。
-     其他 viewport 沒有當前頁卡 → chip 照舊當頁名。gate 同 navigation.css 當前頁卡 */
-  @media (min-width: 1024px) and (min-height: 501px) {
-    .legal-title-block {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
-  }
-
+  /* 標題 chip 全尺寸視覺隱藏：真桌面左下「當前頁」卡（navigation.css #page-indicator）已顯示頁名；
+     手機排版（直向／矮橫向／iPad）user 2026-10-29 要求拿掉。
+     不用 display:none：h1 留給讀屏／SEO；hero-animation 照常建進退場、hero done 訊號照發。 */
   .legal-title-block {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-xs);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  /* 手機排版＝非真桌面：標題欄不佔版位（display:contents＝欄框消失、隱藏的 h1 照留），內文滿欄。
+     真桌面左欄照留＝內文從 col-4 起（同 activities / admission） */
+  @media not all and (min-width: 1024px) and (min-height: 501px) {
+    .legal-title-col { display: contents; }
+    .legal-page-section .legal-content-col { grid-column: 1 / -1; }
   }
 
   /* 右欄：normal flow，padding-top/bottom 留呼吸；內文長度決定整 section 高度 → sticky range */
@@ -75,15 +72,9 @@
     .legal-content-col::-webkit-scrollbar { display: none; }
   }
 
-  /* 長標題變體（REGULATIONS）：chip 旋轉後右下角超出 col 5 蓋到右欄第一行 → 左加 padding 避位
-     （旋轉由 hero-animation.js 給 [data-hero-hl]） */
-  .legal-regulations .legal-content-col {
-    padding-left: var(--spacing-4xl);
-  }
-  /* 真桌面標題 chip 已隱藏 → 不需避位；內容欄＝col 4–18（HTML min-[1024px]:），左緣貼 col-4，同 activities / admission。gate 同 chip 隱藏。 */
+  /* 真桌面：內容欄＝col 4–18（HTML min-[1024px]:），左緣貼 col-4，同 activities / admission。 */
   @media (min-width: 1024px) and (min-height: 501px) {
     .legal-page-section .legal-content-col {
-      padding-left: 0;
       --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（同 curriculum/activities/admission） */
     }
     /* sitemap 卡片貼 col-4 且帶旋轉 → 角落凸出內捲框（overflow:auto）被裁：
@@ -116,32 +107,6 @@
     }
   }
 
-  /* chip 預設綠底＝hero-animation.js 對 [data-hero-hl] 設 inline 隨機 accent 前的保底（否則 mode-inverse 黑字 on 黑底看似空白）。
-     width:max-content 讓 chip 嚴格 hug 文字寬（否則 wrapper 撐滿欄寬、右側 padding 看似過大） */
-  .legal-title-block .hero-title,
-  .legal-title-block .hero-title-cn {
-    background: var(--color-green);
-    padding: var(--spacing-xs) 0.6rem;
-    line-height: 1.05;
-    width: max-content;
-    max-width: 100%;
-  }
-
-  /* 桌面：chip 每次進頁隨機傾角＋水平推右（legal-title-random.js 設 var 於 .legal-title-block；未設時用 fallback 固定角度）。
-     (0,2,0) 蓋過 hero.css 全域 .hero-title-wrapper (0,1,0)。stack 版沿用 hero.css 基礎角度。gate 同上方 frame 區塊，legal-title-random.js 同式。 */
-  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
-    .legal-title-block .hero-title-wrapper {
-      transform: rotate(var(--legal-rot-en, -4deg));
-      margin-left: var(--legal-shift-en, 0px);
-      /* 旋轉後兩 chip 右端互相靠近會相疊 → JS 依角度算需要的垂直 gap 撐開（套在上方 EN wrapper） */
-      margin-bottom: var(--legal-gap, 0px);
-    }
-    .legal-title-block .hero-title-cn-wrapper {
-      transform: rotate(var(--legal-rot-cn, 3deg));
-      margin-left: var(--legal-shift-cn, 0px);
-    }
-  }
-
   /* clip-reveal 遮罩：包單一可動行（num / title / 副標 / 說明），yPercent 進退場。overflow-y:clip 當遮罩、overflow-x:visible 不橫裁（同 setupClipReveal 慣例）。
      setupClipReveal 偵測父層已 clip 就不 reparent。 */
   .legal-reveal {
@@ -149,23 +114,11 @@
     overflow-x: visible;
   }
 
-  /* 手機＋直放 768–1023：取消 sticky，title 與內文 stack flow、高度回 auto。
+  /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）→ 內文頂＝header 高＋3xl 呼吸（＝原標題 chip 起點）。
      768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
   @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-    .legal-title-col {
-      position: static;
-      height: auto;
-      justify-content: flex-start;
-      padding-bottom: var(--spacing-xl);
-      /* padding-top 含 header 高度＋呼吸，否則 chip 進場 yPercent reveal 起點在 viewport 頂被 logo 遮住 */
-      padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
-    }
     .legal-content-col {
-      padding-top: var(--spacing-xl);
-    }
-    /* stack 下 chip 不壓內文，取消桌面的 pl 避位 */
-    .legal-regulations .legal-content-col {
-      padding-left: 0;
+      padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
     }
   }
 
@@ -469,7 +422,7 @@
     align-items: flex-start;
     min-width: 0;
   }
-  .legal-map-pgroup { padding: var(--spacing-md) var(--spacing-sm); }   /* 左右 sm＝legal 手風琴列 px-sm */
+  .legal-map-pgroup { padding: var(--spacing-sm); }   /* 四邊 sm＝legal 手風琴列 px-sm py-sm、全尺寸共用（user 2026-10-29 上下同左右） */
   .legal-map-pgroup:nth-child(odd) {
     --zb-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
     background-color: var(--zb-color);
@@ -477,14 +430,12 @@
   body.mode-color .legal-map-pgroup:nth-child(odd) { --zb-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)); }
   .legal-map-subs { align-self: stretch; }   /* 寬＝組寬 → 卡片 max-width:100% 有明確基準 */
   @media (min-width: 768px) {
-    /* 一組一列＝一條斑馬帶：組自己是 4 等寬欄 grid（col1＝主卡、後 3 欄＝分頁卡）。各組同寬同 padding＝欄線跨組對齊；
-       組上下 padding lg＝相鄰兩組卡片距 2xl（＝原本的組間列距） */
+    /* 一組一列＝一條斑馬帶：組自己是 4 等寬欄 grid（col1＝主卡、後 3 欄＝分頁卡）。各組同寬同 padding＝欄線跨組對齊 */
     .legal-map-pgroup {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       column-gap: var(--spacing-md);
       align-items: start;
-      padding: var(--spacing-lg) var(--spacing-sm);
     }
     .legal-map-pgroup > .legal-map-card { grid-column: 1; }
     /* 分頁區 3 欄（column-gap 同外層 → 欄線跟外層 4 欄對齊）：每張卡佔幾欄由 JS layoutMapCards 依貼字寬回寫 span，裝不下自動換列 */
@@ -557,16 +508,11 @@
   .legal-map-card .courses-grid-card-en,
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
 
-  /* ── 直放 768–1023（矮橫向除外）：stack flow 專屬補丁 ──
-     ① grid 欄佔滿：HTML md:col-span-5/7 從 768 起跳，此區間蓋回 12 欄（(0,2,0) 贏 utility (0,1,0)）
-     ② 展開 list header 釘 96px＝list-accordion.js getListStickyTop 在 box 不可捲時回 96，兩處同步；0–92px 由 navigation.css .mobile-header-bg 白帶接住
+  /* ── 直放 768–1023（矮橫向除外）：stack flow 專屬補丁 ──（grid 欄佔滿已併進檔頭「手機排版」規則）
+     ① 展開 list header 釘 96px＝list-accordion.js getListStickyTop 在 box 不可捲時回 96，兩處同步；0–92px 由 navigation.css .mobile-header-bg 白帶接住
      （lists.css 桌面段 fallback 200px 太低故必須蓋）
-     ③ 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
+     ② 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
   @media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-    .legal-page-section .legal-title-col,
-    .legal-page-section .legal-content-col {
-      grid-column: 1 / -1;
-    }
     /* 中和 lists.css 通用 `.inner-scroll-scroll-col`（min-768 幀高+overflow:auto）：此區間無 frame、
        整頁 window 捲。⚠️ overflow 兩軸都要回 visible（單軸 hidden 會把另軸 visible 算成 auto→
        getScrollableBox 誤判 box 可捲、accordion 捲動走錯層）。 */

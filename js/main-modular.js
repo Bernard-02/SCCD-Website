@@ -20,7 +20,6 @@ import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-a
 import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { loadHero } from './modules/pages/hero-source.js';
-import { initLegalTitleRandom } from './modules/pages/legal-title-random.js';
 import { initShareModal } from './modules/ui/share-modal.js';
 import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-helpers.js';
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
@@ -138,6 +137,21 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   const seq = lazySeq;
   const alive = () => seq === lazySeq;
 
+  // 矮橫向 nav chip 在 header 帶、各頁 init 才 gsap.set 藏起——動態 import 晚於換頁後第一次繪製，下載那幾十～幾百 ms
+  // chip 會露在 hero 上（user 2026-10-29「換頁 nav btn 閃一下」）→ 這裡同步先藏，init 再用各自的隨機方向接手。
+  // 只列 init 會藏、之後靠 bindLandscapeNavGate／anchor-nav 揭的那組（alumni 初始可見＝不列；減少動態時各頁不藏＝這裡也不藏）
+  const LANDSCAPE_NAV_CHIPS = {
+    about: '#anchor-nav .anchor-nav-inner',
+    faculty: '.faculty-filter-btn .anchor-nav-inner',
+    curriculum: '.courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner',
+    activities: '.activities-section-bar .activities-section-btn .anchor-nav-inner',
+    admission: '.activities-section-btn .anchor-nav-inner',
+  };
+  if (LANDSCAPE_NAV_CHIPS[page] && SCCDHelpers.isLandscapeGate() && !prefersReducedMotion()) {
+    document.querySelectorAll(`#page-content :is(${LANDSCAPE_NAV_CHIPS[page]})`)
+      .forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = 'inset(0% 0% 100% 0%)'; });
+  }
+
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
   applyModeForPage(page);
@@ -186,9 +200,6 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     } else {
       document.addEventListener('header:ready', initHeroAnimation, { once: true });
     }
-    // legal-page 左欄大標題 chip 隨機傾角 + 水平位移（自我守衛：無 .legal-title-block 即 return）。
-    // 設 CSS var 在 .legal-title-block 上即可，不需等 hero wrapper 生成（wrapper 之後繼承讀 var）。
-    initLegalTitleRandom();
   }
 
   // --- Index Page ---
