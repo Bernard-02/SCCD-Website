@@ -116,7 +116,7 @@ function ensurePdfModal() {
            rotate 的 transform-origin = center（繞中心旋轉；原 left bottom 會讓寬 title 右端下沉 ~15-19px、把 share 拽得看起來低一截、跟 back 不在同一線，user 2026-08-20 改中心。
            media lightbox 同步改，見 activities-lightbox）-->
       <button class="pdf-back-btn absolute" style="top: 50%; transform: translateY(-50%); left: var(--container-padding, 1.5rem); z-index: 50;">
-        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
+        <span class="pdf-back-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
           <span class="icon icon-arrow-left icon-m"></span>
         </span>
       </button>
@@ -125,7 +125,7 @@ function ensurePdfModal() {
            data-share-url 由 open-pdf handler 設、全站 share-modal.js [data-share-btn] delegation 接管（QR + 複製）。
            圖示＝icon-share（與 album share btn、畢業展詳情頁分享鈕一致，user 2026-10-21）。-->
       <button class="pdf-share-btn absolute" data-share-btn aria-label="分享 Share" style="top: 50%; transform: translateY(-50%); left: 4rem; z-index: 50; display: none;">
-        <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
+        <span class="pdf-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);transform-origin:center;box-sizing:border-box;">
           <span class="icon icon-share"></span>
         </span>
       </button>
@@ -290,6 +290,7 @@ export function initPdfViewer() {
   const fitScale    = () => 1;
   const actualScale = () => { const r = getFitRatio(); return r > 0 ? 1 / r : 1; };
   function minScale() {
+    if (SCCDHelpers.isMobileLayout()) return fitScale();   // 手機 pinch 縮小最多到整頁（user 2026-10-29）；上限不變
     const r = getFitRatio();
     if (r <= 0) return 1;
     return Math.min(fitScale(), MIN_PCT / r);
@@ -931,32 +932,19 @@ export function initPdfViewer() {
     shareBtnEl.dataset.shareBg = pillBg;
   }
 
-  // title pill 高度由 EN+ZH 兩行自然撐，back/ref pill follow title 高度（user 2026-06-01 拍板）
-  // 之前曾嘗試 back/ref 鎖 44×44 但同 viewer 內 back 比 title 矮太多視覺不協調 → 改回 sync
-  // width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
-  //   兩行（h≥44）→ 維持 44 寬（高>寬、跟著 title 拉長）。避免單行時 44寬×33高 變橫向矩形被壓扁。
-  // title 隱藏時 reset 回預設 44×44 正方形（顯式寫 '44px' 不用 ''，否則連 HTML inline 預設一起清掉 → 變 icon 高）
+  // 底部列高（--lb-btn-h）＝title pill 自然高（EN+ZH 兩行；lightbox.css 真桌面底部列，同 album 縮圖列）。
+  // back／ref／share 不再跟 title 同高（06-01～10-29 sync）：固定全站 icon 鈕尺寸 --lb-icon-btn、對齊 title 中線（user 2026-10-29；
+  //   各自 absolute → lightbox.css 用 --lb-btn-h 補半個高差）
   function syncBackBtnHeight() {
     if (!backPill) return;
-    const refPill = /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'));
     const pill = titleEl && titleEl.querySelector('.pdf-title-pill');
     if (!pill || titleEl.style.display === 'none') {
-      backPill.style.height = '44px'; backPill.style.width = '44px';
-      if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
-      if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
-      modal.style.setProperty('--lb-btn-h', '44px');
+      modal.style.setProperty('--lb-btn-h', 'var(--lb-icon-btn, 44px)');
       return;
     }
     // offsetHeight 含 padding，跟 visual bbox 一致（rotation 不影響 offsetHeight）
     const h = /** @type {HTMLElement} */ (pill).offsetHeight;
-    // 底部列高＝左側鈕高（lightbox.css 真桌面底部列，同 album 縮圖列）
     if (h > 0) modal.style.setProperty('--lb-btn-h', `${h}px`);
-    if (h > 0) {
-      const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
-      backPill.style.height = h + 'px'; backPill.style.width = w + 'px';
-      if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
-      if (sharePillEl) { sharePillEl.style.height = h + 'px'; sharePillEl.style.width = w + 'px'; }
-    }
   }
 
   // 三 pill 統一 gap：back ↔ ref ↔ title 都 PILL_GAP 像素

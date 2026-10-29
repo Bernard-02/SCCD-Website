@@ -322,13 +322,20 @@ function makeScrollPager(wrap, col, getItems, labels) {
 }
 
 // 分類選項框（桌面年份欄頂的 .lib-cat-group，main-modular.js 包的）：上／下一批 chevron＋reset，同年份欄（user 2026-10-19）。
-// 回傳 reset 鈕（caller 依有無選取顯隱）；手機／矮橫向沒有 group＝null
+// 回傳 reset 鈕（caller 依有無選取顯隱）
 function attachCatPager(catEl, onReset) {
-  const group = catEl?.parentElement;
-  if (!group?.classList.contains('lib-cat-group')) return null;
+  if (!catEl) return null;
+  const group = catEl.parentElement;
+  const btn = makeResetBtn('重設分類篩選 Reset category filter', onReset);
+  // 手機／矮橫向沒有 group（分類是橫捲 bar）：reset 當 bar 最後一顆釘右緣，同手機年份 reset（attachYearReset；user 2026-10-29）
+  if (!group?.classList.contains('lib-cat-group')) {
+    catEl.querySelector(':scope > .year-reset-btn')?.remove();
+    btn.style.cssText = 'order:1;position:sticky;right:0;flex:none;align-self:stretch;padding:0 0 0 var(--spacing-sm);background:var(--lib-bg);border:none;color:var(--lib-fg);cursor:var(--cursor-pointer);will-change:transform;display:none;';
+    catEl.appendChild(btn);
+    return btn;
+  }
   group.querySelectorAll(':scope > .year-less-btn, .year-more-btn, :scope > .year-reset-slot, .year-more-end')
     .forEach(el => { /** @type {any} */ (el)._io?.disconnect(); el.remove(); });
-  const btn = makeResetBtn('重設分類篩選 Reset category filter', onReset);
   const { up, more, sync } = makeScrollPager(catEl, group, () => catEl.querySelectorAll(':scope > button'),
     { more: '下一批分類 More categories', less: '上一批分類 Previous categories' });
   const moreBox = /** @type {HTMLElement} */ (more.firstElementChild);
@@ -356,6 +363,9 @@ function attachCatPager(catEl, onReset) {
   };
   const ro = new ResizeObserver(fit);
   ro.observe(catEl);
+  // 選項本身也盯：框被 max-height 夾住時，字體／後台標籤晚到改的是內容高、框不變＝框的 RO 不觸發 →
+  //   chevron 卡在顯示（到底＝灰）而選項其實放得下（user 2026-10-29）
+  catEl.querySelectorAll(':scope > button').forEach(b => ro.observe(b));
   registerPageCleanup(() => ro.disconnect());
   return btn;
 }
@@ -1919,9 +1929,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         tickerStarted = true;
         setTimeout(tickerSlideIn, chromeStartRemaining());  // §46：ready 即滑入、只等 chrome 起跑那刻（撤 §42 等整個 busy 窗＝看起來在等 list）
         // 往右捲（user 2026-09-12）＝reverse：-trackW → 0，另一份副本永遠蓋住左緣（0 往 +trackW 走左緣會露空白）。
-        //   CSS 常駐跑馬燈（user 2026-10-27 手機卡到爆：原 GSAP 每幀在主線程寫）；動 wrapper transform，與進場的 translate 不互踩。
+        //   CSS 常駐跑馬燈（user 2026-10-27 手機卡到爆：原 GSAP 每幀在主線程寫）；動 t1/t2 不動 wrapper——wrapper 是
+        //   overflow:hidden 的裁切窗，動它＝窗一起被推出畫面、logo 全看不見（10-29）。與 wrapper 進場的 translate 不互踩。
         //   單純等速跑、無 hover 互動（user 2026-06-09 移除 hover 減速／dim）
-        playCssMarquee(/** @type {HTMLElement} */ (tickerWrapper), trackW, trackW / 80, true);
+        [t1, t2].forEach(t => playCssMarquee(t, trackW, trackW / 80, true));
       };
       const armTicker = () => {
         // 手機：logo 已用 CSS aspect-ratio 預留寬度 → layout 一好（1 rAF）就量得到 trackW，不必等圖載入
@@ -3349,8 +3360,8 @@ function awardTextEls(el) {
 // 「載好就 pop」→ 改：出生帶 .thumb-reveal-pending（visibility:hidden），圖 ready＋可見才滑。兩條觸發路徑：
 //   ①entrance/replay：playAwardItem 呼叫——圖已 cached 時（revisit/filter 重播）isPanelRevealing 期間 defer 到色塊揭完才滑
 //     ＝分階段（色塊→文字→圖片）不被 box clip 遮住方向；②lazy 圖晚到：img load handler 呼叫，此時色塊早揭完→直接清楚滑入。
-// container＝帶 .thumb-reveal-pending 的那層（album strip／press 縮圖框）；桌面實際滑動見 slideInOwnBox（縮圖自框當窗），
-// 手機分支整個 container clip-path 由下往上。wrap 目前只剩手機/舊殘值清理用。
+// container＝帶 .thumb-reveal-pending 的那層（album strip／press 縮圖框）；實際滑動見 slideInOwnBox（縮圖自框當窗，手機同）。
+// wrap 目前只剩舊殘值清理用。
 function thumbSlideParts(item) {
   if (item.classList.contains('album-panel-item'))
     return { container: /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip')), wrap: /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip-wrap')), rest: '' };
@@ -3412,30 +3423,8 @@ function slideThumbIn(item) {
   const isAlbum = item.classList.contains('album-panel-item');
   const doSlide = () => {
     container.classList.remove('thumb-reveal-pending');
-    // 手機（<768，user 2026-09-10）：press/album 縮圖一律「box 內 clip reveal（帶位移）」由下往上揭——
-    // press 桌面那套畫外 translate 在手機窄版會飛越標題區／從灰卡右緣進來（穿幫）；album 純 clip-path
-    // 零位移也補位移對齊 clip-reveal 語彙。桌面兩型不動（§31 press translate／album 原地 clip 是桌面定案）。
-    // translate 個別屬性與 press 縮圖的 inline transform:rotate 疊加共存，揭完清殘值（旋轉凸角還原）。
-    if (window.innerWidth < 768) {
-      // album 動那一張縮圖本身（手機只出一張）＝遮罩跟著縮圖轉、同 press；動外層 strip＝直邊遮罩切掉旋轉凸角（user 2026-10-27）
-      const el = /** @type {HTMLElement} */ (isAlbum ? container.querySelector('.album-thumb') || container : container);
-      el.style.transition = 'none';
-      el.style.clipPath = 'inset(100% 0 0 0)';
-      el.style.translate = '0 0.5rem';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        el.style.transition = `clip-path ${DUR.medium}s ease-out, translate ${DUR.medium}s ease-out`;
-        el.style.clipPath = 'inset(0 0 0 0)';
-        el.style.translate = '0 0';
-        const done = (e) => {
-          if (e.target !== el || e.propertyName !== 'clip-path') return;
-          el.style.transition = ''; el.style.clipPath = ''; el.style.translate = '';
-          el.removeEventListener('transitionend', done);
-        };
-        el.addEventListener('transitionend', done);
-      }));
-      return;
-    }
-    // 桌面 album（每張 .album-thumb）／press（.press-item-thumb）：縮圖自己的框當窗、隨機四向滑入（slideInOwnBox）
+    // album（每張 .album-thumb）／press（.press-item-thumb）：縮圖自己的框當窗、隨機四向整張滑入（slideInOwnBox）。
+    //   手機同桌面（user 2026-10-29：原手機分支 clip-path 擦除＋0.5rem 微滑＝少了位移；自框當窗不會飛越標題，09-10 擔心的穿幫已不存在）
     if (isAlbum) container.querySelectorAll('.album-thumb').forEach(t => slideInOwnBox(/** @type {HTMLElement} */ (t)));
     else slideInOwnBox(container);
   };
@@ -3807,7 +3796,6 @@ function clearStaleReveal(el) {
   //   overflow:clip／透明底 → 一併清（transition 清回 ''＝還原 CSS 的 filter／overlay opacity hover 過渡；同幀清 transform 不會被補間）
   h.querySelectorAll('.album-thumb, .press-item-thumb').forEach(t => {
     /** @type {HTMLElement} */ (t).style.overflow = ''; /** @type {HTMLElement} */ (t).style.background = '';
-    /** @type {HTMLElement} */ (t).style.clipPath = ''; /** @type {HTMLElement} */ (t).style.translate = '';   // 手機揭場動縮圖本身（slideThumbIn）的殘值
     [...t.children].forEach(c => { /** @type {HTMLElement} */ (c).style.transition = ''; /** @type {HTMLElement} */ (c).style.transform = ''; });
   });
   const wrap  = /** @type {HTMLElement|null} */ (h.querySelector('.album-thumb-strip-wrap, .press-item-thumb-wrap')); if (wrap) wrap.style.overflow = '';

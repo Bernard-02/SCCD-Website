@@ -208,14 +208,16 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       let cy = Math.max(cyMin, Math.min(cyMax, gCy + by));
       // bbox 落進左下當前頁卡區 → 先抬到卡區上方；太高抬不上去就換貼右 padding（仍貼邊）
       const inZone = () => zone && cx - fBW/2 < zone.r && cy + fBH/2 > zone.t;
+      let flipped = false;
       if (zone && inZone()) {
         if (zone.t - fBH/2 >= cyMin) cy = zone.t - fBH/2;
-        else cx = cxMax;
+        else { cx = cxMax; flipped = true; }
       }
 
       const candidate = { cx, cy, w, h, rot };
       // 還是避不開（極寬又極高）＝只當最後備胎，不參與可見度競選（全部都避不開才用它，避免回傳 null）
-      if (inZone()) { if (!best) best = candidate; continue; }
+      // 換貼右也只當備胎：先擲矮一點、抬得上去的留在左邊（否則左側塊常被推過去＝右邊常態兩塊，user 2026-10-29「兩邊平均分配」）
+      if (flipped || inZone()) { if (!best) best = candidate; continue; }
       const ratio = visScore(candidate, occluders, sw, sh);
       if (ratio >= 1) { best = candidate; break; }
       if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
@@ -589,17 +591,24 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     nonActiveEls.forEach((el, i) => { el.style.zIndex = String(zs[i]); baseZOf.set(el, zs[i]); });
 
     const sorted  = [...nonActiveEls].sort((a,b) => parseInt(b.style.zIndex) - parseInt(a.style.zIndex));
-    const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
     const configs = new Map();
 
-    sorted.forEach((el, i) => {
-      const elZ = parseInt(el.style.zIndex);
-      const occluders = [gray, ...sorted
-        .filter(o => o !== el && configs.has(o) && parseInt(o.style.zIndex) > elZ)
-        .map(o => configs.get(o))
-      ];
-      const cfg = genColorConfig(sw, sh, corners[i], occluders);
-      configs.set(el, cfg);
+    // 三塊不可全擠灰卡同一側（user 2026-10-29「兩邊平均分配」）：四角取三本來就 2:1，
+    //   但避當前頁卡的換貼右 padding 會把唯一的左側塊推過去 → 全同側就重擲
+    for (let tries = 0; tries < 6; tries++) {
+      const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]).slice(0, 3);
+      configs.clear();
+      sorted.forEach((el, i) => {
+        const elZ = parseInt(el.style.zIndex);
+        const occluders = [gray, ...sorted
+          .filter(o => o !== el && configs.has(o) && parseInt(o.style.zIndex) > elZ)
+          .map(o => configs.get(o))
+        ];
+        configs.set(el, genColorConfig(sw, sh, corners[i], occluders));
+      });
+      if (new Set([...configs.values()].map(c => Math.sign(c.cx - gCx))).size > 1) break;
+    }
+    configs.forEach((cfg, el) => {
       cfgCache.set(el, cfg);
       setAsColor(el, colorOf.get(el), cfg);
     });
@@ -982,11 +991,14 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const genOccluders = [gray, ...[cfgHigh, cfgLow].filter(Boolean)];
     let newCfg = clickedCfg, bestScore = -1;
     // 四角輪流多擲幾輪（原本四角各一次就收＝常落到 best-effort、舊卡被新卡蓋成細條，user 2026-10-03）
-    const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}]);
+    // 另兩塊已同側 → 新塊只擲另一側的角（user 2026-10-29「兩邊平均分配」）；換貼右 fallback 落回擠的那側＝分數壓 0 只當備胎
+    const sideOf = c => Math.sign(c.cx - gray.cx);
+    const crowded = cfgHigh && cfgLow && sideOf(cfgHigh) === sideOf(cfgLow) ? sideOf(cfgHigh) : 0;
+    const corners = SCCDHelpers.shuffle([{dx:-1,dy:-1},{dx:1,dy:-1},{dx:-1,dy:1},{dx:1,dy:1}].filter(c => c.dx !== crowded));
     for (let i = 0; i < 16; i++) {
-      const cfg = genColorConfig(sw, sh, corners[i % 4], genOccluders);
+      const cfg = genColorConfig(sw, sh, corners[i % corners.length], genOccluders);
       if (!cfg) continue;
-      const score = Math.min(
+      const score = crowded && sideOf(cfg) === crowded ? 0 : Math.min(
         visScore(cfg, [gray], sw, sh),                                          // 新卡：只被灰卡蓋
         cfgHigh ? visScore(cfgHigh, [gray, cfg], sw, sh) : 1,                   // 次新舊卡：灰卡＋新卡蓋
         cfgLow  ? visScore(cfgLow, [gray, cfg, ...(cfgHigh ? [cfgHigh] : [])], sw, sh) : 1,   // 最舊：再加次新
