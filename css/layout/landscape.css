@@ -15,6 +15,13 @@
   main > section.min-h-screen {
     min-height: 100svh;
   }
+  /* 首頁第一屏（user 2026-10-29 Safari 實測：框 100svh＝footer 黑底從底部工具列後透出、往下磁吸時 footer 捲不到頂留一截白）：
+     框改 100lvh（同 about 各屏，scroll-snap.css）、多出的 100lvh−100svh 是自己的白；news 堆疊仍釘在 svh 安全區底（!important 蓋 inline） */
+  main > section#home-hero { height: 100lvh; }
+  #home-hero #homepage-marquee-stack {
+    height: 100svh !important;
+    bottom: calc(100lvh - 100svh) !important;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
@@ -762,21 +769,22 @@
     z-index: 40;
   }
 
-  /* 5f+) legal 頁（donate/regulations/sitemap）：沿用桌面兩欄 frame、只收緊矮高偏移。
+  /* 5f+) legal 頁（donate/regulations/sitemap）：沿用桌面 frame（標題欄已抽掉、內文滿欄，見 legal.css）、只收緊矮高偏移。
      ①右欄 box 頂：legal.css margin-top（--header-height fallback 96 + 3xl 96 ＝ 192）在 390 高吃半屏 → 104（92 帶 + 12，同 5e）。
-     ②左欄 title chip pb 3xl→xl：REGULATIONS 兩行 ~230px 頂緣會落 ~63 < 92、鑽進 .mobile-header-bg 白帶被蓋 → 抬後最壞 ~110。
-     ③100vh→100svh（同 2a）。≥768 限定：<768 窄橫向已走 legal.css 手機 stack，不可套 frame 偏移。 */
-  @media (min-width: 768px) {
+     ②100vh→100svh（同 2a）。限 legal.css frame 同式（≥768 且矮）：<768 窄橫向與直放 768–1023（iPad）走 legal.css stack，不可套 frame 偏移 */
+  @media (min-width: 768px) and (max-height: 500px) {
     main .legal-page-section {
       height: 100svh;
-    }
-    main .legal-title-col {
-      height: 100svh;
-      padding-bottom: var(--spacing-xl);
     }
     main .legal-content-col {
       margin-top: 104px;
       height: calc(100svh - 104px);
+    }
+  }
+  /* <768 窄橫向（stack）：內文頂同上 104，不吃 legal.css 直向的 header＋3xl（375 高會吃掉四成） */
+  @media (max-width: 767px) {
+    main .legal-content-col {
+      padding-top: 104px;
     }
   }
 

@@ -1153,6 +1153,9 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     max-height: 100%;
     display: block;
     object-fit: contain;
+    /* resizeCanvas 換的 inline 寬高用過渡接上、不直接跳（user 2026-10-29）；點陣圖已是新尺寸、只有顯示框在補間，
+       寬高同比例＝畫面等比縮放。時長／曲線同 .mobile-logo-container */
+    transition: width var(--dur-fast) ease, height var(--dur-fast) ease;
   }
 
   /* === 手機 Custom 展開區 === */

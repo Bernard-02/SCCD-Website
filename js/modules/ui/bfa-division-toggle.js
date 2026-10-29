@@ -666,8 +666,9 @@ export function initBFADivisionToggle() {
 
   // ─── Initial State ───────────────────────────────────────────
 
-  // 桌面分組鈕折行時寬＝最長那行（user 2026-10-27；同 nav btn helper、DSD 子展覽 tab 共用）
-  bindNavBtnFit(document.querySelectorAll('#class-buttons-sticky .class-division-btn'));
+  // 桌面分組鈕折行時寬＝最長那行（user 2026-10-27；同 nav btn helper、DSD 子展覽 tab 共用）；
+  // 手機 division nav 也走：chip 有上限、超出才 marquee（marqueeOverflowChips，user 2026-10-29 全站）
+  bindNavBtnFit(document.querySelectorAll('#class-buttons-sticky .class-division-btn, #mobile-division-nav .mobile-division-btn'));
 
   requestAnimationFrame(() => {
     initRotations();

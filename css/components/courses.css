@@ -520,7 +520,9 @@
       align-items: flex-start;
       gap: var(--spacing-xs);
     }
-    #courses-content-section .courses-bfa-label { position: static; }
+    /* 浮在課程卡上 → inactive 要墊底（桌面透明是因為在 nav 欄白底上）；＝inactive 鈕底色（三 mode 都是 theme-bg），
+       active／hover 的 JS inline 與 color.css !important 照贏 */
+    #courses-content-section .courses-bfa-label { position: static; background: var(--theme-bg); }
     /* 必修／選修（英上中下）在左欄、卡片在右欄（user 10-27）：卡片 max-width 100%＝右欄寬（跟手機寬走），
        放不下的標題照舊 nowrap＋自動 marquee。每列各自一個 grid（subgrid 共用左欄寬＝兩列卡片左緣對齊）：
        sticky 的約束框＝自己那列 → 標籤釘在 header 帶下（92），捲到列尾被推走、換下一列接手。

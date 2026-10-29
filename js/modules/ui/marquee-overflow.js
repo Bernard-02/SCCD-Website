@@ -153,6 +153,25 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
 }
 
 /**
+ * 手機 chip（nav btn／tab）上限＝容器內容寬 3/4（navigation.css），字超出 → 每行包成窗＋dual-copy 自動循環
+ * （user 2026-10-29 全站）。只動真的超出的 chip（放得下的 DOM 不碰）；包過的每次重量（字型／後台文字晚到）；
+ * 後台文字 textContent 蓋掉 inner＝補包。display:none 的量不到（寬 0）跳過。
+ * @param {Iterable<Element>} chips
+ */
+export function marqueeOverflowChips(chips) {
+  for (const chip of chips) {
+    if (!chip.clientWidth) continue;
+    const lines = [...chip.children];
+    if (!lines.some(l => l.classList.contains('chip-mq')) && chip.scrollWidth <= chip.clientWidth + 1) continue;
+    lines.forEach(l => {
+      l.classList.add('chip-mq');
+      if (!l.querySelector(':scope > .chip-mq-inner')) l.innerHTML = `<span class="chip-mq-inner">${l.innerHTML}</span>`;
+    });
+    applyMarqueeOverflow(chip, '.chip-mq', '.chip-mq-inner');
+  }
+}
+
+/**
  * GSAP marquee 驅動，兩種模式（都預設 paused，呼叫端接 hover 時機 play/pause）：
  *
  * **seamless（opts.seamless=true，2026-09-07 user 定案「hover 一直捲到底、放開平滑回彈」）**：每條文字各自一條

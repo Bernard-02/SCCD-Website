@@ -52,9 +52,13 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   // 版型判斷唯一來源。gate＝矮橫向手機＋768–1023（iPad），沿用手機排版；同 css/layout/landscape.css 等處的
   // @media（CSS 無法共用 media query，改這串要同步 CSS）。/create 例外：generate-app/js/utils.js 自有斷點。
   Helpers.LANDSCAPE_GATE = '(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)';
-  Helpers.isLandscapeGate = function() { return window.matchMedia(Helpers.LANDSCAPE_GATE).matches; };
+  // MediaQueryList 建一次重複讀：舊版讀 window.innerWidth＝強制 layout，在清單模板迴圈裡每筆一次（手機 activities 續建
+  // 4x 降速實測 834ms，user 2026-10-29「marquee 特別卡」）。<768 用 media query 與 CSS 同式
+  const _mqPortrait = window.matchMedia('(max-width: 767px)');
+  const _mqGate = window.matchMedia(Helpers.LANDSCAPE_GATE);
+  Helpers.isLandscapeGate = function() { return _mqGate.matches; };
   // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（≥1024 且高 >500）
-  Helpers.isMobileLayout = function() { return window.innerWidth < 768 || Helpers.isLandscapeGate(); };
+  Helpers.isMobileLayout = function() { return _mqPortrait.matches || _mqGate.matches; };
   Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
 
   Helpers.scrollToElement = function(target, offset, behavior) {

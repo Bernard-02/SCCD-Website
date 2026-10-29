@@ -14,6 +14,7 @@ import { loadUiLabels } from './ui-labels.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR, EASE } from './motion.js';
 import { scrollWindowNoSnap } from './snap-scroll.js';
+import { marqueeOverflowChips } from './marquee-overflow.js';
 
 // nav btn 隨機角互動的桌面 gate（同 arrow-spin：桌面且非矮橫向才有 hover）
 export function isNavSpinDesktop() {
@@ -162,8 +163,12 @@ export function showPanel(panelSelector, targetId) {
  */
 export function bindNavBtnFit(btns) {
   // 沒 .anchor-nav-inner 的鈕（about 分組鈕／DSD 子展覽 tab＝.class-division-btn，padding 在鈕本身）直接 fit 鈕
-  const fit = () => [...btns].forEach(b =>
-    fitCardToText(/** @type {HTMLElement} */ (/** @type {Element} */ (b).querySelector('.anchor-nav-inner') || b)));
+  // 手機：chip 有上限（一屏寬），超出才 marquee（user 2026-10-29 全站）
+  const fit = () => [...btns].forEach(b => {
+    const chip = /** @type {HTMLElement} */ (/** @type {Element} */ (b).querySelector('.anchor-nav-inner') || b);
+    fitCardToText(chip);
+    if (SCCDHelpers.isMobileLayout()) marqueeOverflowChips([chip]);
+  });
   fit();
   loadUiLabels().then(fit);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
@@ -479,6 +484,24 @@ export function scrollToSectionTopNow(section) {
   const dist = Math.abs(window.scrollY - top);
   if (dist <= 1) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { window.scrollTo({ top, behavior: 'instant' }); return; }
+  // 捲回途中切換流程就換上新分頁：新內容較短＝頁面先變矮、捲動位置被夾到新底部 → 先看到 footer 才回頂
+  //   （user 2026-10-29）→ section 高度鎖在當下，**window 上沒有捲動 tween 在跑、且已在 section 頂**才放（每幀看，不靠
+  //   tween 回呼：admission 切換尾端的 scrollSectionIntoView 會殺掉這條、從半路另起一條；activities 尾端的 instant 對齊
+  //   會先瞬間到頂、但這條 tween 下一幀又寫回半路）；最多鎖 3 秒。序號＝連點時舊的不放掉新的鎖；
+  //   放開＝還原原本的行內值（activities section 自帶 inline min-height:100vh）
+  const s = /** @type {any} */ (section);
+  const tok = (s._topLock = (s._topLock || 0) + 1);
+  if (s._topLockPrev === undefined) s._topLockPrev = section.style.minHeight;
+  section.style.minHeight = `${section.offsetHeight}px`;
+  const t0 = performance.now();
+  const watch = () => {
+    if (s._topLock !== tok) return;   // 被新的鎖接手
+    const moving = (typeof gsap !== 'undefined' && gsap.isTweening(window)) || Math.abs(window.scrollY - top) > 2;
+    if (moving && performance.now() - t0 < 3000) { requestAnimationFrame(watch); return; }
+    section.style.minHeight = s._topLockPrev;
+    s._topLockPrev = undefined;
+  };
+  requestAnimationFrame(watch);
   // 時長依距離（同 activities deep-link smooth：固定短時長捲過 >1 屏像跳下去）
   scrollWindowNoSnap(top, { duration: Math.min(1.1, Math.max(DUR.medium, dist / 1200)), ease: EASE.move });
 }
