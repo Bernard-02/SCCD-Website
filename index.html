@@ -44,8 +44,8 @@
     <!-- 視覺隱藏的頁面主標題（語意/SEO/報讀器地標；首頁全視覺、無文字標題）-->
     <h1 class="sr-only">實踐大學媒體傳達設計學系 Shih Chien University Department of Communications Design (SCCD)</h1>
     <!-- 不設 z-index（不建 stacking context）：hover 的 news 海報要單獨蓋過 header logo、浮卡留在 logo 下（lists.css .hm-banner）
-         手機高度＝100svh（landscape.css 檔頭／2a，工具列展開時的可視高） -->
-    <section class="snap-zone h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; overflow:hidden;">
+         手機高度：框 100lvh、news 堆疊排在 svh 安全區（landscape.css 檔頭；iOS Safari 工具列收起後多出的那截是自己的白，footer 不從工具列後透出） -->
+    <section id="home-hero" class="snap-zone h-screen" style="display:flex; align-items:flex-end; padding: var(--spacing-xl); position:relative; overflow:hidden;">
 
       <!-- Floating Items Layer -->
       <div id="floating-layer" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; overflow:hidden;"></div>

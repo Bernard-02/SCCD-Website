@@ -52,7 +52,7 @@ const MIN_BANNER_W = 200;
 // 矮橫向（gate）：bar 上方沒高度放海報 → 海報改出現在畫面右半（user 2026-10-27）。畫面扣三道 padding 對分兩欄：
 // 左欄 banner（寬封頂欄寬）、右欄海報（貼右 padding、底對齊最底 slot）。海報掛 stack 不掛 banner（banner 有 transform＝定位基準會跟著跑）
 const sideColW = () => (window.innerWidth - MOBILE_PADDING_X * 3) / 2;
-let closeSidePoster = null;   // 側邊海報同位置 → 一次只開一張
+let closeOpenPoster = null;   // 全站一次只開一張海報：桌面 hover 天生如此，手機點開要同步（user 2026-10-29）；側邊海報同位置本來就得先收
 
 // 全部 slot 同 x（左對齊），y 階梯排列；rotation 由 item 自帶
 // index 0 = 最上方（第一個 / 最舊），index 2 = 最下方（最後一個 / 最新）
@@ -138,6 +138,11 @@ export function initMarquee(gate = Promise.resolve()) {
       });
       rotateGateMq.addEventListener('change', onRotateGate);
       registerPageCleanup(() => rotateGateMq.removeEventListener('change', onRotateGate));
+      // menu 開＝開著的海報跑收合退場（手機點開的會留著；桌面 hover 到 menu 鈕時已 mouseleave 收掉）。
+      // 退場在 menu 底下跑：navigation.css html.mobile-menu-open header 抬到 10001 > 海報 10000（user 2026-10-29）
+      const onMenuOpen = () => closeOpenPoster?.();
+      document.addEventListener('menu:open', onMenuOpen);
+      registerPageCleanup(() => document.removeEventListener('menu:open', onMenuOpen));
     })
     .catch(() => {});
 }
@@ -259,6 +264,19 @@ function createBanner(item, squareColor) {
   });
 
   row.appendChild(link);
+  // 手機：bar 右邊正方形鈕（user 2026-10-29）——有海報＝↑ 點開海報、開著改 ↗ 跳連結；沒海報＝↗ 跳連結（不開 share 卡）。
+  // 影片／既無連結也無海報＝不給鈕。寬＝icon＋左右 padding（lists.css），從 marquee 扣、banner 總寬不變
+  let btn = null;
+  if (SCCDHelpers.isMobileLayout() && !isVideo && (hasLink || item.poster)) {
+    btn = document.createElement('button');
+    btn.className = 'hm-banner-btn';
+    btn.innerHTML = '<span class="icon"></span>';
+    const btnClip = document.createElement('div');   // 換 icon 時整顆鈕在這裡面左進左出（setBtnState）
+    btnClip.className = 'hm-banner-btn-clip';
+    btnClip.appendChild(btn);
+    row.appendChild(btnClip);
+    link.style.paddingRight = '0';   // 字的裁切邊直接貼鈕（鈕自帶左右 padding）
+  }
   clipWrap.appendChild(row);
   wrap.appendChild(clipWrap);
 
@@ -285,8 +303,41 @@ function createBanner(item, squareColor) {
     if (hasLink && !isVideo) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
   }
 
-  return { el: wrap, row, link, lines, posterEl, item, isVideo, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
+  const b = { el: wrap, row, link, btn, lines, posterEl, item, isVideo, hasLink: hasLink && !isVideo, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
+  setBtnState(b, !posterEl);
+  return b;
 }
+
+// 手機右邊鈕三態（點擊在 bindBannerInteraction）：open ↑ 開海報／link ↗ 跳連結（海報開著或沒海報）／close ↓ 收合（有海報沒連結）
+const BTN_STATES = {
+  open:  ['icon-arrow-up',   '展開海報 Show poster'],
+  link:  ['icon-share',      '前往連結 Open link'],
+  close: ['icon-arrow-down', '收合海報 Hide poster'],
+};
+function setBtnState(b, posterOpen, animate = false) {
+  if (!b.btn) return;
+  const state = !posterOpen ? 'open' : b.hasLink ? 'link' : 'close';
+  const [icon, label] = BTN_STATES[state];
+  b.btn.dataset.state = state;   // 點擊判斷立刻換；icon 等藏好才換
+  b.btn.setAttribute('aria-label', label);
+  const iconEl = /** @type {HTMLElement} */ (b.btn.firstChild);
+  if (!animate || typeof gsap === 'undefined') { iconEl.className = `icon ${icon}`; return; }
+  // 換 icon＝整顆鈕往左出去、換好從左邊回來（遮罩＝.hm-banner-btn-clip 貼鈕大小；user 2026-10-29「是 btn 不是 icon」）；
+  // 每半段 DUR.base 同 header 鈕換 icon；多滑 12 防貼邊留縫（同 header BAR_HIDE_BUFFER）
+  const btn = b.btn;
+  const off = -(btn.offsetWidth + 12);
+  gsap.killTweensOf(btn);
+  gsap.to(btn, {
+    x: off, duration: DUR.base, ease: EASE.exit,
+    onComplete: () => {
+      iconEl.className = `icon ${icon}`;
+      gsap.fromTo(btn, { x: off }, { x: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
+    },
+  });
+}
+
+// 海報寬＝marquee 寬（手機扣掉右邊鈕）；側邊海報在右欄、不跟 banner
+const posterWidth = (b) => (b.side ? sideColW() : b.width - (b.btn?.offsetWidth || 0));
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
 // 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。逐行獨立 gate。
@@ -294,8 +345,8 @@ function createBanner(item, squareColor) {
 // ponytail: 視窗高只在建立 banner 時量（同寬度決定時機）；resize 後新進場的 banner 才吃新高度，舊的由 openPoster 保底
 function fitBannerToRoom(b, room) {
   const r = b.item.ratio;
-  if (b.side || !b.posterEl || !r || b.width * r <= room) return;
-  b.width = Math.max(MIN_BANNER_W, Math.floor(room / r));
+  if (b.side || !b.posterEl || !r || posterWidth(b) * r <= room) return;
+  b.width = Math.max(MIN_BANNER_W, Math.floor(room / r) + (b.width - posterWidth(b)));
   b.el.style.width = `${b.width}px`;
 }
 
@@ -356,7 +407,7 @@ function exitBanner(b) {
 
 function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   const img = b.posterEl?.querySelector('img');
-  const posterW = () => (b.side ? sideColW() : b.width);
+  const posterW = () => posterWidth(b);
   if (img) {
     const calc = () => {
       if (img.naturalWidth) {
@@ -372,12 +423,10 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   const openPoster = () => {
     onEnter();
     if (b.posterEl && b._posterH) {
-      // 側邊海報：先收另一張（onEnter 在前＝hover 計數不歸零、不閃）、移到 stack 最後＝長出來時蓋在收合中那張上面
-      if (b.side) {
-        if (closeSidePoster !== closePoster) closeSidePoster?.();
-        closeSidePoster = closePoster;
-        b.posterEl.parentNode.appendChild(b.posterEl);
-      }
+      // 先收另一張（onEnter 在前＝hover 計數不歸零、不閃）；側邊海報再移到 stack 最後＝長出來時蓋在收合中那張上面
+      if (closeOpenPoster !== closePoster) closeOpenPoster?.();
+      closeOpenPoster = closePoster;
+      if (b.side) b.posterEl.parentNode.appendChild(b.posterEl);
       // 保底：banner 已收窄到 MIN_BANNER_W 仍放不下（極矮視窗）／resize 變矮 → 海報再縮、比 bar 窄（靠左）。
       // 側邊海報底固定＝可長的高是它的底到上界
       const anchorY = b.side ? b.posterEl.getBoundingClientRect().bottom : b.row.getBoundingClientRect().top;
@@ -385,6 +434,7 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       b._openH = Math.min(b._posterH, room);
       b.posterEl.style.width = `${b._openH / b._posterH * posterW()}px`;
       b.el.classList.add('is-poster-open');   // 抬過 header logo（lists.css .hm-banner）；也是開合狀態
+      setBtnState(b, true, true);
       // 只長到圖高（舊 +20 是 max-height 超過內容高的空跑段、視覺不變，但 push 也 +20 → 海報上方多出 20px 假 gap）
       gsap.to(b.posterEl, { maxHeight: b._openH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       if (!b.side) pushAbove(b);
@@ -392,8 +442,9 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   };
   const closePoster = () => {
     if (b.posterEl) {
-      if (closeSidePoster === closePoster) closeSidePoster = null;
+      if (closeOpenPoster === closePoster) closeOpenPoster = null;
       b.el.classList.remove('is-poster-open');
+      setBtnState(b, false, true);
       gsap.to(b.posterEl, { maxHeight: 0, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       if (!b.side) restoreAbove(b);
     }
@@ -406,6 +457,15 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     b.posterEl?.addEventListener('click', play);
     if (!b.posterEl || !SCCDHelpers.isMobileLayout()) b.link.addEventListener('click', play);
   }
+
+  // 手機右邊鈕（createBanner 只在手機建）：↑ 開海報、↗ 跳連結、↓ 收合（setBtnState 三態）
+  b.btn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const s = b.btn.dataset.state;
+    if (s === 'link') window.open(b.item.url, '_blank');
+    else if (s === 'close') closePoster();
+    else openPoster();
+  });
 
   if (!b.posterEl && SCCDHelpers.isMobileLayout()) {
     // 手機沒海報：沒東西可 toggle，點 bar＝直接跳連結／開影片
@@ -593,7 +653,9 @@ function runMarqueeStack(stack, items) {
     const b = createBanner(items[i], SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length]);
     stack.appendChild(b.el);
     // 首個 banner 進 DOM 後量 bar 實高（中英兩行 > 舊常數 40）→ slotConfigs 以實高排 slot 間距
-    if (i === 0) measuredBarH = b.el.offsetHeight || BAR_HEIGHT;
+    if (i === 0) {
+      measuredBarH = b.el.offsetHeight || BAR_HEIGHT;
+    }
     fitBannerToRoom(b, posterRoom());
     gateMarqueeScroll(b);
     applySlotTransform(b, slotOffset + i, false);
@@ -631,7 +693,7 @@ function runMarqueeStack(stack, items) {
     if (typeof gsap !== 'undefined') banners.forEach(b => gsap.killTweensOf([b.el, b.row]));
     banners.forEach(b => { b.el.remove(); b.posterEl?.remove(); });
     banners.length = 0;
-    closeSidePoster = null;
+    closeOpenPoster = null;
     hoverCount = 0;
     removeNewsHover();
   }

@@ -944,13 +944,13 @@ let _footerExited = false;
 // 像頁面多出一段；user 2026-10-28 撤掉 20% 門檻吸附／停手縮回／往上整張收），沉回起點＝關卡。同時從 0° 轉向這次新抽的 ±[1,2]°（角度＝升起比例）；
 // 點卡外／換頁（router playFooterExit）→ 整張轉回 0° 沉下去（點卡上空白處不關）。
 // header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點＝關卡、滾輪＝推卡，不碰後面內容）。
-// footer:open／footer:close（document）→ header.js 關桌面 menu＋logo 縮小／還原。
+// footer:open（document）→ header.js 關桌面 menu；footer:progress → logo 跟升起比例同步縮小／還原。
 // 手機／矮橫向仍是頁尾一段（線性版 initFooterMobileReveal），不走這裡。
 const OVERLAY_HIDE_YPERCENT = 130;   // 卡底離視窗底 48，100% 不夠藏；130 連 600 高的卡都蓋過
 // 矮螢幕整張等比縮（user 2026-10-20「縮卡，空間夠就不調」）：卡的版面高 h 放不進「logo 底＋gap → 頁卡底」的可用高時
 // scale＝可用高/h（下限 0.75＝字約 10.5px），繞中心縮＋y 補償讓視覺底仍貼頁卡底 48；空間夠＝1:1、y 0。
 // 縮到下限仍放不進：保住卡頂（logo 永遠不被蓋，user 的主訴）、底邊往下沉去蓋頁卡／視窗底緣。
-// logo 底＝logo 頂＋縮小態 logo（SCCDHelpers.headerGeom，依視窗高）；開卡時 logo 一定縮到小（footerLogoSize）
+// logo 底＝logo 頂＋縮小態 logo（SCCDHelpers.headerGeom，依視窗高）；全開時 logo 一定縮到小（header.js footerLogoSize）
 const CARD_SCALE_MIN = 0.75;
 const cardAvailH = () => { const g = SCCDHelpers.headerGeom(); return window.innerHeight - (g.logoTop + g.logoSm) - 24 - 48; };
 const cardScaleFor = (h) => Math.max(CARD_SCALE_MIN, Math.min(1, cardAvailH() / (h || 1)));
@@ -984,7 +984,7 @@ let _backdrop = null;
 let _progress = 0;            // 0＝藏、1＝全開
 let _rot = 0;                 // 這次開卡的終點角
 let _hideYP = OVERLAY_HIDE_YPERCENT;   // 卡頂剛好貼視窗底的 yPercent：滾輪第一格就看得到卡（130 是停放位，多出那段滾了會沒反應）
-let _openAnnounced = false;   // footer:open 只在推到頂才發：探頭又縮回不讓 logo 一縮一放
+let _openAnnounced = false;   // footer:open 只在推到頂才發（探頭又縮回不關 menu）
 
 function getOverlayFooter() {
   const f = document.querySelector('footer.footer-shell');
@@ -1031,9 +1031,15 @@ function beginOpen(shell) {
 // 觸控板小 delta 本身就連續＝直接設才跟手。overwrite 蓋掉整張開／收到一半的 tween
 function scrubTo(shell, p, dy) {
   _progress = p;
-  gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration: Math.abs(dy) < 50 || prefersReducedMotion() ? 0 : DUR.micro, ease: 'none', overwrite: 'auto' });
+  const duration = Math.abs(dy) < 50 || prefersReducedMotion() ? 0 : DUR.micro;
+  gsap.to(shell, { yPercent: _hideYP * (1 - p), rotation: _rot * p, duration, ease: 'none', overwrite: 'auto' });
+  emitProgress(p, duration, 'none');
 }
-// 卡真的要開了：header.js 關桌面 menu＋logo 縮小（每次開卡只發一次）
+// logo 跟卡同步縮放（header.js，user 2026-10-29「logo 跟著滑鼠同步縮小」）：p＝升起比例，時長／曲線＝卡這一下的 tween
+function emitProgress(p, duration, ease) {
+  document.dispatchEvent(new CustomEvent('footer:progress', { detail: { p, duration, ease } }));
+}
+// 卡真的要開了：header.js 關桌面 menu（每次開卡只發一次；logo 縮放走 footer:progress）
 function announceOpen() {
   if (_openAnnounced) return;
   _openAnnounced = true;
@@ -1076,7 +1082,9 @@ export function openFooter() {
   if (!_footerOpen) beginOpen(shell);
   _progress = 1;
   announceOpen();
-  gsap.to(shell, { yPercent: 0, rotation: _rot, duration: prefersReducedMotion() ? 0 : DUR.reveal, ease: EASE.enter, overwrite: 'auto' });
+  const duration = prefersReducedMotion() ? 0 : DUR.reveal;
+  gsap.to(shell, { yPercent: 0, rotation: _rot, duration, ease: EASE.enter, overwrite: 'auto' });
+  emitProgress(1, duration, EASE.enter);
 }
 
 export function closeFooter() {
@@ -1086,13 +1094,14 @@ export function closeFooter() {
   _footerOpen = false;
   _progress = 0;
   hideBackdrop();
-  // header.js：logo 回捲動應有的尺寸（與卡沉下同拍）；只探頭沒開過＝logo 沒縮過，不發
-  if (_openAnnounced) { _openAnnounced = false; document.dispatchEvent(new CustomEvent('footer:close')); }
+  _openAnnounced = false;
   stopShuffleLoop();
   gsap.killTweensOf(shell);
+  const duration = prefersReducedMotion() ? 0 : DUR.medium;
+  emitProgress(0, duration, EASE.exit);   // logo 回捲動應有的尺寸，與卡沉下同拍（只探頭沒推到頂也要還原）
   _closePromise = new Promise((resolve) => {
     _closeDone = resolve;
-    gsap.to(shell, { yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0, duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.exit, overwrite: 'auto', onComplete: finishClose });
+    gsap.to(shell, { yPercent: OVERLAY_HIDE_YPERCENT, rotation: 0, duration, ease: EASE.exit, overwrite: 'auto', onComplete: finishClose });
   });
   return _closePromise;
 }

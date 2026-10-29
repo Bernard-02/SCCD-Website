@@ -398,32 +398,39 @@ if (typeof window !== 'undefined') {
   window.__sccdShowHeaderBars = footerShowBars;
   // 真桌面覆蓋卡 footer（footer-scatter.js）開卡＝關桌面 menu（面板在 header 層、會蓋在卡上）；logo／mode／menu 鈕都不收
   //（user 2026-10-19 第二輪），點 logo 照常回首頁、卡同拍退場。
-  // logo 尺寸：開卡縮到小（--logo-sm）——首頁沒得捲、scroll-shrink 到不了；關卡回到「捲動應有」的尺寸（大 − (大−小)×min(1, scrollY/300)
-  // ＝scroll-shrink 同一條公式；捲到底的頁本來就小＝no-op）。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）尺寸各自管、不還原。
-  // 不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡大），兩支同屬性 tween 最後都收斂到同一公式值
-  let _footerCardOpen = false;
-  function footerLogoSize(open) {
+  // logo 尺寸跟卡的升起比例 p 同步（footer:progress，user 2026-10-29「跟著滑鼠同步縮小」；原本推到頂才整段縮）：
+  // 「捲動應有」的尺寸（大 − (大−小)×min(1, scrollY/300)＝scroll-shrink 同一條公式）→ 小（--logo-sm）依 p 內插，時長／曲線＝卡那一下。
+  // 首頁沒得捲、scroll-shrink 到不了＝全程看得到縮；捲到底的頁本來就小＝no-op。沒有 body ScrollTrigger 的頁（library/atlas/legal/create）
+  // 尺寸各自管：只在開著時壓小、不還原。不 kill scroll-shrink 的 tween（它只在捲動時寫；全殺會卡大）——只砍自己上一支：
+  // 還原中又往下推時，舊的長還原 tween 會在新的短 tween 跑完後把 logo 拉回大
+  let _footerP = 0;
+  let _footerLogoTween = null;
+  function footerLogoSize(p, duration, ease) {
     const logo = document.getElementById('header-logo');
     if (!logo || typeof gsap === 'undefined' || !SCCDHelpers.isDesktopLayout()) return;
-    _footerCardOpen = open;
+    _footerP = p;
     const hasScrub = typeof ScrollTrigger !== 'undefined' && ScrollTrigger.getAll().some(st => st.vars && st.vars.trigger === 'body');
-    if (!open && !hasScrub) return;
+    if (!p && !hasScrub) return;
     const { logoLg, logoSm } = SCCDHelpers.headerGeom();
-    const size = open ? logoSm : logoLg - (logoLg - logoSm) * Math.min(1, window.scrollY / 300);
-    gsap.to(logo, { width: size, height: size, duration: DUR.slow, ease: EASE.move });
+    const base = hasScrub ? logoLg - (logoLg - logoSm) * Math.min(1, window.scrollY / 300) : logoSm;
+    const size = base - (base - logoSm) * p;
+    _footerLogoTween?.kill();
+    _footerLogoTween = gsap.to(logo, { width: size, height: size, duration, ease });
   }
-  document.addEventListener('footer:open', () => { closeMobileMenu(); footerLogoSize(true); });
-  document.addEventListener('footer:close', () => footerLogoSize(false));
+  document.addEventListener('footer:open', () => closeMobileMenu());
+  document.addEventListener('footer:progress', (e) => { const d = /** @type {CustomEvent} */ (e).detail; footerLogoSize(d.p, d.duration, d.ease); });
   const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
   // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
-  // 事件同一個 task 內壓回小＝不會閃（user 2026-10-26「開卡時切換視窗大小 logo 要保持小」）
+  // 事件同一個 task 內壓回當下比例＝不會閃（user 2026-10-26「開卡時切換視窗大小 logo 要保持小」）
   if (typeof ScrollTrigger !== 'undefined') {
-    ScrollTrigger.addEventListener('refresh', () => { if (_footerCardOpen) setLogoSmall(); });
+    ScrollTrigger.addEventListener('refresh', () => { if (_footerP) footerLogoSize(_footerP, 0); });
   }
   // logo 大小跟視窗高走（--logo-sm／--logo-lg）：scroll-shrink 頁靠 invalidateOnRefresh 自己重算；
   // 固定小 logo 的頁（library/atlas/legal/create）與開卡中的 inline px 要在 resize 時補寫
   window.addEventListener('resize', () => {
-    if (typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout() && (_logoSmallPage || _footerCardOpen)) setLogoSmall();
+    if (typeof gsap === 'undefined' || !SCCDHelpers.isDesktopLayout()) return;
+    if (_logoSmallPage) setLogoSmall();
+    else if (_footerP) footerLogoSize(_footerP, 0);
   }, { passive: true });
 }
 

@@ -432,11 +432,16 @@
     }
   }
 
-  /* 直向手機 footer 至少一屏（svh：工具列下 vh 高估）、legal＋copyright 貼底，不隨上面分頁內容高低移動（user 2026-10-27）；
-     內容超過一屏才長高。min-height 下在 inner（shell 高 auto＝inner 的 h-full 不成立）；privacy 可能是 reveal wrapper 那層 */
+  /* 直向手機 footer 至少一屏、legal＋copyright 貼底，不隨上面分頁內容高低移動（user 2026-10-27）；
+     內容超過一屏才長高。min-height 下在 inner（shell 高 auto＝inner 的 h-full 不成立）；privacy 可能是 reveal wrapper 那層。
+     一屏＝100lvh 不是 svh（user 2026-10-29 Safari 實測）：工具列收起後可視高 lvh＞svh → footer 頂磁吸不到視窗頂（上方留一截前一區的白）、
+     頁底工具列後面透出的是 body 白底。底 padding 多墊 100lvh−100svh＝工具列展開時 copyright 仍在可視區、工具列後面是 footer 自己的黑 */
   @media (max-width: 767px) and (orientation: portrait) {
     .footer-shell { height: auto; }
-    .footer-inner { min-height: 100svh; }
+    .footer-inner {
+      min-height: 100lvh;
+      padding-bottom: calc(var(--container-padding) + 100lvh - 100svh);
+    }
     .footer-right { flex: 1 0 auto; }
     .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) { margin-top: auto; }
   }

@@ -10,6 +10,10 @@
     z-index: 9999 !important;
     transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard);
   }
+  /* menu 開著時 header（面板在裡面）抬到最高：手機點開的 news 海報 .is-poster-open 是 10000（lists.css，為了蓋過 logo），
+     點 menu 海報在面板底下跑收合退場（index-marquee 聽 menu:open）、退場期間 z 延遲仍 10000 → menu 要在它上面（user 2026-10-29）。
+     桌面 hover 到 menu 鈕時海報早收了、無差 */
+  html.mobile-menu-open header { z-index: 10001 !important; }
 
   /* header 不擋事件：本體與透明容器放行（中間空白 hover/click 直達底下內容，如 atlas 星雲頂端 item），
      只有 logo、右側 mode/漢堡鈕、選單面板吃事件。
@@ -254,9 +258,10 @@
 body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
   display: none;
 }
-/* about／faculty／curriculum／activities／admission 直向手機也不要（user 2026-10-27／28）：nav 移到畫面底 bar 後頂上不用遮罩（about：variables.css 檔尾；faculty：lists.css .nav-bottom-bar；curriculum：courses.css 直向段） */
+/* about／faculty／curriculum／activities／admission 直向手機也不要（user 2026-10-27／28）：nav 移到畫面底 bar 後頂上不用遮罩（about：variables.css 檔尾；faculty：lists.css .nav-bottom-bar；curriculum：courses.css 直向段）；
+   畢業展詳情頁同（user 2026-10-29；每屏內容從 92 起、tab／返回列在底，variables.css 檔尾 DSD 直向段） */
 @media (max-width: 767px) and (orientation: portrait) {
-  body:has(#about-content-wrapper, #faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section) #site-header .mobile-header-bg {
+  body:has(#about-content-wrapper, #faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section, #dsd-desc-section) #site-header .mobile-header-bg {
     display: none;
   }
 }
@@ -400,4 +405,14 @@ body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
   .page-indicator-card > span + span {
     margin-top: var(--space-en-zh-s);
   }
+}
+
+/* 手機 chip（nav btn／tab）上限＝容器內容寬 3/4（一屏寬會蓋滿、看不出右邊還有沒有下一顆；user 2026-10-29 全站），字超出才 marquee
+   （JS＝marquee-overflow.js marqueeOverflowChips，bindNavBtnFit 量完字寬順手跑；keyframes 在 lists.css） */
+@media (max-width: 767px) {
+  :is(.anchor-nav-inner, .class-division-btn) { max-width: calc((100vw - 2 * var(--container-padding)) * 0.75); }
+  .chip-mq { display: block; max-width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .chip-mq-inner { display: inline-block; white-space: nowrap; }
+  .chip-mq-inner > .marquee-copy { display: inline-block; padding-right: var(--marquee-copy-gap); }
+  .chip-mq.is-overflow .chip-mq-inner { animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite; }
 }

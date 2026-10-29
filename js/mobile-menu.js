@@ -49,17 +49,26 @@ export function initMobileMenu() {
     if (!deskMenuBtn.classList.contains('is-open')) deskMenuBtn.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
   });
   const setIcons = (open) => {
-    iconOpen.forEach(i => { i.style.display = open ? 'none' : ''; });
-    iconClose.forEach(i => { i.style.display = open ? '' : 'none'; });
-    // 開合態（.is-open＝開著的底色）跟 icon 一起在「換」那刻切＝出場的還是舊樣子；桌面鈕沒顯示時 cycleHeaderBtn 直接換
-    // 手機鈕同桌面 open 態（buttons.css .mobile-header-btn.is-open）：沒 hover 可預抽 → 每次開抽一色
-    if (open) menuBtnBox?.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
-    menuBtnBox?.classList.toggle('is-open', open);
+    // 開合態（.is-open＝開著的底色）跟 icon 一起在「換」那刻切＝出場的還是舊樣子；鈕沒顯示時 cycleHeaderBtn 直接換
     const swap = () => {
       deskMenuBtn?.classList.toggle('is-open', open);
       if (swapIcon) swapIcon.className = open ? 'icon icon-arrow-right' : 'icon icon-menu';
     };
     if (deskMenuBtn) cycleHeaderBtn(deskMenuBtn, swap); else swap();
+    // 手機鈕＝桌面同一套整顆出場→換→進場（user 2026-10-29；原 icon 直接切）。開合都換角（每點一次，見 applyRandomRotation）：
+    //   換在鈕藏著那刻；收展期間角度借給遮罩（header.js lendCssRotToMask）→ 遮罩一起換、進場就是新角
+    // 手機鈕同桌面 open 態（buttons.css .mobile-header-btn.is-open）：沒 hover 可預抽 → 每次開抽一色
+    const mobileSwap = () => {
+      iconOpen.forEach(i => { i.style.display = open ? 'none' : ''; });
+      iconClose.forEach(i => { i.style.display = open ? '' : 'none'; });
+      if (open) menuBtnBox?.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
+      menuBtnBox?.classList.toggle('is-open', open);
+      if (!menuBtnBox) return;
+      applyRandomRotation(menuBtnBox);
+      const mask = menuBtnBox.parentElement;
+      if (mask?.dataset.lentRot) mask.style.transform = `rotate(${menuBtnBox.style.getPropertyValue('--hdr-rot')})`;
+    };
+    if (menuBtnBox) cycleHeaderBtn(menuBtnBox, mobileSwap); else mobileSwap();
   };
   // 含 nav links + 底部 CREATE! link，整個面板所有 link 都進 stagger
   const menuItems = nav?.querySelectorAll('.mobile-nav-link');
@@ -177,6 +186,7 @@ export function initMobileMenu() {
     // 畫在面板上。開著時掛 class 壓掉（footer.css html.mobile-menu-open 規則），關閉滑出完才移除。
     // 桌面反過來 footer 不讓位（menu 在 footer 後面收，footer.css 註解）；class 另給 atlas/mcp/scrollbar 判「menu 開著」
     document.documentElement.classList.add('mobile-menu-open');
+    document.dispatchEvent(new CustomEvent('menu:open'));   // index-marquee：開著的 news 海報退場
     btns.forEach(b => b.setAttribute('aria-expanded', 'true'));
     if (typeof gsap !== 'undefined') {
       busy = true; // reveal 完成前鎖住 toggle（onComplete 解鎖）
@@ -214,8 +224,7 @@ export function initMobileMenu() {
     } else {
       nav.style.transform = 'translateX(0%)';
     }
-    setIcons(true);
-    applyRandomRotation(menuBtnBox);   // 只轉自己（mode 鈕點自己才轉，見檔尾）
+    setIcons(true);   // 含換角：只轉自己（mode 鈕點自己才轉，見檔尾）
     if (!overlay) lockScroll();
     // 無障礙：開啟時把鍵盤焦點移入選單第一項（關閉時 Escape / 點按鈕還給漢堡按鈕）
     menuItems?.[0]?.focus?.();
@@ -228,8 +237,7 @@ export function initMobileMenu() {
     watchScrollClose(false);
     nav.classList.remove('open');
     btns.forEach(b => b.setAttribute('aria-expanded', 'false'));
-    setIcons(false);
-    applyRandomRotation(menuBtnBox);   // 關＝點鈕／點選項換頁／點外面都算，一律換角
+    setIcons(false);   // 含換角：關＝點鈕／點選項換頁／點外面都算，一律換角
     unlockScroll();
     return new Promise(resolve => {
       if (typeof gsap !== 'undefined') {
