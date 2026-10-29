@@ -1337,6 +1337,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-rotate-hint .icon-rotate-phone {
     font-size: 48px;
   }
+  /* icon／文字塊各一個遮罩；出生藏在遮罩下（同切換鈕出生藏態在 CSS）＝換頁進來不先閃出再進場（user 2026-10-29）。
+     之後的進退場由 GSAP inline transform 接手、蓋過這條 */
+  .atlas-rotate-hint-clip { display: flex; overflow: clip; }
+  .atlas-rotate-hint-clip > * { transform: translateY(110%); }
   #atlas-rotate-hint .atlas-rotate-hint-text {
     display: flex;
     flex-direction: column;
@@ -1366,14 +1370,14 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     bottom: calc(18px + 44px + var(--spacing-sm) - 4px);
     right: 0;
     padding-right: var(--container-padding, 24px);
-  }
-  /* list 底＝tab 頂上 16：tab 底 74＋一行 tab ~36＋16（atlas.js calcListPageSize 直向 fallback 同步） */
+    gap: var(--spacing-md);   /* 同 about／faculty／curriculum 底 bar 鈕距（user 2026-10-29 嫌擠；原 xs） */
+  }  /* list 底＝tab 頂上 16：tab 底 74＋一行 tab ~36＋16（atlas.js calcListPageSize 直向 fallback 同步） */
   #atlas-list-view { bottom: 126px; }
   /* 每筆一列：左名稱、右副標（atlas.js 直向單 sub-col）；過寬照舊 applyListMarquee 跑 marquee。
      ghost 量高的 item 同結構（第一個子＝名稱、其餘＝副標）；cover 是 absolute、不排進格 */
   #atlas-list-view .atlas-list-item {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);   /* 主標:副標 3:2（user 2026-10-29） */
     column-gap: var(--spacing-sm);
     align-content: start;
     /* 每格貼內容高、不 stretch：名稱行的 .atlas-list-line-clip 是進場遮罩，被撐成整筆高（副標 3 行時）
@@ -1382,17 +1386,18 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   #atlas-list-view .atlas-list-item > :first-child { grid-column: 1; grid-row: 1 / span 3; }
   #atlas-list-view .atlas-list-item > :not(:first-child):not(.atlas-name-cover) { grid-column: 2; }
-  /* alumni＝主持／就職上下兩段（各一列＝各半高）；翻頁箭頭在標題卡那列最右邊（atlas.js 掛欄上、這裡釘右上）→ 欄底不留 chevron 帶 */
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) { grid-column: span 2; }
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-col-items { padding-bottom: 0; }
-  /* 每段只放得下 2～4 筆：滿頁也靠上排、固定間距（撐開會在矮機兩筆中間空一大塊） */
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-sub-col.is-full { justify-content: flex-start; }
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) > .atlas-list-nav-item {
-    top: 0;
-    bottom: auto;
-    left: auto;
-    right: 0;
+  /* 國家改（）接名稱後、過長跟名稱一起 marquee＝同桌面單列模式（user 2026-10-29）；alumni 左右兩欄只剩名稱一欄 */
+  #atlas-list-view .atlas-list-cc {
+    display: inline-block;
+    overflow: hidden;
+    vertical-align: top;
+    white-space: pre;
   }
+  #atlas-list-view .atlas-sub-country { display: none; }
+  /* 副標只剩被藏的國家：不排 grid（排了會留空的第二軌＋gap、名稱少 16） */
+  #atlas-list-view .atlas-list-item:is([data-category="host"], [data-category="employ"]) { display: block; }
+  /* 主持／就職左右對列：每筆佔一格列高（atlas.js 寫 --list-item-h＝兩欄最高 item）、一行的也佔滿＝兩欄同列同高 */
+  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-item-wrapper { min-height: var(--list-item-h, 0px); }
 }
 
 /* ── 手機圓點星雲（直向 + 橫向 gate 共用）：JS（isMobileAtlas map view）給 #atlas-stage 加 .atlas-dot-mode；規則以 stage class scope、不靠 orientation media ── */
@@ -1483,6 +1488,15 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 }
 
 /* ── 矮橫向 gate（同 landscape.css）：圓點/zoom 規則在上方 .atlas-dot-mode；此處只放 list view 重排 + stage top；觸控手勢見 atlas.js isMobileAtlas ── */
+/* 橫排 tab（直向手機＋矮橫向）鈕距只有 xs 8：遮罩四邊放 12 時，左右滑的 inner 會越過鈕距蓋到隔壁（user 2026-10-29）
+   → 左右只留旋轉餘裕 2（±3° 角外溢 ≈1px）、上下照留 12 */
+@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px) {
+  #atlas-filter .atlas-filter-btn {
+    overflow: visible;
+    clip-path: inset(-12px -2px);
+  }
+}
+
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* dot 態 A/C/em label opacity:0 但仍佔位、蓋在 co chip 上偷走 elementFromPoint → 關 hit-test。
      直向不套（直向 tap label 直開卡需 hit-test） */

@@ -4172,12 +4172,12 @@ export async function initAtlas(options = {}) {
   }
 
   // 直向手機一律單 sub-col（user 2026-10-28：每筆一列＝左名稱、右副標，atlas.css 直式段；原 faculty/partners 兩欄）；
-  // alumni tab＝host/employ 上下兩段（原左右並排）、各自翻頁箭頭在標題卡右邊（build 把 nav 搬進 titleblock）。
+  // alumni tab＝host/employ 左右並排、翻頁箭頭貼欄底（同其他分類；user 2026-10-29 撤 10-28 的上下兩段＋箭頭在標題卡旁）。
   // 橫向 gate 不適用（一次只顯示一個 subgroup、全寬 3 欄）
   const isMobileSingleSubCol = (/** @type {string} [_cat] */ _cat) => isMobileAtlas && !isLandscapeGateAtlas;
-  // 直向 alumni：翻頁箭頭在標題卡右邊（不佔欄底 chevron 帶）
+  // 直向 alumni 兩欄對列（user 2026-10-29）：不走變高分頁，改均一列格＝列高取兩欄最高 item、固定 gap、兩欄列數一致，列數隨裝置高增減
   /** @param {string} cat */
-  const isPortraitAlumniCol = (cat) => isMobileSingleSubCol() && (cat === 'host' || cat === 'employ');
+  const isPortraitAlumni = (cat) => isMobileSingleSubCol() && (cat === 'host' || cat === 'employ');
   // 每欄 sub-col 數：直向=1、橫向 gate=3（user 2026-07-07 三欄 layout）、桌面=2
   /** @param {string} cat */
   const listSubCols = (cat) => isMobileSingleSubCol(cat) ? 1 : (isLandscapeGateAtlas ? 3 : (listSingle ? 1 : 2));
@@ -4190,7 +4190,7 @@ export async function initAtlas(options = {}) {
   function calcMobilePages(cat, containerH) {
     const hs = ITEM_HEIGHTS_PER_CAT[cat];
     const total = (listGrouped[cat] || []).length;
-    if (!hs || hs.length !== total) return null;
+    if (!hs || hs.length !== total || isPortraitAlumni(cat)) return null;
     /** @param {number[]} arr */
     const fits = arr => arr.reduce((s, h) => s + h, 0) + LIST_GAP_MOBILE * Math.max(0, arr.length - 1) <= containerH;
     const pages = [];
@@ -4241,15 +4241,18 @@ export async function initAtlas(options = {}) {
       // 會白白少排一行）；欄 display:none 量到 0 → fallback 公式（tab 首次切到該欄時會重 render 再量）
       const itemsBox = col ? /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-items')) : null;
       const realBoxH = itemsBox ? itemsBox.clientHeight : 0;
-      const band = isPortraitAlumniCol(cat) ? 0 : CHEVRON_BAND_MOBILE;   // 直向 alumni 箭頭在標題卡旁
       const containerH = realBoxH > 0
-        ? realBoxH - band
-        : colH - (isAlumniCol ? TITLEBLOCK_H : 0) - band;
-      const itemH = ITEM_H_PER_CAT[cat] || 84;
+        ? realBoxH - CHEVRON_BAND_MOBILE
+        : colH - (isAlumniCol ? TITLEBLOCK_H : 0) - CHEVRON_BAND_MOBILE;
+      // ponytail: 兩欄各自量完才取 max；先量的那欄重排時另一欄還沒值（兩欄最高都是中英兩行＝同高，實務不差）
+      const alumniH = isPortraitAlumni(cat) ? Math.max(ITEM_CONTENT_H.host || 0, ITEM_CONTENT_H.employ || 0) : 0;
+      const itemH = alumniH || ITEM_H_PER_CAT[cat] || 84;
       // 行數以「全分類最高 item + 固定 gap」估最壞情況（rows*(h+g) ≤ C+g）→ 自然高排列永不溢出；
       // gap 固定 = 視覺間距每頁、每 item 一致（不再依 leftover 均分）
       const rowsPerCol = Math.max(2, Math.floor((containerH + LIST_GAP_MOBILE) / (itemH + LIST_GAP_MOBILE)));
-      return { rowsPerCol, gap: LIST_GAP_MOBILE, itemH, containerH };
+      // 直向 alumni：剩餘高均攤進列距＝排滿欄高（同教師／合作單位滿頁），兩欄、每頁（含最後一頁）列位置都一樣
+      const gap = alumniH ? Math.max(LIST_GAP_MOBILE, (containerH - rowsPerCol * itemH) / (rowsPerCol - 1)) : LIST_GAP_MOBILE;
+      return { rowsPerCol, gap, itemH, containerH };
     }
     // chevron 底線 = list view 底＝左下元素頂再往上 16（CSS：<1200 layout 鈕頂；≥1200 當前頁卡頂——鈕排卡右邊、
     //   卡比鈕高）。讀 computed 值：首次 render 時 list 還 display:none、量不到 rect
@@ -4496,8 +4499,6 @@ export async function initAtlas(options = {}) {
       // 翻頁／重排沿用同一顆 nav 鈕、不重建（user 2026-10-20「hover next 鈕不動會閃一下」）：在游標下重生的新鈕
       // 要等滑鼠動了瀏覽器才判 :hover → 停著不動＝先黑一幀再變回 hover 色。只換子欄，nav 留在 DOM 原地
       let navItem = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item'));
-      // 直向 alumni：箭頭掛欄本身、CSS 釘欄右上（標題卡那列最右邊；不放進 titleblock＝它整塊微傾、右端會上下偏）；其餘貼欄底（itemsEl）
-      const navHost = isPortraitAlumniCol(cat) ? col : itemsEl;
       evacuateListNodes(itemsEl);   // 單一節點：先撤回星雲 anchor，清子欄才不會炸掉節點
       itemsEl.querySelectorAll(':scope > .atlas-list-sub-col').forEach(sc => sc.remove());
 
@@ -4554,14 +4555,14 @@ export async function initAtlas(options = {}) {
       // 手機滿頁：剩餘高度攤進間距（CSS .is-full → space-between；不足頁頂部排列不硬撐）
       // 變高分頁：「滿」= 被容量截斷的頁（還有下一頁）；最後一頁頂部排列
       if (isMobileAtlas) {
-        const pageFull = mobilePages ? safePage < maxPage : pageItems.length === itemsPerPage;
+        const pageFull = !isPortraitAlumni(cat) && (mobilePages ? safePage < maxPage : pageItems.length === itemsPerPage);
         subCols.forEach(sc => sc.classList.toggle('is-full', pageFull));
       }
 
       // nav 在 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）；子欄插在它前面
       subCols.forEach(sc => itemsEl.insertBefore(sc, navItem.parentElement === itemsEl ? navItem : null));
       if (isNewNav) {
-        navHost.appendChild(navItem);
+        itemsEl.appendChild(navItem);
         // 新鈕（首次建欄）可能就位於游標下：等假 mouseenter 補發過去（次幀）才落旗、才綁 hover 隨機三原色
         listNavReparenting = true;
         requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; bindNavBtnHover(nextBtn); }));
@@ -4575,6 +4576,7 @@ export async function initAtlas(options = {}) {
       // 在 build 完才設（不在 renderListPage 開頭）：exit 期間舊排版不動。
       if (isMobileAtlas) {
         col.style.setProperty('--list-gap', `${sizeInfo.gap}px`);
+        if (isPortraitAlumni(cat)) col.style.setProperty('--list-item-h', `${sizeInfo.itemH}px`);
       }
 
       // Global pre-measure：第一次 render 時把 cat 全 items 渲染 off-screen 量 max actual height
@@ -4684,11 +4686,12 @@ export async function initAtlas(options = {}) {
     // 每 item 預設 stagger 0.08s；用 STAGGER_WINDOW 上限壓縮多 items 的欄（如 host），確保各欄結束時間相近
     const BASE_ITEM_STAGGER = 0.08;
     const STAGGER_WINDOW = 1.0;
-    const titleEl = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-col-title'));
-    if (titleEl) {
+    // 全部標題：host 欄頂還巢了 Alumni 欄頭（手機 display:none）、querySelector 只抓到它 → 主持卡被退場藏起後永遠回不來（user 2026-10-29）
+    const titleEls = col.querySelectorAll('.atlas-list-col-title');
+    if (titleEls.length) {
       // 標題 chip 進場用 DUR.slow(0.6) 而非 DUR.reveal(1.0)：user 2026-07-16 覺得左上角欄標題 chip 進場偏慢；
       // item lines / chevron 維持 DUR.reveal（chip 先落定、內容隨後）
-      gsap.fromTo(titleEl,
+      gsap.fromTo(titleEls,
         { yPercent: 110 },
         { yPercent: 0, duration: DUR.slow, delay, ease: EASE.enter, clearProps: 'transform', overwrite: true }
       );
@@ -6462,6 +6465,17 @@ export async function initAtlas(options = {}) {
   //   stage 收起＝停 float rAF；左下切換鈕照留、list 照常可看（switchToMobileList 設 hidden）。跨 gate 轉向由 orientation-reload 重載。
   //   提示元素只在 atlas 頁 HTML（待機 overlay 沒有）→ 待機照走星雲。
   const rotateHint = $('#atlas-rotate-hint');
+  // 提示 icon／文字塊（兩行同一遮罩，HTML .atlas-rotate-hint-clip）各自 clip-reveal：進頁跟切換鈕同拍進場、
+  //   切 list 先退場再收起、切回星雲進場（user 2026-10-29）
+  const hintParts = rotateHint ? [...rotateHint.querySelectorAll('.atlas-rotate-hint-clip > *')] : [];
+  const hintShown = () => !!rotateHint && !rotateHint.hidden && rotateHint.getClientRects().length > 0;
+  const randY = () => Math.random() < 0.5 ? 110 : -110;
+  function playHintEnter() {
+    if (!hintShown()) return;
+    if (typeof gsap === 'undefined' || prefersReducedMotion()) { hintParts.forEach(el => { el.style.transform = 'none'; }); return; }
+    // y:0 蓋掉 GSAP 從 CSS 出生藏態解析到的 px 位移（同 showLayoutBtn）
+    gsap.fromTo(hintParts, { yPercent: randY, y: 0 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0.05, overwrite: true });
+  }
   function syncMobileMapOrientation() {
     if (!isMobileAtlas || currentView !== 'map') return;
     if (rotateHint) rotateHint.hidden = false;
@@ -6493,6 +6507,7 @@ export async function initAtlas(options = {}) {
       tx = 0; ty = 0;
       applyTransform();
       syncMobileMapOrientation();
+      playHintEnter();
       // 星雲進場（stage 顯示中就播；直向手機也走星雲＝直向橫向都有進出場，2026-07-09）：
       // chip 從 random 方向 clip-in + 城市線 draw 回（對稱出場；user 2026-07-07）
       if (typeof gsap !== 'undefined' && stage.style.display !== 'none') {
@@ -6510,14 +6525,9 @@ export async function initAtlas(options = {}) {
         cityLines.forEach(cl => gsap.to(cl, { retractT: cityLineRestT(cl), duration: 0.55, ease: EASE.enterSoft, overwrite: true }));
       }
     };
-    // 分類 tab 同步反向收（clip wipe，CSS transition）
+    // 分類 tab 一起收（同其他頁底 bar 整條進出、不逐顆；user 2026-10-29）
     drainRevealTimers();
-    [...btns].reverse().forEach((btn, i) => {
-      const t = setTimeout(() => {
-        if (btn.isConnected) btn.classList.remove('atlas-filter-revealed');
-      }, i * STAGGER);
-      revealTimers.push(t);
-    });
+    btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
     if (typeof gsap === 'undefined') { finalize(); return; }
     const exitLines = /** @type {HTMLElement[]} */ ([
       ...listView.querySelectorAll('.atlas-list-line-clip > *'),
@@ -6547,6 +6557,17 @@ export async function initAtlas(options = {}) {
   function switchToMobileList() {
     if (currentView === 'list') return;
     currentView = 'list';
+    if (typeof gsap !== 'undefined' && hintShown()) {
+      gsap.to(hintParts, {
+        yPercent: randY, duration: DUR.slow, ease: EASE.exitSoft, stagger: 0.05, overwrite: true,
+        onComplete: () => {
+          if (currentView !== 'list') return;   // 退場中又切回星雲
+          rotateHint.hidden = true;
+          finishSwitchToMobileList();
+        },
+      });
+      return;
+    }
     if (rotateHint) rotateHint.hidden = true;
     // 星雲出場（user 2026-07-07）：stage 顯示中 chip clip 收 + 城市線退場，跑完才切 list（直向手機也走星雲，
     // 2026-07-09 拿掉 isLandscape() gate＝直向橫向都有出場）。clipPath 殘留由回程進場動畫重設。
@@ -6578,14 +6599,12 @@ export async function initAtlas(options = {}) {
     if (filterEl) filterEl.style.display = '';
     listView.classList.add('visible');
     updateGateSubVisibility(); // 橫向 gate：alumni tab active 時左欄子分頁鈕跟著出現
-    // 分類 tab 重新 wipe in（進星雲時被反向收掉）
+    // 分類 tab 重新滑入：init 時已 reveal 過（class 還在）→ 從 display:none 出來直接落定、沒進場（user 2026-10-29）。
+    //   先摘 class＋commit 藏起態，再一起加回（同其他頁底 bar 一次進場、不逐顆；user 2026-10-29）
     drainRevealTimers();
-    btns.forEach((btn, i) => {
-      const t = setTimeout(() => {
-        if (btn.isConnected) btn.classList.add('atlas-filter-revealed');
-      }, i * STAGGER);
-      revealTimers.push(t);
-    });
+    btns.forEach(b => b.classList.remove('atlas-filter-revealed'));
+    if (filterEl) void filterEl.offsetHeight;
+    btns.forEach(b => b.classList.add('atlas-filter-revealed'));
     // 星雲模式期間可能轉向過 → 以當前 viewport 重 render 顯示中的欄
     listView.querySelectorAll('.atlas-list-col').forEach(col => {
       const colEl = /** @type {HTMLElement} */ (col);
@@ -6620,6 +6639,7 @@ export async function initAtlas(options = {}) {
       (itemLines.get(item.id) || []).forEach(l => { l.style.display = ''; });
     });
     syncMobileMapOrientation();
+    playHintEnter();   // 跟切換鈕（revealFilters → showLayoutBtn）同拍
   }
 
   // ── Page exit：離開 atlas 時依當下 view 跑對應退場 ─────────────

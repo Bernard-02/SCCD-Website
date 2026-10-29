@@ -34,8 +34,9 @@
       <!-- 直式手機不提供星雲（user 2026-10-27/28）：星雲 view＝轉向提示蓋著（CSS 直式才顯示＝首繪就蓋、切 list 時 atlas.js 設 hidden）；
            左下切換鈕照留、list view 照常可看；轉橫向＝orientation-reload 重載進星雲。文字同 /create #landscape-overlay -->
       <div id="atlas-rotate-hint">
-        <span class="icon icon-rotate-phone" aria-hidden="true"></span>
-        <div class="atlas-rotate-hint-text"><span lang="zh-Hant">旋轉設備以獲取最佳體驗</span><span>ROTATE FOR BEST EXPERIENCE</span></div>
+        <!-- 遮罩寫在 HTML：出生藏著（atlas.css），atlas.js init 完跟切換鈕同拍 clip-reveal 進場 -->
+        <div class="atlas-rotate-hint-clip"><span class="icon icon-rotate-phone" aria-hidden="true"></span></div>
+        <div class="atlas-rotate-hint-clip"><div class="atlas-rotate-hint-text"><span lang="zh-Hant">旋轉設備以獲取最佳體驗</span><span>ROTATE FOR BEST EXPERIENCE</span></div></div>
       </div>
       <div id="atlas-stage">
         <div id="atlas-zoom">
