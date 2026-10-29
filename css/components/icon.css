@@ -67,7 +67,7 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
   /* 影片 UI 的返回／全螢幕不在這：整塊都是鈕、hover 整塊反色（lightbox.css） */
   :is(#video-play-btn, #video-mute-btn, .lb-video-ink:not(.lb-video-fs-block *)):hover .icon,
   :is(#share-copy-qr-btn, #share-download-btn, #share-url-copy-btn):hover .icon,
-  :is(.mcp-play, .mcp-cap-play):hover .icon,       /* mode3 背景色面板 play/pause */
+  .mcp-cap-play:hover .icon,                       /* mode3 背景色 capsule play/pause */
   .mcp-cap.is-active .mcp-cap-toggle:hover .icon { /* 展開中的收合 chevron（收起時＝鉛筆圓鈕、有底，走 .mcp-cap:hover 反色） */
     opacity: 0.6;
   }

@@ -103,10 +103,11 @@ const LIGHTBOX_HTML = `
     </div>
     <!-- 返回鍵（user 2026-10-01 三改）：全站黑方塊箭頭鈕（同 slide-in .slide-in-back-square）騎在卡片左上角——中心＝角
          （margin 拉回半顆，不用 translate＝transform 留給 hover 抽角）。外層＝遮罩（overflow:clip）、內層 #share-back-inner
-         平移做四向 clip-reveal。黑底白箭頭＝同 slide-in 返回鍵（user 2026-10-01 四改；原反色白底黑箭頭已撤） -->
-    <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:48px; height:48px; margin:calc(var(--spacing-md) * -1) 0 0 calc(var(--spacing-md) * -1); padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
+         平移做四向 clip-reveal。黑底白箭頭＝同 slide-in 返回鍵（user 2026-10-01 四改；原反色白底黑箭頭已撤）。
+         尺寸＝lightbox 返回鍵 --lb-icon-btn（真桌面 48／icon 32、其餘 44／28；原固定 48＝手機跟 lightbox 不一樣，user 2026-10-29） -->
+    <button id="share-lightbox-close" aria-label="關閉 Close" style="position:absolute; top:0; left:0; width:var(--lb-icon-btn, 44px); height:var(--lb-icon-btn, 44px); margin:calc(var(--lb-icon-btn, 44px) / -2) 0 0 calc(var(--lb-icon-btn, 44px) / -2); padding:0; border:0; background:none; overflow:clip; transition:transform var(--dur-fast) var(--ease-standard);">
       <span id="share-back-inner" style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; background:var(--color-black); color:var(--color-white);">
-        <span class="icon icon-arrow-left icon-xl"></span>
+        <span class="icon icon-arrow-left" style="font-size:calc(var(--lb-icon-btn, 44px) - 16px);"></span>
       </span>
     </button>
     </div>
@@ -190,7 +191,18 @@ function openShareLightbox(url, cardBg, backBg) {
   if (typeof gsap !== 'undefined') {
     ensureCardMask(card);
     const stage = document.getElementById('share-lightbox-stage');
-    if (stage) gsap.set(stage, { rotation: SCCDHelpers.getRandomRotation() });
+    const rot = SCCDHelpers.getRandomRotation();
+    // 放不進視窗（直向窄屏寬、矮橫向高）＝卡片等比縮到剛好（user 2026-10-29「加上箭頭不超過畫面」）：量「含傾角的 bbox ＋
+    // 騎在角上的返回鍵凸出半顆」，四周留手機 --container-padding 24。CSS zoom＝連版面一起縮（遮罩／stage 跟著、旋轉仍繞卡中心），
+    // 返回鍵在卡外不跟縮＝維持 44 可點；縮時整組（卡＋返回鍵）置中，桌面放得下＝不動。
+    // bbox 用角度上限 6°（getRandomRotation 範圍 -4..6）不用當次抽到的角＝同一支手機每次開都同大小（不隨角抖 ±5%）
+    card.style.zoom = '';
+    const o = (document.getElementById('share-lightbox-close')?.offsetWidth || 44) / 2;
+    const sin = Math.sin(6 * Math.PI / 180), cos = Math.cos(6 * Math.PI / 180);
+    const W = card.offsetWidth, H = card.offsetHeight, GUTTER = 24;
+    const s = Math.min(1, (window.innerWidth - 2 * GUTTER - o) / (W * cos + H * sin), (window.innerHeight - 2 * GUTTER - o) / (W * sin + H * cos));
+    if (s < 1) card.style.zoom = String(+s.toFixed(3));
+    if (stage) gsap.set(stage, { rotation: rot, x: s < 1 ? o / 2 : 0, y: s < 1 ? o / 2 : 0 });
     entrance?.kill();
     // 卡內 UI 先藏（遮罩＝元素自身形狀，navChipHidden；display:flex 之後才量得到尺寸）
     const ui = /** @type {HTMLElement[]} */ (UI_IDS.map(id => document.getElementById(id)).filter(Boolean));

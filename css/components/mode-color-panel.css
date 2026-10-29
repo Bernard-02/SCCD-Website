@@ -1,5 +1,7 @@
-/* Mode-3 背景色編輯浮動面板（js/modules/ui/mode-color-panel.js）
-   顯隱由 JS updateVisibility 主控；overlay 覆蓋時 CSS 再硬藏一層保險 */
+/* Mode-3 背景色編輯浮動鈕（js/modules/ui/mode-color-panel.js）
+   顯隱由 JS updateVisibility 主控；overlay 覆蓋時 CSS 再硬藏一層保險。
+   全尺寸同一套（user 2026-10-29「手機跟桌面對齊」；原手機鉛筆方鈕＋色環面板已刪）：圓鈕（鉛筆）→ 點開往左拉長成 capsule
+   （色條＋play/pause＋chevron）。尺寸 --mcp-h：真桌面 48／icon 32、其餘 44／icon 28（同 header mode／menu 鈕，手機 44/28 慣例）。 */
 
 #mode-color-panel {
   position: fixed;
@@ -7,7 +9,7 @@
   z-index: 9998;            /* 低於 lightbox 9999；index 首屏內容（浮卡 0／news 15／WATCH 20）都在其下 */
   pointer-events: none;     /* layer 不擋頁面，只有子元件可點 */
   display: none;            /* 預設藏；JS gate 打開 */
-  overflow: hidden;         /* inset:0＝視窗：wheel 從右緣外滑入的唯一裁切線（也防 off-screen 面板撐出橫向捲軸） */
+  overflow: hidden;         /* inset:0＝視窗：也防 off-screen 鈕撐出橫向捲軸 */
 }
 
 /* overlay 覆蓋時強制藏 */
@@ -17,120 +19,28 @@ html.has-slide-in #mode-color-panel { display: none !important; }
 /* 桌面 footer 卡開著：沉到 backdrop（9997）下＝被卡蓋住、點不到（user 2026-10-20；本檔 unlayered，規則放這才蓋得過上面的 9998） */
 body.footer-card-open #mode-color-panel { z-index: 9996; }
 
-/* ── 滑動結構：鉛筆在遮罩內滑出；wheel 整顆從視窗右緣外滑入（裁切交給 #mode-color-panel）；微傾掛 wrapper（旋轉跟遮罩走）── */
-.mcp-pencil-mask,
-.mcp-panel-mask {
+/* ── 圓鈕 → capsule ──
+   圓鈕跟 header menu btn 同欄（右＝container padding；底＝鏡像 header 鈕離頂：手機 pt-lg 32、真桌面 48）；
+   點開 JS tween .mcp-cap width --mcp-h→217+--mcp-h（mode-color-panel.js capW），mask right 錨定＝往左長；
+   row 固定寬靠右＝長出部分由右往左露出色條/play */
+.mcp-cap-mask {
+  --mcp-h: 44px;
   position: absolute;
+  right: var(--container-padding);
   bottom: var(--spacing-lg, 32px);
-  overflow: hidden;
-  pointer-events: none;   /* 滑出遮罩外的本體不吃 pointer；本體自己 auto */
+  overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩 */
+  border-radius: calc(var(--mcp-h) / 2);    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
+  pointer-events: none;
 }
-.mcp-pencil-mask { right: 0; }   /* 鉛筆收起時貼右緣 docked，佔右緣 0-48px */
-/* overflow:visible：行進中的 wheel 要可見，裁切交給視窗右緣 */
-.mcp-panel-mask { right: var(--spacing-lg, 32px); overflow: visible; }
-
-/* 鉛筆方鈕：48px 同 history 左下 btn；icon 不旋轉 */
-.mcp-pencil {
-  position: relative;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  background: var(--theme-fg, var(--color-black));
-  color: var(--theme-fg-inverse, var(--color-white));
-  border: none;
-  cursor: var(--cursor-pointer);
-  font-size: 32px;   /* glyph 對齊 atlas 左下 .atlas-layout-inner（48 盒 32 glyph） */
-}
-
-/* 展開面板：compact 方形（16 padding + 72 wheel = 104） */
-.mcp-panel {
-  position: relative;
-  pointer-events: auto;
-  box-sizing: border-box;
-  width: 104px;
-  height: 104px;
-  padding: var(--spacing-sm, 16px);
-  background: var(--theme-fg, var(--color-black));        /* 純黑/白對比底（依 hue 亮暗翻，非中性灰） */
-  color: var(--theme-fg-inverse, var(--color-white));
-  /* 收起態由 JS build() 用 gsap xPercent 設；勿在 CSS 放 translateX(100%)：gsap 會解析成 px 的 x 分量、
-     與 xPercent 各自獨立 → 面板永遠偏移 */
-}
-
-.mcp-wheel-wrap {
-  position: relative;
-  width: 72px;
-  height: 72px;
-}
-.mcp-wheel {
-  position: relative;
-  display: block;
-  width: 72px;
-  height: 72px;
-  cursor: var(--cursor-pointer);
-  touch-action: none;   /* 讓 pointer drag 不被捲動搶走 */
-}
-/* 靜態 hue 色環：conic-gradient（六分色邊界＝hsbToRgb(h,80,100)）＋ radial mask 裁成環帶（52.9%～98% 半徑＝SVG 內外圈 r=19.05/35.28）
-   向量＝任何 DPR 銳利、零逐幀成本；放 ::before 讓 mask 只裁色環、不裁上層 SVG 圈線/指標 */
-.mcp-wheel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: conic-gradient(#f33 0deg, #ff3 60deg, #3f3 120deg, #3ff 180deg, #33f 240deg, #f3f 300deg, #f33 360deg);
-  -webkit-mask: radial-gradient(circle closest-side, transparent 0 52.9%, var(--color-black) 52.9% 98%, transparent 98%);
-          mask: radial-gradient(circle closest-side, transparent 0 52.9%, var(--color-black) 52.9% 98%, transparent 98%);
-}
-.mcp-wheel-svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* play/pause：置中在色環中央洞裡（同 create） */
-.mcp-play {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: var(--cursor-pointer);
-  color: var(--theme-fg-inverse, var(--color-white));
-}
-.mcp-play .icon { font-size: 16px; }
-
-/* ── 桌面：圓鈕 → capsule ──
-   圓鈕跟 header menu btn 同欄（右＝container padding、底 48 鏡像 header 列 pt 48）；點開 JS tween .mcp-cap width 48→265（mode-color-panel.js CAP_W），
-   mask right 錨定＝往左長；row 固定寬靠右＝長出部分由右往左露出色條/play。非桌面只有鉛筆方鈕＋色環（上面那套） */
-.mcp-cap-mask { display: none; }
 @media (min-width: 1024px) and (min-height: 501px) {
-  .mcp-pencil-mask,
-  .mcp-panel-mask { display: none; }
-  .mcp-cap-mask {
-    display: block;
-    position: absolute;
-    right: var(--container-padding);
-    bottom: 48px;
-    overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩（同鉛筆） */
-    border-radius: 24px;    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
-    pointer-events: none;
-  }
+  .mcp-cap-mask { --mcp-h: 48px; bottom: 48px; }
 }
 .mcp-cap {
   position: relative;
   pointer-events: auto;
-  width: 48px;
-  height: 48px;
-  border-radius: 24px;
+  width: var(--mcp-h);
+  height: var(--mcp-h);
+  border-radius: calc(var(--mcp-h) / 2);
   overflow: hidden;
   background: var(--theme-fg, var(--color-black));
   color: var(--theme-fg-inverse, var(--color-white));
@@ -152,8 +62,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   position: absolute;
   top: 0;
   right: 0;
-  width: 265px;             /* = CAP_W */
-  height: 48px;
+  width: calc(217px + var(--mcp-h));   /* = capW：左留白 20 + 色條 160 + 17 + play 20 + chevron 格 --mcp-h */
+  height: var(--mcp-h);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -163,8 +73,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
      ⚠️ play 盒不可伸進 chevron 格（負 margin）：那格＝收起時的圓鈕，伸進去＝▶ 尖角露在圓左緣（10-26 踩過） */
   padding-left: 20px;
 }
-/* 色條：膠囊圓角；框線＋indicator 走 currentColor＝色環圈線同色
-   track 滿版（漸層兩端皆紅 hue 0＝360，圓角只裁形狀）：indicator 才能滑到右緣再從左緣進場（wrap 複本，見 mode-color-panel.js drawWheel），barHue 點擊與 indicator 同一座標系 */
+/* 色條：膠囊圓角；框線＋indicator 走 currentColor
+   track 滿版（漸層兩端皆紅 hue 0＝360，圓角只裁形狀）：indicator 才能滑到右緣再從左緣進場（wrap 複本，見 mode-color-panel.js drawBar），barHue 點擊與 indicator 同一座標系 */
 /* 色條 clip-reveal 貼身遮罩（capsule 長完才四向滑入，mode-color-panel.js open）；flex 寬掛這層
    遮罩＝色條膠囊形；clip margin 1px 同色條本體：indicator 上下伸出的 1px 不被切 */
 .mcp-bar-mask {
@@ -184,9 +94,9 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   overflow-clip-margin: 1px;
   background: #f33;
   cursor: var(--cursor-pointer);
-  touch-action: none;
+  touch-action: none;   /* 讓 pointer drag 不被捲動搶走 */
 }
-/* HSB s80 v100 六分色（同上面 conic 色環）；barHue 以此 track 換算 0~360 */
+/* HSB s80 v100 六分色（同 /create 色環）；barHue 以此 track 換算 0~360 */
 .mcp-bar-track {
   position: absolute;
   top: 0;
@@ -220,7 +130,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  height: 48px;
+  height: var(--mcp-h);
   padding: 0;
   background: none;
   border: none;
@@ -236,8 +146,8 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   outline: 2px solid currentColor;
   outline-offset: -4px;
 }
-.mcp-cap-toggle { width: 48px; font-size: 32px; }   /* 32 glyph 置中 48 格＝收起時就是圓鈕本身 */
-/* 朝右 chevron（展開時往右收回）：沿用 chevron_left_lightbox（site-assets.js 會換成後台檔），24 比鉛筆小一階
+.mcp-cap-toggle { width: var(--mcp-h); font-size: calc(var(--mcp-h) - 16px); }   /* 格＝收起時的圓鈕本身；icon＝盒 −16（48/32、44/28） */
+/* 朝右 chevron（展開時往右收回）：沿用 chevron_left_lightbox（site-assets.js 會換成後台檔），比鉛筆小一階（盒 −24）
    ⚠️ 翻向畫在 ::before、本體不帶 rotate/scale：clipRevealIconSwap 用 GSAP tween 本體，GSAP 會把獨立 rotate/scale
    併進 transform → chevron 先朝錯向滑入才跳正 */
 .mcp-cap-toggle .icon-chevron-right {
@@ -245,7 +155,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   position: relative;
   /* 格內左移 3（貼身遮罩 fit-content 置中＝寬 +6 → 左移一半）：只 chevron 有、鉛筆仍正中（class 在 swap 藏好時才換＝不跳）；間距見 .mcp-cap-row */
   margin-right: 6px;
-  font-size: 24px;
+  font-size: calc(var(--mcp-h) - 24px);
   background-color: transparent;
   -webkit-mask-image: none;
           mask-image: none;
