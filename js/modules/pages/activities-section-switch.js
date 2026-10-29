@@ -6,7 +6,6 @@
 
 import { loadExhibitionsInto, loadDegreeShowListInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil, gateListImagesUntil, releaseGatedImages } from './activities-data-loader.js';
 import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
-import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer, loadDeferredMedia } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
@@ -137,11 +136,14 @@ function centerSectionNavBtn(section) {
   if (SCCDHelpers.isDesktopLayout()) return;
   const btn = /** @type {HTMLElement | null} */ (document.querySelector(`.activities-section-btn[data-section="${section}"]`));
   const bar = /** @type {HTMLElement | null} */ (btn && btn.closest('.activities-section-bar'));
-  if (!btn || !bar) return;
-  const barRect = bar.getBoundingClientRect();
-  const btnRect = btn.getBoundingClientRect();
-  const delta = (btnRect.left + btnRect.width / 2) - (barRect.left + barRect.width / 2);
-  bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+  if (btn && bar) centerInStrip(btn, bar);
+}
+// 水平 strip 內把 btn 捲到中間（section bar／子分頁 tab 列共用；桌面子分頁不捲＝scrollTo no-op）
+/** @param {HTMLElement} btn @param {HTMLElement} strip */
+function centerInStrip(btn, strip) {
+  const s = strip.getBoundingClientRect();
+  const b = btn.getBoundingClientRect();
+  strip.scrollTo({ left: strip.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior: 'smooth' });
 }
 
 // deep-link 程式點開目標 item：開啟序列（對齊＋展開＋收齊）整段跑完（list-accordion 發 list:opened）才解除操作鎖
@@ -534,7 +536,11 @@ function refreshTriggersOnGrow(section) {
     if (h === lastH) return;   // 寬度變／同高的雜訊不觸發
     lastH = h;
     clearTimeout(t);
-    t = window.setTimeout(() => { if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh(); }, 150);
+    // 只重算掛在 section 上的 trigger（nav／底 bar 範圍）：全頁 ScrollTrigger.refresh() 會還原捲動、全部 trigger 重排，
+    //   手機續建／展開讓 section 一直長高＝捲動中每次 ~880ms（4x 降速，user 2026-10-29「捲動卡」）
+    t = window.setTimeout(() => {
+      if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.getAll().forEach(st => { if (st.trigger === section) st.refresh(); });
+    }, 150);
   });
   ro.observe(section);
   registerPageCleanup(() => { clearTimeout(t); ro.disconnect(); });
@@ -1122,7 +1128,6 @@ async function animatedSubListSwitch(panelId, lists, targetType, ready = null) {
       const el = lists[k];
       if (el) el.style.display = k === targetType ? '' : 'none';
     }
-    if (incoming.id === 'degree-show-list') bindDegreeShowMarquee(incoming);
 
     // 切 sub-filter 一律捲回 section 頂（對齊左側 section nav，user 2026-06-06「點 filter 也要回到 filter 頂部」）。
     // 取代舊「量 filter bar 前後 Y、scrollBy 維持 sticky 視覺位置」：切到短 list（如 permanent 僅 1 筆）時
@@ -1211,20 +1216,6 @@ function ensureDegreeShowLoaded() {
   }
   return degreeShowLoad;
 }
-// 標題過長 → marquee：清單在 display:none 態 render（offsetWidth=0 量不到），顯示後 rAF 重量（比照 dsd-tab strip）。
-// 每次切到都重量（寬度可能因 resize 變）；hover 放開回彈（user 2026-08-19 B）每張卡只綁一次（手機由 helper 自我 gate）。
-/** @param {HTMLElement} container */
-function bindDegreeShowMarquee(container) {
-  requestAnimationFrame(() => {
-    applyMarqueeOverflow(container, '.dshow-title-line', '.dshow-title-inner');
-    container.querySelectorAll('.degree-show-card-content').forEach((cardEl) => {
-      const card = /** @type {HTMLElement} */ (cardEl);
-      if (card.dataset.marqueeReturnBound) return;
-      card.dataset.marqueeReturnBound = '1';
-      registerPageCleanup(bindMarqueeReturn(card, '.dshow-title-inner', '.dshow-title-line'));
-    });
-  });
-}
 // 程式化切展演子分頁（舊連結 ?section=degree-show 導到這裡）：同 navigateToItem 的 sub-tab 切法——抑制自帶的
 // instant 捲回 section 頂（deep-link 自己會在 hero 後平滑捲），等整段 exit→swap→reveal 啟動完才還原旗標。
 /** @param {string} type */
@@ -1267,7 +1258,10 @@ function initExhibitionsTypeFilter() {
       // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
       // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
       if (subFilterSwitching || btn.classList.contains('active')) return;
-      scrollToSectionTopNow(document.getElementById('activities-content-section'));   // 直向手機：tab 在畫面底 → 點下就回 section 頂
+      // 直向手機：tab 在畫面底 → 點下就回 section 頂；程式化切（navigateToItem／DSD 返回鈕 ?section=degree-show）不捲＝
+      // 等 hero 播完由 deep-link 平滑捲下來（同桌面「先 hero 再到位」，user 2026-10-29）
+      if (!suppressSubFilterScroll) scrollToSectionTopNow(document.getElementById('activities-content-section'));
+      centerInStrip(btn, /** @type {HTMLElement} */ (btn.parentElement));   // 點的 chip 捲到 tab 列中間（user 2026-10-29，同 section bar）
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');
@@ -1319,7 +1313,10 @@ function initVisitsTypeFilter() {
       // subFilterSwitching 前置：animatedSubListSwitch 的 guard 在 async 內、擋不住這裡先同步翻 active/desc
       // → 動畫中連點會「按鈕與 desc 已切、清單沒切」永久 desync（再點也被 active guard 擋）。動畫期間整顆點擊忽略。
       if (subFilterSwitching || btn.classList.contains('active')) return;
-      scrollToSectionTopNow(document.getElementById('activities-content-section'));   // 直向手機：tab 在畫面底 → 點下就回 section 頂
+      // 直向手機：tab 在畫面底 → 點下就回 section 頂；程式化切（navigateToItem／DSD 返回鈕 ?section=degree-show）不捲＝
+      // 等 hero 播完由 deep-link 平滑捲下來（同桌面「先 hero 再到位」，user 2026-10-29）
+      if (!suppressSubFilterScroll) scrollToSectionTopNow(document.getElementById('activities-content-section'));
+      centerInStrip(btn, /** @type {HTMLElement} */ (btn.parentElement));   // 點的 chip 捲到 tab 列中間（user 2026-10-29，同 section bar）
       btns.forEach(bEl => {
         const b = /** @type {HTMLElement} */ (bEl);
         b.classList.remove('active');

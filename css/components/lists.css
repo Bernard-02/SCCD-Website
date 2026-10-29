@@ -300,7 +300,7 @@
   /* 年份組間距：separator 雖 display:none 仍在 DOM，且可能被 setupClipReveal 包進 .clip-reveal-wrapper →
      用 year-group:not(:first-child) margin-top 跨過 wrapper 結構。 */
   .list-year-group:not(:first-child) {
-    margin-top: var(--spacing-2xl);
+    margin-top: var(--spacing-md);   /* 2xl(手機 48) 減半（user 2026-10-29） */
   }
   /* camp：年份組間改用容器 flex gap（md）而非 margin-top。
      ⚠️ 必須同時隱藏 separator 的 .clip-reveal-wrapper：它仍是 flex 子，不隱藏 gap 會在 wrapper 兩側各加一次＝雙倍。
@@ -322,12 +322,9 @@
     display: block;
   }
 
-  /* === admission 手機 list-content：desc+poster 兩欄 → 單欄、poster 排前、左右 spacing-sm（同 activities）=== */
+  /* === admission 手機 list-content：desc+poster 兩欄 → 單欄、poster 排前（同 activities；內距＝HTML p-sm 四邊同、全尺寸共用）=== */
   #admission-content-section .list-content > .grid {
-    grid-template-columns: 1fr !important;
-    padding-left: var(--spacing-sm) !important;
-    padding-right: var(--spacing-sm) !important;
-    padding-bottom: var(--spacing-sm) !important;  /* HTML pb-lg → 手機收成 pb-sm */
+    grid-template-columns: minmax(0, 1fr) !important;   /* 同 activities：講者名一行 nowrap 不撐出卡片 */
     gap: var(--spacing-md);
   }
   /* DOM 是 desc 在前、poster 在後 → order 反轉讓 poster 排前 */
@@ -345,23 +342,10 @@
     grid-template-columns: 1fr !important;
     gap: var(--spacing-xs);
   }
-  /* poster 手機限寬，避免滿版視覺過重 */
-  #panel-summer-camp .poster-img {
-    max-width: 240px;
-    width: 100%;
-    height: auto;
-  }
   /* 年份組間距（separator 已隱藏，改用 group margin） */
   #panel-summer-camp .list-year-group + .list-year-group {
     margin-top: var(--spacing-xl);
   }
-  /* bodyField（rich content）左右給 spacing-sm；:has(.admission-body) 只鎖 rich content wrapper，
-     不推 gallery / attachment（list-ref-btn 自帶 px）等其他直接子。 */
-  #admission-content-section .list-content > div:has(> .admission-body) {
-    padding-left: var(--spacing-sm) !important;
-    padding-right: var(--spacing-sm) !important;
-  }
-
   /* title 與右側 icons/chevron 之間補 gap：手機窄欄 marquee 跑時尾段才不撞 chevron */
   .list-header {
     gap: var(--spacing-sm);
@@ -440,13 +424,11 @@
   }
 
   /* === activities 手機 list-content（同 admission pattern）===
-     兩欄（desc/date | poster）→ 單欄；左右 spacing-sm 對齊 title 視覺左緣；pb 收成 sm；
-     order 反轉讓 poster（DOM 第二）排在 title 下方。 */
+     兩欄（desc/date | poster）→ 單欄；order 反轉讓 poster（DOM 第二）排在 title 下方。
+     卡片內距不在這裡改：HTML p-sm 四邊同 sm、全尺寸共用（user 2026-10-29「不要有寫死的部分」） */
   #activities-content-section .list-content > .grid {
-    grid-template-columns: 1fr !important;
-    padding-left: var(--spacing-sm) !important;
-    padding-right: var(--spacing-sm) !important;
-    padding-bottom: var(--spacing-sm) !important;
+    /* minmax(0)：1fr 的下限＝內容最小寬，一行 nowrap 長名（講者／單位，10-29 改單行 marquee）會把整欄撐出卡片 */
+    grid-template-columns: minmax(0, 1fr) !important;
     gap: var(--spacing-md);
   }
   /* date/desc col（DOM 第一）手機放下方 */
@@ -457,12 +439,6 @@
   /* poster col（DOM 第二）手機放上方 */
   #activities-content-section .list-content > .grid > :last-child {
     order: 1;
-  }
-  /* list-content 直系子：.grid / .gallery-section / bodyField wrapper / .list-ref-wrap。
-     只有 bodyField wrapper 手機要 px-sm；gallery / ref-wrap 保持 full-bleed。 */
-  #activities-content-section .list-content > div:not(.grid):not(.gallery-section):not(.list-ref-wrap) {
-    padding-left: var(--spacing-sm) !important;
-    padding-right: var(--spacing-sm) !important;
   }
   /* ref / attachment 手機改兩欄 [arrow | label/title 上下 stack]；不 scope panel：activities + admission 共用 .list-ref-wrap */
   .list-ref-wrap .list-ref-btn {
@@ -496,9 +472,52 @@
   #activities-content-section .list-content .list-scroll p {
     font-size: var(--font-size-s);
   }
-  /* gallery-section 手機：與上方 stack 拉開 mt-md；維持桌面 chevron 設計、不加 padding */
-  #activities-content-section .list-content > .gallery-section {
-    margin-top: var(--spacing-md);
+  /* 照 library award 手機（user 2026-10-29；admission 同步＝兩頁同一套清單）：標題／年份 s、英中距 xs、search placeholder s。
+     header 字級也設 s＝em 盒（chevron 鈕 1.5em、國旗 1.5em×1em）跟 award 同為 21／21×14；icon 本身兩邊都是 16。 */
+  :is(#activities-content-section, #admission-content-section) .list-header,
+  :is(#activities-content-section, #admission-content-section) .list-year-label {
+    font-size: var(--font-size-s);
+  }
+  :is(#activities-content-section, #admission-content-section) .list-header p.text-lg,
+  :is(#activities-content-section, #admission-content-section) .list-year-label .text-lg {
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+  }
+  :is(#activities-content-section, #admission-content-section) .list-header :is(.mb-en-zh-lg, .mb-en-zh-s) {
+    margin-bottom: var(--space-en-zh-xs);
+  }
+  /* share／chevron 頂貼第一行字頂（同 award）；原 pt 0.25rem 是對齊 lg 標題行高 */
+  :is(#activities-content-section, #admission-content-section) .list-header > :has(.list-header-meta-icons) {
+    padding-top: 0;
+  }
+  :is(#activities-content-section, #admission-content-section) .activities-search-input::placeholder {
+    font-size: var(--font-size-s);
+  }
+  /* search → 第一列 lg→sm（user 2026-10-29） */
+  :is(#activities-content-section, #admission-content-section) .activities-filter-bar > .grid-12 {
+    padding-bottom: var(--spacing-sm);
+  }
+  /* 年份左右＝卡片內距 sm（文字跟卡片標題同左緣、年份 chevron 跟卡片 chevron 同右緣）；
+     共用規則的 4px 是 list-header 還是 px-[4px] 時代的值 */
+  :is(#activities-content-section, #admission-content-section) .list-year-label {
+    padding-left: var(--spacing-sm) !important;
+    padding-right: var(--spacing-sm) !important;
+  }
+  /* 海報高上限＝標題卡 1.5 倍（user 10-29 由 2 倍改；--title-card-h：list-accordion loadDeferredMedia 點開時量）；寬＝min(欄寬, 上限高×比例)
+     ＝直式依高縮、橫式高沒超過就滿欄寬，aspect-ratio 帶出高（載入前佔位）。沒尺寸的舊資料：img 自己限高 contain */
+  :is(#activities-content-section, #admission-content-section) .list-content > .grid > [data-lightbox-open] {
+    width: min(100%, calc(1.5 * var(--title-card-h, 100vh) * var(--poster-ar, 1)));
+  }
+  :is(#activities-content-section, #admission-content-section) .list-content > .grid > [data-lightbox-open] > .poster-img {
+    max-height: calc(1.5 * var(--title-card-h, 100vh));
+    object-fit: contain;
+  }
+  /* gallery 縮圖＝about playlist 手機縮圖：56 高、間距 sm（inline height:120px 要 !important） */
+  :is(#activities-content-section, #admission-content-section) .gallery-track {
+    height: 56px !important;
+  }
+  :is(#activities-content-section, #admission-content-section) .gallery-inner {
+    gap: var(--spacing-sm);
   }
 
   /* === album-thumb-item（permanent-exhibitions 多筆 album）===
@@ -566,9 +585,11 @@
 
 }
 
-/* admission gallery 縮高 120→84px（桌面手機共用）；inline height:120px 需 !important */
-#admission-content-section .gallery-track {
-  height: 84px !important;
+/* admission gallery 縮高 120→84px（桌面；手機＝56 同 activities，見上 award 段）；inline height:120px 需 !important */
+@media (min-width: 768px) {
+  #admission-content-section .gallery-track {
+    height: 84px !important;
+  }
 }
 
 /* ===== Admission（採 list-item 結構共用 list-accordion）===== */
@@ -746,6 +767,12 @@
     margin: 0;
     padding: var(--spacing-sm) var(--container-padding);
   }
+  /* 範圍外（底 bar 藏著＝hero／footer／離頁）tab 列跟著藏：底 bar 出生就帶 .is-bar-hidden → SPA 換頁 init（動態 import，
+     chip 要等資料載完才被藏）前 hero 上不閃（user 2026-10-29）。藏起延遲 --dur-slow＝chip 逐顆退場（base＋stagger）跑得完；進範圍立即顯示 */
+  #activities-content-section:has(.nav-bottom-bar.is-bar-hidden) :is(#exhibitions-type-filter, #visits-type-filter) {
+    visibility: hidden;
+    transition: visibility 0s var(--dur-slow);
+  }
   #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter)::-webkit-scrollbar { display: none; }
   #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter) > button { flex-shrink: 0; }
   #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter) .anchor-nav-inner {
@@ -765,6 +792,10 @@
   }
   #activities-content-section .inner-scroll-frame-grid {
     gap: 0;
+  }
+  /* search 離 header 帶下緣 sm（user 2026-10-29 要往下移；底 pb 同時 lg→sm＝第一列位置不變） */
+  #activities-content-section .activities-filter-bar > .grid-12 {
+    padding-top: var(--spacing-sm);
   }
 }
 
@@ -838,6 +869,17 @@
   padding-bottom: 0;
   /* 連 4px border-bottom 一起收：max-height:0 + overflow:hidden 不裁 border，殘留黑線會像分割線 */
   border-bottom-width: 0;
+}
+/* 真桌面 sticky bar：search 收起連 bar 底 pb-lg 一起收＝清單頂（與釘住的年份／title，RO 跟 bar 高）上到 logo 中線
+   （同 faculty 首列照片頂；有子分類 tab 的＝原 search 頂；user 2026-10-29）。
+   只真桌面：矮橫向/手機 bar 非 sticky，list-accordion 預扣收合量只算 searchInner 高 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #activities-content-section .activities-filter-bar > .grid-12 {
+    transition: padding-bottom var(--dur-fast) ease;
+  }
+  #activities-content-section .activities-filter-bar.bar-hidden > .grid-12 {
+    padding-bottom: 0;
+  }
 }
 
 .activities-search-input::placeholder {
@@ -986,7 +1028,11 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   flex-direction: column;
   overflow: hidden;              /* 捲動移到 .tl-list-years */
   padding-right: 0;              /* padding-right 移到 .tl-list-years */
-  right: 6px;                    /* scrollbar↔卡片右緣＝內文字級的字卡右內距：內文 text-s → --card-pad-s 右 6（user 2026-10-26，同 pop up 看內文） */
+}
+/* scrollbar↔卡片右緣＝內文字級的字卡右內距：內文 text-s → --card-pad-s 右 6（user 2026-10-26，同 pop up 看內文）。
+   只真桌面：手機／矮橫向沒 scrollbar → 右邊回到跟左邊同一個 inset（user 2026-10-29） */
+@media (min-width: 1024px) and (min-height: 501px) {
+  .tl-list-content:has(> .tl-list-years) { right: 6px; }
 }
 .tl-list-years {
   flex: 1 1 auto;
@@ -1064,6 +1110,14 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   .tl-list-year-row + .tl-list-year-row {
     margin-top: var(--spacing-lg);
   }
+  /* 去捲軸＋收掉 scrollbar gap → 文字更寬、左右內距對稱；仍可捲（直向原有，矮橫向 2026-10-29 跟上） */
+  .tl-list-years {
+    padding-right: 0;
+    scrollbar-width: none;
+  }
+  .tl-list-years::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ===== Timeline list view 直式手機 =====
@@ -1086,14 +1140,6 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   /* 捲動內容內距收窄（桌面 lg 在窄屏偏肥） */
   .tl-list-content {
     inset: var(--spacing-sm);
-  }
-  /* 手機去捲軸＋收掉 scrollbar gap → 文字更寬；仍可捲 */
-  .tl-list-years {
-    padding-right: 0;
-    scrollbar-width: none;
-  }
-  .tl-list-years::-webkit-scrollbar {
-    display: none;
   }
 }
 
@@ -1284,9 +1330,15 @@ body.mode-color .gallery-ph > span {
   .list-header .list-title-marquee.is-overflow p {
     animation: none;
   }
-  .list-header.active .list-title-marquee.is-overflow p {
+  /* 連結列（畢業展 [data-link-row]）沒有展開態 → 量到即捲 */
+  .list-header.active .list-title-marquee.is-overflow p,
+  [data-link-row] > .list-header .list-title-marquee.is-overflow p {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
+}
+/* 收合列內容（list-accordion 收合即 [inert]）的 marquee 看不到 → 暫停，不白跑 */
+.list-content[inert] .list-title-marquee p {
+  animation-play-state: paused;
 }
 
 /* ===== 桌面 list 標題：只有 hover 才 marquee =====
@@ -1332,6 +1384,24 @@ body.mode-color .gallery-ph > span {
    收合延遲 --dur-base（＝海報收合 PUSH_DUR）才降回，收合途中不被 logo 切過 */
 .hm-banner { z-index: 15; transition: z-index 0s var(--dur-base); }
 .hm-banner.is-poster-open { z-index: 10000; transition-delay: 0s; }
+/* 開著的海報（10000）會蓋過 share 卡（9999）→ lightbox 開著時先降回來 */
+body.lightbox-open .hm-banner.is-poster-open { z-index: 15; }
+
+/* 手機 bar 右邊鈕（index-marquee.js：↑ 開海報／↗ 跳連結）：左右 padding＝手機正方形 icon 鈕的 8（44 鈕／28 icon，同 header 鈕）、
+   高跟 bar、不必正方形（user 2026-10-29；原寬＝bar 實高）。
+   色＝bar 同款（theme-fg 底，三 mode 都跟 bar 一致）；icon 28 同手機 header 鈕 */
+.hm-banner-btn {
+  padding: 0 var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-fg);
+  color: var(--theme-fg-inverse);
+  cursor: var(--cursor-pointer);
+}
+.hm-banner-btn .icon { font-size: 28px; }
+/* 換 icon 時鈕左進左出的遮罩＝鈕本身大小（index-marquee.js setBtnState） */
+.hm-banner-btn-clip { flex: none; display: flex; overflow: clip; }
 
 /* ponytail: activities/admission list 無分割線 + 斑馬紋。
    - item divider / 年份 separator 隱藏、search 底線去掉。
@@ -1343,8 +1413,8 @@ body.mode-color .gallery-ph > span {
 }
 /* divider 藏了，給它讓位的 4px padding 也歸零（同 legal-zebra）。原本靠 divider wrapper 的 -4px margin 抵銷＝
    只有包過遮罩的列抵得掉；deep-link born-shown 列沒包、每列多 4px，settle 補包時整串上跳（user 2026-10-04）
-   畢業展卡 padding 寫在 .list-item 本身（py-sm），排除＝別被 #id 權重壓掉下 padding */
-:is(#activities-content-section, #admission-content-section) .list-item:not(.degree-show-card-content) {
+   （畢業展 2026-10-29 改走共用列＋連結列變體，內距在 header／封面外框，不再排除） */
+:is(#activities-content-section, #admission-content-section) .list-item {
   padding-bottom: 0;
 }
 .activities-search-inner {
@@ -1398,36 +1468,17 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 
 /* 列表底色（item / header / content）刻意不加 transition：hover 變色全站瞬切，三者都不過渡＝天然同步。 */
 
-/* ===== Degree Show 清單卡片標題 marquee =====
-   結構（activities-data-loader.js buildDegreeShowItemHtml）：h5 > .dshow-title-line（overflow window，EN/ZH 1~2 條）> .dshow-title-inner。
-   applyMarqueeOverflow 偵測溢出 → .is-overflow + 兩份 .marquee-copy + --marquee-distance/duration。桌面 hover 卡片才捲、手機自動捲。 */
-.dshow-title-line {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  max-width: 100%;
-}
+/* DSD 詳情頁 hero／上下屆標題的文字 span（degree-show-data-loader setHeroTitle／setTitle 注入；換行規則各自在下方覆寫）。
+   清單卡的 .dshow-title-line 跑馬燈 2026-10-29 退役（畢業展改走共用列 .list-title-marquee） */
 .dshow-title-inner {
   display: inline-block;
   white-space: nowrap;
 }
-.dshow-title-inner > .marquee-copy {
-  display: inline-block;
-  padding-right: var(--marquee-copy-gap);
-}
+
+/* 跑馬燈 keyframes：DSD 詳情頁活動清單 .dsd-mq-*（cards.css）共用 */
 @keyframes dshow-title-marquee {
   0%   { transform: translateX(0); }
   100% { transform: translateX(var(--marquee-distance, -50%)); }
-}
-@media (min-width: 768px) {
-  .degree-show-card-content:hover .dshow-title-line.is-overflow .dshow-title-inner {
-    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
-  }
-}
-@media (max-width: 767px) {
-  .dshow-title-line.is-overflow .dshow-title-inner {
-    animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
-  }
 }
 
 /* ===== Degree Show Detail 上下屆標題：過長換行、不 marquee（比照 hero 標題）=====
@@ -1577,4 +1628,25 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
     width: auto;
     height: 100%;                     /* 72px（aspect-ratio 撐出 128 寬） */
   }
+  /* 左右 chevron（user 10-29，同 activities gallery：鈕 32、icon 16 距色塊邊 16、縮圖從 48 起、端點半透明）；
+     JS 判溢出才掛 .has-chev，捲動列左右讓出 6＋32 */
+  .works-playlist-scroll.has-chev .works-playlist-inner { left: 38px; right: 38px; }
+  .works-playlist-scroll.has-chev .works-playlist-chev {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-black);
+    cursor: var(--cursor-pointer);
+  }
+  .works-playlist-prev { left: var(--spacing-sm); justify-content: flex-start; }
+  .works-playlist-next { right: var(--spacing-sm); justify-content: flex-end; }
+  .works-playlist-chev.is-end { opacity: 0.5; cursor: var(--cursor-not-allowed); }
 }
+.works-playlist-chev { display: none; }

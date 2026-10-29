@@ -21,12 +21,12 @@
   }
 
   /* Degree Show 列表縮圖：固定高讓一屏（search bar → 底部）剛好容納兩張封面＋兩個標題；封面 object-contain 靠左。手機不套。
-     --dshow-thumb-h ＝ (可視高 − search bar 下緣 221 − 兩卡固定量 244 − 底部呼吸 16) / 2；
-     244 ＝ 兩卡 py-sm 2×32 ＋ 兩張圖下標題塊 2×90（兩行 EN+ZH 標題實測）。
-     ⚠️ 兩張標題塊都要扣（只扣一張 → 次卡標題掉出畫面）；出現 3 行標題要重新校準 90。 */
+     --dshow-thumb-h ＝ (可視高 − search bar 下緣 221 − 兩卡固定量 210 − 底部呼吸 16) / 2；
+     210 ＝ 兩卡 2×105＝py-sm 32＋圖下 mb-sm 16＋兩行 EN+ZH 標題 57（2026-10-29 標題改 text-lg 後實測；原 h5 時 244）。
+     ⚠️ 兩張標題塊都要扣（只扣一張 → 次卡標題掉出畫面）；出現 3 行標題要重新校準 57。 */
   @media (min-width: 768px) {
     #degree-show-list {
-      --dshow-thumb-h: calc((100svh - 221px - 244px - 16px) / 2);
+      --dshow-thumb-h: calc((100svh - 221px - 210px - 16px) / 2);
     }
     .degree-show-img {
       height: var(--dshow-thumb-h);
@@ -123,7 +123,7 @@
 
   /* Events 標題/地點行 marquee：過長不換行、溢出才捲。桌面＝hover 才捲；手機無 hover → 偵測到即自動捲（否則長字永久截斷）。
      結構＝<p.dsd-mq-line>（overflow window）> <span.dsd-mq-inner>；applyMarqueeOverflow 溢出時加 .is-overflow +
-     兩份 .marquee-copy + --marquee-distance/duration。keyframes 沿用 lists.css 的 dshow-title-marquee。 */
+     兩份 .marquee-copy + --marquee-distance/duration。keyframes 在 lists.css（dshow-title-marquee）。 */
   .dsd-mq-line {
     display: block;
     overflow: hidden;

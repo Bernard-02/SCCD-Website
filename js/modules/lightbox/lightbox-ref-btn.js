@@ -47,7 +47,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
   btnEl.style.display = 'none';
   btnEl.setAttribute('aria-label', 'Show references');
   btnEl.innerHTML = `
-    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || SCCDHelpers.ACCENT_COLORS[1]};color:var(--color-black);width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
+    <span class="lightbox-ref-btn-pill" style="display:inline-flex;align-items:center;justify-content:center;background:${initialColor || SCCDHelpers.ACCENT_COLORS[1]};color:var(--color-black);font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;box-sizing:border-box;">
       <span class="icon icon-ref-lightbox icon-m"></span>
     </span>
   `;

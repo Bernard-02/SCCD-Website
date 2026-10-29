@@ -270,6 +270,9 @@ export function isAccordionBusy() { return performance.now() < _accordionBusyUnt
 // （見 activities-data-loader srcAttr）。點下去當下就換上、不等收舊列＋對齊捲動；載入中是佔位色塊循環。
 // deep-link 目標在捲過去前先呼叫（activities-section-switch navigateToItem）。
 export function loadDeferredMedia(item) {
+  // 手機海報高上限＝標題卡 1.5 倍（lists.css activities 手機段）。點開當下量＝打開後的卡高（手機副標只在捲過 pin 線才收）
+  const header = /** @type {HTMLElement | null} */ (item.querySelector(':scope > .list-header'));
+  if (header) item.style.setProperty('--title-card-h', `${header.offsetHeight}px`);
   item.querySelectorAll('img[data-src]').forEach((/** @type {HTMLImageElement} */ img) => {
     img.loading = 'eager';   // 點開了＝要看：海報的 lazy、deep-link 首批閘門都不再等
     img.src = /** @type {string} */ (img.dataset.src);

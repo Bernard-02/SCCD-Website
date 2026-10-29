@@ -71,8 +71,16 @@
   }
 }
 
-/* lightbox 內 pill 鈕（返回／分享／ref）icon padding 同 header menu 鈕（48 盒 32 icon＝四邊 8，user 2026-10-21）：
-   pill 寬由 JS 跟 title pill 高同步（min(44, h)，單行縮正方形）→ icon 跟著 pill 寬 −16、正方形 */
+/* lightbox 內 pill 鈕（返回／分享／ref）＝全站黑方塊 icon 鈕尺寸（user 2026-10-29；原跟 title pill 同高）：
+   真桌面 48、其餘 44（同 header 鈕 #menu-btn／.mobile-header-btn）；跟 title 卡不同高 → 對齊 title 中線（topbar flex 置中；
+   PDF 各自 absolute → 底部列規則補半個高差）。icon padding 同 header menu 鈕（48 盒 32 icon＝四邊 8，user 2026-10-21）→ icon＝盒 −16 */
+@media (min-width: 1024px) and (min-height: 501px) {
+  #activities-lightbox, #pdf-viewer-modal, #share-lightbox { --lb-icon-btn: 48px; }
+}
+.alb-close-pill, .alb-share-pill, .pdf-back-pill, .pdf-share-pill, .lightbox-ref-btn-pill {
+  width: var(--lb-icon-btn, 44px);
+  height: var(--lb-icon-btn, 44px);
+}
 .alb-close-pill .icon,
 .alb-share-pill .icon,
 .pdf-back-pill .icon,
@@ -224,17 +232,18 @@
   display: none;
 }
 
-/* 桌面 album 縮圖列（只套 .alb-album＝library album）：
-   ① max-width＝扣左右 container-padding 後的 1/3（!important 蓋 inline max-width）
-   ② 兩端 ::before/::after runway（各 50%）＋ JS centerActiveThumb → 頭尾那張也能捲到正中 */
+/* 縮圖列兩端 ::before/::after runway（各 50%）＋ JS centerActiveThumb → 頭尾那張也能捲到正中、
+   當前那張永遠在正中（全尺寸；手機原本沒 runway＝頭尾貼邊，user 2026-10-29 要同桌面） */
+#activities-lightbox.alb-album .alb-thumbs::before,
+#activities-lightbox.alb-album .alb-thumbs::after {
+  content: "";
+  flex: 0 0 50%;
+}
+
+/* 桌面 album 縮圖列（.alb-album 現一律套用）：max-width＝扣左右 container-padding 後的 1/3（!important 蓋 inline max-width） */
 @media (min-width: 768px) {
   #activities-lightbox.alb-album .alb-thumbs {
     max-width: calc((100vw - 2 * var(--container-padding)) / 3) !important;
-  }
-  #activities-lightbox.alb-album .alb-thumbs::before,
-  #activities-lightbox.alb-album .alb-thumbs::after {
-    content: "";
-    flex: 0 0 50%;
   }
   /* topbar 限寬到「置中縮圖列左緣 − 20px gap」不疊縮圖，title 自動縮 + marquee
      stripLeftEdge = 100vw/3 + container-padding/3；扣左 container-padding 與 20px gap 得本 max-width */
@@ -306,9 +315,11 @@
   #activities-lightbox .alb-title {
     flex: 1 1 auto;
     min-width: 0;
+    text-align: center;   /* pill（inline-flex）在剩餘寬內置中（user 2026-10-29）；pill 內文字照舊靠左 */
   }
   #activities-lightbox .alb-title-pill {
     max-width: 100% !important;
+    text-align: left;
   }
 
   /* ref 展開卡片寬＝最寬文字：popover max-content、stack stretch + card 100% 讓每張卡同寬
@@ -361,6 +372,10 @@
     bottom: var(--spacing-sm) !important;
     transform: none !important;
   }
+  /* 鈕比 title 矮：補半個高差＝中線對齊 title */
+  #pdf-viewer-modal :is(.pdf-back-btn, .pdf-ref-btn, .pdf-share-btn) {
+    bottom: calc(var(--spacing-sm) + (var(--lb-btn-h, 44px) - var(--lb-icon-btn, 44px)) / 2) !important;
+  }
 
   /* share btn 錨右下角（鏡像 album：title 填中段、share 在最右）。left:auto 清掉 positionSharePdf 設的 inline left。 */
   #pdf-viewer-modal .pdf-share-btn {
@@ -368,9 +383,10 @@
     right: var(--container-padding, 1.5rem) !important;
   }
 
-  /* 標題 box 鋪到右 padding 當可用寬（left 由 JS 設）；pill hug 字寬、cap 100%，超過才由 setupTitleMarquee 跑馬燈 */
+  /* 標題 box 鋪到右 padding 當可用寬（left 由 JS 設）；pill hug 字寬、在 box 內置中（user 2026-10-29）、cap 100%，超過才由 setupTitleMarquee 跑馬燈 */
   #pdf-viewer-modal .pdf-title {
     right: var(--container-padding, 1.5rem) !important;
+    text-align: center;
   }
   /* 有 share（data-share-url，由 renderSharePdf 設/刪）時，title 右緣讓出 share 寬 44 + gap 20 */
   #pdf-viewer-modal:has(.pdf-share-btn[data-share-url]) .pdf-title {
@@ -378,6 +394,7 @@
   }
   #pdf-viewer-modal .pdf-title .pdf-title-pill {
     max-width: 100% !important;
+    text-align: left;
   }
 
   /* ref 展開卡片寬＝最寬文字（同上方圖片燈箱）；btn 仍是小 pill */
@@ -391,7 +408,7 @@
 
 /* 真桌面底部控制列（user 2026-10-21）：方塊底＝左下當前頁卡底（48，navigation.css #page-indicator bottom）；
    列頂到大圖區的距離不變（30＝album pt-md 24＋縮圖列 outline 預留 6），列變高＝大圖區讓。
-   列高 --lb-btn-h＝左側鈕高（JS sync*BtnHeight 寫）；方塊同高 → 底對齊＝中線對齊 */
+   列高 --lb-btn-h＝title pill 高（JS sync*BtnHeight 寫）；返回／分享鈕比它矮、中線對齊（下方補半個高差） */
 @media (min-width: 1024px) and (min-height: 501px) {
   #activities-lightbox .alb-thumbs-wrap {
     padding-bottom: 42px;   /* 48 − 縮圖列下 6 */
@@ -410,6 +427,10 @@
   #activities-lightbox .alb-zoom-controls,
   #pdf-viewer-modal .pdf-zoom-controls {
     height: var(--lb-btn-h, 44px);
+  }
+  /* PDF 返回／ref／分享比 title 矮（48 vs title 高）：補半個高差＝中線對齊 title（album 的在 topbar 內 flex 置中，不用補） */
+  #pdf-viewer-modal :is(.pdf-back-btn, .pdf-ref-btn, .pdf-share-btn) {
+    bottom: calc(48px + (var(--lb-btn-h, 48px) - var(--lb-icon-btn)) / 2) !important;
   }
   /* PDF 無縮圖列：上下 padding 直接給 30／48，中間＝一列鈕高（頁碼 items-center 落在列中線） */
   #pdf-viewer-modal .pdf-bottom-bar {

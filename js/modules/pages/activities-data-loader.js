@@ -388,10 +388,13 @@ export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {})
         <div class="album-sticky-cell grid grid-cols-[1fr_2fr_10fr] items-start gap-x-md pb-xs">
           <div class="flex-shrink-0">${album.year ? `<p class="text-s font-bold">${album.year}</p>` : ''}</div>
           <div class="flex-shrink-0">${album.date ? `<p class="text-s font-bold">${album.date}</p>` : ''}</div>
-          <div class="min-w-0">
+          ${SCCDHelpers.isMobileLayout()
+            // 手機（user 2026-10-29）：英、中各一行，超出才 marquee（同其他卡片的地點）
+            ? `<div class="min-w-0">${mqLines('text-s font-bold', album.location, album.location_zh, 'mb-en-zh-s')}</div>`
+            : `<div class="min-w-0">
             ${album.location ? `<p class="text-s font-bold">${album.location}</p>` : ''}
             ${album.location_zh ? `<p class="text-s font-bold">${album.location_zh}</p>` : ''}
-          </div>
+          </div>`}
         </div>
         <!-- album-gallery row：2-col grid [隱藏 year spacer（撐同 sticky row 的 year 欄寬） | album-gallery]，
              兩 row 各自獨立 grid，靠「同內容 year」讓 col1 等寬 → col2 左緣＝sticky row 的 date 左緣，thumbnail 對齊日期左緣。
@@ -433,7 +436,8 @@ export function buildPosterHtml(item, defer = false) {
   if (!src) return '';
   // 有原圖尺寸 → wrapper 設 aspect-ratio 預留高度（載入前就佔位、免 layout shift），並解鎖 poster loading="lazy"
   //（原本不能 lazy＝0 面積永不觸發載入，見 memory reference_activities_switch_ro_recalc_storm ①）。拿不到尺寸則維持 eager + load 補償動畫。
-  const ar = (item.posterW && item.posterH) ? ` style="aspect-ratio: ${item.posterW}/${item.posterH}"` : '';
+  // --poster-ar：手機海報寬＝min(欄寬, 高上限×比例)（lists.css activities 手機段）
+  const ar = (item.posterW && item.posterH) ? ` style="aspect-ratio: ${item.posterW}/${item.posterH}; --poster-ar: ${(item.posterW / item.posterH).toFixed(4)}"` : '';
   const lazy = ar ? ' loading="lazy"' : '';
   const r = mediaRot();
   return `
@@ -556,8 +560,9 @@ export function buildGalleryHtml(item, defer = false) {
     + images.reduce((s, _, ii) => { const d = item.imageDims?.[ii]; return s + ((d && d.w && d.h) ? 120 * d.w / d.h : 180); }, 0)
     + (galleryItems.length - 1) * 24;
   const preChev = estW > 1300;
+  // 卡片內距四邊同 sm（同上方 .grid／bodyField 的 p-sm，全尺寸共用）；mt-xs＋上方底 sm＝md＝卡內 gap（user 2026-10-29）
   return `
-    <div class="gallery-section px-sm pb-lg flex items-center">
+    <div class="gallery-section mt-xs px-sm pb-sm flex items-center">
       <button class="gallery-prev flex-shrink-0 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60" style="${preChev ? 'display:flex;opacity:0.5;cursor:var(--cursor-not-allowed)' : 'display:none'}">
         <span class="icon icon-chevron-list icon-s"></span>
       </button>
@@ -588,6 +593,20 @@ function formatNameWithAka(name, akaSame, akaOther, zh) {
 // item-level guests 與 conference sessions[].guests 共用同一份渲染。
 // 兩種 shape 都接：新(endpoint) nameEn/nameZh/akaEn/akaZh/orgEn/orgZh/country/isAlumni
 //                舊(data/X.json) name/name_zh/affiliation/affiliation_zh/country/country_zh/isAlumni
+// 國家接在名字後面（手機）：同 library award 主辦單位——EN「&ensp;(CODE)」、ZH 全形「（國名）」；沒填國家＝空字串
+function countrySuffix(code, zhFallback = '') {
+  if (!code) return { en: '', zh: '' };
+  const upper = code.toUpperCase();
+  const zhName = countryName(code, 'zh');
+  const zh = zhName !== upper ? zhName : zhFallback;
+  return { en: `&ensp;(${upper})`, zh: zh ? `（${zh}）` : '' };
+}
+// 英、中各一行 nowrap，超出欄寬走 .list-title-marquee（展開時 processWrap 量溢出、同層兩條配對同步捲）
+function mqLines(cls, en, zh, gapCls) {
+  return (en ? `<div class="list-title-marquee${zh ? ` ${gapCls}` : ''}"><p class="${cls}">${en}</p></div>` : '')
+    + (zh ? `<div class="list-title-marquee"><p class="${cls}" lang="zh-Hant">${zh}</p></div>` : '');
+}
+
 export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliation = true } = {}) {
   const gNameEn = g.nameEn || g.name || '';
   const gNameZh = g.nameZh || g.name_zh || '';
@@ -606,6 +625,21 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
     const zh = zhName !== upper ? zhName : (zhFallback || '');
     return `<div class="list-title-marquee"><p class="${cls}">${upper}${zh ? ` ${zh}` : ''}</p></div>`;
   };
+  // 手機（user 2026-10-29，同 award 主辦單位）：人名／單位英、中各一行（溢出 marquee），國家不另開欄、接在名字後面
+  if (SCCDHelpers.isMobileLayout()) {
+    const sfx = (code, zhFallback) => countrySuffix(showGuestCountry ? code : '', zhFallback);
+    const s = sfx(gCountry, g.country_zh);
+    return `<div class="flex flex-col" style="gap: 0.25rem;">
+      <div class="guest-name-cell min-w-0 flex items-start justify-between gap-sm">
+        <div class="min-w-0 self-stretch">${mqLines('text-s font-bold', gNameEn && formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false) + s.en, gNameZh && formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true) + s.zh, 'mb-en-zh-s')}</div>
+        ${gIsAlumni ? `<p class="text-s flex-shrink-0">Alumni 系友</p>` : ''}
+      </div>
+      ${showGuestAffiliation ? gOrgs.map(o => {
+        const os = sfx(o.country);
+        return (o.en || o.zh) ? `<div class="min-w-0">${mqLines('text-xs', o.en && o.en + os.en, o.zh && o.zh + os.zh, 'mb-en-zh-xs')}</div>` : '';
+      }).join('') : ''}
+    </div>`;
+  }
   return `<div class="flex flex-col" style="gap: 0.25rem;">
     <div class="grid gap-md items-start guest-row-grid">
       <div class="guest-name-cell min-w-0 flex items-start justify-between gap-sm">
@@ -950,6 +984,11 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
   }
 
   function reconcilePair(wrap) {
+    // 手機排版不走 GSAP：常駐循環交給 CSS keyframe（合成器跑，主線程忙著續建清單也不頓；user 2026-10-29「手機開 list
+    //   title marquee 特別卡」，4x 降速實測 GSAP 每幀搶主線程、續建長任務 650ms 一來標題就停格）。回 false＝checkOverflow
+    //   走 CSS（lists.css：header .active 才捲、content 自動捲、收合 [inert] 暫停）。EN/ZH 同速各自無縫循環＝同 GSAP seamless；
+    //   差別只有收合時標題直接歸位（無回彈），同 CLAUDE.md「手機一律不回彈」
+    if (SCCDHelpers.isMobileLayout()) return false;
     const parent = wrap.parentElement;
     if (!parent) return false; // detached（re-render 後仍排隊的 ResizeObserver callback）→ no-op 不炸
     const siblings = [...parent.querySelectorAll(':scope > .list-title-marquee')];
@@ -964,6 +1003,15 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     // marquee 維持 CSS seamless（本來就無 hover snap 問題，別改它的 loop 風格）→ return false 交回 CSS。
     if (wrap.closest('.list-header') || wrap.closest('.list-summary-mq-col')) return reconcileChunk([wrap]);
     return false;
+  }
+
+  // 播放 gate（規則見 reconcileChunk 下半；只桌面會到這，手機 reconcilePair 已交回 CSS）；連結列（linkRow，畢業展）：
+  // 整列連結蓋住標題列、也沒有展開態 → hover 整列才播。header 回 null＝不吃 active 條件
+  function marqueeGate(wrap) {
+    const header = wrap.closest('.list-header');
+    const linkItem = header && header.closest('[data-link-row]');
+    if (linkItem) return { header: null, gate: linkItem };
+    return { header, gate: header || wrap.closest('.list-summary-mq-col') };
   }
 
   // wraps＝配對 [en, zh] 或落單 [wrap]（單語言）；兩者都走同一條 GSAP 路徑（buildSyncedMarqueeTimeline 吃 1~N 條）。
@@ -984,9 +1032,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       const g = first._pairGroup;
       if (g && g._hiddenPaused) {
         g._hiddenPaused = false;
-        const header = first.closest('.list-header');
-        const cell = header ? null : first.closest('.list-summary-mq-col');
-        const gate = header || (window.innerWidth >= 768 ? cell : null);
+        const { header, gate } = marqueeGate(first);
         // 無 gate（list-content 自動捲）→ 續播；有 gate → 只在當下 hover/active 才播（同下方初建規則）
         if (!gate || gate.matches(':hover') || (header && header.classList.contains('active'))) g.tl.play();
       }
@@ -1025,9 +1071,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
     //   - list-content 摘要欄（.list-summary-mq-col＝地點/城市）：桌面 hover 該欄才播、手機無 hover 自動捲
     //     （user 2026-08-19；先前一律「量到即播」＝自動捲，改對齊 dsd 的 col hover-gated）。
     //   - 其他 list-content marquee（副標/講者/refs/date 等）：維持量到即播。
-    const header = first.closest('.list-header');
-    const cell = header ? null : first.closest('.list-summary-mq-col');
-    const gate = header || (window.innerWidth >= 768 ? cell : null);
+    const { header, gate } = marqueeGate(first);
     if (!gate) { tl.play(); return true; }
     // playAll/pauseAll 即時掃 DOM 讀 wrap._pairGroup（不維護額外陣列），reconcileChunk 可能因 resize/
     // gallery:check/fonts.ready 重跑多次——若改存陣列每次 push 會累積失效的舊 timeline 參考（真的踩過這個 bug）。
@@ -1048,21 +1092,11 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         g.tl.pause();
         g._ret = gsap.to(g.els, { x: 0, duration: 0.45, ease: EASE.wipe, onComplete: () => { g.tl.progress(0); g._ret = null; } });
       });
-      // ⭐區分桌面/手機（user 2026-09-10）：桌面純 hover 驅動（mouseenter→playAll／mouseleave→easeAll，header 與摘要欄同）；
-      //   手機無 hover，改由 accordion active 驅動（展開→playAll、收合→easeAll——header 不隨 content 收合、標題 marquee
-      //   收合後仍可見＝回彈看得到）。⚠️不能兩端都綁：桌面若讓 active-toggle 介入，收合時滑鼠仍在 header 會被迫回彈到 0
-      //   （該續捲）；手機若綁 hover，touch-scroll 的 emulated mouseleave 會誤停還開著的 marquee。摘要欄無 active 態＝
-      //   手機到不了這裡（gate=null 上面已 auto-play 早退），故此分支手機只會是 header。
-      const isMobileView = SCCDHelpers.isMobileLayout();
-      if (header && isMobileView) {
-        const mo = new MutationObserver(() => (header.classList.contains('active') ? playAll() : easeAll()));
-        mo.observe(header, { attributes: true, attributeFilter: ['class'] });
-        registerPageCleanup(() => mo.disconnect());
-      } else {
-        gate.addEventListener('mouseenter', playAll);
-        gate.addEventListener('mouseleave', easeAll);
-        registerPageCleanup(() => { gate.removeEventListener('mouseenter', playAll); gate.removeEventListener('mouseleave', easeAll); });
-      }
+      // 桌面純 hover 驅動（mouseenter→playAll／mouseleave→easeAll，header 與摘要欄同）。⚠️別讓 active-toggle 介入：
+      //   收合時滑鼠仍在 header 會被迫回彈到 0（該續捲）。手機 10-29 起走 CSS（見 reconcilePair），不會到這
+      gate.addEventListener('mouseenter', playAll);
+      gate.addEventListener('mouseleave', easeAll);
+      registerPageCleanup(() => { gate.removeEventListener('mouseenter', playAll); gate.removeEventListener('mouseleave', easeAll); });
     }
     if (gate.matches(':hover') || (header && header.classList.contains('active'))) tl.play();
     return true;
@@ -1071,6 +1105,20 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
   // processWrap 提到 initMarquees 外（2026-09-10）：除分幀 pump 外，deep-link 豁免（_mqPrime，見下）也要直接呼叫
     const processWrap = (wrap) => {
       if (wrap.dataset.mqBound) return;   // 已量過（lazy 重跑）→ 跳過，避免重複 ResizeObserver 累積
+      // 看不到／不會捲就先不量（user 2026-10-29 手機捲動、點開都卡）：每條量測＝讀寫交錯一次整頁強制重排，捲動時逐列量
+      //   收合列＝捲動卡頓大頭（4x 降速 4 秒捲動吃 5.3s）。收合列的內容（[inert]）、手機排版收合列的標題（手機標題只在
+      //   .active 才捲）→ 不量也不掛 RO（observe 首次回呼也會量），等該列展開後的 gallery:check 再走完整流程；
+      //   收合時若又被叫到（gallery:check 開合都派）就再掛回去。沒有展開態的列（data-no-accordion：連結列／常開）照常量
+      const item = /** @type {HTMLElement | null} */ (wrap.closest('.list-item'));
+      const header = wrap.closest('.list-header');
+      if (item && !item.hasAttribute('data-no-accordion') && (wrap.closest('.list-content[inert]')
+          || (header && !header.classList.contains('active') && SCCDHelpers.isMobileLayout()))) {
+        if (!wrap.dataset.mqDeferred) {
+          wrap.dataset.mqDeferred = '1';
+          item.addEventListener('gallery:check', () => { delete wrap.dataset.mqDeferred; processWrap(wrap); }, { once: true });
+        }
+        return;
+      }
       wrap.dataset.mqBound = '1';
       const p = wrap.querySelector('p');
       if (!p) return;
@@ -1474,7 +1522,11 @@ export async function loadListInto(containerId, url, options = {}) {
     data: providedData   = null,
     lazy                 = false,   // 大清單只渲染視窗內第一批，捲到底 IO 才續建（activities 大 section 開）
     onLazyBatch          = null,    // 每批捲入後回呼（重跑 accordion / year-toggle init，idempotent）
-    buildItem            = null,    // 自訂 item HTML（畢業展卡）：年份組／斑馬／搜尋／進場照共用，只換 item 本體；須是帶 data-search 的 .list-item、末尾 .list-item-divider.list-reveal-row
+    buildItem            = null,    // 自訂 item HTML：年份組／斑馬／搜尋／進場照共用，只換 item 本體；須是帶 data-search 的 .list-item、末尾 .list-item-divider.list-reveal-row
+    // 連結列變體（畢業展，user 2026-10-29「同一個 list component、針對 ds 做變體」）：列本體同一般列（標題／share／右側鈕），
+    // 但整列連到 href、不展開（無 list-content、不放 chevron）。{ href(item), shareUrl?(item), top?(item)＝列上方額外內容（封面），
+    // className?＝item 額外 class（hover 上色等由呼叫端綁）, accent?(item)＝hover／分享卡色 }
+    linkRow              = null,
   } = options;
 
   const container = document.getElementById(containerId);
@@ -1684,6 +1736,7 @@ export async function loadListInto(containerId, url, options = {}) {
         cityEn, cityZh,                                                              // conference 城市
         ...allGuests.flatMap(g => [g.name, g.name_zh, g.affiliation, g.affiliation_zh, g.akaEn, g.akaZh, g.nameEn, g.nameZh, ...guestOrgs(g).flatMap(o => [o.en, o.zh])]),  // 講者名/單位（舊+Directus、含 session 講者、多 org）
         ...(item.sessions || []).flatMap(s => [s.titleEn, s.title_en, s.titleZh, s.title_zh, s.title]),  // 場次標題
+        item.searchExtra,                                                            // 呼叫端補的搜尋字（畢業展＝年份）
         ...(item.dates || []).flatMap(_dateSearchToks),                              // 年份＋完整日期（見 _dateSearchToks）
         ...(item.sessions || []).flatMap(s => (s.dates || []).flatMap(_dateSearchToks)),  // 場次日期同納入
       ].filter(Boolean).join(' ').toLowerCase().replace(/"/g, '&quot;');
@@ -1696,7 +1749,9 @@ export async function loadListInto(containerId, url, options = {}) {
         ...locationRows.map(l => _normCode(l.country)),   // 地點國家（見上）
       ].filter(Boolean))];
 
-      const itemFlags = alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
+      const link = linkRow ? linkRow.href(item) : '';
+      const accent = link && linkRow.accent ? linkRow.accent(item) : '';
+      const itemFlags = link ? 'data-no-accordion data-pre-reveal data-link-row' : alwaysExpanded ? 'data-no-accordion' : 'data-pre-reveal';
       // meta-icons inner（alumni + 全部國旗）共用內容：桌面 render 在右上 group、手機另 render 一份在副標下方 in-flow 區塊
       // （user 2026-06-10 #1/#2/#4：手機把國旗移出右上絕對定位群組→ in-flow 才能「在 title+副標之後進場、不位移、share 無 gap、靠左」；
       //  桌面維持原樣＝雙份 render，CSS 依 viewport 顯隱：桌面顯 .list-header-meta-icons、手機顯 .list-header-meta-mobile）
@@ -1712,8 +1767,9 @@ export async function loadListInto(containerId, url, options = {}) {
       const metaDesktopInner = `${_alumniIcon}${_flagsDesktop}`;
       const metaMobileInner = `${_alumniIcon}${_flagsMobile}`;
       return `
-        <div class="list-item" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}>
-          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group flex items-stretch justify-between gap-sm px-sm py-sm">
+        <div class="list-item${link ? ` relative ${linkRow.className || ''}` : ''}" ${itemFlags} data-category="${item.category || ''}" data-media="${mediaJson}" data-search="${searchText}"${item.visitType ? ` data-visit-type="${item.visitType}"` : ''}${item.id ? ` id="item-${item.id}"` : ''}${accent ? ` data-accent-hex="${accent}"` : ''}>
+          ${link ? `<a href="${link}" class="absolute inset-0 z-[1]" aria-label="${String(titleLine1).replace(/"/g, '&quot;')}"></a>${linkRow.top ? linkRow.top(item) : ''}` : ''}
+          <div class="list-header ${alwaysExpanded ? '' : 'cursor-pointer'} group flex items-stretch justify-between gap-sm px-sm py-sm"${accent ? ` data-accent-hex="${accent}"` : ''}>
             ${titleHtml}
             <div class="flex items-start gap-sm flex-shrink-0 pt-[0.25rem] md:pt-[0.55rem]">
               <!-- 桌面用：alumni + 國旗在右上跟 share/chevron 同列（手機 CSS 隱藏這份的 reveal-wrapper，改顯示下方 .list-header-meta-mobile） -->
@@ -1723,6 +1779,14 @@ export async function loadListInto(containerId, url, options = {}) {
                 // 避免 share btn 沒 reveal class → 在 title yPercent reveal 動畫前就現身（user 反饋
                 // 2026-05-27「不要讓 share btn 先渲染」）
                 if (alwaysExpanded) return '';
+                // 連結列：share 浮在整列連結之上（z-2 > 連結 z-1，其餘 pointer-events 穿過去＝點哪都換頁）；不放 chevron／箭頭（user 2026-10-29）
+                if (link) return `<div class="relative z-[2] pointer-events-none flex items-start gap-sm flex-shrink-0">
+                  <div class="list-reveal-row flex items-center gap-sm">
+                    <button data-share-btn data-share-url="${linkRow.shareUrl ? linkRow.shareUrl(item) : link}" aria-label="分享 Share" class="pointer-events-auto inline-flex items-center self-start">
+                      <span class="icon icon-share icon-s"></span>
+                    </button>
+                  </div>
+                </div>`;
                 return `<div class="flex items-start gap-sm flex-shrink-0">
                   <div class="list-reveal-row flex items-center gap-sm">
                     ${showShareBtn ? `<button data-share-btn aria-label="分享 Share" class="inline-flex items-center self-start">
@@ -1747,12 +1811,12 @@ export async function loadListInto(containerId, url, options = {}) {
             ${_hasMeta ? `<!-- 手機用：國旗(+alumni) in-flow 區塊，CSS flex-wrap 後 flex-basis:100% 排到 title row 下一行（在 title+副標之後進場、不位移、靠左、share 無 gap）。桌面 CSS 隱藏 -->
             <div class="list-header-meta-mobile list-reveal-row flex items-center gap-sm">${metaMobileInner}</div>` : ''}
           </div>
-          <div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
+          ${link ? '' : `<div class="list-content ${alwaysExpanded ? '' : 'h-0 overflow-hidden'}">
             ${bodyField && item[bodyField] ? `
-            <div class="pt-sm pb-lg px-sm flex flex-col gap-md">
+            <div class="p-sm flex flex-col gap-md">
               <div class="admission-body flex flex-col gap-md">${normalizeBodyHtml(item[bodyField])}</div>
             </div>` : `
-            <div class="pt-sm pb-lg px-sm grid gap-gutter items-start" style="grid-template-columns: ${showPoster && item.poster && item.posterW > item.posterH ? '8.5fr 3.5fr' : '10fr 2fr'};">
+            <div class="p-sm grid gap-gutter items-start" style="grid-template-columns: ${showPoster && item.poster && item.posterW > item.posterH ? '8.5fr 3.5fr' : '10fr 2fr'};">
               <div class="flex flex-col gap-md pr-2xl">
                 ${showDate && dateDisplay && !dateInHeader && dateFullWidth ? `<div>
                   <p class="text-s font-bold${dateDisplayZh ? ' mb-en-zh-s' : ''}">${dateDisplay}</p>
@@ -1878,7 +1942,7 @@ export async function loadListInto(containerId, url, options = {}) {
               ${ref.href && !ref.pdfUrl ? `</a>` : `</button>`}
               `).join('')}
             </div>` : ''}
-          </div>
+          </div>`}
           ${dividerHtml}
         </div>
       `;
@@ -2029,18 +2093,20 @@ export async function loadListInto(containerId, url, options = {}) {
     // reveal-IO（捲入的 row 進到 scroller viewport 才 clip-reveal 進場，非一載入就直接現）：
     // batch 在 sentinel 提前 600px 就建好但先藏，捲到才逐 item 揭 → 有「scroll in view 的進場動畫」。
     const revealIo = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (!e.isIntersecting) return;
-        const it = /** @type {HTMLElement} */ (e.target);
+      const hits = entries.filter(e => e.isIntersecting).map(e => /** @type {HTMLElement} */ (e.target));
+      // cv:auto（09-10）：IO fire 當幀 item 可能才剛脫離 skipped＝隱藏態從未 commit → 同幀改樣式
+      // CSS transition 不啟動（zebra 底色與 rows 全 snap，user「灰卡 title 不做進場動畫」；GSAP 路徑
+      // 逐幀寫 inline 不受影響）。先 inline visible＋單次 reflow 讓隱藏態 commit 才動畫；
+      // 動畫完（rows onDone / 無 rows fallback）清掉還原 auto——item 已在視窗內、清掉不影響進行中 transition。
+      // 同批進場的列先全寫再讀一次（逐列寫讀＝逐列整頁重排，user 2026-10-29「捲動卡」）
+      if (typeof gsap !== 'undefined' && hits.length) {
+        hits.forEach(it => { it.style.contentVisibility = 'visible'; });
+        void hits[0].offsetHeight;
+      }
+      hits.forEach(it => {
         revealIo.unobserve(it);
         const rows = [...it.querySelectorAll('.list-reveal-row')];
         if (typeof gsap !== 'undefined') {
-          // cv:auto（09-10）：IO fire 當幀 item 可能才剛脫離 skipped＝隱藏態從未 commit → 同幀改樣式
-          // CSS transition 不啟動（zebra 底色與 rows 全 snap，user「灰卡 title 不做進場動畫」；GSAP 路徑
-          // 逐幀寫 inline 不受影響）。先 inline visible＋單次 reflow 讓隱藏態 commit 才動畫；
-          // 動畫完（rows onDone / 無 rows fallback）清掉還原 auto——item 已在視窗內、清掉不影響進行中 transition。
-          it.style.contentVisibility = 'visible';
-          void it.offsetHeight;
           // 斑馬底色（由下往上揭）與文字同拍同時長進場（user 2026-10-21）；遮罩在 buildOneBatch 蓋好、IO 隔幀才 fire＝起點已 commit
           uncoverZebra(it, DUR.reveal);
           if (rows.length) { revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => { it.style.contentVisibility = ''; it.removeAttribute('data-pre-reveal'); } }); return; }  // Part 1：CSS transition
@@ -2476,44 +2542,19 @@ export function prefetchExhibitionsData() {
   loadPermanentExhibitions().catch(() => {});
 }
 
-// ── 畢業展子清單（展演 › 畢業展）：走 loadListInto，只換 item 本體成封面卡（user 2026-10-21「不要另外一個程式做」）──
-// 年份組／欄位對齊／斑馬／搜尋／sticky 年份／進場分組全跟特設、常設同一套；卡片＝整張連到詳情頁（不展開）。
+// ── 畢業展子清單（展演 › 畢業展）：同一個清單 component（loadListInto）＋連結列變體 linkRow
+//   （user 2026-10-21「不要另外一個程式做」、10-29「同一個 list component、針對 ds 做變體」）──
+// 年份組／欄位對齊／斑馬／搜尋／sticky 年份／進場分組／列本體（標題字級・share・右側鈕）全跟特設、常設同一套；
+// 變體＝整列連到詳情頁（不展開、不放 chevron）＋列上方封面。
 // 封面「載好才滑入」的隨機四向（同 POSTER_SLIDE_DIRS／library COVER_SLIDE_DIRS 語彙）
 const DS_COVER_DIRS = ['0%, 110%', '0%, -110%', '110%, 0%', '-110%, 0%'];
-const buildDegreeShowItemHtml = (item) => {
-  const { _year: year, _color: color } = item;
-  const titleEn = item.title_en || item.titleEn || '';
-  const titleZh = item.title || item.titleZh || '';
-  const detailQuery = new URLSearchParams({ year, ...(item.id ? { id: item.id } : {}) }).toString();
-  const search = [year, titleEn, titleZh].join(' ').toLowerCase().replace(/"/g, '&quot;');
-  // 無封面（後台還沒傳）→ 灰底 placeholder，縮圖塊＋標題不空掉（user 2026-08-17）。有封面烙 pending translate，
-  //   wrapper 恆 overflow-hidden＝現成遮罩。eager：卡片是首屏內容（只有 3-5 張），lazy 會讓 wrapper 高 0、進場沒位移
-  const coverHtml = item.coverImage
-    ? `<img src="${item.coverImage}" alt="Degree Show ${year}" loading="eager" class="degree-show-img w-full" data-pending-reveal="1" style="transform: translate(${DS_COVER_DIRS[(Math.random() * 4) | 0]})">`
-    : `<div class="degree-show-img-placeholder" role="img" aria-label="Degree Show ${year}"></div>`;
-  // 整張卡＝拉伸式連結（透明 <a> absolute inset-0）：share 按鈕不能巢狀在 <a> 內（無效 HTML＋router closest('a[href]') 會誤導航）
-  //   → share 當兄弟 z-[2] 浮在 <a>(z-[1]) 之上。z-[1] 必要：reveal-row 的 clip-reveal-wrapper 進場中有 transform（暫時 stacking
-  //   context）且 DOM 在 <a> 後，純 absolute 會被蓋住點不到。share 不能 z-10：跟 sticky 篩選列同級穿出（user 2026-10-20）。
-  // 標題 flex-1 min-w-0 放「非 reveal」外層：h5 是 reveal-row 會被包 clip-reveal-wrapper，直接當 flex item 會讓 nowrap 標題撐爆手機寬；
-  //   這層也不能 overflow-hidden（setupClipReveal 會當成已建 clip 結構而跳過包 h5/share）。
-  // data-accent-hex＝hover 底色；share-modal 讀它讓分享卡同色。.list-item-divider.list-reveal-row＝逐卡進場的分組終止符。
-  return `
-    <div class="list-item degree-show-card-content relative px-sm py-sm" data-pre-reveal data-search="${search}" data-accent-hex="${color}">
-      <a href="/degree-show-detail?${detailQuery}" class="absolute inset-0 z-[1]" aria-label="${titleEn || titleZh || year} — Degree Show ${year}"></a>
-      <div class="degree-show-img-wrapper overflow-hidden mb-sm list-reveal-row">${coverHtml}</div>
-      <div class="flex items-start justify-between gap-sm">
-        <div class="flex-1 min-w-0">
-          <h5 class="list-reveal-row"><span class="dshow-title-line${titleEn && titleZh ? ' mb-en-zh-lg' : ''}"><span class="dshow-title-inner">${titleEn || titleZh}</span></span>${titleEn && titleZh ? `<span class="dshow-title-line"><span class="dshow-title-inner">${titleZh}</span></span>` : ''}</h5>
-        </div>
-        <div class="list-reveal-row relative z-[2] flex-shrink-0 self-start">
-          <button data-share-btn data-share-url="${sitePath('pages/degree-show-detail.html?' + detailQuery)}" aria-label="分享 Share" class="inline-flex items-center">
-            <span class="icon icon-share icon-s"></span>
-          </button>
-        </div>
-      </div>
-      <div class="list-item-divider list-reveal-row"></div>
-    </div>`;
-};
+const dsQuery = (item) => new URLSearchParams({ year: item._year, ...(item.id ? { id: item.id } : {}) }).toString();
+// 無封面（後台還沒傳）→ 灰底 placeholder，縮圖塊＋標題不空掉（user 2026-08-17）。有封面烙 pending translate，
+//   wrapper 恆 overflow-hidden＝現成遮罩。eager：卡片是首屏內容（只有 3-5 張），lazy 會讓 wrapper 高 0、進場沒位移。
+// 外層 pt-sm＋下方列的 py-sm＝原封面卡的 py-sm＋圖下 mb-sm（桌面 --dshow-thumb-h 固定量不變，cards.css）
+const dsCoverHtml = (item) => `<div class="px-sm pt-sm"><div class="degree-show-img-wrapper overflow-hidden list-reveal-row">${item.coverImage
+  ? `<img src="${item.coverImage}" alt="Degree Show ${item._year}" loading="eager" class="degree-show-img w-full" data-pending-reveal="1" style="transform: translate(${DS_COVER_DIRS[(Math.random() * 4) | 0]})">`
+  : `<div class="degree-show-img-placeholder" role="img" aria-label="Degree Show ${item._year}"></div>`}</div></div>`;
 
 export async function loadDegreeShowListInto(containerId, options = {}) {
   // Directus-only（degree-show-source：失敗 → last-known-good → throw）：往上拋給 activities 子清單切換的 catch 顯示錯誤態
@@ -2523,11 +2564,20 @@ export async function loadDegreeShowListInto(containerId, options = {}) {
     .sort(([a], [b]) => Number(b) - Number(a))
     .map(([year, entries]) => ({
       year,
-      items: entries.map(e => ({ ...e, _year: year, _color: SCCDHelpers.ACCENT_COLORS[k++ % SCCDHelpers.ACCENT_COLORS.length] })),
+      items: entries.map(e => ({ ...e, _year: year, searchExtra: year, _color: SCCDHelpers.ACCENT_COLORS[k++ % SCCDHelpers.ACCENT_COLORS.length] })),
     }));
   await loadListInto(containerId, null, {
-    data: yearGroups, buildItem: buildDegreeShowItemHtml, allowNoMedia: true,
-    panelSelector: '#panel-exhibitions', autoReveal: false, ...options,
+    data: yearGroups, allowNoMedia: true,
+    panelSelector: '#panel-exhibitions', autoReveal: false,
+    // degree-show-card-content＝下方整列 hover 上色＋themes 反色的掛點；accent＝hover／分享卡色
+    linkRow: {
+      href: (it) => `/degree-show-detail?${dsQuery(it)}`,
+      shareUrl: (it) => sitePath('pages/degree-show-detail.html?' + dsQuery(it)),
+      top: dsCoverHtml,
+      className: 'degree-show-card-content',
+      accent: (it) => it._color,
+    },
+    ...options,
   });
   const container = document.getElementById(containerId);
   if (!container) return;

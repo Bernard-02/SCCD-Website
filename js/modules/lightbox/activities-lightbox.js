@@ -124,7 +124,7 @@ function ensureLightbox() {
            transform-origin:center：pill 繞中心旋轉（原 left bottom 會讓寬 title 右端下沉、把 share 拽得看起來低一截、跟 back 不在同一線，user 2026-08-20 改中心；小 pill 微傾 bbox 溢出左邊 ~1px 可忽略）-->
       <div class="alb-topbar absolute" style="left: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); z-index: 5; display: flex; align-items: center; gap: 20px;">
         <button class="alb-close">
-          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;">
+          <span class="alb-close-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);font-size:var(--font-size-s);line-height:1;transform:rotate(0deg);transform-origin:center;">
             <span class="icon icon-arrow-left icon-m"></span>
           </span>
         </button>
@@ -133,7 +133,7 @@ function ensureLightbox() {
         <!-- Share btn：排在 title 與（置中的）縮圖列之間。只有 caller 帶 opts.shareUrl（library album）才顯示；
              data-share-url 由 openLightbox 設、全站 share-modal.js 的 [data-share-btn] delegation 接管點擊（QR + 複製）。-->
         <button class="alb-share" data-share-btn aria-label="分享 Share" style="display: none;">
-          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);width:44px;height:44px;transform-origin:center;box-sizing:border-box;">
+          <span class="alb-share-pill" style="display:inline-flex;align-items:center;justify-content:center;background:var(--color-green);color:var(--color-black);transform-origin:center;box-sizing:border-box;">
             <!-- 同畢業展詳情頁分享鈕的 icon-share（user 2026-10-21 統一；箭頭照 menu 格線重畫後兩者同粗，06-15「share 比較細」不再成立）-->
             <span class="icon icon-share"></span>
           </span>
@@ -834,32 +834,17 @@ function renderShareButton(color, shareUrl) {
   shareBtnEl.dataset.shareBg = pillBg;
 }
 
-// close/ref pill 高度 follow title pill 自然撐高（同 PDF viewer syncBackBtnHeight 規格）
-// rotation 不影響 offsetHeight 所以量 unrotated 套到 rotated pill 仍對齊
-// width = min(44, h)：單行 title（h<44）→ 縮成正方形（以短邊 h 為主、砍左右 padding，user 2026-06-03）；
-//   兩行（h≥44）→ 維持 44 寬。reset 顯式寫 '44px' 不用 ''（否則連 HTML inline 預設一起清掉）。
+// 底部列高（--lb-btn-h）＝title pill 自然高；縮圖高＋zoom 列高跟著它（user 2026-10-21）。
+// 返回／ref／分享鈕不再跟 title 同高：固定全站 icon 鈕尺寸 --lb-icon-btn（lightbox.css），topbar flex 置中＝對齊 title 中線（user 2026-10-29）
 function syncCloseBtnHeight() {
   if (!closePillEl) return;
-  const refPill = refUi && refUi.btnEl
-    ? /** @type {HTMLElement | null} */ (refUi.btnEl.querySelector('.lightbox-ref-btn-pill'))
-    : null;
   const pill = titleEl && titleEl.querySelector('.alb-title-pill');
   if (!pill || titleEl.style.display === 'none') {
-    closePillEl.style.height = '44px'; closePillEl.style.width = '44px';
-    if (refPill) { refPill.style.height = '44px'; refPill.style.width = '44px'; }
-    if (sharePillEl) { sharePillEl.style.height = '44px'; sharePillEl.style.width = '44px'; }
-    lightboxEl.style.setProperty('--lb-btn-h', '44px');
+    lightboxEl.style.setProperty('--lb-btn-h', 'var(--lb-icon-btn, 44px)');
     return;
   }
   const h = /** @type {HTMLElement} */ (pill).offsetHeight;
-  // 縮圖高＋zoom 列高跟著左側鈕高（user 2026-10-21）
   if (h > 0) lightboxEl.style.setProperty('--lb-btn-h', `${h}px`);
-  if (h > 0) {
-    const w = Math.min(44, h);   // 以短邊為主：單行縮成正方形、兩行維持 44 寬
-    closePillEl.style.height = h + 'px'; closePillEl.style.width = w + 'px';
-    if (refPill) { refPill.style.height = h + 'px'; refPill.style.width = w + 'px'; }
-    if (sharePillEl) { sharePillEl.style.height = h + 'px'; sharePillEl.style.width = w + 'px'; }
-  }
 }
 
 // title pill 專用旋轉幅度 ±3°（排除 0）— 比 SCCDHelpers.getRandomRotation(-4~6) 小，
