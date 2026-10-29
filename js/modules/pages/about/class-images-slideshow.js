@@ -29,6 +29,8 @@ const SLOT_LEFTS = ['0%', '24%', '48%'];
 const ANIM_DUR   = 0.5;
 const INTERVAL   = 3000;
 const HOVER_DUR  = 0.3;
+const PEEK_RATIO = 0.5;  // 手機疊放：每張從上一張底下露出自己寬的比例（調疊多疊少改這個）
+const PEEK_LANDSCAPE = 0.75;  // 橫圖露更多＝往兩側推開（user 2026-10-29「橫圖之間太靠近」；about／DSD 共用）
 
 // clip-path 常數只剩「textHlReveal=false 的 text 卡」在用（外部場景）；圖片滑動藏定位共用下方
 // revealHidden（scroll-animate.js，±110 過衝防 dpr hairline），離場固定 'left'＝跟整列左移同向。
@@ -80,7 +82,9 @@ function buildImg(src, fixedWidth, onSized) {
     const capByBox = window.innerWidth < 768 || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
-      const availH = box ? box.clientHeight : 0;
+      // --class-img-fill（CSS，預設 1）：只用容器高的幾成＝圖上下留白（DSD 直向 0.8：直圖別貼 header 帶／說明 box，user 2026-10-29）
+      const fill = box ? parseFloat(getComputedStyle(box).getPropertyValue('--class-img-fill')) || 1 : 1;
+      const availH = box ? box.clientHeight * fill : 0;
       // 含 ±4° 隨機旋轉的 bbox 高：W·sinθ + (W/ratio)·cosθ ≤ availH → 解 W（純用圖比例會差 ~9px 旋角外溢）
       if (availH > 0) {
         const SIN4 = Math.sin(4 * Math.PI / 180), COS4 = Math.cos(4 * Math.PI / 180);
@@ -90,7 +94,9 @@ function buildImg(src, fixedWidth, onSized) {
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
     if (onSized) onSized();
   };
-  if (img.complete && img.naturalWidth) sizeWrapper();
+  // 快取圖延到 microtask 才量：呼叫端 appendChild 在 buildImg 回傳之後，同步量＝wrapper 還是 detached、
+  // closest('.class-info-panel') 找不到＝不吃容器高 cap → tick 換進來的（池子循環／瀏覽器快取）比首批大一號（user 2026-10-29 DSD 直向）
+  if (img.complete && img.naturalWidth) queueMicrotask(sizeWrapper);
   else img.addEventListener('load', sizeWrapper, { once: true });
 
   return wrapper;
@@ -137,9 +143,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // hover 轉正 0°、離開換新角（user 2026-10-19）；hoverAll（about class 圖）＝含 slot 0 都轉正，
   // 預設 slot 0 不轉（degree-show 維持）
   const hoverAll = !!opts.hoverAll;
-  // peekNav（about 直向手機，user 2026-10-27）：只有左右露邊那兩張可點——點左＝整列往右退一張、點右＝往前一張；
-  // 中間主圖不可點。觸控不綁 hover（tap 會發 mouseenter 卻等不到 leave＝自動輪播永遠暫停）
+  // peekNav（about 直向手機，user 2026-10-27→29）：中心張置中、左右依實寬疊放往外接（同桌面步距；中心圖窄就多露幾張）；
+  // 點任一張非中心圖＝整列移到那張置中，中心張不可點。觸控不綁 hover（tap 會發 mouseenter 卻等不到 leave＝自動輪播永遠暫停）
   const peekNav = !!opts.peekNav;
+  const center = Math.floor(slotCount / 2);
   // alignTop（user 2026-09-15，about 桌面用）：圖頂對齊容器頂＝說明 box 頂（grid items-start 同列同頂）；
   // 預設維持 top:70% + yPercent:-50 垂直置中（degree-show / timeline 等共用者不變）
   const slotPos = opts.alignTop ? { top: 0, yPercent: 0 } : {};
@@ -178,14 +185,28 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       return `${x.toFixed(1)}px`;
     });
   }
+  // peekNav 位置（px；slotXPercent -50＝left 即中心點）：同桌面疊放（user 2026-10-29「跟 pc 一樣疊在一起」），
+  // 中心張最上、往外一張壓一張，每張從上一張外緣再露出「自己寬 × PEEK_RATIO」；左側鏡像。
+  // 不用桌面的固定步距：橫圖 250 只露 82 太滿（user 10-29），按自寬比例＝直圖露 ~85、橫圖 ~125。
+  // 讀 offsetWidth 不讀 style.width：手機 CSS max-width 170/250 會再壓 JS 定的寬
+  function stripLefts(list) {
+    const w = list.map(el => el.offsetWidth);
+    const peek = list.map(el => el.classList.contains('class-img--landscape') ? PEEK_LANDSCAPE : PEEK_RATIO);
+    const xs = [];
+    xs[center] = container.clientWidth / 2;
+    for (let i = center + 1; i < list.length; i++) xs[i] = xs[i - 1] + w[i - 1] / 2 + (peek[i] - 0.5) * w[i];
+    for (let i = center - 1; i >= 0; i--) xs[i] = xs[i + 1] - w[i + 1] / 2 - (peek[i] - 0.5) * w[i];
+    return xs.map(x => `${x.toFixed(1)}px`);
+  }
+  const layoutLefts = peekNav ? stripLefts : adaptive ? adaptiveLefts : null;
   // 載入定寬 / resize 後重排；推移中不插手（tick 自己算好推移終點、新圖揭露前另定位）
   function relayout() {
     // 面板 display:none（switchTo 在切顯示前就 renderFresh）＝寬 0 量不準 → 跳過，顯示後 switchTo 再叫一次
-    if (!adaptive || isShifting || slots.length !== slotCount || !container.clientWidth) return;
-    const lefts = adaptiveLefts(slots);
+    if (!layoutLefts || isShifting || slots.length !== slotCount || !container.clientWidth) return;
+    const lefts = layoutLefts(slots);
     slots.forEach((s, i) => gsap.set(s, { left: lefts[i] }));
   }
-  if (adaptive) {
+  if (layoutLefts) {
     window.addEventListener('resize', relayout);
     registerPageCleanup(() => window.removeEventListener('resize', relayout));
   }
@@ -216,7 +237,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // 舊版 slot 0 = default 是「第一張不可點」時代的殘留（user 2026-09-12 指正）
   function updateCursors() {
     slots.forEach((s, i) => {
-      s.style.cursor = peekNav && i > 0 && i < slotCount - 1 ? '' : 'var(--cursor-pointer)';
+      s.style.cursor = peekNav && i === center ? '' : 'var(--cursor-pointer)';
     });
   }
 
@@ -235,8 +256,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       if (isShifting) return;
       if (peekNav) {
         const i = slots.indexOf(wrapper);
-        if (i > 0 && i < slotCount - 1) return;
-        tick(i === 0 ? -1 : 1);
+        if (i < 0 || i === center) return;
+        tick(i - center);
       } else tick();
       // 重置自動輪播計時，給用戶完整 INTERVAL 看新狀態（hover 暫停中 timer=null 則不動，離開後 resume 才起跑）
       if (timer) {
@@ -278,7 +299,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       slots.push(img);
       if (!manual) attachInteractions(img);
     }
-    relayout();   // 快取圖在 buildImg 內同步定寬（當下還沒進 slots＝被 guard 擋）→ 全員就位後補排一次
+    relayout();   // 圖定寬（含快取圖的 microtask）各自再叫 onSized → relayout；這裡先把未定寬的排一次
     if (!manual) updateCursors();
     // Text highlight 初始態：textHlReveal 走 clip-reveal（整塊色卡純位移，藏於貼身遮罩外/現），否則跟 imgs 一起 clip-path
     if (textHlReveal && textHlEl) {
@@ -288,55 +309,66 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     }
   }
 
-  // dir 1＝整列左移（預設，自動輪播）；-1＝整列右移（peekNav 點左邊那張：最右離場、左端補前一張）
+  // dir 1＝整列左移（預設，自動輪播）；-1＝整列右移（peekNav 點左邊那張：最右離場、左端補前一張）；
+  // |dir|>1＝一次移多張（peekNav 點離中心 n 張的圖）
   function tick(dir = 1) {
     if (slots.length !== slotCount) return;
     if (isShifting) return;
     isShifting = true;
     const back = dir < 0;
+    const n = Math.min(Math.abs(dir), slotCount);
 
     // 移動前清掉所有 slot 的 hover 狀態（旋轉還原）
     slots.forEach(s => clearHoverState(s));   // 別直接傳 clearHoverState：forEach 的 index 會被當成 reroll
 
-    const leaving = back ? slots[slotCount - 1] : slots[0];
-
     // 1. leaving img 滑出遮罩：預設順著整列移動方向；leaveRandom（dshow-detail）改隨機 4 向
-    gsap.to(leaving.firstElementChild, {
+    (back ? slots.slice(slotCount - n) : slots.slice(0, n)).forEach(leaving => gsap.to(leaving.firstElementChild, {
       ...(leaveRandom ? revealHidden() : revealHidden(back ? 'right' : 'left')),
       duration: ANIM_DUR,
       ease: EASE.wipe,
       onComplete: () => leaving.remove(),
-    });
+    }));
 
-    // 4. 新圖（先建：adaptive 推移終點要看新排列）
+    // 4. 新圖（先建：adaptive 推移終點要看新排列）；從端點那張的池位置往外接
     const len = pool.length;
-    const idx = back ? (slots[0]._poolIdx - 1 + len) % len : (slots[slotCount - 1]._poolIdx + 1) % len;
-    const newImg = buildImg(pool[idx], imgWidth, relayout);
-    newImg._poolIdx = idx;
-    const rest = back ? slots.slice(0, -1) : slots.slice(1);
-    const order = back ? [newImg, ...rest] : [...rest, newImg];
-    const newSlot = back ? 0 : slotCount - 1;
-    const shifted = adaptive ? adaptiveLefts(order) : null;
+    const edge = back ? slots[0]._poolIdx : slots[slotCount - 1]._poolIdx;
+    const newImgs = [];
+    for (let j = 1; j <= n; j++) {
+      const idx = ((edge + (back ? -j : j)) % len + len) % len;
+      const el = buildImg(pool[idx], imgWidth, relayout);
+      el._poolIdx = idx;
+      newImgs.push(el);
+    }
+    if (back) newImgs.reverse();
+    const rest = back ? slots.slice(0, slotCount - n) : slots.slice(n);
+    const order = back ? [...newImgs, ...rest] : [...rest, ...newImgs];
+    const shifted = layoutLefts ? layoutLefts(order) : null;
 
-    // 2/3. 其餘 slot 各移一格（保留各自旋轉）
+    // 2/3. 其餘 slot 各移 n 格（保留各自旋轉）
     rest.forEach((s) => {
       const to = order.indexOf(s);
       gsap.to(s, { left: shifted ? shifted[to] : slotLefts[to], duration: ANIM_DUR, ease: EASE.wipe });
     });
 
     // 新圖在空出的端點 slot 隨機 4 向滑入（與上面同時進行）
-    container.appendChild(newImg);
-    placeInSlot(newImg, newSlot, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[newSlot] } : {}), ...(shifted ? { left: shifted[newSlot] } : {}) });
+    newImgs.forEach(el => {
+      const i = order.indexOf(el);
+      container.appendChild(el);
+      placeInSlot(el, i, slotLefts, { rotation: randomRotation(), xPercent: slotXPercent, ...slotPos, ...(slotZ ? { zIndex: slotZ[i] } : {}), ...(shifted ? { left: shifted[i] } : {}) });
+      gsap.set(el.firstElementChild, revealHidden());
+      if (!manual) attachInteractions(el);
+    });
     // 新圖先藏定位、等 decode 完才滑入（同進場 gate）；壞/慢圖 3s 保險放行（whenImgReady）
-    const inNew = newImg.firstElementChild;
-    gsap.set(inNew, revealHidden());
-    whenImgReady(inNew).then(() => {
-      // adaptive：寬度此時才定 → 揭露前（仍藏在遮罩外）補到正確位置
-      if (adaptive) gsap.set(newImg, { left: adaptiveLefts(slots)[slots.indexOf(newImg)] });
-      gsap.to(inNew, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: EASE.wipe,
+    const inners = newImgs.map(el => el.firstElementChild);
+    Promise.all(inners.map(im => whenImgReady(im))).then(() => {
+      // 依寬排：寬度此時才定 → 揭露前（仍藏在遮罩外）補到正確位置
+      if (layoutLefts) {
+        const lefts = layoutLefts(slots);
+        newImgs.forEach(el => gsap.set(el, { left: lefts[slots.indexOf(el)] }));
+      }
+      gsap.to(inners, { ...REVEAL_SHOWN, duration: ANIM_DUR, ease: EASE.wipe,
         onComplete: () => { isShifting = false; if (!manual) reapplyHoverIfPointerInside(); } });
     });
-    if (!manual) attachInteractions(newImg);
 
     slots = order;
     slots.forEach((img, i) => gsap.set(img, { zIndex: slotZ ? slotZ[i] : slotCount - i }));
@@ -373,10 +405,12 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
       const onOne = () => { if (++done >= total) resolve(); };
       // 圖片：img 在 wrapper 遮罩內滑動。hide=每張獨立隨機 4 向、show=歸位。
       // show 先 gate 到 decode 完才滑入（whenImgReady），避免還沒載完就滑進空框、圖再閃出（user 2026-09-11）。
+      // peekNav 等全部到齊才一起揭：外圈位置吃內圈寬，先揭的會被晚到的內圈推一下
+      const allReady = peekNav && mode === 'show' ? Promise.all(imgWrappers.map(el => whenImgReady(el.firstElementChild))) : null;
       imgWrappers.forEach(el => {
         const inner = el.firstElementChild;
         const run = () => gsap.to(inner, { ...(mode === 'hide' ? revealHidden() : REVEAL_SHOWN), duration: ANIM_DUR, ease: EASE.wipe, overwrite: 'auto', onComplete: onOne });
-        if (mode === 'show') whenImgReady(inner).then(run); else run();
+        if (mode === 'show') (allReady || whenImgReady(inner)).then(run); else run();
       });
       if (clipText) gsap.to(clipText, { clipPath: mode === 'hide' ? randomHideClip() : SHOW_CLIP, duration: ANIM_DUR, ease: EASE.wipe, onComplete: onOne });
       // reveal text 卡：clip-reveal 隨機 4 向（整塊色卡在貼身遮罩內純位移，無 clip-path）
@@ -498,13 +532,14 @@ export async function initClassImagesSlideshow() {
     const poolFor = (division) => imagesByDivision[division] || [];
     if (!Object.keys(imagesByDivision).length) return;
 
-    // 直向手機＝3 張主圖置中、左右露邊（user 2026-10-27；同 DSD 手機 slot 幾何），自動往左輪播、點左右露邊那張往回／往前（peekNav）。
+    // 直向手機＝主圖置中、左右依實寬疊放接下去（user 2026-10-27→29：同桌面疊法、窄圖就多露幾張；7 張＝中心＋各 3 張，蓋到 767 寬），
+    // 自動往左輪播、點哪張整列移到那張置中（peekNav）。
     // 矮橫向（landscape gate）維持單圖置中（user 2026-07-07 wireframe：圖左文右單圖輪播）；桌面 3-slot 左移輪播。
     const isMobileSlots = SCCDHelpers.isMobileLayout();
     const isPeekSlots = isMobileSlots && !SCCDHelpers.isLandscapeGate();
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isPeekSlots
-      ? { slotLefts: ['-16%', '50%', '116%'], slotXPercent: -50, slotZ: [1, 3, 2], peekNav: true, textHlReveal: true }
+      ? { slotLefts: Array(7).fill('50%'), slotXPercent: -50, slotZ: [1, 2, 3, 4, 3, 2, 1], peekNav: true, textHlReveal: true }
       : isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
       : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶

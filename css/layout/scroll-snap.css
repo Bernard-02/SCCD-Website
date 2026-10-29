@@ -204,12 +204,11 @@ html {
   #history #timeline-area { height: calc(100svh - 2 * var(--header-logo-mid)) !important; }
   #history .tl-list-grid,
   #history .tl-list-btn-grid { bottom: 0; }
-  /* 寫 --tl-cell-h 不寫 height：lists.css .tl-list-cell 的 height 與 width（高×1.65−era 欄）都吃這個變數，寬才跟著封頂後的高走 */
+  /* list 卡（user 2026-10-29）：高同 resources .colored-accordion（＝框高）；寬＝resources 說明文字最大寬，由 horizontal-accordion
+     applyLayout 量好寫 --res-text-w（隨後台項目數變，CSS 算不出）；resources 沒載到＝撐滿 col 4～18 */
   #history .tl-list-cell {
-    --tl-cell-h: min(
-      calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
-      calc(100svh - 2 * var(--header-logo-mid))
-    );
+    --tl-cell-h: calc(100svh - 2 * var(--header-logo-mid));
+    width: var(--res-text-w, 100%);
   }
 }
 

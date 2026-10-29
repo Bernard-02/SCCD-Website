@@ -114,7 +114,7 @@ export function scrollWindowNoSnap(targetY, { duration = DUR.medium, ease = EASE
   }
 }
 
-// ── about 直向手機磁吸（user 2026-10-27：about 各區已照一屏排）──
+// ── about 直向手機磁吸（user 2026-10-27：about 各區已照一屏排；DSD 直向 10-29 也用）──
 // 原生 CSS snap 只開真桌面、且只吸最近點（過半才換屏）＋會蓋掉 footer 的方向磁吸 → 這頁手機改 JS：
 // 停手（含慣性）後往某方向捲超過 15% 屏高＝補捲到那方向的下一個落點，不到＝回原落點。
 // 落點＝.snap-zone 頂 − scroll-margin-top（同 nav btn 落點）＋最後一個＝footer 頂貼視窗底；footer 那段交給 footer-scatter 的方向磁吸。
@@ -127,6 +127,7 @@ export function initAboutMobileSnap() {
     const vh = window.innerHeight, sy = window.scrollY;
     const max = document.documentElement.scrollHeight - vh;
     const ys = [...document.querySelectorAll('#page-content .snap-zone')]
+      .filter(el => el.getClientRects().length)   // display:none 的段（DSD 沒影片時的影片屏）rect 0＝會把當下位置當落點
       .map(el => el.getBoundingClientRect().top + sy - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0));
     const footer = Array.from(document.querySelectorAll('#site-footer-static, #site-footer')).find(f => f.getClientRects().length);
     if (footer) ys.push(footer.getBoundingClientRect().top + sy - vh);

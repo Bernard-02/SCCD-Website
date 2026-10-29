@@ -127,6 +127,10 @@ export function initRotatedAccordion(wrapper, { animateEntry = false } = {}) {
 
       item.classList.toggle('active', isOpen);
     });
+
+    // history list 卡寬＝說明文字最大寬（accordion.css max-width 80%；scroll-snap.css #history .tl-list-cell 讀）
+    const resText = /** @type {HTMLElement | null} */ (items[0].querySelector('[data-resources-text]'));
+    if (resText) document.getElementById('history')?.style.setProperty('--res-text-w', `${resText.offsetWidth}px`);
   }
 
   applyLayout(false);

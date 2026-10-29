@@ -151,10 +151,10 @@
     /* 層距起始值 3xl；實際由 JS layoutLineLengths 改寫（斜綫同角 35° 反推層距；樹高超出框＝底到 Degree 卡底就縮短） */
     #program-structure { --prog-level-gap: var(--spacing-3xl); }
   }
-  /* mode3：右下角全域 mode-color-panel 浮鈕（鉛筆 48 / 色輪 104），stack 左移避讓（比照 atlas.css #atlas-detail-mask） */
+  /* mode3：右下角全域 mode-color-panel 圓鈕／capsule（--mcp-footprint-x 含展開寬），stack 左移避讓（比照 atlas.css #atlas-detail-mask） */
   @media (min-width: 768px) {
     body.mode-color .prog-legend-stack {
-      /* col-18 右緣與色輪取較左者：色輪展開（104）時仍避讓 */
+      /* col-18 右緣與 capsule 取較左者：展開（265）時仍避讓 */
       right: max(calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter)),
                  calc(var(--mcp-footprint-x, 48px) + 16px));
       transition: right var(--dur-base) ease;   /* 色輪開合時位置平移；clip-path/translate 走 GSAP 不掛 transition */

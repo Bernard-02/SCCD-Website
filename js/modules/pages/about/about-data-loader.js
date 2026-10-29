@@ -203,6 +203,27 @@ function renderPlaylist(box, iframe, listId, vids) {
     b.appendChild(img);
     inner.appendChild(b);
   });
+  // 手機橫捲列左右 chevron（user 2026-10-29，同 activities gallery）：一次捲 0.6 列寬、到端點半透明；
+  // 不用捲就不出（.has-chev，CSS 只在手機顯示）；手指滑照常
+  const chev = (dir) => {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = `works-playlist-chev works-playlist-${dir}`;
+    c.setAttribute('aria-label', dir === 'prev' ? '上一組 Previous' : '下一組 Next');
+    c.innerHTML = `<span class="icon icon-chevron-list icon-s${dir === 'next' ? ' rotate-180' : ''}"></span>`;
+    c.addEventListener('click', () => inner.scrollBy({ left: (dir === 'prev' ? -0.6 : 0.6) * inner.clientWidth, behavior: 'smooth' }));
+    scroll.appendChild(c);
+    return c;
+  };
+  const prevChev = chev('prev'), nextChev = chev('next');
+  const syncChev = () => {
+    const max = inner.scrollWidth - inner.clientWidth;
+    scroll.classList.toggle('has-chev', max > 1);
+    prevChev.classList.toggle('is-end', inner.scrollLeft <= 1);
+    nextChev.classList.toggle('is-end', inner.scrollLeft >= max - 1);
+  };
+  inner.addEventListener('scroll', syncChev, { passive: true });
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(syncChev).observe(inner);
   // 出生就框住當前播放那支（user 2026-10-26）：watch URL 帶 v= 的那支，videoseries 沒初始影片＝第一支
   const curVid = iframe.src.match(/\/embed\/([^?]+)/)?.[1];
   (inner.querySelector(`[data-vid="${curVid}"]`) || inner.firstElementChild)?.classList.add('is-active');
