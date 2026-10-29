@@ -419,11 +419,12 @@
      1. about 與 degree-show 共用 .works-container，cards.css 手機規則套 flex＋overflow:auto 會裁旋轉圖 → 還原 block＋visible。
      2. 圖片垂直置中（!important 蓋 gsap inline top）。 */
   /* 圖／文對半分 nav btn 以下空間：340 = 580 預算（推導見下方 [data-class-text]）扣圖 240；
-     100svh − 340 → 圖容器／文字盒各半，120 floor 保極矮視窗。圖片另由 class-images-slideshow.js 依容器高等比 cap。 */
+     100svh − 340 → 圖容器／文字盒各半，120 floor 保極矮視窗。圖片另由 class-images-slideshow.js 依容器高等比 cap。
+     圖高／說明盒高＝--class-img-h／--class-text-h：DSD 子展覽同一套排版、只換自己的預算（variables.css DSD 直向段，user 2026-10-29 共用） */
   .class-info-panel .division-images {
     display: block !important;
     overflow: visible !important;
-    height: max(calc((100svh - 340px) / 2), 120px) !important;   /* !important＋較高特異度＝蓋 cards.css 手機 .works-container height:auto!important */
+    height: var(--class-img-h, max(calc((100svh - 340px) / 2), 120px)) !important;   /* !important＋較高特異度＝蓋 cards.css 手機 .works-container height:auto!important */
     min-height: 0;
     padding-bottom: 0 !important;   /* cards.css 手機 works-container 的 1rem 預留不適用此容器 */
   }
@@ -431,8 +432,9 @@
     top: 50% !important;
     max-width: 170px;
   }
+  /* 橫圖 200（原 250）：375 寬時主圖佔掉 2/3、左右疊放那張只露 ~60＝太擠（user 2026-10-29，about 與 DSD 子展覽共用） */
   .class-info-panel .class-img.class-img--landscape {
-    max-width: 250px;
+    max-width: 200px;
   }
 
   /* HTML pt-2xl → md，讓整個 panel 進一屏 */
@@ -445,7 +447,7 @@
      與 anchor strip／division nav 高度配對組同步（見 scroll-snap.css）。 */
   .class-info-panel [data-class-text] {
     /* 對半分（見上）；−1em＝外盒 [data-class-hl] 上下 padding 0.5em×2 */
-    height: max(calc((100svh - 340px) / 2 - 1em), 120px);
+    height: var(--class-text-h, max(calc((100svh - 340px) / 2 - 1em), 120px));
     overflow-y: auto;
     scrollbar-width: none;
   }
@@ -473,11 +475,6 @@
   /* 年份 chip 字級：hero.css（@layer components）與 typography h6（@layer base）跨 layer 不直觀 → 本頁用 unlayered 規則釘死 */
   [data-hero-title-last] .hero-mobile-text-en {
     font-size: var(--font-size-md);
-  }
-
-  /* 子展覽 tab 上限＝容器內容寬 3/4：讓下一顆露出、暗示可橫滑；超長 title 交給 marquee（applyMarqueeOverflow） */
-  .dsd-event-strip .class-division-btn {
-    max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
   }
 
   /* strip 上方 clearance：wrap ::before 往上補 96px theme-bg 遮 header 帶，但 strip 距上方影片只 64（galleries-root pt-3xl）
@@ -545,7 +542,7 @@
     color: #000;
   }
   /* 年份↔標題 gap；英↔中用字級 token（text-lg → --space-en-zh-lg）。標題過長時 aspect-ratio 讓位、卡片往下長高 */
-  .dsd-next-card-m > p:first-child { margin-bottom: var(--spacing-xs); }
+  .dsd-next-labels-m > p:first-child { margin-bottom: var(--spacing-xs); }
   .dsd-next-card-m .dshow-next-title + .dshow-next-title { margin-top: var(--space-en-zh-lg); }
   .dsd-next-card-m + .dsd-next-card-m {
     margin-left: -6%;
@@ -693,8 +690,9 @@
   /* 112 = (92 落點 + 24 section pt + 20 row gap + 24 底呼吸 + 64 bar) / 2 */
   #overview [data-overview-text] { max-height: calc(50svh - 112px - 1em); }
   /* 316 = 556 預算（92 落點 + 80 底部 division nav + 24 pt + 240 圖 + 20 + 24 + 12 + 64 bar）扣圖 240 */
-  .class-info-panel .division-images { height: max(calc((100svh - 316px) / 2), 120px) !important; }
-  .class-info-panel [data-class-text] { height: max(calc((100svh - 316px) / 2 - 1em), 120px); }
+  /* 圖高／說明盒高變數：DSD 子展覽換自己的預算（同上方 .class-info-panel 段） */
+  .class-info-panel .division-images { height: var(--class-img-h, max(calc((100svh - 316px) / 2), 120px)) !important; }
+  .class-info-panel [data-class-text] { height: var(--class-text-h, max(calc((100svh - 316px) / 2 - 1em), 120px)); }
   /* division tab 往下貼近底部 bar（user 10-27「到 nav btn row 再小一點」：chip 間 ~24→~16）；
      只吃進 bar 頂的空白（bar chip 上方 ~14），不壓到 bar chip 的點擊區 */
   .mobile-division-wrap { bottom: calc(var(--about-bar-h) - var(--spacing-xs)); }
@@ -723,3 +721,230 @@
   #about-content-wrapper #history { padding-bottom: var(--about-bar-h); }
 }
 
+
+/* 上下屆手機卡的 banner 圖＋標題外框只給直向（下方 DSD 直向段）；其餘寬度（矮橫向色塊卡）圖藏、外框 display:contents＝chip 照舊是卡的 flex 子項 */
+.dsd-next-img-m { display: none; }
+.dsd-next-labels-m { display: contents; }
+
+/* ===== DSD 直向手機：版面跟桌面同一套（user 2026-10-29）=====
+   每屏＝header 帶下 92 起、底讓出左下返回／分享列（--dsd-m-bottom＝24 底距＋44 鈕＋16）；子展覽那屏再讓出 tab 列（--dsd-m-tabs-h）。
+   JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機版（landscape.css 5j）。 */
+@media (max-width: 767px) and (orientation: portrait) {
+  :root {
+    --dsd-m-bottom: calc(var(--container-padding) + 44px + var(--spacing-sm));
+    --dsd-m-tabs-h: 60px;
+    --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));
+    --dsd-m-half: calc((var(--dsd-m-frame) - var(--dsd-m-tabs-h) - 2 * var(--spacing-md)) / 2);   /* 子展覽屏：圖／說明 box 各半（扣圖文 gap md＋box 到 tab 列 md） */
+  }
+
+  /* Hero：圖＝其他四頁 .hero-mobile-rand（hero.css；hero-mobile-sync 也替本頁掛）；字卡＝同 PC 集中左下角（user 2026-10-29）：
+     由下往上堆（justify-content:flex-end）＝標題長就把上面的往上頂。框 100vh（iOS＝lvh、同其他頁）、底 pad 多墊 lvh−svh＝字卡落在工具列展開時也看得到的範圍 */
+  [data-hero-title-last] .hero-mobile.hero-mobile-rand {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding-bottom: calc(3rem + 100vh - 100svh);
+  }
+  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text {
+    min-height: 0;
+    justify-content: flex-end;
+    gap: var(--spacing-md);   /* 同 PC 字卡 gap-md */
+  }
+  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text > * { margin-top: 0; }
+
+  /* 返回／分享：左下 44 黑方塊（同手機 header 鈕 44/28），過 hero 才滑上、footer 前收（bindMobileBottomBar 切 .is-bar-hidden）。
+     #page-content 前綴：hero.css 的桌面 .sticky-chip／返回鈕規則是全域的、排在本檔後面（預設 clip-path 藏起＝會整顆裁掉）；
+     位移走 translate（transform 留給 JS 的隨機角） */
+  #page-content :is(#degree-show-back-btn, #degree-show-share-btn) {
+    display: block;
+    clip-path: none;
+    position: fixed;
+    left: var(--container-padding);
+    bottom: var(--container-padding);
+    z-index: 50;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    transition: translate var(--dur-base) var(--ease-wipe);
+  }
+  #page-content #degree-show-share-btn { left: calc(var(--container-padding) + 44px + var(--spacing-sm)); }
+  #page-content :is(#degree-show-back-btn, #degree-show-share-btn).is-bar-hidden {
+    translate: 0 calc(100% + var(--container-padding) + 12px);   /* 12＝旋轉角凸出 */
+  }
+  #page-content :is(#degree-show-back-btn, #degree-show-share-btn) .sticky-chip-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--theme-fg);
+    color: var(--theme-fg-inverse);
+    font-size: 28px;
+  }
+
+  /* 海報＋主影片一屏：有影片＝海報上半、影片下半；只有海報＝海報吃滿整框（等比、置中）。
+     #events-kv 是海報滑入的遮罩 → 盒貼圖（place-self 非 stretch），同桌面 */
+  #dsd-desc-section.dsd-media-row {
+    height: 100svh;
+    min-height: 0 !important;   /* 蓋 HTML inline min-height:100vh */
+    padding: 92px 0 var(--dsd-m-bottom);
+  }
+  #dsd-desc-section.dsd-media-row > .site-container { height: 100%; padding-top: 0; padding-bottom: 0; }
+  #dsd-desc-section.dsd-media-row #events-section {
+    height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    row-gap: var(--spacing-md);
+  }
+  #dsd-desc-section.dsd-media-row.has-video #events-section { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  #dsd-desc-section.dsd-media-row #events-section > :first-child { display: none; }   /* 清單欄：直向也不渲染清單 */
+  #dsd-desc-section.dsd-media-row #events-kv { place-self: center; margin-top: 0; }
+  #dsd-desc-section.dsd-media-row .dsd-events-kv-img { width: auto; max-width: 100%; max-height: var(--dsd-m-frame); }
+  #dsd-desc-section.dsd-media-row.has-video .dsd-events-kv-img { max-height: calc((var(--dsd-m-frame) - var(--spacing-md)) / 2); }
+  #dsd-desc-section.dsd-media-row .dsd-events-video.has-video { display: block; align-self: center; }
+
+  /* 只有影片（沒海報＝原影片屏）／紀錄影片：一屏、影片滿寬、在框內垂直置中 */
+  #video-outer-section:not(.hidden),
+  #documentary-outer-section:not(.hidden) {
+    display: flex;
+    align-items: center;
+    height: 100svh;
+    padding: 92px 0 var(--dsd-m-bottom);
+  }
+
+  /* 子展覽一屏（buildDesktopEventTabs）：圖上半、說明 box 下半（同 about 直向 Programs）；tab 列固定在返回列上方 */
+  #event-galleries-root { display: block; padding: 0; }
+  .dsd-event-tabs-section {
+    height: 100svh;
+    padding: 92px 0 calc(var(--dsd-m-bottom) + var(--dsd-m-tabs-h));
+    overflow-x: clip;
+    /* 圖／說明盒高＝about Programs 同一套規則的變數（上方 .class-info-panel 段）；10＝外盒 card-pad-s 上下 5×2 */
+    --class-img-h: var(--dsd-m-half);
+    --class-text-h: calc(var(--dsd-m-half) - 10px);
+    --class-img-fill: 0.8;   /* 圖最高＝圖區 8 成（class-images-slideshow 讀）：直圖不貼上方 header 帶、下方 box */
+  }
+  .dsd-event-tabs-section .grid-20 { display: block; }   /* 子項只有 md: 欄位 class，手機 grid 會擠成 1/20 欄 */
+  .dsd-event-tabs-area,
+  .dsd-event-tabs-area > .class-info-panel,
+  .dsd-event-tabs-area > .class-info-panel > .grid-20,
+  .dsd-event-panel-row { height: 100%; }
+  .dsd-event-panel-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    padding-bottom: var(--spacing-md);   /* box 跟 tab 列的距離＝圖文 gap（user 2026-10-29） */
+  }
+  /* 圖在上半（高吃 --class-img-h）；slideshow 依容器高等比 cap */
+  .dsd-event-tabs-section .class-info-panel .division-images {
+    order: -1;
+    flex: 0 0 auto;
+  }
+  /* 說明：三塊併成一個 box（eventBoxesHtml phone）＝about 說明卡同結構：寬高都貼字、在下半剩的空間垂直置中，放不下（--class-text-h）在 box 內捲；
+     每行不換行、超出 marquee（.dsd-mq-line）。max-width 100% 兩層都要：不換行的字 min-content＝整行寬，fit-content 會撐破欄 */
+  .dsd-event-boxes {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .dsd-event-boxes > div { max-width: 100%; }   /* ensureCardMask 的遮罩 */
+  .dsd-event-box-m { max-width: 100%; }
+  .dsd-event-box-m [data-class-text] { height: auto; max-height: var(--class-text-h); }   /* about 是固定高（各面板等高）；這裡貼字（user 2026-10-29） */
+  .dsd-event-box-m [data-class-text] > * { flex-shrink: 0; }   /* 內容比框高時 flex 會把 overflow:hidden 的行壓成 0 高（日期行消失） */
+  /* tab 列：畫面底固定（返回列上方）、全寬橫捲、英中一行；position:relative＝JS 以 scroller 為基準讀 offsetLeft 置中。
+     #id 前綴：HTML 的 Tailwind .relative 在 output.css 後出、同特異度蓋掉 fixed */
+  #event-galleries-root .dsd-event-tabs-row {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--dsd-m-bottom);
+    z-index: 40;
+    height: var(--dsd-m-tabs-h);
+    display: flex;
+    align-items: center;
+  }
+  .dsd-event-tabs-row > .grid-20 { width: 100%; }
+  .dsd-event-tabs-scroller {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding: var(--spacing-sm) var(--container-padding);
+    margin: 0 calc(-1 * var(--container-padding));
+  }
+  .dsd-event-tabs-scroller::-webkit-scrollbar { display: none; }
+  .dsd-event-tabs-section .class-division-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0.3em;   /* ≈ 一個空白（同底 bar chip） */
+    white-space: nowrap;
+  }
+  .dsd-event-tabs-section .class-division-btn > div:first-child { margin-bottom: 0; }
+
+  /* 上下屆：一屏上下兩半（中段疊 2xl）各一張連結框＋標題 chip 常駐在框角（上張左上、下張右下）；
+     海報照原比例不裁、在自己那半內隨機落點（JS --poster-x/y 0–1，user 2026-10-29） */
+  #next-project-section {
+    height: 100svh;
+    padding: 92px 0 var(--dsd-m-bottom);
+  }
+  #next-project-section > .dsd-next-m {
+    height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+  }
+  /* 框＝滿版寬（container 內）、高各佔半屏＋中段疊 2xl */
+  .dsd-next-m .dsd-next-card-m {
+    position: relative;
+    width: 100%;
+    height: calc((var(--dsd-m-frame) + var(--spacing-2xl)) / 2);
+    aspect-ratio: auto;
+    display: block;
+    padding: 0;
+    margin: 0;
+  }
+  .dsd-next-m #prev-link-m { align-self: flex-start; z-index: 1; }
+  .dsd-next-m #next-link-m { align-self: flex-end; margin-top: calc(-1 * var(--spacing-2xl)); z-index: 2; }
+  /* left/top 吃框的 %、translate 吃自己的 %＝落點 0～(框−海報)，不出框 */
+  .dsd-next-img-m,
+  .dsd-next-card-m.no-img::before {
+    position: absolute;
+    left: calc(var(--poster-x, 0) * 100%);
+    top: calc(var(--poster-y, 0) * 100%);
+    translate: calc(var(--poster-x, 0) * -100%) calc(var(--poster-y, 0) * -100%);
+  }
+  .dsd-next-img-m {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+  }
+  .dsd-next-card-m.no-img::before { content: ''; width: 80%; height: 80%; background: var(--gray-8); }
+  .dsd-next-card-m.no-img .dsd-next-img-m { display: none; }
+  .dsd-next-labels-m {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    max-width: calc(100% - 2 * var(--spacing-sm));
+  }
+  #prev-link-m .dsd-next-labels-m { top: var(--spacing-sm); left: var(--spacing-sm); align-items: flex-start; }
+  #next-link-m .dsd-next-labels-m { bottom: var(--spacing-sm); right: var(--spacing-sm); align-items: flex-end; }
+  .dsd-next-labels-m > p {
+    width: fit-content;
+    max-width: 100%;
+    padding: var(--card-pad-md);
+    line-height: var(--line-height-md);
+    margin: 0 !important;   /* 蓋上方手機段 年份 mb／英中 mt（間距改走 gap） */
+  }
+}

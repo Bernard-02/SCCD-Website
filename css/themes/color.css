@@ -106,6 +106,11 @@ body.mode-color .dsd-next-card-m {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
+/* 直向手機 banner 上的標題 chip（JS inline accent 底）同樣 strict B/W */
+body.mode-color .dsd-next-labels-m > p {
+  background: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
 
 /* 自訂影片 player UI（lightbox-video.js createLightboxVideo）：mode1/2 為 JS inline accent 色塊 + 黑 ink → strict B/W：
    .lb-video-block 底 fg；.lb-video-ink 字 / .lb-video-ink-bg 線 fg-inverse。手機走原生 controls 不掛這些 class */
@@ -594,6 +599,9 @@ body.mode-color .works-playlist-inner::-webkit-scrollbar-thumb {
 }
 body.mode-color .works-playlist-item.is-active {
   outline-color: var(--theme-fg-inverse) !important;
+}
+body.mode-color .works-playlist-chev {
+  color: var(--theme-fg-inverse) !important;
 }
 
 /* ===== Library 主卡片 =====

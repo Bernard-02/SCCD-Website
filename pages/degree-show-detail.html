@@ -123,8 +123,9 @@
     <!-- 左下角返回 degree show 按鈕：套 sticky-chip 結構（外 wrapper clip-path reveal + inner 撐 bg + padding）
          left 對齊 hero 標題 / sticky-info-card / logo 左緣（var(--container-padding)）
          顯隱由 setupStickyAndHeroChips 跟 sticky title chip 同節奏切（clip-path 由上往下 reveal） -->
+    <!-- 直向手機：左下 44 黑方塊、過 hero 才滑上（.is-bar-hidden 出生就帶＝hero 上不閃；variables.css DSD 直向段＋bindMobileBottomBar） -->
     <a id="degree-show-back-btn" href="/activities?section=degree-show"
-       class="sticky-chip hidden md:block"
+       class="sticky-chip hidden md:block is-bar-hidden"
        aria-label="返回 Degree Show">
       <span class="sticky-chip-inner">
         <span class="icon icon-arrow-left"></span>
@@ -134,7 +135,7 @@
     <!-- 分享鈕：返回鈕右邊、同款（user 2026-10-21）；全站 share-modal（[data-share-btn]）接管，
          data-share-url 由 JS 寫本頁網址（預設推算會砍掉 ?query＝丟掉是哪一屆） -->
     <button type="button" id="degree-show-share-btn" data-share-btn
-            class="sticky-chip hidden md:block"
+            class="sticky-chip hidden md:block is-bar-hidden"
             aria-label="分享 Share">
       <span class="sticky-chip-inner">
         <span class="icon icon-share"></span>
@@ -235,20 +236,26 @@
         </div>
       </div>
 
-      <!-- 手機版：左右並排色塊卡（user 2026-07-09 取消 poster thumbnail）——隨機互異 accent 底 +
-           隨機旋轉（JS inline 填）+ 年份 / 英中標題；卡片版面在 variables.css .dsd-next-card-m。
-           文字靠左、年份與標題同字級（text-s）；items-start + #next-link-m margin-top 造高低落差。
+      <!-- 手機版：
+           直向（user 2026-10-29）＝一屏上下交疊兩張 banner（封面圖，JS 填；沒圖＝灰底）＋標題 chip 常駐疊在圖上，點哪張直接換頁；
+           矮橫向＝左右並排色塊卡（user 2026-07-09；圖藏、labels 外框 display:contents＝chip 照舊是卡的 flex 子項，landscape.css 5j）。
            文字不掛 .text-black（inverse 的 .text-black→white 會蓋掉），黑字由 .dsd-next-card-m color 統一給 -->
-      <div class="md:hidden site-container flex flex-row items-start justify-center">
-        <a id="prev-link-m" href="#" class="dsd-next-card-m block">
-          <p id="prev-year-mobile" class="text-lg font-bold"></p>
-          <p id="prev-title-en-mobile" class="dshow-next-title text-lg font-bold"></p>
-          <p id="prev-title-mobile" class="dshow-next-title text-lg font-bold"></p>
+      <div class="md:hidden site-container flex flex-row items-start justify-center dsd-next-m">
+        <a id="prev-link-m" href="#" class="dsd-next-card-m block" aria-label="上一屆畢業展 Previous degree show">
+          <img class="dsd-next-img-m" alt="">
+          <div class="dsd-next-labels-m">
+            <p id="prev-year-mobile" class="text-md font-bold"></p>
+            <p id="prev-title-en-mobile" class="dshow-next-title text-md font-bold"></p>
+            <p id="prev-title-mobile" class="dshow-next-title text-md font-bold"></p>
+          </div>
         </a>
-        <a id="next-link-m" href="#" class="dsd-next-card-m block">
-          <p id="next-year-mobile" class="text-lg font-bold"></p>
-          <p id="next-title-en-mobile" class="dshow-next-title text-lg font-bold"></p>
-          <p id="next-title-mobile" class="dshow-next-title text-lg font-bold"></p>
+        <a id="next-link-m" href="#" class="dsd-next-card-m block" aria-label="下一屆畢業展 Next degree show">
+          <img class="dsd-next-img-m" alt="">
+          <div class="dsd-next-labels-m">
+            <p id="next-year-mobile" class="text-md font-bold"></p>
+            <p id="next-title-en-mobile" class="dshow-next-title text-md font-bold"></p>
+            <p id="next-title-mobile" class="dshow-next-title text-md font-bold"></p>
+          </div>
         </a>
       </div>
     </section>

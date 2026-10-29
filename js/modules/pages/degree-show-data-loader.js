@@ -21,9 +21,14 @@ import { loadDegreeShow } from './degree-show-source.js';
 import { escapeHtml } from '../ui/escape-html.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
 import { countryName } from '../../data/country-names.js';
-import { bindNavBtnHover, bindNavBtnFit } from '../ui/section-switch-helpers.js';
+import { bindNavBtnHover, bindNavBtnFit, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { makeTabsDraggable } from '../ui/footer-scatter.js';
+import { initAboutMobileSnap } from '../ui/snap-scroll.js';
+
+// 直向手機（user 2026-10-29）：版面跟桌面同一套（子展覽 tab＋說明 box＋圖、海報影片一屏、無活動清單），尺寸／位置走 variables.css 檔尾 DSD 直向段；
+// 矮橫向維持舊手機版（清單＋每個 event 一段＋header 帶 strip）
+const isPortraitPhone = () => SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate();
 
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
 // 上限，色卡實際寬仍會撐到 max-width（短末行右側空一大塊 accent 底）；用 Range 量 wrapped lines 取最寬行寫回
@@ -182,10 +187,11 @@ export async function loadDegreeShowDetail() {
       // 活動 / 地點 / 城市顯示中英雙語（英文上、中文下）；時間僅一行；文字 semibold（城市 regular，user 2026-07-13）
       const eventsSection = document.getElementById('events-section');
       const eventsList = document.getElementById('events-list');
+      const deskLike = !SCCDHelpers.isMobileLayout() || isPortraitPhone();
       if (eventsSection && eventsList) {
         // 清單列出全部 event：self 型（手填）+ linked 型（欄位從被連活動拉；user 2026-08-17 linked 進清單、跟 ref chip 共存）。
         // 桌面 2026-10-20 起清單文字併進主影片下方的子展覽 tab 說明卡（buildDesktopEventTabs）→ 這裡只剩手機渲染、桌面只留海報
-        const isDesk = !SCCDHelpers.isMobileLayout();
+        const isDesk = deskLike;
         const listEvents = !isDesk && Array.isArray(data.events) ? data.events : [];
         if (listEvents.length > 0) {
           // 每筆 event（user 2026-08-19 五度改）：日期 : 標題 : 地點 = 1:2:2 純三欄（不再有獨立 detail row）：
@@ -286,7 +292,8 @@ export async function loadDegreeShowDetail() {
           //   圖載完那幀會先閃現最終位再跳藏定位滑入。autoAlpha:0 先隱形，等「圖有尺寸」再設方向+現身+滑入（同幀無閃）。
           if (animate) gsap.set(kvImg, { autoAlpha: 0 });
           // 真桌面：海報＋主影片合一屏、works 同 grid（user 2026-10-20，CSS 在 cards.css .dsd-media-row）
-          if (SCCDHelpers.isDesktopLayout()) document.getElementById('dsd-desc-section')?.classList.add('dsd-media-row');
+          // 直向手機同一套：海報上半屏、影片下半屏（user 2026-10-29）
+          if (deskLike) document.getElementById('dsd-desc-section')?.classList.add('dsd-media-row');
           kvImg.src = data.poster;
           if (animate) {
             const run = () => {
@@ -454,6 +461,11 @@ function setupHeroMobileEntrance() {
       wrapper.style.marginTop = mt;
       chip.style.marginTop = '0';
     }
+    // 直向手機隨機水平落點（hero-mobile-sync 寫在 chip 上）同理轉給 wrapper（wrapper 才是 flex 子項）
+    if (chip.style.alignSelf) {
+      wrapper.style.alignSelf = chip.style.alignSelf;
+      chip.style.alignSelf = '';
+    }
     chip.parentNode.insertBefore(wrapper, chip);
     wrapper.appendChild(chip);
   });
@@ -563,6 +575,9 @@ function setupNextProject(prev, next) {
   const mobPrevColor = SCCDHelpers.getRandomAccentColor();
   const mobNextPool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== mobPrevColor);
   const mobNextColor = mobNextPool[Math.floor(Math.random() * mobNextPool.length)];
+  // 直向手機（user 2026-10-29）：一屏上下交疊兩張上下屆 banner（同桌面吃封面 coverImage／poster；沒圖＝灰底），
+  // 標題 chip 常駐疊在圖上（手機沒 hover），點哪張直接換頁、不蓋另一張；矮橫向維持色塊卡
+  const phoneCards = isPortraitPhone();
   const setMobile = (key, year, data, color) => {
     const link = /** @type {HTMLAnchorElement | null} */ (document.getElementById(`${key}-link-m`));
     const yearEl = document.getElementById(`${key}-year-mobile`);
@@ -570,8 +585,22 @@ function setupNextProject(prev, next) {
     const titleEl = document.getElementById(`${key}-title-mobile`);
     if (link) {
       link.href = '/degree-show-detail?' + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
-      link.style.background = color;
       link.style.transform = `rotate(${localRot()}deg)`;
+      if (phoneCards) {
+        const img = /** @type {HTMLImageElement | null} */ (link.querySelector('.dsd-next-img-m'));
+        const src = data.coverImage || data.poster;
+        if (img && src) img.src = src;
+        else link.classList.add('no-img');
+        // 海報照原比例不裁、在自己那半屏內隨機落點（字卡固定在半屏角上，user 2026-10-29「海報可以更自由分佈」）
+        link.style.setProperty('--poster-x', Math.random().toFixed(3));
+        link.style.setProperty('--poster-y', Math.random().toFixed(3));
+        link.querySelectorAll('.dsd-next-labels-m > p').forEach(p => {
+          /** @type {HTMLElement} */ (p).style.background = color;
+          /** @type {HTMLElement} */ (p).style.transform = `rotate(${labelRot()}deg)`;
+        });
+      } else {
+        link.style.background = color;
+      }
     }
     if (yearEl) yearEl.textContent = year;
     setTitle(titleEnEl, data.title_en);
@@ -583,6 +612,10 @@ function setupNextProject(prev, next) {
   // 上下屆標題過長 → 換行（不再 marquee，user 2026-08-17）；wrap 規則在 lists.css .dshow-next-title
 
   if (SCCDHelpers.isMobileLayout()) {
+    // 直向 banner 上的標題 chip：色卡寬收到最寬 wrap 行（同 hero／桌面 labels；隱藏的那套 offsetParent null 自動跳過）
+    if (phoneCards) document.fonts.ready.then(() => requestAnimationFrame(() => {
+      document.querySelectorAll('.dsd-next-labels-m .dshow-next-title').forEach(el => hugTitleBox(/** @type {HTMLElement} */ (el)));
+    }));
     // 手機點擊 next/prev 離頁：色塊卡 clip-reveal 收出（user 2026-09-11「手機點 next/prev 也要 clip-reveal 出場」）。
     // clip-path inset 收（不 wrap DOM、不動兩卡 overlap/stagger 佈局）；隨機四方向、只收視窗內的卡。inset(0) 起點供 gsap interpolate。
     const mCards = /** @type {HTMLElement[]} */ ([document.getElementById('prev-link-m'), document.getElementById('next-link-m')].filter(Boolean));
@@ -954,7 +987,7 @@ async function renderEventGalleries(data) {
     items.push({ ev, en: ev.nameEn || '', zh: ev.name || '', pool: Array.isArray(pool) ? pool.slice(0, 10) : [] });
   }
 
-  if (SCCDHelpers.isMobileLayout()) {
+  if (SCCDHelpers.isMobileLayout() && !isPortraitPhone()) {
     const withImgs = items.filter(it => it.pool.length);
     if (!withImgs.length) return;
     withImgs.forEach((it, i) => appendExhibitionSection(root, i, it.pool, it.en, it.zh));
@@ -967,8 +1000,12 @@ async function renderEventGalleries(data) {
 
 // 桌面 tab 說明區＝原上方 events 清單的三欄、一欄一塊 box（user 2026-10-20）：① 日期 ② 講者 ③ 地點＋城市。
 // 名稱已在 tab 上不重複（user）；字一律 bold；英中是短行標籤 → 緊湊英中距（同原清單 mb-en-zh-s）。空欄不出 box
-function eventBoxesHtml(ev) {
-  const pair = (en, zh) => (en || zh) ? `<div>${en ? `<p class="font-bold${zh ? ' mb-en-zh-s' : ''}">${en}</p>` : ''}${zh ? `<p class="font-bold" lang="zh-Hant">${zh}</p>` : ''}</div>` : '';
+// phone（直向手機，user 2026-10-29）：三塊併成一個 box＝about Programs 說明卡同結構（[data-class-hl] 外框留 padding＋[data-class-text] 內捲、
+// 高＝圖下剩的空間，variables.css --class-text-h）；每行不換行（.dsd-mq-line 超出才 marquee，cards.css 手機自動捲）
+function eventBoxesHtml(ev, phone = false) {
+  const txt = (t) => phone ? `<span class="dsd-mq-inner">${t}</span>` : t;
+  const mq = phone ? 'dsd-mq-line ' : '';
+  const pair = (en, zh) => (en || zh) ? `<div>${en ? `<p class="${mq}font-bold${zh ? ' mb-en-zh-s' : ''}">${txt(en)}</p>` : ''}${zh ? `<p class="${mq}font-bold" lang="zh-Hant">${txt(zh)}</p>` : ''}</div>` : '';
   const stack = (...parts) => { const h = parts.join(''); return h && `<div class="flex flex-col gap-xs">${h}</div>`; };
   const guests = (Array.isArray(ev.guests) ? ev.guests : [])
     .map(g => pair(fmtGuestLine(g.nameEn, g.akaEn || g.akaZh, g.country, false), fmtGuestLine(g.nameZh, g.akaZh || g.akaEn, g.country, true)));
@@ -977,11 +1014,14 @@ function eventBoxesHtml(ev) {
     const l = escapeHtml(loc || ''), c = escapeHtml(city || '');
     return l && c ? (zh ? `${l}（${c}）` : `${l} (${c})`) : (l || c);
   };
-  return [
-    ev.time ? `<p class="font-bold">${escapeHtml(ev.time)}</p>` : '',
+  const parts = [
+    ev.time ? `<p class="${mq}font-bold">${txt(escapeHtml(ev.time))}</p>` : '',
     stack(...guests),
     pair(withCity(ev.locationEn, ev.cityEn, false), withCity(ev.location, ev.city, true)),
-  ].filter(Boolean).map(h => `<div data-class-hl style="display: inline-block; width: fit-content; padding: var(--card-pad-s);">${h}</div>`).join('');
+  ].filter(Boolean);
+  const card = (h, cls = '') => `<div data-class-hl${cls} style="display: inline-block; width: fit-content; padding: var(--card-pad-s);">${h}</div>`;
+  if (phone) return parts.length ? card(`<div data-class-text class="list-scroll flex flex-col gap-sm">${parts.join('')}</div>`, ' class="dsd-event-box-m"') : '';
+  return parts.map(h => card(h)).join('');
 }
 
 // 桌面子展覽（user 2026-10-20 二改「比照 about programs」）：上方依序排 event 標題 tab，下方左說明 box×3＋右圖片輪播；
@@ -994,12 +1034,15 @@ function eventBoxesHtml(ev) {
 function buildDesktopEventTabs(root, items) {
   const section = document.createElement('section');
   section.className = 'dsd-event-tabs-section snap-zone';
+  const phone = isPortraitPhone();
   const line = (text) => text ? `<div class="text-md font-bold">${escapeHtml(text)}</div>` : '';
+  // 直向手機：英中同一行（一個 div＝超出時整行一起 marquee，bindNavBtnFit → marqueeOverflowChips）
+  const tabLabel = (it) => phone ? line([it.en, it.zh].filter(Boolean).join(' ')) : line(it.en) + line(it.zh);
   section.innerHTML = `
     <div class="dsd-event-tabs-row site-container relative z-10">
       <div class="grid-20">
         <div class="md:col-start-4 md:col-span-17 dsd-event-tabs-scroller division-tab-row">
-          ${items.map(it => `<button type="button" class="class-division-btn font-bold text-left">${line(it.en)}${line(it.zh)}</button>`).join('')}
+          ${items.map(it => `<button type="button" class="class-division-btn font-bold text-left">${tabLabel(it)}</button>`).join('')}
         </div>
       </div>
     </div>
@@ -1007,7 +1050,7 @@ function buildDesktopEventTabs(root, items) {
       ${items.map((it, i) => `<div class="class-info-panel${i ? ' hidden' : ''}">
           <div class="grid-20">
             <div class="md:col-start-4 md:col-span-15 dsd-event-panel-row">
-              <div class="dsd-event-boxes list-scroll">${eventBoxesHtml(it.ev)}</div>
+              <div class="dsd-event-boxes list-scroll">${eventBoxesHtml(it.ev, phone)}</div>
               <div class="relative division-images"></div>
             </div>
           </div>
@@ -1028,13 +1071,17 @@ function buildDesktopEventTabs(root, items) {
   const scroller = /** @type {HTMLElement} */ (section.querySelector('.dsd-event-tabs-scroller'));
   makeTabsDraggable(scroller);
   // 點到被左右裁掉一截的 tab → 捲到整顆露出（只動 scroller 自己的 scrollLeft、不連帶垂直）
-  const revealTab = (btn) => {
+  let revealTab = (btn) => {
     const s = scroller.getBoundingClientRect(), b = btn.getBoundingClientRect(), cs = getComputedStyle(scroller);
     const over = b.right - (s.right - parseFloat(cs.paddingRight));
     const under = b.left - (s.left + parseFloat(cs.paddingLeft));
     const delta = over > 0 ? over : Math.min(under, 0);
     if (delta) scroller.scrollTo({ left: scroller.scrollLeft + delta, behavior: 'smooth' });
   };
+
+  // 直向手機（user 2026-10-29「套用 about 版面」）：tab 列＝畫面底固定列（返回／分享上方，CSS 在 variables.css DSD 直向段）、英中一行；
+  // 點 tab 捲到列中間；圖＝about 直向 Programs 的主圖置中＋左右疊放（peekNav）
+  if (phone) revealTab = (btn) => scroller.scrollTo({ left: btn.offsetLeft - (scroller.clientWidth - btn.offsetWidth) / 2, behavior: 'smooth' });
 
   const tabs = /** @type {HTMLElement[]} */ (Array.from(section.querySelectorAll('.class-division-btn')));
   bindNavBtnFit(tabs);   // 長名折行時寬＝最長那行（同 about 分組鈕，user 2026-10-27）
@@ -1045,9 +1092,15 @@ function buildDesktopEventTabs(root, items) {
   // 圖往右延伸到視窗邊（user 2026-10-20，容器右緣推出去見 variables.css）：5 格（左緣 0～96% 容器寬）＝最後一格必定伸出視窗；
   //   圖不夠 5 張就只放實際張數（不重複同一張）。adaptiveSlots 只看格數，位置照容器寬重算
   const SLOTS = ['0%', '24%', '48%', '72%', '96%'];
+  // 直向：about 同款 7 格疊放；圖不夠就取「不超過張數的最大奇數」格（中心張兩側對稱、不重複同一張），z 由中心往外遞減
+  const peekOpts = (n) => {
+    const k = Math.min(7, n % 2 ? n : n - 1), c = Math.floor(k / 2);
+    return { textHlEl: null, slotLefts: Array(k).fill('50%'), slotXPercent: -50, slotZ: Array.from({ length: k }, (_, j) => c - Math.abs(j - c) + 1), peekNav: true };
+  };
   const apis = items.map((it, i) => it.pool.length
     ? createClassImagesSlideshow(/** @type {HTMLElement} */ (panels[i].querySelector('.division-images')), it.pool,
-      { textHlEl: null, hoverAll: true, alignTop: true, adaptiveSlots: true, slotLefts: SLOTS.slice(0, it.pool.length) })
+      phone ? peekOpts(it.pool.length)
+        : { textHlEl: null, hoverAll: true, alignTop: true, adaptiveSlots: true, slotLefts: SLOTS.slice(0, it.pool.length) })
     : null);
   registerPageCleanup(() => apis.forEach(a => a?.stop()));
 
@@ -1057,7 +1110,11 @@ function buildDesktopEventTabs(root, items) {
     ...(shown ? { xPercent: 0, yPercent: 0 } : revealHidden()), duration: BOX_DUR, ease: EASE.wipe, overwrite: 'auto',
   })));
   // 貼字寬 → box 欄跟著縮 → gallery 變寬 → 圖重排（adaptiveSlots 位置吃容器寬）
-  const fit = (i) => { boxes[i].forEach(fitCardToText); apis[i]?.relayout(); };
+  const fit = (i) => {
+    boxes[i].forEach(fitCardToText);
+    if (phone) boxes[i].forEach(b => applyMarqueeOverflow(b, '.dsd-mq-line', '.dsd-mq-inner'));
+    apis[i]?.relayout();
+  };
   const prepare = (i) => {
     // box 底色每次換、三塊同色：避開該 tab 的 active 色（同 about 說明卡跟分組鈕錯色）
     const pool = SCCDHelpers.ACCENT_COLORS.filter(c => c !== tabs[i].dataset.color);
@@ -1136,13 +1193,27 @@ function buildDesktopEventTabs(root, items) {
     }));
   };
   hideTabs(false);
+  const showTabs = () => gsap.to(tabs, { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.05, overwrite: true });
   const reveal = () => {
     if (revealed) return;
     revealed = true;
-    gsap.to(tabs, { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.05, overwrite: true });
+    showTabs();
     show(shownIdx).then(sync);   // 理論上揭露前點不到 tab；保險接一次 sync
   };
-  if (typeof ScrollTrigger === 'undefined' || section.getBoundingClientRect().top < window.innerHeight * 0.88) reveal();
+  if (phone && typeof ScrollTrigger !== 'undefined') {
+    // 直向：tab 列固定在畫面底＝只在這屏佔畫面中線時出現（同 about division tab 範圍外收起）；範圍外不擋下方內容點擊
+    const tabsRow = /** @type {HTMLElement} */ (section.querySelector('.dsd-event-tabs-row'));
+    tabsRow.style.pointerEvents = 'none';
+    ScrollTrigger.create({
+      trigger: section, start: 'top center', end: 'bottom center',
+      onToggle: (self) => {
+        tabsRow.style.pointerEvents = self.isActive ? '' : 'none';
+        if (!self.isActive) hideTabs(true);
+        else if (revealed) showTabs();
+        else reveal();
+      },
+    });
+  } else if (typeof ScrollTrigger === 'undefined' || section.getBoundingClientRect().top < window.innerHeight * 0.88) reveal();
   else ScrollTrigger.create({ trigger: section, start: 'top 88%', once: true, onEnter: reveal });
 
   registerPageExit(() => {
@@ -1777,7 +1848,21 @@ function hyphenateOverflowWords(el, text) {
 /** @param {{ title?: string, title_en?: string }} data */
 function setupStickyAndHeroChips(data, year) {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-  if (SCCDHelpers.isMobileLayout()) return; // 手機／矮橫向不做（用手機式堆疊 hero；桌面 sticky chip 系統跳過）
+  // share-modal 預設網址會砍 ?query（丟掉是哪一屆）→ 明寫本頁網址；直向手機也有分享鈕 → 早退前就設
+  const shareBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-share-btn'));
+  if (shareBtn) shareBtn.dataset.shareUrl = window.location.href;
+  // 直向手機：返回／分享＝左下 44 黑方塊（variables.css DSD 直向段），整顆過 hero 滑上、footer 前收、離頁滑出（同底 bar，user 2026-10-29）
+  if (isPortraitPhone()) {
+    [document.getElementById('degree-show-back-btn'), shareBtn].forEach(b => {
+      if (!b) return;
+      b.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
+      bindMobileBottomBar(b);
+    });
+    // 各段一屏＋子展覽 tab／返回列固定在畫面底：停在兩屏之間＝內容被底列蓋住 → 同 about 直向方向磁吸（user 2026-10-29）
+    initAboutMobileSnap();
+    return;
+  }
+  if (SCCDHelpers.isMobileLayout()) return; // 矮橫向不做（用手機式堆疊 hero；桌面 sticky chip 系統跳過）
 
   const card = document.getElementById('sticky-info-card');
   const yearChip = document.getElementById('sticky-year-chip');
@@ -1787,9 +1872,7 @@ function setupStickyAndHeroChips(data, year) {
   const titleZhEl = document.getElementById('sticky-title');
   // 返回按鈕跟 sticky title 同步 reveal（同 trigger 範圍；上下屆段 title 收、它留著），只有顯示時可點
   const backBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-back-btn'));
-  // 分享鈕（user 2026-10-21）：返回鈕右邊、同組（同款 hover／遮罩／顯隱）；share-modal 預設網址會砍 ?query → 明寫本頁網址
-  const shareBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-share-btn'));
-  if (shareBtn) shareBtn.dataset.shareUrl = window.location.href;
+  // 分享鈕（user 2026-10-21）：返回鈕右邊、同組（同款 hover／遮罩／顯隱）
   const backGroup = /** @type {HTMLElement[]} */ ([backBtn, shareBtn].filter(Boolean));
   const isBackLike = (/** @type {Element} */ c) => backGroup.includes(/** @type {HTMLElement} */ (c));
   backGroup.forEach(b => bindNavBtnHover(b));   // hover 隨機三原色＝黑方塊 icon 鈕家族（CSS 在 hero.css）

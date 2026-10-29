@@ -55,18 +55,22 @@ export function initHeroMobileSync() {
     }
   });
 
-  // 隨機版面（4 頁共用 hero 才有中文段落 chip；degree-show-detail 自有排版、無 .hero-mobile-text-cn 不參與）：
+  // 隨機版面（4 頁共用 hero 有中文段落 chip）：
   // 順序固定 TTDD＝title 恆在頂（user 2026-07-13 三修：shuffle 退役），只留各 chip 隨機水平落點，
-  // 配 hero.css .hero-mobile-rand（portrait 下 stack 撐滿一屏 space-between 散開、desc 限高內捲）
+  // 配 hero.css .hero-mobile-rand（portrait 下 stack 撐滿一屏 space-between 散開、desc 限高內捲）。
+  // degree-show-detail（年份＋英中標題三顆、沒有段落）直向手機也走這套（user 2026-10-29「比照其他頁 hero」）；
+  // 矮橫向維持它自己的左／中／右打散（landscape.css 5j-hero）
   const stack = mobile.querySelector('.hero-mobile-text');
-  if (stack && stack.querySelector('.hero-mobile-text-cn')) {
+  const isDsd = !!mobile.closest('[data-hero-title-last]');
+  if (stack && (stack.querySelector('.hero-mobile-text-cn') || (isDsd && !SCCDHelpers.isLandscapeGate()))) {
     const aligns = ['flex-start', 'center', 'flex-end'];
-    SYNC_MAP.forEach(({ to }) => {
+    // DSD 字卡同 PC 集中左下角（user 2026-10-29；hero.css 不打散、variables.css DSD 直向段貼底）→ 不抽水平落點
+    if (!isDsd) SYNC_MAP.forEach(({ to }) => {
       const el = /** @type {HTMLElement | null} */ (stack.querySelector(to));
       if (el) el.style.alignSelf = aligns[Math.floor(Math.random() * aligns.length)];
     });
-    // desc 文字包進 inner scroller：chip 的 padding 留在外框不跟捲動走（上下 padding 恆定、字在框內捲）
-    ['.hero-mobile-text-en', '.hero-mobile-text-cn'].forEach(s => {
+    // desc 文字包進 inner scroller：chip 的 padding 留在外框不跟捲動走（上下 padding 恆定、字在框內捲）；DSD 的 text-en 是年份、不包
+    if (!isDsd) ['.hero-mobile-text-en', '.hero-mobile-text-cn'].forEach(s => {
       const el = stack.querySelector(s);
       if (!el) return;
       const inner = document.createElement('span');
@@ -76,11 +80,10 @@ export function initHeroMobileSync() {
       el.appendChild(inner);
     });
     mobile.classList.add('hero-mobile-rand');
-    // 圖角度 ±3°（同桌面 banner）；尺寸由 hero.css 依角度反推
+    // 圖角度 2–5°（正負隨機；比桌面 ±3° 大，user 2026-10-29）；寬在「左右 padding 內」到「螢幕 111%」之間隨機（--hero-bg-w 0–1，算式見 hero.css）
     const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
-    const deg = Math.random() * 6 - 3;
-    bg?.style.setProperty('--hero-bg-rot', `${deg.toFixed(2)}deg`);
-    bg?.style.setProperty('--hero-bg-tilt', `${Math.abs(deg).toFixed(2)}deg`);
+    bg?.style.setProperty('--hero-bg-rot', `${((2 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1)).toFixed(2)}deg`);
+    bg?.style.setProperty('--hero-bg-w', Math.random().toFixed(3));
     // 3xl 大標放不下（375 寬 CURRICULUM／ADMISSIONS）→ 等比縮到剛好（user 2026-10-27 手機 3xl 放大）
     const fitTitle = () => {
       const t = /** @type {HTMLElement | null} */ (stack.querySelector('.hero-mobile-title'));

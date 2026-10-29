@@ -219,15 +219,14 @@
       max-height: max(6rem, calc(50svh - 220px));
       overflow-y: auto;
     }
-    /* 圖＝比照桌面（DESK_HERO_PAD）：四邊 padding 內最大、可疊到 logo 下（user 2026-10-27）——區域＝一屏四邊各 container padding（頂≈logo 頂）；
-       hero-mobile-sync 抽 ±3° 寫 --hero-bg-rot／--hero-bg-tilt(絕對值)，寬高用 sin/cos 反推＝轉完外框剛好貼區域 */
+    /* 圖（user 2026-10-29；取代 10-27 的「四邊 padding 內最大」）：一屏置中、2–5°（--hero-bg-rot）。
+       高＝一屏扣上下 container padding（max height）；寬＝左右 padding 內（100vw − 2 pad）～螢幕 111% 之間隨機（--hero-bg-w 0–1）＝
+       不一定每次超出左右，超出的由 section overflow-x-clip 裁。上下不裁＝旋轉後的斜邊露在上下 padding 裡
+       （角伸進最多 ≈ 寬/2·sin5° ≈ 19px < 24），不會出現被裁成水平直線的上下緣 */
     .hero-mobile-rand .hero-mobile-bg {
-      --a: var(--hero-bg-tilt, 3deg);
-      --rw: calc(100vw - 2 * var(--container-padding));
-      --rh: calc(100svh - 2 * var(--container-padding));
-      top: calc(var(--container-padding) + var(--rh) / 2);
-      width: calc((var(--rw) * cos(var(--a)) - var(--rh) * sin(var(--a))) / cos(2 * var(--a)));
-      height: calc((var(--rh) * cos(var(--a)) - var(--rw) * sin(var(--a))) / cos(2 * var(--a)));
+      top: 50svh;
+      width: calc(100vw - 2 * var(--container-padding) + (11vw + 2 * var(--container-padding)) * var(--hero-bg-w, 0.5));
+      height: calc(100svh - 2 * var(--container-padding));
       aspect-ratio: auto;
       transform: translate(-50%, -50%) rotate(var(--hero-bg-rot, -3deg));
     }
