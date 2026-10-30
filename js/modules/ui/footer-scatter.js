@@ -23,6 +23,7 @@ import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
 import { bindArrowSpin, randomSpinAngle } from './arrow-spin.js';   // footer 分類 tab／散佈卡 hover 抽新角、離開保持
 import { hasScrollableAncestor } from '../lightbox/lightbox-shell.js';   // 覆蓋卡：游標下的內捲框還捲得動就不開卡
+import { lvhPx } from './snap-scroll.js';   // 直向手機 footer 磁吸「貼視窗底」用 100lvh（router 已靜態載入 snap-scroll，不多一支）
 // footer logo 退場 2026-07-15 改 hero clip-reveal（area 遮罩＋inner yPercent），不再用 header bars 的
 // clip-path wipe（原 user 2026-06-07「同 header logo 法」；header logo 同日也改滑動，兩邊仍一致）
 
@@ -1209,7 +1210,7 @@ function bindMobileFooterSnap() {
     if (!footer) return;
     const y = window.scrollY;
     const top = footer.getBoundingClientRect().top + y;
-    const up = top - window.innerHeight;   // footer 頂剛好貼視窗底
+    const up = top - lvhPx();   // footer 頂貼 100lvh 底（不是 innerHeight：工具列展開時會整截透出在工具列後，見 snap-scroll.js lvhPx）
     const down = Math.min(top, document.documentElement.scrollHeight - window.innerHeight);   // footer 頂貼視窗頂（捲不到就頁底）
     if (y <= up + 1 || y >= down - 1) return;
     window.scrollTo({ top: dir > 0 ? down : up, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });

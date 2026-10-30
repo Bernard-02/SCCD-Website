@@ -4229,9 +4229,13 @@ export async function initAtlas(options = {}) {
       // （tab 已標示分類）→ 不扣。
       // 額外 -12 底部呼吸：滿頁時最後一個 item 不貼死 chevron / tab 區（user 2026-06-13）
       // 橫向 gate：tab 在 header 列、無底部 bar → top 104 / bottom 12（CSS gate 同步）、titleblock 全隱不扣
+      // 直向 bottom 讀 CSS（atlas.css 直式段 #atlas-list-view bottom＝貼底界線＋切換鈕＋呼吸＋tab 一行，10-30 起吃 --mobile-bottom-anchor）：
+      // 首次 render 時 list 可能 display:none、rect 量不到，computed bottom 仍讀得到
+      const listEl = document.getElementById('atlas-list-view');
+      const listBottom = (listEl && parseFloat(getComputedStyle(listEl).bottom)) || 140;
       const avail = isLandscapeGateAtlas
         ? window.innerHeight - 104 - 12 - 12
-        : window.innerHeight - 126 - (headerH + 24) - 12;   // 直向：top header+24、bottom 126（CSS 直式段同步；10-28 tab 一行＋貼近切換鈕，原 168）
+        : window.innerHeight - listBottom - (headerH + 24) - 12;   // 直向：top header+24
       const isAlumniCol = !isLandscapeGateAtlas && (cat === 'host' || cat === 'employ');
       const colH = avail;
       // chevron 改跨整欄貼底（同桌面，user 2026-07-03）→ items 區扣 chevron 帶，最後一排不壓到 nav

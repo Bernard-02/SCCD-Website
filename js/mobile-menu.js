@@ -5,7 +5,7 @@
  */
 
 import { setupClipReveal } from './modules/ui/scroll-animate.js';
-import { cycleHeaderBtn } from './header.js';
+import { cycleHeaderBtn, rerollMobileBtnRot } from './header.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { randomSpinAngle } from './modules/ui/arrow-spin.js';
 
@@ -63,10 +63,7 @@ export function initMobileMenu() {
       iconClose.forEach(i => { i.style.display = open ? '' : 'none'; });
       if (open) menuBtnBox?.style.setProperty('--menu-btn-accent', SCCDHelpers.getRandomAccentColor());
       menuBtnBox?.classList.toggle('is-open', open);
-      if (!menuBtnBox) return;
-      applyRandomRotation(menuBtnBox);
-      const mask = menuBtnBox.parentElement;
-      if (mask?.dataset.lentRot) mask.style.transform = `rotate(${menuBtnBox.style.getPropertyValue('--hdr-rot')})`;
+      rerollMobileBtnRot(menuBtnBox);
     };
     if (menuBtnBox) cycleHeaderBtn(menuBtnBox, mobileSwap); else mobileSwap();
   };
@@ -344,9 +341,8 @@ export function initMobileMenu() {
     });
   });
 
-  // mount 時兩個 btn 都先給隨機角度；mode 鈕每點一次換角（手機鈕直接換 icon、不走 cycleHeaderBtn，換角＝CSS transition）
+  // mount 時兩個 btn 都先給隨機角度；之後每點一次換角都在 cycleHeaderBtn 的 swap 裡（menu 鈕上方 mobileSwap、mode 鈕 theme-toggle commitMode）
   applyRandomRotation(menuBtnBox);
   applyRandomRotation(modeBtnBox);
-  modeBtnBox?.addEventListener('click', () => applyRandomRotation(modeBtnBox));
 
 }

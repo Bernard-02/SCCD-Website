@@ -294,6 +294,7 @@
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-md);
+    padding-bottom: var(--mobile-bottom-anchor);   /* 底列（返回／標題）底邊＝全站貼底界線（10-30；原 pb-md 24） */
   }
   #activities-lightbox .alb-thumbs { order: 1; }
   #activities-lightbox .alb-topbar {
@@ -369,12 +370,12 @@
   #pdf-viewer-modal .pdf-title,
   #pdf-viewer-modal .pdf-share-btn {
     top: auto !important;
-    bottom: var(--spacing-sm) !important;
+    bottom: var(--mobile-bottom-anchor) !important;   /* 底邊＝全站貼底界線（10-30；原 spacing-sm 16） */
     transform: none !important;
   }
   /* 鈕比 title 矮：補半個高差＝中線對齊 title */
   #pdf-viewer-modal :is(.pdf-back-btn, .pdf-ref-btn, .pdf-share-btn) {
-    bottom: calc(var(--spacing-sm) + (var(--lb-btn-h, 44px) - var(--lb-icon-btn, 44px)) / 2) !important;
+    bottom: calc(var(--mobile-bottom-anchor) + (var(--lb-btn-h, 44px) - var(--lb-icon-btn, 44px)) / 2) !important;
   }
 
   /* share btn 錨右下角（鏡像 album：title 填中段、share 在最右）。left:auto 清掉 positionSharePdf 設的 inline left。 */

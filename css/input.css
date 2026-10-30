@@ -39,6 +39,8 @@
 
 /* 矮橫向 gate 層：放最後＝unlayered + 後出，cascade 贏前面所有 component / theme 規則 */
 @import './layout/landscape.css';
+/* 直向手機 <768 全站版面層（跟 landscape gate 層互斥、對稱）：一屏框高 lvh/svh、首頁第一屏 */
+@import './layout/portrait.css';
 
 /* 3. Tailwind Directives */
 @tailwind base;

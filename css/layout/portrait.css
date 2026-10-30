@@ -1,0 +1,27 @@
+/* 直向手機（<768）全站版面層——跟 layout/landscape.css（矮橫向／iPad gate 層）一對一對稱、media query 互斥；
+   各頁／元件自己的直向規則仍寫在各元件檔，這裡只放跨頁共通的版面骨架（一屏框高、首頁第一屏）。
+   cascade：本檔 unlayered、排在 input.css 最後，同特異度仍可能輸 Tailwind utility（source order）→ 用 main > section／#id 提特異度。
+
+   一屏高度原則（user 2026-10-27／10-29，iOS Safari 實測）：
+   - 「內容要塞得進」的高度用 100svh（工具列展開時的可視高；100vh＝工具列收起的高、展開時底部被蓋住）
+   - 「section 框本身」用 100lvh＋底 pad 多墊 100lvh−100svh：底部工具列半透明、視窗底之外的內容會透出在工具列後——
+     svh 框正下方的下一屏／footer 黑、文件結尾後的 body 白都會露；lvh 框＝多出的那截是自己的底、工具列收起後也剛好一屏可磁吸到頂。
+     同一套做法：about 各屏（scroll-snap.css）、DSD 直向各屏（variables.css DSD 段）、直向 footer（footer.css） */
+@media (max-width: 767px) {
+  /* h-screen hero（about／alumni）：固定高維持 svh（內容 items-center 排在可視區；下一區白底、頂上沒內容，露出來也是白）。
+     只抓無前綴 class：md:h-screen 是桌面專用、直向本來就沒吃（gate 版 landscape.css 2a 用 *= 是因為 ≥768 會吃 md:）。跟 landscape.css 2a/2b 同步改 */
+  main > section.h-screen {
+    height: 100svh;
+  }
+  /* min-h-screen 區塊（admission／curriculum 內容區、各頁 hero）下限 100lvh：內容不足一屏時（admission 後台只 1 則）svh 框正下方就是 footer，
+     工具列後透出 footer 黑；lvh＝工具列收起後也剛好一屏、磁吸到頂不留白 */
+  main > section.min-h-screen {
+    min-height: 100lvh;
+  }
+  /* 首頁第一屏：框 100lvh、多出的 100lvh−100svh 是自己的白；news 堆疊仍釘在 svh 安全區底（!important 蓋 index.html inline bottom:0／height:100%） */
+  main > section#home-hero { height: 100lvh; }
+  #home-hero #homepage-marquee-stack {
+    height: 100svh !important;
+    bottom: calc(100lvh - 100svh) !important;
+  }
+}

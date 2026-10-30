@@ -208,7 +208,7 @@
    #page-content 前綴：蓋 HTML 的 Tailwind -mx/px/py/mb utility（output.css 後出、同特異度蓋不掉）。
    桌面走 inner-scroll frame；矮橫向走 landscape.css（nav 進 header），故 portrait 限定。 */
 @media (max-width: 767px) and (orientation: portrait) {
-  :root { --mobile-bar-h: 64px; }   /* 同 about --about-bar-h */
+  :root { --mobile-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 同 about --about-bar-h：chip 28 置中＝chip 底邊落在全站貼底界線 */
   #page-content .nav-bottom-bar {
     position: fixed;
     left: 0;
@@ -756,7 +756,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--mobile-bar-h) - var(--spacing-xs));
+    bottom: calc(var(--mobile-bottom-anchor) + 28px);   /* 同 about .mobile-division-wrap：chip 頂；外框 16 內距＝可見距離 sm 16 */
     z-index: 40;
     flex-wrap: nowrap;
     align-items: flex-end;

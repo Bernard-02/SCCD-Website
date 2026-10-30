@@ -20,14 +20,14 @@ html.has-slide-in #mode-color-panel { display: none !important; }
 body.footer-card-open #mode-color-panel { z-index: 9996; }
 
 /* ── 圓鈕 → capsule ──
-   圓鈕跟 header menu btn 同欄（右＝container padding；底＝鏡像 header 鈕離頂：手機 pt-lg 32、真桌面 48）；
+   圓鈕跟 header menu btn 同欄（右＝container padding；底＝全站貼底界線 --mobile-bottom-anchor 32（鏡像 header 鈕離頂 pt-lg，10-30 統一）、真桌面 48）；
    點開 JS tween .mcp-cap width --mcp-h→217+--mcp-h（mode-color-panel.js capW），mask right 錨定＝往左長；
    row 固定寬靠右＝長出部分由右往左露出色條/play */
 .mcp-cap-mask {
   --mcp-h: 44px;
   position: absolute;
   right: var(--container-padding);
-  bottom: var(--spacing-lg, 32px);
+  bottom: var(--mobile-bottom-anchor, 32px);
   overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩 */
   border-radius: calc(var(--mcp-h) / 2);    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
   pointer-events: none;

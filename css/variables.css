@@ -134,6 +134,9 @@
 
   /* ===== Layout ===== */
   --container-padding: 3.75rem; /* 60px */
+  /* 直向手機貼底元素的底邊界線（user 2026-10-30 統一）：底 bar 的 chip／角落鈕（DSD 返回、atlas 切換）／mode3 鉛筆／lightbox・PDF 底列
+     底邊一律離視窗底這個值＝鏡像 header 鈕離頂（header.html pt-lg 32）→ 上下對齊。真桌面各自 48（頁卡底）不吃 */
+  --mobile-bottom-anchor: 32px;
   /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav／四頁 inner-scroll nav＋內容頂／atlas filter＋list／
      DSD 年份 chip／桌面 menu 第一顆／library 色卡上界）。真桌面見下方 184 */
   --nav-line: 160px;
@@ -663,7 +666,7 @@
    頂上只剩 header 帶（0–92）→ 各屏內容從 92 起算（scroll-snap.css：落點貼 section 頂＋section 自己 padding-top 92，下方「92 落點」皆指此）；
    下方各一屏預算＝舊值 −88（落點 180→92）＋ bar 高。改 bar 高／落點要整組同步（timeline.js 也有一份）。 */
 @media (max-width: 767px) and (orientation: portrait) {
-  :root { --about-bar-h: 64px; }   /* 一行 chip 28＋旋轉餘裕；配對值見上 */
+  :root { --about-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 一行 chip 28 置中＝chip 底邊落在 --mobile-bottom-anchor（10-30；原固定 64＝chip 底 18）；配對值見上 */
   /* #id 前綴：output.css 的 Tailwind .sticky 也是 unlayered、出在後面，同特異度蓋不掉 */
   #about-content-wrapper > .mobile-anchor-strip-wrap {
     position: fixed;
@@ -695,7 +698,8 @@
   .class-info-panel [data-class-text] { height: var(--class-text-h, max(calc((100svh - 316px) / 2 - 1em), 120px)); }
   /* division tab 往下貼近底部 bar（user 10-27「到 nav btn row 再小一點」：chip 間 ~24→~16）；
      只吃進 bar 頂的空白（bar chip 上方 ~14），不壓到 bar chip 的點擊區 */
-  .mobile-division-wrap { bottom: calc(var(--about-bar-h) - var(--spacing-xs)); }
+  /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16） */
+  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 28px); }
 
   /* Works 說明卡：在「playlist 底 → 底部 division nav 頂」剩下的空間垂直置中（user 10-27）。
      room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 87 playlist（88 − 1 疊縫）−（80 division nav − 8 下移）− bar；
@@ -731,7 +735,7 @@
    JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機版（landscape.css 5j）。 */
 @media (max-width: 767px) and (orientation: portrait) {
   :root {
-    --dsd-m-bottom: calc(var(--container-padding) + 44px + var(--spacing-sm));
+    --dsd-m-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm));   /* 返回鈕底（全站貼底界線）＋鈕 44＋sm */
     --dsd-m-tabs-h: 60px;
     --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));
     --dsd-m-half: calc((var(--dsd-m-frame) - var(--dsd-m-tabs-h) - 2 * var(--spacing-md)) / 2);   /* 子展覽屏：圖／說明 box 各半（扣圖文 gap md＋box 到 tab 列 md） */
@@ -761,7 +765,7 @@
     clip-path: none;
     position: fixed;
     left: var(--container-padding);
-    bottom: var(--container-padding);
+    bottom: var(--mobile-bottom-anchor);   /* 同全站貼底界線（10-30；原 container-padding 24） */
     z-index: 50;
     width: 44px;
     height: 44px;
@@ -772,7 +776,7 @@
   }
   #page-content #degree-show-share-btn { left: calc(var(--container-padding) + 44px + var(--spacing-sm)); }
   #page-content :is(#degree-show-back-btn, #degree-show-share-btn).is-bar-hidden {
-    translate: 0 calc(100% + var(--container-padding) + 12px);   /* 12＝旋轉角凸出 */
+    translate: 0 calc(100% + var(--mobile-bottom-anchor) + 12px);   /* 12＝旋轉角凸出 */
   }
   #page-content :is(#degree-show-back-btn, #degree-show-share-btn) .sticky-chip-inner {
     display: flex;
@@ -787,10 +791,12 @@
 
   /* 海報＋主影片一屏：有影片＝海報上半、影片下半；只有海報＝海報吃滿整框（等比、置中）。
      #events-kv 是海報滑入的遮罩 → 盒貼圖（place-self 非 stretch），同桌面 */
+  /* 各一屏框高＝100lvh、內容排在 svh 安全區（底 padding 多墊 100lvh−100svh；同 about 各屏）：iOS Safari 底部工具列半透明，
+     svh 框正下方的下一屏（sticky 標題 chip／footer 黑）會透出在工具列後（user 2026-10-29）；lvh＝工具列收起後也剛好一屏 */
   #dsd-desc-section.dsd-media-row {
-    height: 100svh;
+    height: 100lvh;
     min-height: 0 !important;   /* 蓋 HTML inline min-height:100vh */
-    padding: 92px 0 var(--dsd-m-bottom);
+    padding: 92px 0 calc(var(--dsd-m-bottom) + 100lvh - 100svh);
   }
   #dsd-desc-section.dsd-media-row > .site-container { height: 100%; padding-top: 0; padding-bottom: 0; }
   #dsd-desc-section.dsd-media-row #events-section {
@@ -811,20 +817,21 @@
   #documentary-outer-section:not(.hidden) {
     display: flex;
     align-items: center;
-    height: 100svh;
-    padding: 92px 0 var(--dsd-m-bottom);
+    height: 100lvh;
+    padding: 92px 0 calc(var(--dsd-m-bottom) + 100lvh - 100svh);
   }
 
-  /* 子展覽一屏（buildDesktopEventTabs）：圖上半、說明 box 下半（同 about 直向 Programs）；tab 列固定在返回列上方 */
+  /* 子展覽一屏（buildDesktopEventTabs）：說明 box 貼字、坐在 tab 列上方；圖區＝扣掉 box＋tab 列＋返回列後的剩餘空間、圖在裡面置中（user 2026-10-30；原本圖固定上半）；tab 列固定在返回列上方 */
   #event-galleries-root { display: block; padding: 0; }
   .dsd-event-tabs-section {
-    height: 100svh;
-    padding: 92px 0 calc(var(--dsd-m-bottom) + var(--dsd-m-tabs-h));
+    height: 100lvh;
+    padding: 92px 0 calc(var(--dsd-m-bottom) + var(--dsd-m-tabs-h) + 100lvh - 100svh);
     overflow-x: clip;
-    /* 圖／說明盒高＝about Programs 同一套規則的變數（上方 .class-info-panel 段）；10＝外盒 card-pad-s 上下 5×2 */
-    --class-img-h: var(--dsd-m-half);
+    /* 說明盒最高＝about Programs 同一套規則的變數（上方 .class-info-panel 段）；10＝外盒 card-pad-s 上下 5×2。
+       圖區高不給值（auto）＝交給下方 flex: 1 填滿剩餘空間 */
+    --class-img-h: auto;
     --class-text-h: calc(var(--dsd-m-half) - 10px);
-    --class-img-fill: 0.8;   /* 圖最高＝圖區 8 成（class-images-slideshow 讀）：直圖不貼上方 header 帶、下方 box */
+    --class-img-fill: 0.9;   /* 直圖最高＝圖區 9 成（class-images-slideshow 讀；橫圖再乘 LANDSCAPE_H_RATIO）：上下各留 ~5% 不貼 92 線／box，但比 0.8 高＝直橫不等高（user 2026-10-30） */
   }
   .dsd-event-tabs-section .grid-20 { display: block; }   /* 子項只有 md: 欄位 class，手機 grid 會擠成 1/20 欄 */
   .dsd-event-tabs-area,
@@ -837,20 +844,19 @@
     gap: var(--spacing-md);
     padding-bottom: var(--spacing-md);   /* box 跟 tab 列的距離＝圖文 gap（user 2026-10-29） */
   }
-  /* 圖在上半（高吃 --class-img-h）；slideshow 依容器高等比 cap */
+  /* 圖區＝剩餘空間（flex-basis 0 蓋過 about 那條 height !important）；slideshow 依容器高等比 cap、top:50% 置中 */
   .dsd-event-tabs-section .class-info-panel .division-images {
     order: -1;
-    flex: 0 0 auto;
-  }
-  /* 說明：三塊併成一個 box（eventBoxesHtml phone）＝about 說明卡同結構：寬高都貼字、在下半剩的空間垂直置中，放不下（--class-text-h）在 box 內捲；
-     每行不換行、超出 marquee（.dsd-mq-line）。max-width 100% 兩層都要：不換行的字 min-content＝整行寬，fit-content 會撐破欄 */
-  .dsd-event-boxes {
     flex: 1 1 0;
     min-height: 0;
+  }
+  /* 說明：三塊併成一個 box（eventBoxesHtml phone）＝about 說明卡同結構：寬高都貼字、坐在 tab 列上方（gap md），放不下（--class-text-h）在 box 內捲；
+     每行不換行、超出 marquee（.dsd-mq-line）。max-width 100% 兩層都要：不換行的字 min-content＝整行寬，fit-content 會撐破欄 */
+  .dsd-event-boxes {
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    justify-content: center;
   }
   .dsd-event-boxes > div { max-width: 100%; }   /* ensureCardMask 的遮罩 */
   .dsd-event-box-m { max-width: 100%; }
@@ -893,8 +899,8 @@
   /* 上下屆：一屏上下兩半（中段疊 2xl）各一張連結框＋標題 chip 常駐在框角（上張左上、下張右下）；
      海報照原比例不裁、在自己那半內隨機落點（JS --poster-x/y 0–1，user 2026-10-29） */
   #next-project-section {
-    height: 100svh;
-    padding: 92px 0 var(--dsd-m-bottom);
+    height: 100lvh;
+    padding: 92px 0 calc(var(--dsd-m-bottom) + 100lvh - 100svh);
   }
   #next-project-section > .dsd-next-m {
     height: 100%;

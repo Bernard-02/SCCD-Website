@@ -2,7 +2,7 @@ import { DUR, EASE } from './motion.js';
 import { sitePath } from './site-base.js';
 import { runLottieWhenVisible } from './lottie-visibility.js';
 import { prefersReducedMotion } from './reduce-motion.js';
-import { cycleHeaderBtn } from '../../header.js';
+import { cycleHeaderBtn, rerollMobileBtnRot } from '../../header.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -390,8 +390,9 @@ function bindToggleBtns() {
       // 這裡再擋鍵盤 Enter / 程式 click() 等繞過 pointer-events 的觸發
       if (document.body.classList.contains('atlas-mode-gate')) return;
       // 桌面鈕點擊當下就凍 hover 色（user 2026-10-21）：View Transition 一起跑 hit-test 全落 <html>＝:hover 立刻掉，
-      // 等 commitMode（VT update callback）裡 cycleHeaderBtn 才凍＝凍到一般色。cycleHeaderBtn 換 icon 那刻放
-      SCCDHelpers.holdHover(/** @type {HTMLElement | null} */ (btn.closest('#mode-btn')));
+      // 等 commitMode（VT update callback）裡 cycleHeaderBtn 才凍＝凍到一般色。cycleHeaderBtn 換 icon 那刻放。
+      // 手機鈕同（10-30）：凍的是 theme-fg 底／fg-inverse icon＝舊 icon 不會穿著新 mode 的顏色出場
+      SCCDHelpers.holdHover(/** @type {HTMLElement | null} */ (btn.closest('#mode-btn, #mode-btn-mobile')));
       const current = sessionStorage.getItem(STORAGE_KEY) || 'standard';
       const next = MODES[(MODES.indexOf(current) + 1) % MODES.length];
       setSiteMode(next);
@@ -572,13 +573,13 @@ function applyMode(mode, opts) {
  *  @param {string} mode @param {boolean} autoStartColorLoop @param {boolean} [animateIcon] 使用者切換＝桌面 mode 鈕整顆出場再帶新 icon 進場 */
 function commitMode(mode, autoStartColorLoop, animateIcon = false) {
   // Header mode btn icon: 跟 mode 切換同步換 mode_1/2/3 SVG（.icon mask 系統，currentColor 跟 .theme-toggle-btn 走）。
-  // 桌面鈕＝整顆出場 → 換 → 進場（header.js cycleHeaderBtn，user 2026-10-20）；排在換 body class 之前＝出場那半段凍得住舊顏色。
-  // 進頁套用／手機鈕＝直接換
+  // 桌面／手機鈕＝整顆出場 → 換 → 進場（header.js cycleHeaderBtn，user 2026-10-20；手機 10-30 對齊桌面、原直接換）；
+  // 排在換 body class 之前＝出場那半段凍得住舊顏色。手機鈕換 icon 那刻一起換角（同 menu 鈕，mobile-menu.js）。進頁套用＝直接換
   const MODE_TO_ICON_CLASS = { standard: 'icon-mode-1', inverse: 'icon-mode-2', color: 'icon-mode-3' };
   const iconCls = `icon ${MODE_TO_ICON_CLASS[mode] || 'icon-mode-1'}`;
   document.querySelectorAll('[data-header-mode-icon]').forEach(el => {
-    const set = () => { el.className = iconCls; };
-    const bar = /** @type {HTMLElement | null} */ (el.closest('#mode-btn'));
+    const bar = /** @type {HTMLElement | null} */ (el.closest('#mode-btn, #mode-btn-mobile'));
+    const set = () => { el.className = iconCls; if (bar?.id === 'mode-btn-mobile') rerollMobileBtnRot(bar); };
     if (animateIcon && bar && el.className !== iconCls) cycleHeaderBtn(bar, set);
     else { set(); SCCDHelpers.releaseHover(bar); }   // 沒跑 cycle（reduced-motion 等）：點擊時凍的色放掉
   });
@@ -660,10 +661,10 @@ function nameModeVtElements() {
   };
   name(document.getElementById('header-logo'), 'header-logo');
   name(document.getElementById('mode-color-panel'), 'mcp');   // 此刻可能還 display:none、新畫面才出現（2→3）＝照樣命名
-  // mode 鈕 icon 不淡（user 2026-10-02）；桌面／手機各一顆，名稱不可重複。桌面鈕命名整個遮罩（header.js 初始化就建好）：
-  //   新快照是即時的＝VT 期間看得到鈕在遮罩內出場再進場（cycleHeaderBtn，10-20）；手機照舊命名 icon＝直接切
+  // mode 鈕 icon 不淡（user 2026-10-02）；桌面／手機各一顆，名稱不可重複。命名整個遮罩（header.js 初始化就建好，手機 10-30 起同）：
+  //   新快照是即時的＝VT 期間看得到鈕在遮罩內出場再進場（cycleHeaderBtn，10-20）；沒遮罩才退回命名 icon＝直接切
   document.querySelectorAll('[data-header-mode-icon]').forEach((el, i) => {
-    const mask = el.closest('#mode-btn')?.parentElement;
+    const mask = el.closest('#mode-btn, #mode-btn-mobile')?.parentElement;
     name(/** @type {HTMLElement} */ (mask?.classList.contains('header-bar-clip') ? mask : el), `mode-icon-${i}`);
   });
   // 只命名看得到的（隱藏 panel 的標題盒不必）；名稱各自唯一、樣式靠共用的 view-transition-class 套

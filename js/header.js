@@ -8,7 +8,7 @@ import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { sitePath } from './modules/ui/site-base.js';
-import { bindArrowSpin } from './modules/ui/arrow-spin.js';
+import { bindArrowSpin, randomSpinAngle } from './modules/ui/arrow-spin.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 import { runLottieWhenVisible } from './modules/ui/lottie-visibility.js';
 
@@ -181,6 +181,15 @@ function ensureBarMask(bar) {
 // menu btn 出場先被 crop」，headless 3.6° 實拍上緣被切成水平線）。收起期間把角度借給遮罩、鈕本身 GSAP rotation 0
 // （inline 蓋過樣式表）→ 鈕在同角度遮罩內平移、剪裁貼齊鈕邊；clearBarMask 展開完還原（遮罩去角、清 inline → 樣式表角度回來）。
 // 遮罩含鈕的 marginLeft → 旋轉中心算到鈕中心。
+// 手機 header 鈕（mode／menu）每點一次換角：跟現角保證有差（randomSpinAngle，全站 −4~+6；user 2026-10-27）。
+// 呼叫時機＝cycleHeaderBtn 的 swap（鈕藏在遮罩外那刻）：角度借給遮罩中 → 遮罩同步換角、進場就是新角（不在點擊當下換＝出場中鈕會跳角）
+export function rerollMobileBtnRot(bar) {
+  if (!bar) return;
+  const prev = parseFloat(bar.style.getPropertyValue('--hdr-rot')) || 0;
+  bar.style.setProperty('--hdr-rot', `${randomSpinAngle(prev)}deg`);
+  const mask = bar.parentElement;
+  if (mask?.dataset.lentRot) mask.style.transform = `rotate(${bar.style.getPropertyValue('--hdr-rot')})`;
+}
 function lendCssRotToMask(bar, mask) {
   const rot = parseFloat(getComputedStyle(bar).getPropertyValue('--hdr-rot'));
   if (!rot) return;
@@ -1087,6 +1096,8 @@ export function initHeader() {
     //（鈕歸 0、跟遮罩同角＝滑出不被切角），展開 clearBarMask 清 inline＋遮罩去角 → 樣式表角度自動回來、不 snap 0。
     // 轉動用 GSAP 補間 var、不靠 CSS transition：mode3 的 color.css 對 header [data-bar] 下 transition:none !important（防每幀換色 lag），
     // 反蓋回去又會壓掉 footerHideBars 的 inline transition:none、拖垮收展。
+    // 手機兩顆鈕的遮罩也先建好（同下方桌面理由：mode 切換的 VT 命名要抓遮罩；user 2026-10-30 手機 mode 鈕換 icon 同桌面整顆出場再進場）
+    header.querySelectorAll('.mobile-header-btn').forEach(el => ensureBarMask(/** @type {HTMLElement} */ (el)));
     header.querySelectorAll('#mode-btn, #menu-btn').forEach(el => {
       const btn = /** @type {HTMLElement} */ (el);
       btn.style.setProperty('--hdr-rot', '0deg');   // GSAP 補間 var 要有帶單位的起點

@@ -31,7 +31,7 @@
 │   ├── input.css               # Tailwind 入口 + @import 串接 base/layout/components/themes
 │   ├── output.css              # build 產物
 │   ├── base/                   # typography / scrollbar
-│   ├── layout/                 # grid / footer
+│   ├── layout/                 # grid / footer / scroll-snap / landscape（矮橫向 gate 層）/ portrait（直向手機 <768 全站層）
 │   ├── components/             # navigation / buttons / cards / accordion / hero /
 │   │                             lists / atlas / alumni / courses / create / library /
 │   │                             intro-animation
@@ -186,6 +186,8 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 ### 間距
 xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96px) / 4xl (128px) / 7xl / 8xl
 
+**直向手機貼底界線＝`--mobile-bottom-anchor`（32，鏡像 header 鈕離頂 pt-lg；2026-10-30 統一）**：底 bar 的 chip（bar 高＝界線×2＋chip 28、chip 置中）、角落鈕（DSD 返回／分享、atlas 切換）、mode3 鉛筆、lightbox／PDF 底列、首頁 news 堆疊底，底邊一律落在這條線；第二層列（division／program／子分頁）疊在 bar 上方（bar 高 − xs）。新貼底元素照吃，別再各自寫 16／18／24。真桌面另有 48（頁卡底）不吃
+
 ### 字卡內距（2026-10-26）
 有底色的單獨字卡一律依**字級**吃 `variables.css` 的 `--card-pad-<size>`（3xl `0 10px`／2xl `0 8px`／xl `5px 7px 4px`／lg `5.5px 7px`／md `6px 7px`／s `5px 6px`／xs `4px 5px`／2xs `3px 4px`＝atlas 星雲節點 11px 專用），行距吃同字級 `--line-height-<size>`。舊「全站 6px 8px 5px」已退役，新字卡別再寫死。卡中卡（手風琴內文；footer 卡內資訊卡／legal 連結、atlas hover 卡三段 10-26 起照吃 s）、列（list-header、規章列）、控制列不吃。JS 要數值就讀 `:root` 的 token（例：atlas.js createCareerController）
 
@@ -208,7 +210,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    SCCDHelpers.isLandscapeGate()  // 只看 gate；監聽轉向用 matchMedia(SCCDHelpers.LANDSCAPE_GATE)
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(min-width: 1024px) and (min-height: 501px)`**（HTML 用 `min-[1024px]:`；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024）
-6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）
+6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）——但 **section 框本身用 `100lvh`＋底 pad 多墊 `100lvh − 100svh`**（iOS Safari 底部工具列半透明、視窗底之外的內容會透出：svh 框下方的 footer 黑／下一屏會露；lvh 框多出的那截是自己的底、工具列收起後剛好一屏可磁吸到頂）。直向手機跨頁共通的版面骨架（一屏框高、首頁第一屏）寫在 **`css/layout/portrait.css`**（跟 landscape.css gate 層對稱、互斥），不要塞進 landscape.css
 
 ### 矮橫向（landscape gate）
 - **Gate**：`@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)`（CSS）／`matchMedia` 同式（JS，逗號清單）——前半＝橫向手機（寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱，原理見《docs/橫向手機版最佳實踐.md》）；後半＝iPad 直向／768–1023 的視窗（user 2026-10-01：iPad 沿用橫向手機排版、只是比較高）。兩半必須一起寫：CSS 照抄整串，JS 用 `SCCDHelpers` 版型判斷（見上，勿再抄字串）。例外：/create 有自己的斷點（create.css／generate-app/js/utils.js），不吃後半

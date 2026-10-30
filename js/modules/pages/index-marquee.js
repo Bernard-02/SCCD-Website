@@ -66,11 +66,12 @@ const SLOT_X_MOBILE = MOBILE_PADDING_X;
 const SLOT_GAP = 20;          // 10 → 20（user 2026-09-28「gap 再大一點」）；順帶給 ±1° rotation 右緣 ~8px 位移更多餘裕
 let measuredBarH = BAR_HEIGHT;
 // 直向手機底邊距＝header 列 pt-lg（32）＝上下同距（user 2026-10-27，hero 改 100svh 後底部不再被工具列吃掉）；矮橫向／桌面維持 70
-const BOTTOM_PORTRAIT = 32;
+// 直向手機最底一條 bar 的底邊＝全站貼底界線 --mobile-bottom-anchor（variables.css，32；user 2026-10-30 統一），JS 讀 token 不寫死
+const BOTTOM_PORTRAIT = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-bottom-anchor')) || 32;
 function slotConfigs() {
   const mobile = SCCDHelpers.isMobileLayout();
   const x = mobile ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
-  const bottom = mobile && !SCCDHelpers.isLandscapeGate() ? BOTTOM_PORTRAIT : 70;
+  const bottom = mobile && !SCCDHelpers.isLandscapeGate() ? BOTTOM_PORTRAIT() : 70;
   const step = measuredBarH + SLOT_GAP;
   return [
     { x, y: -bottom - step * 2 },

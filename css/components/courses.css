@@ -503,7 +503,7 @@
       position: fixed;
       left: 0;
       right: 0;
-      bottom: calc(var(--mobile-bar-h) - var(--spacing-xs));
+      bottom: calc(var(--mobile-bottom-anchor) + 28px);   /* 同 about .mobile-division-wrap：chip 頂；外框 16 內距＝可見距離 sm 16 */
       z-index: 40;
     }
     #courses-content-section .inner-scroll-nav-col.is-div-hidden { visibility: hidden; }

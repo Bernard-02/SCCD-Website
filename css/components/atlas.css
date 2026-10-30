@@ -1174,7 +1174,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   #atlas-detail-mask {
     right: 16px;
-    bottom: 16px;
+    bottom: var(--mobile-bottom-anchor);   /* 底邊＝全站貼底界線（10-30；原 16） */
   }
   #atlas-detail {
     max-width: 70vw;
@@ -1187,8 +1187,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     #atlas-detail {
       max-width: calc(100vw - 152px);
       min-width: min(240px, 100vw - 152px);
-      /* 點擊 item 會置中 → 卡片不得越過半屏；bottom:16 → 頂緣最低 50vh */
-      max-height: calc(50vh - 16px);
+      /* 點擊 item 會置中 → 卡片不得越過半屏；bottom＝貼底界線 → 頂緣最低 50vh */
+      max-height: calc(50vh - var(--mobile-bottom-anchor));
     }
     .atlas-detail-row {
       flex-direction: column;
@@ -1212,9 +1212,9 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     font-size: 0.8125rem;
   }
   /* 星雲/list 切換鈕：留左下（底部中間會被右下說明卡蓋）；z-index 70 > 轉向提示 60 → 提示蓋住頁面時返回鈕仍可點。
-     每半 44 正方（觸控標準）、整體 88×44；bottom 18＝頂緣同舊 48 佔位（16+48）→ #atlas-filter bottom 96 不用動 */
+     每半 44 正方（觸控標準）、整體 88×44；底邊＝全站貼底界線 --mobile-bottom-anchor（10-30；原 18＝舊 48 佔位遺留），跟右下 mode3 鉛筆同底 */
   #atlas-layout-btn {
-    bottom: 18px;
+    bottom: var(--mobile-bottom-anchor);
     z-index: 70;
   }
   .atlas-layout-opt {
@@ -1222,10 +1222,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     height: 44px;
     font-size: 28px;   /* icon 四邊留 8＝同桌面 48／32（user 2026-10-28；同手機 header 鈕 44／28） */
   }
-  /* 三顆分類 tab，疊在 layout btn 上方：16 + 48 + 32 呼吸 = 96 */
+  /* 三顆分類 tab，疊在 layout btn 上方：界線 32 + 鈕 44 + 32 呼吸 = 108 */
   #atlas-filter {
     top: auto;
-    bottom: 96px;
+    bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-lg));
     right: var(--container-padding, 24px);
     flex-direction: row;
     align-items: flex-end;
@@ -1268,8 +1268,8 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-list-view {
     /* 手機 top 收到 header+24（base +64 太低） */
     top: calc(var(--header-height, 80px) + 24px);
-    /* bottom 168 = layout btn 16 + 48 + tab↔btn 呼吸 32(→filter bottom 96) + tab ~40 + chevron↔tab 呼吸 32 */
-    bottom: 168px;
+    /* bottom 180 = 界線 32 + layout btn 44 + tab↔btn 呼吸 32(→filter bottom 108) + tab ~40 + chevron↔tab 呼吸 32 */
+    bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-lg) + 40px + var(--spacing-lg));
     right: var(--container-padding, 24px);
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
@@ -1367,12 +1367,12 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   /* tab↔切換鈕收到 sm：切換鈕頂 62（bottom 18＋44）＋ 16，−4＝#atlas-filter 上下 padding（旋轉餘裕）。
      右側出血到畫面邊（user 2026-10-28「右邊不需要 padding 遮擋」）：tab 被畫面右緣切、捲到底再由 padding-right 留出 container 邊距 */
   #atlas-filter {
-    bottom: calc(18px + 44px + var(--spacing-sm) - 4px);
+    bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) - 4px);   /* 切換鈕底＝全站貼底界線（10-30；原 18） */
     right: 0;
     padding-right: var(--container-padding, 24px);
     gap: var(--spacing-md);   /* 同 about／faculty／curriculum 底 bar 鈕距（user 2026-10-29 嫌擠；原 xs） */
   }  /* list 底＝tab 頂上 16：tab 底 74＋一行 tab ~36＋16（atlas.js calcListPageSize 直向 fallback 同步） */
-  #atlas-list-view { bottom: 126px; }
+  #atlas-list-view { bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) + 36px + 16px); }   /* 140＝tab 底 88（界線 32＋鈕 44＋sm）＋一行 tab ~36＋16（原 126＝鈕底 18 起算）；atlas.js calcListPageSize 讀 computed bottom */
   /* 每筆一列：左名稱、右副標（atlas.js 直向單 sub-col）；過寬照舊 applyListMarquee 跑 marquee。
      ghost 量高的 item 同結構（第一個子＝名稱、其餘＝副標）；cover 是 absolute、不排進格 */
   #atlas-list-view .atlas-list-item {

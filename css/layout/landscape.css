@@ -5,25 +5,6 @@
    → 一律抬特異度（#id / main .X / body .X）；@layer 內的 !important 反而贏本檔 !important（見 5i resources）。
    鎖頁（atlas / library / create）body 鎖 h-screen、結構各異，本檔 main > section 選擇器不誤觸它們。 */
 
-/* 2a/2b 的直向手機版（例外：本段不屬 gate）：一屏高度同樣改 svh——100vh＝工具列收起的高，工具列展開時底部被蓋住
-   （user 2026-10-27）。只抓無前綴 class：md:h-screen／md:min-h-screen 是桌面專用，直向本來就沒吃（gate 版用 *= 是因為 ≥768 會吃 md:）。
-   跟下方 2a/2b 同步改 */
-@media (max-width: 767px) {
-  main > section.h-screen {
-    height: 100svh;
-  }
-  main > section.min-h-screen {
-    min-height: 100svh;
-  }
-  /* 首頁第一屏（user 2026-10-29 Safari 實測：框 100svh＝footer 黑底從底部工具列後透出、往下磁吸時 footer 捲不到頂留一截白）：
-     框改 100lvh（同 about 各屏，scroll-snap.css）、多出的 100lvh−100svh 是自己的白；news 堆疊仍釘在 svh 安全區底（!important 蓋 inline） */
-  main > section#home-hero { height: 100lvh; }
-  #home-hero #homepage-marquee-stack {
-    height: 100svh !important;
-    bottom: calc(100lvh - 100svh) !important;
-  }
-}
-
 @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   /* 1) 字級整套沿用手機值：寬 ≥768 的橫向誤吃 md: class，但那些 utility 都消費 --font-size-* →
      覆寫成 variables.css @media(max-width:767px) 的同值即全面回手機尺寸。
