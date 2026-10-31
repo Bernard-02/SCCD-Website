@@ -137,9 +137,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   const seq = lazySeq;
   const alive = () => seq === lazySeq;
 
-  // 矮橫向 nav chip 在 header 帶、各頁 init 才 gsap.set 藏起——動態 import 晚於換頁後第一次繪製，下載那幾十～幾百 ms
+  // 橫向手機 nav chip 在 header 帶、各頁 init 才 gsap.set 藏起——動態 import 晚於換頁後第一次繪製，下載那幾十～幾百 ms
   // chip 會露在 hero 上（user 2026-10-29「換頁 nav btn 閃一下」）→ 這裡同步先藏，init 再用各自的隨機方向接手。
-  // 只列 init 會藏、之後靠 bindLandscapeNavGate／anchor-nav 揭的那組（alumni 初始可見＝不列；減少動態時各頁不藏＝這裡也不藏）
+  // 只列 init 會藏、之後靠 bindLandscapeNavGate／anchor-nav 揭的那組（alumni 初始可見＝不列；減少動態時各頁不藏＝這裡也不藏）。
+  // iPad（gate 後半）走直向同款底 bar、出生就 .is-bar-hidden → 不在此列（10-30）
   const LANDSCAPE_NAV_CHIPS = {
     about: '#anchor-nav .anchor-nav-inner',
     faculty: '.faculty-filter-btn .anchor-nav-inner',
@@ -147,7 +148,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     activities: '.activities-section-bar .activities-section-btn .anchor-nav-inner',
     admission: '.activities-section-btn .anchor-nav-inner',
   };
-  if (LANDSCAPE_NAV_CHIPS[page] && SCCDHelpers.isLandscapeGate() && !prefersReducedMotion()) {
+  if (LANDSCAPE_NAV_CHIPS[page] && SCCDHelpers.isLandscapePhone() && !prefersReducedMotion()) {
     document.querySelectorAll(`#page-content :is(${LANDSCAPE_NAV_CHIPS[page]})`)
       .forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = 'inset(0% 0% 100% 0%)'; });
   }
@@ -416,7 +417,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 手機版：跳過 card stack 幾何計算（randomize x/y 容易超出 viewport → 水平位移），
     // 改用頂端 tab bar 直接 panels.showPanel；layout 由 CSS 處理
     // tab bar 沿用 activities-section-bar pattern → 走 setActiveNavBtn 提供 active 隨機色 + 旋轉
-    // 矮橫向（橫向手機）也走此路徑（user 2026-07-04）：landscape.css 5h 把 tabs 排左欄、灰卡佔右側
+    // 矮橫向（橫向手機／iPad）也走此路徑：2026-10-30 起整套同直向手機（library.css 手機段 media 已含 gate；landscape.css 5h 只剩卡頂 72）
     if (SCCDHelpers.isMobileLayout()) {
       const tabsRoot = document.getElementById('library-mobile-tabs');
 
@@ -475,8 +476,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // press/files/album panel 桌面結構是 2×2 grid：Year 標題在 top-left、year-picker 在 bottom-left（兩個獨立 grandchildren）
       // 手機要求「Year 標題跟 year-picker 是同一個 group」對齊 awards panel 樣式
       // → DOM 搬：把 year-picker-wrap 整個搬到 Year 標題 wrapper 內當子，這樣 Year 標題 wrapper 變 group container
-      // ⚠️ 只在真手機（<768）搬：矮橫向 panel 內部維持桌面 2×2 grid，搬了會讓 grid auto-place 錯位
-      if (window.innerWidth < 768)
+      // 矮橫向同搬（2026-10-30 起 gate 走手機排法；之前 gate 維持桌面 2×2 grid 不搬）
       ['press', 'files', 'album'].forEach(name => {
         const panel = document.getElementById(`lib-panel-${name}`);
         if (!panel) return;
@@ -490,12 +490,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
           yearLabelWrap.appendChild(yearPickerWrap);
         }
       });
-      // 直向手機工具列收到灰卡底（user 2026-10-27，library.css 檔尾）：awards logo ticker 搬進內容欄，才排得進 list 與年份／search 之間
-      if (!SCCDHelpers.isLandscapeGate()) {
-        const grid = document.querySelector('#lib-panel-awards > div[style*="grid"]');
-        const ticker = document.getElementById('library-awards-ticker');
-        if (grid && ticker) grid.append(ticker);
-      }
+      // 手機工具列收到灰卡底（user 2026-10-27，library.css 檔尾；2026-10-30 起矮橫向同）：awards logo ticker 搬進內容欄，才排得進 list 與年份／search 之間
+      const awardsGrid = document.querySelector('#lib-panel-awards > div[style*="grid"]');
+      const ticker = document.getElementById('library-awards-ticker');
+      if (awardsGrid && ticker) awardsGrid.append(ticker);
 
       const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
       bindNavBtnSpin(tabBtns);   // 初始隨機角（此路徑只在手機/矮橫向：無 hover、click 由 setActiveNavBtn 現抽）

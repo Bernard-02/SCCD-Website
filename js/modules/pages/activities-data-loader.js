@@ -1990,7 +1990,7 @@ export async function loadListInto(containerId, url, options = {}) {
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
   // activities／admission 直向手機（user 2026-10-28：nav／tab 移到畫面底、filter bar 回 flow、header 白底拿掉）：
   // 開啟的 title 釘 header 帶下 92（同 curriculum 類型標籤）。alumni 等其他 loadListInto 頁不套
-  const portraitPin = !filterBarSticky && window.matchMedia('(max-width: 767px) and (orientation: portrait)').matches
+  const portraitPin = !filterBarSticky && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()
     && !!container.closest('#activities-content-section, #admission-content-section');
   const stickyActive = window.innerWidth >= 768 || filterBarSticky || portraitPin;
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝

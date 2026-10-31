@@ -386,32 +386,20 @@ function attachYearReset(pickerEl, onReset) {
     pickerEl.closest('[id^="lib-panel-"]')?.querySelector('[id$="-scroll"]')?.scrollTo(0, 0);
   });
 
-  if (window.innerWidth < 768) {
+  if (SCCDHelpers.isMobileLayout()) {
     // will-change：sticky 在橫向 scroller 內拖動時逐幀 subpixel 重繪會抖，自有合成層改用位移合成
     btn.style.cssText = 'order:1;position:sticky;right:0;background:var(--lib-bg);border:none;font-family:inherit;cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);white-space:nowrap;will-change:transform;display:none;';
     pickerEl.appendChild(btn);
     return btn;
   }
 
-  grid.style.position = 'relative';
-  const gcs = getComputedStyle(grid);
-  const BTN_CSS = 'position:absolute;white-space:nowrap;text-align:left;border:none;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);display:none;';
-  if (SCCDHelpers.isLandscapeGate()) {
-    wrap.style.paddingBottom = 'var(--spacing-xl)';   // 末年份捲上時停在按鈕上方不被蓋
-    btn.style.cssText = BTN_CSS + 'background:var(--lib-bg);padding:var(--spacing-xs) 0;';
-    btn.style.bottom = gcs.paddingBottom;
-  } else {
-    // 年份 box 下緣：下一批 chevron → reset 空間（都貼左）。reset 不再 absolute 掛 grid：那是「Reset 重設」字比年份寬時
-    // 怕撐寬欄的解法，現在 20px icon 比年份窄、進 flow 不會推版
-    const col = wrap.parentElement;
-    const { up, more, sync } = makeScrollPager(wrap, col, () => pickerEl.querySelectorAll('button[data-year]'),
-      { more: '下一批年份 More years', less: '上一批年份 Previous years' });
-    col.append(up, more, makeResetSlot(btn));
-    sync();   // 重建年份（filter/cat）時捲動位置還在
-    return btn;
-  }
-  btn.style.left = gcs.paddingLeft;
-  grid.appendChild(btn);
+  // 桌面：年份 box 下緣：下一批 chevron → reset 空間（都貼左）。reset 不再 absolute 掛 grid：那是「Reset 重設」字比年份寬時
+  // 怕撐寬欄的解法，現在 20px icon 比年份窄、進 flow 不會推版（矮橫向舊 absolute 版 2026-10-30 撤：gate 走上面手機分支）
+  const col = wrap.parentElement;
+  const { up, more, sync } = makeScrollPager(wrap, col, () => pickerEl.querySelectorAll('button[data-year]'),
+    { more: '下一批年份 More years', less: '上一批年份 Previous years' });
+  col.append(up, more, makeResetSlot(btn));
+  sync();   // 重建年份（filter/cat）時捲動位置還在
   return btn;
 }
 
@@ -1125,8 +1113,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }, true);
 
     // ── 渲染 ──
-    // 直向手機（user 2026-10-27）：主列只出獎名＋得獎人，主辦／名次收進 chevron 展開區（ref 之上）；樣式 library.css 檔尾直向段
-    const portraitDetail = SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate();
+    // 手機＋矮橫向（user 2026-10-27 直向；2026-10-30 gate 同）：主列只出獎名＋得獎人，主辦／名次收進 chevron 展開區（ref 之上）；樣式 library.css 檔尾手機段
+    const portraitDetail = SCCDHelpers.isMobileLayout();
     // 每行包 .award-cell-line > .award-cell-inner：矮橫向窄欄 crop 時逐行 marquee 用
     //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
     const cellLine = (txt, weight) =>
@@ -1254,8 +1242,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 6 欄（user 2026-09-12 移除「獎項／分類」欄，把它的 1.3fr 併給競賽名稱→加寬 title；10-02 得獎人 1→0.6fr、
     //   讓出的 0.4fr 給競賽名稱，總 fr 不變＝主辦／名次實寬不動；長名字有 hover marquee）：
     //   flag(1.5em) 競賽名稱(4.2fr) 主辦單位(2.5fr) 名次(1fr) 得獎人(0.6fr) ref鈕(1.5em)
-    // cell gap 矮橫向縮 1rem（窄卡吃太多欄寬）；gate 每次 init 判一次、跨 gate 轉向靠 orientation-reload
-    const AWARD_GRID = `grid-template-columns: 1.5em 4.2fr 2.5fr 1fr 0.6fr 1.5em; gap: 0 ${SCCDHelpers.isLandscapeGate() ? '1rem' : '2rem'};`;
+    // 手機／矮橫向欄寬與 gap 由 library.css 手機段 !important 蓋掉，這裡只管桌面
+    const AWARD_GRID = `grid-template-columns: 1.5em 4.2fr 2.5fr 1fr 0.6fr 1.5em; gap: 0 2rem;`;
     // ref 展開列：版型沿用 list-ref-btn（hover 黑底），但 grid 改用 AWARD_GRID 對齊主表 —
     // 箭頭 icon 落國旗欄(col 1)、label/title 從「競賽名稱」欄(col 2)起算往右展開對齊 award 名稱。
     const escAttr = s => String(s || '').replace(/"/g, '&quot;');
@@ -1938,7 +1926,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         // 手機：logo 已用 CSS aspect-ratio 預留寬度 → layout 一好（1 rAF）就量得到 trackW，不必等圖載入
         //   → ticker「一渲染就開始捲」（圖載好填進預留位）；不會「靜止 logo 卡一下才動」（user 2026-06-10）。
         // 桌面：logo width:auto 沒預留、trackW 要 naturalWidth → 維持等所有圖 load/error 才量（進場 ~1.5s 已遮掉）。
-        if (window.innerWidth < 768) { requestAnimationFrame(startTicker); return; }
+        if (SCCDHelpers.isMobileLayout()) { requestAnimationFrame(startTicker); return; }
         const imgs = Array.from(tickerWrapper.querySelectorAll('img'));
         let pending = imgs.length;
         const ready = () => { if (--pending <= 0) requestAnimationFrame(startTicker); };
@@ -2174,7 +2162,7 @@ async function initPressPanel() {
       // 已 cached 的（readySrc）交給 entrance/reveal 路徑滑（免搶在 box clip 前被遮）。slideThumbIn 自帶 once guard。
       // 縮圖 hover 轉正、離開換新角（同 album，user 2026-10-19；press 只有一張、不攤開）。點開 viewer／lightbox 時
       // overlay 觸發的 mouseleave 先不換角，等 sccd:lightbox-closed（淡出收完）才換（同 album pendingStack）
-      const pressThumbHover = window.innerWidth >= 768;
+      const pressThumbHover = SCCDHelpers.isDesktopLayout();
       listEl.querySelectorAll('.press-item').forEach(el => {
         const item = /** @type {HTMLElement} */ (el);
         const img = /** @type {HTMLImageElement|null} */ (item.querySelector('.press-thumb-img'));
@@ -2600,7 +2588,7 @@ async function initFilesPanel() {
       // 封面：首批 eager render、其餘捲到近視窗才懶載（卡片已在 DOM，可掛 IO）
       scheduleCovers(needCover, lazyImgCards);
 
-      if (window.innerWidth >= 768) {
+      if (SCCDHelpers.isDesktopLayout()) {
         listEl.querySelectorAll('.files-item-card').forEach(item => {
           // hover 轉回 0°、離開換新角（user 2026-10-19）：目標改 mask（旋轉載體 2026-08-16 搬到 mask；封面本體的 transform 留給進場滑動）
           const mask = /** @type {HTMLElement|null} */ (item.querySelector('.files-item-cover-mask'));
@@ -2840,7 +2828,7 @@ const ALBUM_FAN_GAP = 12;   // hover 攤開縮圖間距（mouseenter 同用；li
 const albumThumbDeg = () => (Math.random() < 0.4 ? -(Math.random() * 3.5 + 0.5) : (Math.random() * 5.5 + 0.5));
 let _albumMqTimer = 0;
 function fitAlbumStrip(item) {
-  if (window.innerWidth < 768) return;   // 手機 strip 是 CSS 100% 橫捲，不設
+  if (SCCDHelpers.isMobileLayout()) return;   // 手機／矮橫向 strip 是 CSS 100% 橫捲，不設
   const strip = /** @type {HTMLElement|null} */ (item.querySelector('.album-thumb-strip'));
   const ws = [...item.querySelectorAll('.album-thumb')].map(t => parseFloat(/** @type {HTMLElement} */ (t).style.width));
   if (!strip || !ws.length || ws.some(w => !w)) return;
@@ -2913,7 +2901,7 @@ async function initAlbumPanel() {
           // 桌面 CSS 仍套舊 absolute stack 視覺，手機 CSS 改 flex-wrap 排成自然 row（library.css album 手機 rule）
           // 手機（<768，同 library.css album 手機段）只出第一張（user 2026-10-27 同 press 單縮圖）：不能 CSS 藏——
           //   display:none 的 lazy 圖永遠不載，thumbsReady 等全部載好＝整列縮圖永遠不揭
-          const thumbMedia = (item.media || []).slice(0, window.innerWidth < 768 ? 1 : 3);
+          const thumbMedia = (item.media || []).slice(0, SCCDHelpers.isMobileLayout() ? 1 : 3);
           const thumbsHtml = thumbMedia.map((m, ti) => {
             const finalDeg = albumThumbDeg();
             const src = m.thumb || m.src;
@@ -3017,7 +3005,7 @@ async function initAlbumPanel() {
       bindCoverRatio(listEl);
 
       // GSAP hover：stack ↔ 展開（pendingStack / sccd:close-lightbox 在 initAlbumPanel 層處理）
-      if (window.innerWidth >= 768) {
+      if (SCCDHelpers.isDesktopLayout()) {
         listEl.querySelectorAll('.album-panel-item').forEach(item => {
           const strip  = item.querySelector('.album-thumb-strip');
           const thumbs = [...item.querySelectorAll('.album-thumb')];

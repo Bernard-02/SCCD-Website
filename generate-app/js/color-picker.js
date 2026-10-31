@@ -133,99 +133,36 @@ function drawColorBar() {
   // 使用 HSB 顏色模式繪製漸變
   colorPickerCanvas.colorMode(_p5.HSB, 360, 100, 100);
 
-  // 計算 indicator 的半徑
-  let circleRadius = h * 0.4;
-
-  // === 第一層：繪製色彩漸變條（背景） ===
-  // Color pick 模式：實際可選的顏色範圍是 circleRadius 到 w - circleRadius
-  // Bar 的左右兩端補上紅色（hue = 0）
+  // === 第一層：色彩漸變條（0~360 鋪滿整條寬；同 mode3 色條 .mcp-bar，兩端不再為圓圈補紅）===
   colorPickerCanvas.noStroke();
-
-  // 左側紅色區域（0 到 circleRadius）
-  colorPickerCanvas.fill(0, 80, 100); // 紅色
-  colorPickerCanvas.rect(0, 0, circleRadius, h);
-
-  // 中間色彩漸變區域（circleRadius 到 w - circleRadius）
-  for (let x = circleRadius; x <= w - circleRadius; x++) {
-    let hue = _p5.map(x, circleRadius, w - circleRadius, 0, 360);
-    colorPickerCanvas.fill(hue, 80, 100);
+  for (let x = 0; x <= w; x++) {
+    colorPickerCanvas.fill(_p5.map(x, 0, w, 0, 360), 80, 100);
     colorPickerCanvas.rect(x, 0, 1, h);
   }
 
-  // 右側紅色區域（w - circleRadius 到 w）
-  colorPickerCanvas.fill(0, 80, 100); // 紅色
-  colorPickerCanvas.rect(w - circleRadius, 0, circleRadius, h);
-
-  // === 第二層：繪製 indicator（圓圈），在 bar 上方 ===
+  // === 第二層：indicator（直線），在 bar 上方 ===
   colorPickerCanvas.colorMode(_p5.RGB, 255);
-  drawColorBarIndicator(w, h, circleRadius);
-
-  // 切換回 RGB 模式
-  colorPickerCanvas.colorMode(_p5.RGB, 255);
+  drawColorBarIndicator(w, h);
 }
 
-// 繪製色條的 indicator（圓圈）
-function drawColorBarIndicator(w, h, circleRadius) {
+// 色條 indicator＝滿高直線（user 2026-10-30：同桌面色環、mode3 色條；原空心圓圈）。
+// wrap＝主線另一側 ±整條寬再畫一條、canvas 自己裁：359.9→0 那一幀兩條位置互換＝無縫（同 mode-color-panel drawBar）
+function drawColorBarIndicator(w, h) {
   if (!colorPickerCanvas) return;
+  const x = ((((selectedHue % 360) + 360) % 360) / 360) * w;
 
-  let y = h / 2; // 垂直置中
-
-  // === 單一圓圈，單一位置 ===
-  // selectedHue：圓圈的位置（可以超出 0-360）
-  // - Pause 時：用戶點擊選擇顏色，設定 selectedHue（0-360，不會被切掉）
-  // - Play 時：selectedHue 持續增加，可以超出 360，圓圈會被切掉
-
-  // 先計算在 0-360 範圍內的基礎位置
-  let normalizedHue = selectedHue % 360;
-  if (normalizedHue < 0) normalizedHue += 360;
-
-  // 計算基礎 x 位置
-  let barWidth = w - 2 * circleRadius;
-  let baseX = circleRadius + (normalizedHue / 360) * barWidth;
-
-  // 計算額外的循環偏移（當 selectedHue 超出 0-360 時）
-  let extraRotation = selectedHue - normalizedHue;
-  let extraDistance = (extraRotation / 360) * barWidth;
-
-  let x = baseX + extraDistance;
-
-  // 根據當前模式設定邊框顏色
-  let borderColor;
+  let lineColor;
   if (mode === "Standard") {
-    borderColor = colorPickerCanvas.color(0, 0, 0); // 黑色邊框
+    lineColor = colorPickerCanvas.color(0, 0, 0);
   } else if (mode === "Inverse") {
-    borderColor = colorPickerCanvas.color(255, 255, 255); // 白色邊框
-  } else if (mode === "Wireframe") {
-    // Wireframe 模式：使用 wireframeStrokeColor
-    borderColor = wireframeStrokeColor ? wireframeStrokeColor : colorPickerCanvas.color(255, 255, 255);
+    lineColor = colorPickerCanvas.color(255, 255, 255);
+  } else {
+    lineColor = wireframeStrokeColor ? wireframeStrokeColor : colorPickerCanvas.color(255, 255, 255);
   }
-
-  // 繪製主圓（永遠繪製）
-  // 圓圈內部透明，直接顯示 bar 的顏色（這樣左右兩邊的圓圈顏色會同步）
-  colorPickerCanvas.noFill();
-  colorPickerCanvas.stroke(borderColor);
+  colorPickerCanvas.stroke(lineColor);
   colorPickerCanvas.strokeWeight(2);
-  colorPickerCanvas.circle(x, y, circleRadius * 2);
-
-  // 循環效果：右邊被遮住多少，左邊就同步出現多少
-  // 無論 play 或 pause，只要圓圈超出右邊界就繪製左邊的圓圈
-  let rightEdge = x + circleRadius;
-
-  // 當圓的右邊緣開始超出右邊界時，左邊就開始出現對應的部分
-  if (rightEdge > w) {
-    // 計算右邊被遮住的距離（超出多少）
-    let occludedDistance = rightEdge - w;
-
-    // 左邊圓的位置：從左邊界外開始，根據被遮住的距離進入
-    // 當右邊遮住 X 距離時，左邊就進入 X 距離
-    let leftX = -circleRadius + occludedDistance;
-
-    // 繪製左邊出現的循環圓圈（與主圓同步，也是透明）
-    colorPickerCanvas.noFill();
-    colorPickerCanvas.stroke(borderColor);
-    colorPickerCanvas.strokeWeight(2);
-    colorPickerCanvas.circle(leftX, y, circleRadius * 2);
-  }
+  colorPickerCanvas.strokeCap(_p5.SQUARE);
+  for (const dx of [-w, 0, w]) colorPickerCanvas.line(x + dx, 0, x + dx, h);
 }
 
 // ── 點擊（非拖）→ hue tween 過去（2026-07-15，對齊 mode-color-panel 的點擊行為）──
@@ -247,11 +184,7 @@ function hueFromPickerPoint(clientX, clientY) {
   const y = clientY - rect.top;
   const w = colorPickerCanvas.width;
   const h = colorPickerCanvas.height;
-  if (isMobileMode) {
-    const circleRadius = h * 0.4;
-    const cx = Math.min(Math.max(x, circleRadius), w - circleRadius);
-    return ((cx - circleRadius) / (w - 2 * circleRadius)) * 360;
-  }
+  if (isMobileMode) return (Math.min(Math.max(x, 0), w) / w) * 360;
   const angle = Math.atan2(y - h / 2, x - w / 2);
   return (angle * 180 / Math.PI + 90 + 360) % 360;
 }
@@ -405,17 +338,8 @@ function updateColorFromMouse(e) {
   let h = colorPickerCanvas.height;
 
   if (isMobileMode) {
-    // 手機版：色條邏輯（橫向）
-    // 計算圓圈半徑
-    let circleRadius = h * 0.4;
-
-    // 限制 x 在圓圈不被切掉的範圍內
-    // 範圍：circleRadius (左邊緣) 到 w - circleRadius (右邊緣)
-    x = _p5.constrain(x, circleRadius, w - circleRadius);
-
-    // 根據 x 位置計算色相（0-360）
-    // 使用與繪製相同的 mapping
-    selectedHue = _p5.map(x, circleRadius, w - circleRadius, 0, 360);
+    // 手機版：色條（橫向）0~360 鋪滿整條寬，同繪製
+    selectedHue = _p5.map(_p5.constrain(x, 0, w), 0, w, 0, 360);
     // Phase 2：drag 必須寫回 site colorHue 變成 single source；否則 sketch.js draw() 下幀 sccdGetColorHue 立刻覆蓋
     if (typeof window.sccdSetColorHue === 'function') window.sccdSetColorHue(selectedHue);
 

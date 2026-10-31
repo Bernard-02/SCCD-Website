@@ -487,7 +487,7 @@ export function initBFADivisionToggle() {
   });
 
   // 手機 works context（桌面靠 class-buttons-sticky.js，手機直接 return → 這裡補手機版，比照桌面）。
-  if (window.innerWidth < 768 && typeof ScrollTrigger !== 'undefined') {
+  if (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone() && typeof ScrollTrigger !== 'undefined') {   // 直向＋iPad：division 列在畫面底；橫向手機走桌面左欄 chip（10-30）
     const infoArea = document.getElementById('class-info-area');
     const mobileNav = document.getElementById('mobile-division-nav');
     let hasEnteredWorksMobile = false;

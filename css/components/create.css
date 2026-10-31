@@ -42,6 +42,11 @@
   flex-shrink: 0;
 }
 
+/* icon／文字各一個遮罩、出生藏在遮罩下（同 atlas .atlas-rotate-hint-clip）：矮橫向 CSS 首繪就 display:flex 也不先閃出再進場；
+   之後進退場由 GSAP inline transform 接手（create-app.js sccdPlayLandscapeHintEnter／playCreateExitAnimation） */
+.landscape-overlay-clip { display: flex; overflow: clip; }
+.landscape-overlay-clip > * { transform: translateY(110%); }
+
 #landscape-overlay-text {
   font-size: 1.2rem;
   line-height: 1.4;
@@ -1275,28 +1280,25 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   }
 
   /* === 手機色條（Color Picker Bar）=== */
+  /* 色條常駐 render，開合＝列高 0fr↔1fr＋上 margin 抵銷 flex gap，跟輸入區 height／margin 同一條 dur-fast ease：
+     同曲線同時長＝logo 容器高整段線性、canvas 不再先縮後放（user 2026-10-30）。原本 .hidden 吃到通用 #create-app .hidden
+     { display:none !important } → 色條 62＋gap 瞬間出現／消失、輸入區 0.3s 才縮放，logo 容器先被擠再放開＝canvas 縮放兩次。
+     內容貼列頂＝跟著列長高從底邊滑上來（clip-reveal，不淡）。收起時抵掉的 gap＝各 mode／custom 靜止排版跟原本一樣 */
   .mobile-colorpicker-bar {
-    display: flex;
-    align-items: stretch;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);   /* min 0：auto 下限＝內層 padding 32、收不到 0 */
     width: 100%;
     background: transparent;
     box-sizing: border-box;
     flex-shrink: 0;
-    max-height: 0;
     overflow: hidden;
-    opacity: 0;
-    transition: max-height var(--dur-base) var(--ease-standard),
-                opacity var(--dur-base) var(--ease-standard);
+    transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
 
-  .mobile-colorpicker-bar.hidden {
-    max-height: 0 !important;
-    opacity: 0 !important;
-  }
-
-  .mobile-colorpicker-bar:not(.hidden) {
-    max-height: 80px;
-    opacity: 1;
+  #create-app .mobile-colorpicker-bar.hidden {
+    display: grid !important;   /* 蓋通用 #create-app .hidden 的 display:none !important（特異度高一階） */
+    grid-template-rows: minmax(0, 0fr);
+    margin-top: calc(-1 * var(--mobile-content-gap));
   }
 
   .mobile-colorpicker-bar .colorpicker-bar-inner {

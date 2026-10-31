@@ -988,8 +988,8 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
     animation: atlas-marquee var(--marquee-duration, 8s) linear infinite;
   }
 }
-/* 矮橫向寬 ≥768 會誤落桌面 hover 區、觸控又無 hover → 併入自動捲 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+/* 矮橫向寬 ≥768 會誤落桌面 hover 區、觸控又無 hover → 併入自動捲；(hover: none)＝觸控的桌面排版（iPad 橫向，user 2026-10-31）同 */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (hover: none) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1403,6 +1403,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 /* ── 手機圓點星雲（直向 + 橫向 gate 共用）：JS（isMobileAtlas map view）給 #atlas-stage 加 .atlas-dot-mode；規則以 stage class scope、不靠 orientation media ── */
 #atlas-stage.atlas-dot-mode {
   touch-action: none;   /* 擋瀏覽器手勢，交給 atlas.js touch handlers */
+}
+/* 觸控的桌面排版（iPad 橫向，user 2026-10-31）：atlas.js 同條件（isCoarsePointer）掛 pan／pinch，瀏覽器手勢讓位 */
+@media (pointer: coarse) {
+  #atlas-stage { touch-action: none; }
 }
 /* 系友主持企業環（co-*）豁免圓點化：完整 chip，字級兩態（overview 0.5rem / zoom 0.75rem），padding 同反向係數 */
 #atlas-stage.atlas-dot-mode .atlas-anchor-co .atlas-name {

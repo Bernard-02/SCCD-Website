@@ -19,7 +19,7 @@ import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-anima
 
 export function initClassButtonsSticky() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-  if (window.innerWidth < 768) return;
+  if (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) return;   // 直向＋iPad 走底部 division 列；橫向手機維持左欄 sticky chip
 
   const infoArea          = document.getElementById('class-info-area');
   const worksPanels       = document.getElementById('class-works-panels');
@@ -62,7 +62,7 @@ export function initClassButtonsSticky() {
   // 矮橫向手機：不掛滑出 scrub——works 落點 92 在 start(top 100px) 之後，一到 works tabs 就被
   // scrub 藏掉，但 works 視圖必須留著 tabs 切 playlist（landscape.css 用 grid-row 1/3 +
   // #works min-height 讓 CSS sticky 全程涵蓋 works）。works context 切換的 ST 照常掛。
-  const isLandscapeMobile = SCCDHelpers.isLandscapeGate();
+  const isLandscapeMobile = SCCDHelpers.isLandscapePhone();
 
   // 高矮視窗同一條 scrub：works 過「落點」後 btn y+clip 跟捲動 1:1 滑出（跟著內容一起上去、不再 sticky）。
   // 差別只在落點線：高視窗 100vh sections 的 works 落點 = top 0（'top top'），矮視窗 = 100px marker。

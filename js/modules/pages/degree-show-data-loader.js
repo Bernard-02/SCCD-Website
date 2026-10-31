@@ -1852,17 +1852,17 @@ function setupStickyAndHeroChips(data, year) {
   const shareBtn = /** @type {HTMLElement | null} */ (document.getElementById('degree-show-share-btn'));
   if (shareBtn) shareBtn.dataset.shareUrl = window.location.href;
   // 直向手機：返回／分享＝左下 44 黑方塊（variables.css DSD 直向段），整顆過 hero 滑上、footer 前收、離頁滑出（同底 bar，user 2026-10-29）
-  if (isPortraitPhone()) {
+  // 矮橫向 10-30 跟進（同底 bar）；桌面 sticky chip 系統跳過。直向另有一屏方向磁吸
+  if (SCCDHelpers.isMobileLayout()) {
     [document.getElementById('degree-show-back-btn'), shareBtn].forEach(b => {
       if (!b) return;
       b.style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
       bindMobileBottomBar(b);
     });
-    // 各段一屏＋子展覽 tab／返回列固定在畫面底：停在兩屏之間＝內容被底列蓋住 → 同 about 直向方向磁吸（user 2026-10-29）
-    initAboutMobileSnap();
+    // 直向：各段一屏＋子展覽 tab／返回列固定在畫面底：停在兩屏之間＝內容被底列蓋住 → 同 about 直向方向磁吸（user 2026-10-29）
+    if (isPortraitPhone()) initAboutMobileSnap();
     return;
   }
-  if (SCCDHelpers.isMobileLayout()) return; // 矮橫向不做（用手機式堆疊 hero；桌面 sticky chip 系統跳過）
 
   const card = document.getElementById('sticky-info-card');
   const yearChip = document.getElementById('sticky-year-chip');

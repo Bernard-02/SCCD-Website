@@ -206,8 +206,9 @@
 /* ===== 直向手機 nav＝畫面底固定 bar、英中同一行（同 about 底 bar；user 2026-10-27 先 faculty）=====
    HTML 掛 .nav-bottom-bar（＋出生 .is-bar-hidden）；顯隱＝section-switch-helpers bindMobileBottomBar（hero 上藏、footer 前收、離頁滑出）。
    #page-content 前綴：蓋 HTML 的 Tailwind -mx/px/py/mb utility（output.css 後出、同特異度蓋不掉）。
-   桌面走 inner-scroll frame；矮橫向走 landscape.css（nav 進 header），故 portrait 限定。 */
-@media (max-width: 767px) and (orientation: portrait) {
+   桌面走 inner-scroll frame；直向手機＋矮橫向（gate）同套（user 2026-10-30：矮橫向 nav 從 header 帶改到底部）＝下方 union media。
+   ⚠️ gate 寬 ≥768 會吃到 HTML 的 md: utility（md:flex-col 等）→ 這裡用 #page-content 前綴把列向／捲動寫死。 */
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   :root { --mobile-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 同 about --about-bar-h：chip 28 置中＝chip 底邊落在全站貼底界線 */
   #page-content .nav-bottom-bar {
     position: fixed;
@@ -218,9 +219,18 @@
     height: var(--mobile-bar-h);
     margin: 0;
     padding: 0 var(--container-padding);
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: clip;
+    scrollbar-width: none;
     transition: transform var(--dur-base) var(--ease-wipe);
   }
+  #page-content .nav-bottom-bar::-webkit-scrollbar { display: none; }
+  #page-content .nav-bottom-bar > * { flex-shrink: 0; }
   #page-content .nav-bottom-bar.is-bar-hidden { transform: translateY(110%); }
   .nav-bottom-bar .anchor-nav-inner {
     flex-direction: row;
@@ -738,7 +748,7 @@
    ＝底 bar 上方固定列、英中一行，範圍內才逐 chip 進場（activities-section-switch.js setupSectionNavReveal 直向分支）。
    header 白底拿掉（navigation.css）→ 頂上不再有 sticky nav／filter bar 與往上補的白帶；filter bar（只剩 search）回 flow；
    開啟的 title 釘 header 帶下 92（activities-data-loader updateStickyTop）。矮橫向不套（landscape.css 5f）。 */
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   /* 內容從 header 帶下（92，同 about／faculty／curriculum）開始；底補兩條 bar（底 bar＋tab 列 60）＝捲到底最後一列不被蓋 */
   #activities-content-section {
     padding-top: 92px;
@@ -814,7 +824,7 @@
 /* ===== admission 手機直向（user 2026-10-28，同 activities／faculty）=====
    nav＝畫面底 bar（HTML 掛 .nav-bottom-bar，上方共用段）；header 白底拿掉 → 頂上不再 sticky nav 與往上補的白帶；
    開啟的 title 釘 header 帶下 92（admission-section-switch.js initAdmissionMobileSticky）。blocker 直向停用。矮橫向不套。 */
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   #admission-content-section {
     padding-top: 92px;
     padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h));
@@ -841,7 +851,7 @@
 
 /* 手機直向：chip 旋轉頂角凸進上方 section-bar box 3~8px，部分裝置依 paint order 被蓋成「被切」→ padding-top 推出正向 clearance。
    桌面 section-bar 是左直欄不重疊（由 chip-clearance 處理）。 */
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   #exhibitions-type-filter,
   #visits-type-filter {
     padding-top: var(--spacing-sm);
@@ -1279,6 +1289,9 @@ body.mode-color .gallery-ph > span {
 
 /* ===== List Title Marquee（桌面手機共用） ===== */
 .list-title-marquee {
+  /* flex：包層不產生自己的行盒（inline-block p 時包層 strut 吃繼承字級＝手機 text-s 14 在 16 的盒裡、每行多 2.6px，
+     英中距跟標題對不上；桌面 p ≥ 16 看不出來）。clone marquee 照舊並排、.list-subtitles 桌面 wrap 照舊（flex item 可縮到容器寬） */
+  display: flex;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -1288,10 +1301,6 @@ body.mode-color .gallery-ph > span {
   white-space: nowrap;
 }
 
-/* 國家欄 marquee <p> 是 inline-block、預設 baseline 對齊會比左欄 name 低 ~2px → vertical-align:top */
-.guest-row-grid .list-title-marquee p {
-  vertical-align: top;
-}
 
 /* base rule＝溢出自動跑。.list-content 內的列展開才量得到寬度（收合 clientWidth=0），等於已是「open 才 marquee」；
    .list-header 內主標/副標：桌面改 hover、手機改 .active（見下方兩個 block）。 */
@@ -1357,6 +1366,13 @@ body.mode-color .gallery-ph > span {
     animation: none;
   }
   .list-summary-mq-col:hover .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+  }
+}
+/* 沒 hover 的 ≥768（iPad 直向 gate、iPad 橫向桌面排版；user 2026-10-31）：上面 hover 才捲＝永遠看不到 → 退回手機自動捲 */
+@media (min-width: 768px) and (hover: none) {
+  .list-header .list-title-marquee.is-overflow p,
+  .list-summary-mq-col .list-title-marquee.is-overflow p {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
 }

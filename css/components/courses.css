@@ -349,8 +349,8 @@
       animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
-  /* 手機無 hover → overflow 卡片標題自動跑 marquee */
-  @media (max-width: 767px) {
+  /* 手機無 hover → overflow 卡片標題自動跑 marquee；(hover: none) 含 iPad（直向 gate／橫向桌面排版，user 2026-10-31） */
+  @media (max-width: 767px), (hover: none) {
     .courses-grid-card-en.is-overflow .courses-marquee-inner,
     .courses-grid-card-zh.is-overflow .courses-marquee-inner {
       animation: courses-marquee var(--marquee-duration, 8s) linear infinite;
@@ -406,7 +406,8 @@
   .courses-grid-mobile {
     display: none;
   }
-  @media (max-width: 767px) {
+  /* <768＋iPad 走手機 grid（年級底 bar＋列）；橫向手機 ≥768 寬維持桌面 grid（user 2026-10-30：橫向手機內容左右排、nav 回 header 帶） */
+  @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     .courses-grid {
       display: none;
     }
@@ -491,7 +492,7 @@
      program bar＝底 bar 上方固定列、BFA 學士班小標在鈕左併排（同 about division tab），範圍內才逐 chip clip-reveal
      （courses-section-switch.js），出生 .is-div-hidden 藏、範圍外 .is-off 不擋點擊；必修／選修在卡片左欄 sticky。
      header 白底已拿掉（navigation.css）→ 頂上不再有 nav／年級／類型三層 sticky 白帶（類型標籤改左欄 sticky、不墊底色）。矮橫向 nav 進 header（landscape.css）不套。 */
-  @media (max-width: 767px) and (orientation: portrait) {
+  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     /* 卡片從 header 帶下（92，同 about／faculty）開始；底補兩條 bar（底 bar＋program 列 80 實測）＝捲到底最後一張不被蓋 */
     #courses-content-section {
       padding-top: 92px;
@@ -505,6 +506,7 @@
       right: 0;
       bottom: calc(var(--mobile-bottom-anchor) + 28px);   /* 同 about .mobile-division-wrap：chip 頂；外框 16 內距＝可見距離 sm 16 */
       z-index: 40;
+      padding: 0;   /* 蓋 lists.css ≥768 frame 的 padding-top --inner-box-top／padding-bottom（fixed 列會被撐高、透明區擋到卡片點擊） */
     }
     #courses-content-section .inner-scroll-nav-col.is-div-hidden { visibility: hidden; }
     #courses-content-section .inner-scroll-nav-col.is-off { pointer-events: none; }
@@ -514,6 +516,15 @@
       padding: var(--spacing-sm) var(--container-padding);
       gap: var(--spacing-md);
       align-items: flex-end;
+      /* gate（≥768 寬）吃不到上方 <768 的 row／overflow 規則、HTML 又是 flex-col → 這裡寫死（!important 同上方理由：蓋 utility） */
+      flex-direction: row !important;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: clip;
+      scrollbar-width: none;
+      flex: none;          /* 蓋 ≥768 的 flex: 0 0 14rem（在 fixed col 裡變成 224px 高） */
+      width: auto;
+      max-width: 100%;
     }
     #courses-content-section .courses-program-group {
       flex-direction: row;

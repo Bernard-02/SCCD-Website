@@ -229,7 +229,8 @@ export function bindMarqueeReturn(hoverEl, innerSelector, lineSelector, opts = {
   if (typeof gsap === 'undefined' || !hoverEl || /** @type {any} */ (hoverEl)._mqReturnBound) return () => {};
   // 自我 gate 桌面（同 isMobileView）：手機 / 矮橫向無 hover，維持各元件 CSS 自動循環，本函式不介入。
   // caller 可無條件呼叫、不必各自重複判斷（init 時決定一次；跨 gate 轉向由全站 orientation-reload 自癒）。
-  if (SCCDHelpers.isMobileLayout()) return () => {};
+  // 觸控的桌面排版（iPad 橫向）同樣不接管：沒 hover 就永遠捲不到 → 各元件 CSS 的 (hover: none) 自動循環接手（user 2026-10-31）
+  if (SCCDHelpers.isMobileLayout() || !SCCDHelpers.canHover()) return () => {};
   /** @type {any} */ (hoverEl)._mqReturnBound = true;
   const returnDur = opts.returnDur ?? 0.45;
   const ease = opts.ease ?? EASE.wipe;

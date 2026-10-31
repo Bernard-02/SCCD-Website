@@ -849,11 +849,14 @@ function handleOrientationChange() {
     if (mainContainer) {
       mainContainer.style.display = 'none';
     }
+    // 提示 icon／文字 clip-reveal 進場（create-app.js；resize 每次進來只播一次，dataset.hintIn 守）
+    if (typeof window.sccdPlayLandscapeHintEnter === 'function') window.sccdPlayLandscapeHintEnter();
 
   } else {
     // 回到直向模式
     if (landscapeOverlay) {
       landscapeOverlay.style.display = 'none';
+      delete landscapeOverlay.dataset.hintIn;   // 下次轉橫向再進場
     }
     if (mainContainer) {
       mainContainer.style.display = '';
@@ -1182,26 +1185,8 @@ function draw() {
   //   wireframeColor 卡在 setup 時的初始值跟 site `--theme-bg` 完全脫節（user 看到 cyan vs purple）
   if (mode === "Wireframe") {
     if (typeof window.sccdGetColorHue === 'function') {
-      // site colorHue 永遠 0-360 wrap；但 color-picker.js drawColorBarIndicator 的循環繪製
-      // （主圓推出右邊 + 左邊同步畫循環圓圈）依賴 selectedHue 在 0-720 區間滑才會 trigger，
-      // 否則手機 bar indicator 從 359.x → 0.x 會直接跳回左邊（user 2026-05-31 反饋「跳著出現」）
-      // 拆 iframe 前 sketch.js 自己 `+= baseSpeeds[0]` 推進在 720 才 -360，這裡 mimic 同效果：
-      // 偵測 site 跨 0 wrap（新值比 prev normalized 小很多）時補 360；到達 720 時再 reset
-      const siteHue = window.sccdGetColorHue();
-      const prevNorm = ((selectedHue % 360) + 360) % 360;
-      const inSecondLap = selectedHue >= 360;
-      const siteWrapped = siteHue + 30 < prevNorm;
-      if (inSecondLap && siteWrapped) {
-        // 完成第二圈（主圓已離開右邊、循環圓圈成為 bar 內新主圓）→ reset 回第一圈
-        selectedHue = siteHue;
-      } else if (siteWrapped) {
-        // 第一圈內 site 從 ~360 wrap 回 ~0：進入第二圈，selectedHue 持續往 720 滑
-        selectedHue = siteHue + 360;
-      } else if (inSecondLap) {
-        selectedHue = siteHue + 360;
-      } else {
-        selectedHue = siteHue;
-      }
+      // 色條直線 indicator 自己畫 ±整條寬的複本做 wrap（color-picker.js），不再需要 selectedHue 跑 0~720 第二圈
+      selectedHue = window.sccdGetColorHue();
     }
 
     // 計算 wireframeColor + stroke 對比色（給 p5 canvas 內 ring 繪製用，純 frame buffer 不碰 DOM）

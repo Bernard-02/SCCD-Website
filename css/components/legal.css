@@ -304,7 +304,7 @@
       animation: legal-reg-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
-  @media (max-width: 767px) {
+  @media (max-width: 767px), (hover: none) {   /* (hover: none)＝iPad 直向 gate／橫向桌面排版（user 2026-10-31） */
     .legal-reg-line.is-overflow .legal-reg-mq-inner {
       animation: legal-reg-marquee var(--marquee-duration, 8s) linear infinite;
     }

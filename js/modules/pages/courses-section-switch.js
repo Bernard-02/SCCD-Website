@@ -305,7 +305,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機、reveal/hide 來回一致）；離頁退場的 navExit 也吃這份
   const navDir = new Map(navTargets.map(el => [el, pickNavDir(el)]));
   const navCol = /** @type {HTMLElement|null} */ (sectionEl ? sectionEl.querySelector('.inner-scroll-nav-col') : null);
-  if (navCol && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate() && typeof ScrollTrigger !== 'undefined') {
+  if (navCol && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone() && typeof ScrollTrigger !== 'undefined') {   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
     // 直向手機：program bar＝底部年級 bar 上方固定列（courses.css 直向段，同 about division tab；user 2026-10-27）。
     // 範圍跟底 bar 同拍（bindMobileBottomBar：hero 底過 100 才現、footer 頂過 75% 線收）＝兩條一起進退；
     // 進退＝逐 chip clip-reveal；範圍外 .is-off 不擋點擊；HTML 出生 .is-div-hidden，同步設好藏起態才拿掉＝首繪不閃。
@@ -342,7 +342,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     // 嚴格 hero gate 只給矮橫向（nav fixed 進 header 帶、hero 屏要藏）。直向手機 nav 在 flow、
     // 緊接 hero 之下 → 走下面 once-reveal（section 進 90% 線就現），不能等 hero 完全捲出才出現
     // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
-    const isLandscapeGate = SCCDHelpers.isLandscapeGate();
+    const isLandscapeGate = SCCDHelpers.isLandscapePhone();
     if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）。
       // courses-nav-revealed：grade cover 的 ::before 上方白補丁跟 nav 同一顆 gate（landscape.css 消費）——

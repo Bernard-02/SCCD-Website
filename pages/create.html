@@ -51,11 +51,12 @@
         })();
     </script>
 
-    <!-- 橫向模式提示覆蓋層 -->
+    <!-- 橫向模式提示覆蓋層。icon／文字各一個遮罩、出生藏著（create.css）＝矮橫向 CSS 首繪就蓋也不先閃出；
+         顯示時 sketch.js handleOrientationChange 叫 sccdPlayLandscapeHintEnter 進場、離頁 playCreateExitAnimation 退場（同 atlas #atlas-rotate-hint） -->
     <div id="landscape-overlay">
-        <img id="landscape-overlay-icon" src="../website-icons/rotate_phone.svg" alt="Rotate Phone">
-        <div id="landscape-overlay-text">旋轉設備以獲取最佳體驗
-ROTATE FOR BEST EXPERIENCE</div>
+        <div class="landscape-overlay-clip"><img id="landscape-overlay-icon" src="../website-icons/rotate_phone.svg" alt="Rotate Phone"></div>
+        <div class="landscape-overlay-clip"><div id="landscape-overlay-text">旋轉設備以獲取最佳體驗
+ROTATE FOR BEST EXPERIENCE</div></div>
     </div>
 
     <!-- 主容器，將使用 Flexbox 或 Grid 來進行整體佈局 -->

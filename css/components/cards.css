@@ -144,7 +144,14 @@
       animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
     }
   }
-  @media (max-width: 767px) {
+  /* faculty 卡職稱／詳情格：桌面由 bindMarqueeReturn（GSAP hover）驅動、無 CSS keyframe → 沒 hover 的桌面排版（iPad 橫向）補自動循環（結構同 dsd；user 2026-10-31） */
+  @media (min-width: 768px) and (hover: none) {
+    .faculty-marquee-line.is-overflow .faculty-marquee-inner {
+      animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
+    }
+  }
+  /* (hover: none)＝沒 hover 的裝置（iPad 直向 gate、iPad 橫向桌面排版）：hover 才捲＝永遠看不到 → 自動捲（user 2026-10-31） */
+  @media (max-width: 767px), (hover: none) {
     .dsd-mq-line.is-overflow .dsd-mq-inner {
       animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite;
     }

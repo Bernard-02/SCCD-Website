@@ -205,10 +205,16 @@ html {
   #history .tl-list-grid,
   #history .tl-list-btn-grid { bottom: 0; }
   /* list 卡（user 2026-10-29）：高同 resources .colored-accordion（＝框高）；寬＝resources 說明文字最大寬，由 horizontal-accordion
-     applyLayout 量好寫 --res-text-w（隨後台項目數變，CSS 算不出）；resources 沒載到＝撐滿 col 4～18 */
+     applyLayout 量好寫 --res-text-w（隨後台項目數變，CSS 算不出）；resources 沒載到＝撐滿 col 4～18。
+     但不低於自己內文的最小行寬（user 2026-10-30 iPad 橫向）：resources 的 10 顆直書標籤固定吃 540px，窄桌面（1024～1440）展開卡
+     只剩 270～470、文字盒 180～350，history 照抄＝內文欄每 3 字折行。清單是文字，寬度下限由內文行寬決定：
+     24em（≈48 英文字元）＋年份欄 2.75rem＋gap md（lists.css .tl-list-year-row）＋卡內距 popup-pad×2＋scrollbar 邊 6（同檔上方）；
+     寬桌面 --res-text-w 本來就大於這條＝不變；上限仍是格 col 4～18 */
   #history .tl-list-cell {
     --tl-cell-h: calc(100svh - 2 * var(--header-logo-mid));
-    width: var(--res-text-w, 100%);
+    --tl-text-min-w: calc(24em + 2.75rem + var(--spacing-md) + 2 * var(--popup-pad) + 6px);
+    width: max(var(--res-text-w, 100%), var(--tl-text-min-w));
+    max-width: 100%;
   }
 }
 

@@ -748,7 +748,7 @@ export async function renderCoursesGrid(program) {
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
   // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27）
   const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
-  if (gradeBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) bindMobileBottomBar(gradeBar);
+  if (gradeBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
 
   // 年級 bar：初始 active 套 accent 樣式 + 點擊切換（delegation，一次性）
   const firstGradeBtn = mobileGrid.querySelector('.courses-mobile-grade-btn');

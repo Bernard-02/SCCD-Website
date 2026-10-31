@@ -665,10 +665,13 @@
    顯隱＝anchor-nav.js 切 .is-bar-hidden（hero 上藏、footer 前收、離頁收）：整條從畫面底緣滑出滑進。
    頂上只剩 header 帶（0–92）→ 各屏內容從 92 起算（scroll-snap.css：落點貼 section 頂＋section 自己 padding-top 92，下方「92 落點」皆指此）；
    下方各一屏預算＝舊值 −88（落點 180→92）＋ bar 高。改 bar 高／落點要整組同步（timeline.js 也有一份）。 */
-@media (max-width: 767px) and (orientation: portrait) {
+/* 底 bar 本體＝直向＋iPad 共用（user 2026-10-30：先改全 gate、再定橫向手機 nav 回 header 帶＝landscape.css 檔尾 max-height:500 段）；
+   下一段的一屏預算只給直向 */
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   :root { --about-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 一行 chip 28 置中＝chip 底邊落在 --mobile-bottom-anchor（10-30；原固定 64＝chip 底 18）；配對值見上 */
-  /* #id 前綴：output.css 的 Tailwind .sticky 也是 unlayered、出在後面，同特異度蓋不掉 */
+  /* #id 前綴：output.css 的 Tailwind .sticky 也是 unlayered、出在後面，同特異度蓋不掉；display:block 蓋 gate 寬 ≥768 吃到的 md:hidden */
   #about-content-wrapper > .mobile-anchor-strip-wrap {
+    display: block;
     position: fixed;
     top: auto;
     bottom: 0;
@@ -689,18 +692,36 @@
     align-items: baseline;
     gap: 0.3em;   /* ≈ 一個空白 */
   }
+  /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16） */
+  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 28px); }
+  /* 矮橫向（寬 ≥768）吃不到上方 <768 段的 fixed／顯隱／nav 捲動規則、又被 md:hidden 藏 → 這裡補一份（直向重複無害；landscape.css 5i+ 藏桌面 #class-buttons-sticky） */
+  #class-works-area .mobile-division-wrap {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+  .mobile-division-wrap.is-div-hidden { visibility: hidden; }
+  .mobile-division-wrap.is-off { pointer-events: none; }
+  #mobile-division-nav {
+    margin-left: calc(-1 * var(--container-padding));
+    margin-right: calc(-1 * var(--container-padding));
+    padding-left: var(--container-padding);
+    padding-right: var(--container-padding);
+    overflow-y: clip;
+    scrollbar-width: none;
+  }
+  #mobile-division-nav::-webkit-scrollbar { display: none; }
+}
 
+/* ===== about 直向手機：各屏一屏預算（底 bar 之外的部分，只給直向；矮橫向走 landscape.css 5i 自己的版面）===== */
+@media (max-width: 767px) and (orientation: portrait) {
   /* 112 = (92 落點 + 24 section pt + 20 row gap + 24 底呼吸 + 64 bar) / 2 */
   #overview [data-overview-text] { max-height: calc(50svh - 112px - 1em); }
   /* 316 = 556 預算（92 落點 + 80 底部 division nav + 24 pt + 240 圖 + 20 + 24 + 12 + 64 bar）扣圖 240 */
   /* 圖高／說明盒高變數：DSD 子展覽換自己的預算（同上方 .class-info-panel 段） */
   .class-info-panel .division-images { height: var(--class-img-h, max(calc((100svh - 316px) / 2), 120px)) !important; }
   .class-info-panel [data-class-text] { height: var(--class-text-h, max(calc((100svh - 316px) / 2 - 1em), 120px)); }
-  /* division tab 往下貼近底部 bar（user 10-27「到 nav btn row 再小一點」：chip 間 ~24→~16）；
-     只吃進 bar 頂的空白（bar chip 上方 ~14），不壓到 bar chip 的點擊區 */
-  /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16） */
-  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 28px); }
-
   /* Works 說明卡：在「playlist 底 → 底部 division nav 頂」剩下的空間垂直置中（user 10-27）。
      room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 87 playlist（88 − 1 疊縫）−（80 division nav − 8 下移）− bar；
      文字欄吃滿 room、拉回 grid row gap（gap 不算進置中空間）；上下至少留 md（文字長時不貼 playlist／division tab），
@@ -732,34 +753,15 @@
 
 /* ===== DSD 直向手機：版面跟桌面同一套（user 2026-10-29）=====
    每屏＝header 帶下 92 起、底讓出左下返回／分享列（--dsd-m-bottom＝24 底距＋44 鈕＋16）；子展覽那屏再讓出 tab 列（--dsd-m-tabs-h）。
-   JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機版（landscape.css 5j）。 */
-@media (max-width: 767px) and (orientation: portrait) {
+   JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機堆疊版（landscape.css 5j），但返回／分享鈕與子展覽 tab 列
+   同本段底 bar 做法（下方 union 段，user 2026-10-30）。 */
+@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   :root {
-    --dsd-m-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm));   /* 返回鈕底（全站貼底界線）＋鈕 44＋sm */
-    --dsd-m-tabs-h: 60px;
-    --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));
-    --dsd-m-half: calc((var(--dsd-m-frame) - var(--dsd-m-tabs-h) - 2 * var(--spacing-md)) / 2);   /* 子展覽屏：圖／說明 box 各半（扣圖文 gap md＋box 到 tab 列 md） */
+    --dsd-m-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm));   /* 返回鈕底（全站貼底界線）＋鈕 44＋sm；tab 列坐在這上面 */
   }
-
-  /* Hero：圖＝其他四頁 .hero-mobile-rand（hero.css；hero-mobile-sync 也替本頁掛）；字卡＝同 PC 集中左下角（user 2026-10-29）：
-     由下往上堆（justify-content:flex-end）＝標題長就把上面的往上頂。框 100vh（iOS＝lvh、同其他頁）、底 pad 多墊 lvh−svh＝字卡落在工具列展開時也看得到的範圍 */
-  [data-hero-title-last] .hero-mobile.hero-mobile-rand {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    min-height: 100vh;
-    padding-bottom: calc(3rem + 100vh - 100svh);
-  }
-  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text {
-    min-height: 0;
-    justify-content: flex-end;
-    gap: var(--spacing-md);   /* 同 PC 字卡 gap-md */
-  }
-  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text > * { margin-top: 0; }
-
   /* 返回／分享：左下 44 黑方塊（同手機 header 鈕 44/28），過 hero 才滑上、footer 前收（bindMobileBottomBar 切 .is-bar-hidden）。
      #page-content 前綴：hero.css 的桌面 .sticky-chip／返回鈕規則是全域的、排在本檔後面（預設 clip-path 藏起＝會整顆裁掉）；
-     位移走 translate（transform 留給 JS 的隨機角） */
+     位移走 translate（transform 留給 JS 的隨機角）。display:block 也蓋 landscape.css 5j 的 md: 翻回清單 */
   #page-content :is(#degree-show-back-btn, #degree-show-share-btn) {
     display: block;
     clip-path: none;
@@ -788,6 +790,30 @@
     color: var(--theme-fg-inverse);
     font-size: 28px;
   }
+}
+
+@media (max-width: 767px) and (orientation: portrait) {
+  :root {
+    --dsd-m-tabs-h: 60px;
+    --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));
+    --dsd-m-half: calc((var(--dsd-m-frame) - var(--dsd-m-tabs-h) - 2 * var(--spacing-md)) / 2);   /* 子展覽屏：圖／說明 box 各半（扣圖文 gap md＋box 到 tab 列 md） */
+  }
+
+  /* Hero：圖＝其他四頁 .hero-mobile-rand（hero.css；hero-mobile-sync 也替本頁掛）；字卡＝同 PC 集中左下角（user 2026-10-29）：
+     由下往上堆（justify-content:flex-end）＝標題長就把上面的往上頂。框 100vh（iOS＝lvh、同其他頁）、底 pad 多墊 lvh−svh＝字卡落在工具列展開時也看得到的範圍 */
+  [data-hero-title-last] .hero-mobile.hero-mobile-rand {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 100vh;
+    padding-bottom: calc(3rem + 100vh - 100svh);
+  }
+  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text {
+    min-height: 0;
+    justify-content: flex-end;
+    gap: var(--spacing-md);   /* 同 PC 字卡 gap-md */
+  }
+  [data-hero-title-last] .hero-mobile-rand .hero-mobile-text > * { margin-top: 0; }
 
   /* 海報＋主影片一屏：有影片＝海報上半、影片下半；只有海報＝海報吃滿整框（等比、置中）。
      #events-kv 是海報滑入的遮罩 → 盒貼圖（place-self 非 stretch），同桌面 */

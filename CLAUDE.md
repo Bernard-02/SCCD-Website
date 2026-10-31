@@ -211,10 +211,14 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(min-width: 1024px) and (min-height: 501px)`**（HTML 用 `min-[1024px]:`；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024）
 6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出）——但 **section 框本身用 `100lvh`＋底 pad 多墊 `100lvh − 100svh`**（iOS Safari 底部工具列半透明、視窗底之外的內容會透出：svh 框下方的 footer 黑／下一屏會露；lvh 框多出的那截是自己的底、工具列收起後剛好一屏可磁吸到頂）。直向手機跨頁共通的版面骨架（一屏框高、首頁第一屏）寫在 **`css/layout/portrait.css`**（跟 landscape.css gate 層對稱、互斥），不要塞進 landscape.css
+7. **版型看寬度、互動看輸入（2026-10-31 定案）**：iPad 橫向（≥1024）走桌面排版但是觸控（WebKit 不論接不接 Magic Keyboard 都回 `hover: none`／`pointer: coarse`，偵測不到也不用處理）。hover 樣式一律包 `@media (hover: hover)`；「hover 才有」的功能（hover 才捲的 marquee）要有 `(hover: none)` 退路＝自動循環；滾輪驅動的互動（footer 覆蓋卡、atlas 縮放）要有 touch 路徑（footer-scatter.js touchmove＝滾輪、atlas.js pan／pinch 掛 `isCoarsePointer()`）。JS 用 `SCCDHelpers.canHover()`／`isCoarsePointer()`（helpers.js），**勿拿 `isMobileLayout()` 兼判觸控**。待補：全站 173 條 hover 規則包 `(hover: hover)`、171 個 mouseenter 監聽加 `canHover()` 守門、12.9 吋 iPad 直式（1024 寬）以 `(orientation: portrait) and (pointer: coarse)` 收進 gate
 
 ### 矮橫向（landscape gate）
 - **Gate**：`@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)`（CSS）／`matchMedia` 同式（JS，逗號清單）——前半＝橫向手機（寬 ≥768 會誤吃桌面 `md:` 樣式，必須用「高度」判，這是本專案最大的斷點陷阱，原理見《docs/橫向手機版最佳實踐.md》）；後半＝iPad 直向／768–1023 的視窗（user 2026-10-01：iPad 沿用橫向手機排版、只是比較高）。兩半必須一起寫：CSS 照抄整串，JS 用 `SCCDHelpers` 版型判斷（見上，勿再抄字串）。例外：/create 有自己的斷點（create.css／generate-app/js/utils.js），不吃後半
 - **原則**：「一切以手機版為主」——字級/spacing 變數、header、footer、menu 全套手機值；規則集中在 `css/layout/landscape.css`（分頁編號 5a~5j 區塊）；JS 端用 `SCCDHelpers.isMobileLayout()`（已併入 gate）
+- **gate 內再分兩種（2026-10-30 定案）**：**橫向手機（高 ≤500）**＝nav／tab 進 header 帶（logo 右～mode/menu 鈕左、垂直置中 92 帶，hero 上藏、footer 前收＝`bindLandscapeNavGate`）、內容左右排（about Programs 左欄 chip、curriculum 桌面 grid＋sticky 年級 cover）——規則在 landscape.css 檔尾 `@media (max-height: 500px)` 巢狀段（10-30 上午砍掉的 header 帶規則原樣放回），JS 判斷 `SCCDHelpers.isLandscapePhone()`；**iPad（768–1023、高 >500）**＝直向同款畫面底 bar：直向底 bar 那套 CSS（lists.css `.nav-bottom-bar`、courses.css program 列＋手機 grid、variables.css about strip／division 列、navigation.css 去 header 白帶）的 media 是「直向＋iPad」union `(max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px)`，JS 寫 `isMobileLayout() && !isLandscapePhone()`；gate 貼底界線 `--mobile-bottom-anchor` 24（landscape.css gate :root）。DSD 返回／分享鈕兩種都在左下（variables.css DSD union 段）。⚠️ gate 寬 ≥768 會吃 HTML `md:` utility（md:flex-col／md:hidden）→ union 段用 `#id` 前綴把列向、顯示寫死
+- **hero（2026-10-30）**：整個 gate（含 <768 窄橫向）走桌面隨機版 `.hero-rand-grid`（hero-animation 的 `innerWidth<768` 判斷改「直向才走 .hero-mobile」）、矮高說明段落 xs；DSD hero 沒有隨機版、維持 5j-hero 手機 stack；about 系名 hero 窄橫向（<768）也照桌面左右兩塊＋桌面字級（同段 `main .about-hero-*`）
+- **footer（2026-10-30）**：去反色 logo、兩欄（tabs＋群組卡｜legal＋copyright）；library 矮橫向整套走 library.css 手機段（5h 只剩卡頂）；**但橫向手機（高 ≤500）例外**（user 2026-10-30「header 位置用作 nav btn 區」「參考桌面左右」）：tab 鈕釘回 header 帶（logo 與 mode／menu 鈕之間同中線）、卡內左右兩欄（年份左直排／list 右）——library.css 檔尾 `(orientation: landscape) and (max-height: 500px)` 段；iPad 維持底 bar＋直向一疊
 - **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）；iPad 直↔橫（跨 1024）同樣走這條
 - ⚠️ landscape.css 是 unlayered：同特異度的純 class 蓋不掉 output.css 的 `md:` utility（source order 輸）→ 要用 `#id` 或多層 selector 提特異度；`!important` 也輸給 @layer 內的 `!important`
 - ⚠️ 動態載入的頁面 CSS（library/atlas/create/alumni）link 在 output.css 之後 = cascade 贏 landscape.css，改 <768 規則要 portrait 限定
@@ -372,7 +376,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 ### 測試 checklist
 - **桌面**：所有頁樣式一致 / nav 高亮 / mega menu / hover / GSAP 動畫流暢 / 資源載入
 - **手機**：響應式（375/414/768）/ 無 hover 殘留 / 觸控流暢 / 漢堡選單 / 字體 ≥14px / 點擊區 ≥44×44
-- **矮橫向**（844×390、667×375）：nav 進 header 帶 / hero 前藏 nav / 不吃桌面 md: 樣式 / 轉向 reload 自癒
+- **矮橫向**（844×390、667×375）：nav／tab 進 header 帶（hero 上藏、footer 前收）、內容左右排 / hero 隨機版不被切 / 不吃桌面 md: 樣式 / 轉向 reload 自癒；**iPad**（768×1024）：nav／tab 底 bar（chip 底 24、tab 列可見距 16）；**iPad 橫向**（1180×820，觸控）：桌面排版、hover 才捲的 marquee 自動捲、footer 卡手指推得開、atlas 可 pan／pinch
 - **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行（gate 判準跟 CSS 同式）
 - **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
 - **資料層**：Directus 斷線時降級正常（A 類走 sessionStorage LKG／其餘＝空清單、不報錯不卡頁）/ 後台改內容前台硬重整生效

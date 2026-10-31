@@ -48,6 +48,19 @@ window.sccdStopColorLoop = stopSiteColorLoop;      // Pause btn
 window.sccdIsColorLoopRunning = isColorLoopRunning; // Play/Pause icon 切換判斷
 window.sccdClipRevealIconSwap = clipRevealIconSwap; // mode 鈕換 icon 的 clip-reveal（generate-app utils.js swapModeIcon）
 window.sccdPlayControlBarEntrance = (onDone) => playControlBarEntrance(onDone); // sketch.js setup 末尾
+// 矮橫向轉向提示（#landscape-overlay）：icon／文字塊各自 clip-reveal 進場（同 atlas playHintEnter）。
+// sketch.js handleOrientationChange 顯示 overlay 時叫；它掛在 resize 上每次都會再叫 → dataset 記「已進場」只播一次、轉回直向時清掉
+const landscapeHintParts = () => Array.from(document.querySelectorAll('#landscape-overlay .landscape-overlay-clip > *'));
+window.sccdPlayLandscapeHintEnter = () => {
+  const overlay = document.getElementById('landscape-overlay');
+  if (!overlay || overlay.dataset.hintIn) return;
+  overlay.dataset.hintIn = '1';
+  const parts = landscapeHintParts();
+  if (typeof gsap === 'undefined' || prefersReducedMotion()) { parts.forEach(el => { el.style.transform = 'none'; }); return; }
+  const dirs = alternatingYPercent(parts.length);
+  // y:0 蓋掉 GSAP 從 CSS 出生藏態解析到的 px 位移（同 atlas）
+  gsap.fromTo(parts, { yPercent: i => dirs[i], y: 0 }, { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, stagger: 0.05, overwrite: true });
+};
 
 // ── 桌面 control bar 進退場共用 ──
 const desktopControlBoxes = () => Array.from(document.querySelectorAll('.control-panel > .control-box'))
@@ -420,6 +433,14 @@ function playCreateExitAnimation(destinationRoute) {
         },
         0.2
       );
+    }
+
+    // 1c. 矮橫向轉向提示（overlay 顯示中才有；fixed 元素判顯示用 getClientRects）：icon／文字塊跟 control bar 同拍退場
+    const hintOverlay = document.getElementById('landscape-overlay');
+    if (hintOverlay && hintOverlay.getClientRects().length > 0) {
+      const parts = landscapeHintParts();
+      const dirs = alternatingYPercent(parts.length);
+      tl.to(parts, { yPercent: i => dirs[i], duration: DUR.medium, ease: EASE.exit, stagger: 0.05, overwrite: 'auto' }, 0);
     }
 
     // Same-page reentry：content 退場跑完就結束，不動任何 header 相關元素

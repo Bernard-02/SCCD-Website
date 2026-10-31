@@ -1130,6 +1130,42 @@ function bindFooterOverlay() {
     if (_footerOpen && y < _lastScrollY - 1) closeFooter();
     _lastScrollY = y;
   }, { passive: true });
+  // 觸控的桌面排版（iPad 橫向，user 2026-10-31）：手指＝滾輪。往上推 dy px＝卡升 dy px、往下拉＝收卡，頁底才開（條件同上滾輪）。
+  // 開卡中與收卡那一手勢的 touchmove 一律 preventDefault＝不捲後面的頁（同 onCardWheel 吞到停手）；touchend 清旗標。
+  // 停手停原地、沉回起點關卡＝跟滑鼠同一套（scrubBy）；手指 delta 小 → scrubTo 直接設、跟手。
+  let _tY = null, _tSwallow = false;
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { _tY = null; return; }
+    _tY = e.touches[0].clientY;
+    _tSwallow = false;
+  }, { passive: true, capture: true });
+  window.addEventListener('touchmove', (e) => {
+    if (_tY === null || e.touches.length !== 1) return;
+    const y = e.touches[0].clientY;
+    const dy = _tY - y;   // 手指往上＝正（同滾輪 deltaY）
+    _tY = y;
+    if (_footerOpen || _tSwallow) {
+      if (e.cancelable) e.preventDefault();
+      if (!_footerOpen) return;   // 收卡後同一手勢：只吞
+      if (dy < 0) _tSwallow = true;
+      const shell = getOverlayFooter();
+      if (shell) scrubBy(shell, dy);
+      return;
+    }
+    if (!SCCDHelpers.isDesktopLayout() || dy <= 0 || document.body.classList.contains('lightbox-open')) return;
+    const intro = document.getElementById('intro-overlay');
+    if (intro && intro.style.display !== 'none') return;
+    if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 2) return;
+    if (hasScrollableAncestor(e.target, 'y', 1)) return;
+    const shell = getOverlayFooter();
+    if (!shell || typeof gsap === 'undefined') return;
+    if (e.cancelable) e.preventDefault();
+    beginOpen(shell);
+    scrubBy(shell, dy);
+  }, { passive: false, capture: true });
+  const endTouch = () => { _tY = null; _tSwallow = false; };
+  window.addEventListener('touchend', endTouch, { passive: true, capture: true });
+  window.addEventListener('touchcancel', endTouch, { passive: true, capture: true });
   // 點卡上空白處不關（user 2026-10-20）：只有卡外（backdrop）才關；header logo 交給 router（換頁的 playFooterExit 收卡）
   // 鍵盤 Tab 進到藏著的卡＝打開（不然焦點落在畫面外）
   document.addEventListener('focusin', (e) => {

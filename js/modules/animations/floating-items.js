@@ -511,9 +511,11 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
     if (pos.side === 'T') y = Math.min(y, -hy - realH / 2);
     if (pos.side === 'B') y = Math.max(y, ch + hy - realH / 2);
   } else if (SCCDHelpers.isMobileLayout()) {
-    // 初始批：手機整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）
+    // 初始批：手機整張夾進視窗（邊緣半出血會讓小螢幕分佈看起來缺角；桌面不動）。
+    // 矮橫向 header 帶（0–92：logo／mode／menu 鈕）不放卡（user 2026-10-29 稽核「首頁浮卡撞 header」）
+    const topMin = SCCDHelpers.isLandscapeGate() ? 100 : 8;
     x = Math.min(Math.max(x, 8), Math.max(8, cw - realW - 8));
-    y = Math.min(Math.max(y, 8), Math.max(8, ch - realH - 8));
+    y = Math.min(Math.max(y, topMin), Math.max(topMin, ch - realH - 8));
   }
 
   const rotation = randomRotation();

@@ -174,9 +174,9 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 第一個內容區進視窗時 once、離頁且已 reveal 才反向；transition:'none' 解 navigation.css .anchor-nav-inner 的
   // `transition: all`（含 clip/translate）對 GSAP 每幀寫的接管卡頓，跑完還原。只取桌面 #anchor-nav（mobile 選單另一容器、不套）。
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
-  const isLandscapeGate = SCCDHelpers.isLandscapeGate();
+  const isLandscapeGate = SCCDHelpers.isLandscapePhone();   // 橫向手機 nav 進 header 帶；iPad 走底 bar（10-30）
   // about 直向手機：strip＝畫面底部 bar（variables.css 檔尾 about 直向段，user 2026-10-27）
-  const mobileBar = reveal && window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches
+  const mobileBar = reveal && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()   // 直向＋iPad 底 bar
     ? document.querySelector('.mobile-anchor-strip-wrap') : null;
   if (reveal && typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout()) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));
@@ -218,7 +218,7 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 手機轉 flex-row——桌面退場 branch gate ≥768，手機兩者都吃不到 → 這裡統一補。
   // 語彙同 faculty/桌面 nav（navChipHidden 滑出、from:'end'）；退場當下逐顆過濾「可見且在視窗內」，
   // 不可見（display:none 的另一版 nav／捲離視窗）直接跳過不白等 0.4s。
-  if (typeof gsap !== 'undefined' && window.innerWidth < 768 && !isLandscapeGate) {
+  if (typeof gsap !== 'undefined' && SCCDHelpers.isMobileLayout() && !isLandscapeGate) {
     // about 底部 bar 整條滑出（見下方 mobileBar 段），chip 不另外逐顆收
     const mobInners = Array.from(document.querySelectorAll('#mobile-anchor-strip .anchor-nav-inner, #anchor-nav .anchor-nav-inner'))
       .filter(el => !mobileBar?.contains(el));

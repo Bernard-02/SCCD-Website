@@ -133,7 +133,7 @@ function scrollSectionIntoView(el, behavior = 'smooth', onDone) {
 function setupSectionNavReveal() {
   // 直向手機：nav＝畫面底 bar（lists.css .nav-bottom-bar），整條滑進滑出、chip 不另逐顆進退場（同 faculty；user 2026-10-28）
   const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#admission-content-section .nav-bottom-bar'));
-  if (bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) { bindMobileBottomBar(bottomBar); return; }
+  if (bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) { bindMobileBottomBar(bottomBar); return; }   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
   if (typeof gsap === 'undefined') return;
   const inners = Array.from(document.querySelectorAll('.activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
@@ -143,7 +143,7 @@ function setupSectionNavReveal() {
   inners.forEach(inner => { /** @type {HTMLElement} */ (inner).style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });
 
   const section = document.getElementById('admission-content-section');
-  const isLandscapeGate = SCCDHelpers.isLandscapeGate();
+  const isLandscapeGate = SCCDHelpers.isLandscapePhone();
   if (isLandscapeGate && 'IntersectionObserver' in window && section) {
     // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）
     bindLandscapeNavGate(section, /** @type {HTMLElement[]} */ (inners), navDir, { onChange: (v) => { navRevealed = v; } });

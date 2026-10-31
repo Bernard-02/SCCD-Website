@@ -29,8 +29,12 @@ const SLOT_LEFTS = ['0%', '24%', '48%'];
 const ANIM_DUR   = 0.5;
 const INTERVAL   = 3000;
 const HOVER_DUR  = 0.3;
-const PEEK_RATIO = 0.5;  // 手機疊放：每張從上一張底下露出自己寬的比例（調疊多疊少改這個）
-const PEEK_LANDSCAPE = 0.75;  // 橫圖露更多＝往兩側推開（user 2026-10-29「橫圖之間太靠近」；about／DSD 共用）
+// 手機疊放：每張從上一張底下露出自己寬的比例（調疊多疊少改這個）。原直 0.5／橫 0.75，user 2026-10-29「橫圖太靠近」→
+// 2026-10-30「直圖也太靠近、再放寬」＝兩種都 0.75；about／DSD 共用
+const PEEK_RATIO = 0.75;
+// 手機容器高 cap 綁住時直／橫圖會被壓成等高＝排起來單調（user 2026-10-30）→ 橫圖高上限只給直圖的 8 成，
+// 直圖照樣比橫圖高（同桌面寬 cap 下直 336×448／橫 520×390 的比例感）；about／DSD 共用，桌面不吃
+const LANDSCAPE_H_RATIO = 0.8;
 
 // clip-path 常數只剩「textHlReveal=false 的 text 卡」在用（外部場景）；圖片滑動藏定位共用下方
 // revealHidden（scroll-animate.js，±110 過衝防 dpr hairline），離場固定 'left'＝跟整列左移同向。
@@ -79,12 +83,13 @@ function buildImg(src, fixedWidth, onSized) {
     // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
-    const capByBox = window.innerWidth < 768 || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
+    const phone = window.innerWidth < 768;
+    const capByBox = phone || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
-      // --class-img-fill（CSS，預設 1）：只用容器高的幾成＝圖上下留白（DSD 直向 0.8：直圖別貼 header 帶／說明 box，user 2026-10-29）
+      // --class-img-fill（CSS，預設 1）：只用容器高的幾成＝圖上下留白（DSD 直向 0.9：直圖別貼上方 92 線／說明 box，user 2026-10-29→30）
       const fill = box ? parseFloat(getComputedStyle(box).getPropertyValue('--class-img-fill')) || 1 : 1;
-      const availH = box ? box.clientHeight * fill : 0;
+      const availH = box ? box.clientHeight * fill * (phone && isLandscape ? LANDSCAPE_H_RATIO : 1) : 0;
       // 含 ±4° 隨機旋轉的 bbox 高：W·sinθ + (W/ratio)·cosθ ≤ availH → 解 W（純用圖比例會差 ~9px 旋角外溢）
       if (availH > 0) {
         const SIN4 = Math.sin(4 * Math.PI / 180), COS4 = Math.cos(4 * Math.PI / 180);
@@ -191,11 +196,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // 讀 offsetWidth 不讀 style.width：手機 CSS max-width 170/250 會再壓 JS 定的寬
   function stripLefts(list) {
     const w = list.map(el => el.offsetWidth);
-    const peek = list.map(el => el.classList.contains('class-img--landscape') ? PEEK_LANDSCAPE : PEEK_RATIO);
     const xs = [];
     xs[center] = container.clientWidth / 2;
-    for (let i = center + 1; i < list.length; i++) xs[i] = xs[i - 1] + w[i - 1] / 2 + (peek[i] - 0.5) * w[i];
-    for (let i = center - 1; i >= 0; i--) xs[i] = xs[i + 1] - w[i + 1] / 2 - (peek[i] - 0.5) * w[i];
+    for (let i = center + 1; i < list.length; i++) xs[i] = xs[i - 1] + w[i - 1] / 2 + (PEEK_RATIO - 0.5) * w[i];
+    for (let i = center - 1; i >= 0; i--) xs[i] = xs[i + 1] - w[i + 1] / 2 - (PEEK_RATIO - 0.5) * w[i];
     return xs.map(x => `${x.toFixed(1)}px`);
   }
   const layoutLefts = peekNav ? stripLefts : adaptive ? adaptiveLefts : null;

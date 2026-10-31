@@ -17,8 +17,8 @@ export function initIntroAnimation() {
 
   if (!overlay || !container) return Promise.resolve();
 
-  // 減少動態：跳過 Lottie loader + fade 過場，直接顯示內容與 header（header 進場時 opacity:0，要補回 1）。
-  if (prefersReducedMotion()) {
+  // 減少動態（或 lottie CDN 沒載到）：跳過 Lottie loader + fade 過場，直接顯示內容與 header（header 進場時 opacity:0，要補回 1）。
+  if (prefersReducedMotion() || typeof lottie === 'undefined') {
     overlay.style.display = 'none';
     document.body.style.overflow = '';
     const showHeader = () => playHeaderEntrance();   // reduced-motion＝header.js 沒預藏 → 只開 opacity／互動
@@ -42,35 +42,27 @@ export function initIntroAnimation() {
     path: 'data/SCCDLoader.json'
   });
 
-  // 等待 header 載入完成後再執行過渡（header 是非同步 fetch 注入的）
-  function runTransition() {
+  // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑；
+  // header 是非同步 fetch 注入的：還沒到就等 header:ready 再播，不擋白幕淡出。
+  // ⚠️ 白幕淡出不能等 header：Lottie 的 complete 只發一次，監聽晚於 header:ready 掛上＝header 比 loader（3.7s）慢到
+  //    或載入失敗時事件已過、白幕永遠停在最後一格（user 2026-10-31「intro 跑完卡在畫面上」）
+  const enterHeader = () => {
     const header = document.querySelector('header');
-
-    anim.addEventListener('complete', () => {
-      introDone();
-      // overlay fade out，header 同步 fade in
-      const tl = gsap.timeline({
-        onComplete: () => { overlay.style.display = 'none'; header?.style.removeProperty('z-index'); }
-      });
-
-      tl.to(overlay, { opacity: 0, duration: DUR.medium, ease: EASE.enterSoft });
-
-      // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑。
-      // 淡出期間 header 暫提到 overlay(10000) 之上：不然滑入隔著半透明白幕＝看起來是淡入（user 2026-10-27「去掉 fade」）；
-      // navigation.css header 是 9999 !important → inline 也要 important
-      tl.call(() => {
-        header?.style.setProperty('z-index', '10001', 'important');
-        document.body.style.overflow = '';
-        playHeaderEntrance();
-      }, null, '<');
+    if (!header) { document.addEventListener('header:ready', enterHeader, { once: true }); return; }
+    // 淡出期間 header 暫提到 overlay(10000) 之上：不然滑入隔著半透明白幕＝看起來是淡入（user 2026-10-27「去掉 fade」）；
+    // navigation.css header 是 9999 !important → inline 也要 important。白幕已收就不用提
+    if (overlay.style.display !== 'none') header.style.setProperty('z-index', '10001', 'important');
+    playHeaderEntrance();
+  };
+  const finish = () => {
+    introDone();
+    const tl = gsap.timeline({
+      onComplete: () => { overlay.style.display = 'none'; document.querySelector('header')?.style.removeProperty('z-index'); }
     });
-  }
-
-  // 若 header 已在 DOM，直接執行；否則等待 header:ready 事件
-  if (document.querySelector('header')) {
-    runTransition();
-  } else {
-    document.addEventListener('header:ready', runTransition, { once: true });
-  }
+    tl.to(overlay, { opacity: 0, duration: DUR.medium, ease: EASE.enterSoft });
+    tl.call(() => { document.body.style.overflow = ''; enterHeader(); }, null, '<');
+  };
+  anim.addEventListener('complete', finish);
+  anim.addEventListener('data_failed', finish);   // loader JSON 載不到＝直接收白幕，不卡站
   return done;
 }

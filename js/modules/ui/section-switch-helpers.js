@@ -479,7 +479,7 @@ export function bindLandscapeNavGate(section, targets, navDir, { revealedClass, 
 // 走 GSAP 補間不走原生 smooth：第一次切到的清單建完會 ScrollTrigger.refresh()，會砍斷原生 smooth（停在原地、等那次 instant 才跳）
 /** @param {HTMLElement|null} section */
 export function scrollToSectionTopNow(section) {
-  if (!section || !SCCDHelpers.isMobileLayout() || SCCDHelpers.isLandscapeGate()) return;
+  if (!section || !SCCDHelpers.isMobileLayout() || SCCDHelpers.isLandscapePhone()) return;
   const top = section.getBoundingClientRect().top + window.scrollY;
   const dist = Math.abs(window.scrollY - top);
   if (dist <= 1) return;

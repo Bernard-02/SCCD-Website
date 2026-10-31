@@ -2950,7 +2950,10 @@ export async function initAtlas(options = {}) {
   // 增量制（每 move 以上一幀 mid/dist 為基準）比 start 制簡單且 pinch↔pan 轉換無縫。
   // dot 模式 touchstart preventDefault＝擋掉瀏覽器 emulated mouseover（否則指下不可見的文字 box
   // 會觸發 hover detail 面板）；text 模式不擋 → tap chip 走原生 emulated hover = 桌面 detail 行為。
-  if (isMobileAtlas) {
+  // 觸控的桌面排版（iPad 橫向 ≥1024，user 2026-10-31）也掛：只 pan／pinch，tap 不接管（touchstart 不 preventDefault →
+  // 瀏覽器 emulated mouseover／mouseout 走桌面 hover detail 同路，點空白自然收）
+  const touchGestures = isMobileAtlas || SCCDHelpers.isCoarsePointer();
+  if (touchGestures) {
     let touchMode = null;   // 'pan' | 'pinch' | null
     let lastX = 0, lastY = 0, lastDist = 0;
     let tapCandidate = false, tapStartX = 0, tapStartY = 0, tapStartT = 0;
@@ -3118,7 +3121,7 @@ export async function initAtlas(options = {}) {
         const m = touchMid(e.touches);
         lastX = m.x; lastY = m.y;
       }
-      if (!textZoomOn) e.preventDefault();
+      if (!textZoomOn && isMobileAtlas) e.preventDefault();
     }
 
     /** @param {TouchEvent} e */
@@ -3150,7 +3153,7 @@ export async function initAtlas(options = {}) {
     /** @param {TouchEvent} e */
     function onTouchEnd(e) {
       if (e.touches.length === 0) {
-        if (tapCandidate && performance.now() - tapStartT < 350) handleTap(tapStartX, tapStartY);
+        if (tapCandidate && isMobileAtlas && performance.now() - tapStartT < 350) handleTap(tapStartX, tapStartY);   // 桌面排版 tap 走 emulated hover
         touchMode = null; tapCandidate = false;
       } else if (e.touches.length === 1) {
         // pinch 收一指 → 無縫轉 pan

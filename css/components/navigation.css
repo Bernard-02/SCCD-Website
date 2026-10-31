@@ -65,9 +65,10 @@
      z-40：< header(9999) → logo/鈕浮在上；> 內容；< slide-in(150)/lightbox/overlay → 不蓋 modal。
      捲到 footer 由 header.js bindFooterScroll 收起（footerTop<=92 才收），避免撞 footer 補色。
      ⚠️ transition 只 transform：mode3 每幀改 --theme-bg，含 background transition 會 lag；mode 切換 fade 靠 typography.css whitelist。
-     app 頁（generate/atlas/library＝body.overflow-hidden）不要頂部遮罩 → display:none。矮橫向不套（orientation:portrait gate）。 */
-  /* 768–1023 也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾 768–1023 段） */
-  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) {
+     app 頁（generate/atlas/library＝body.overflow-hidden）不要頂部遮罩 → display:none。 */
+  /* 768–1023 也用手機 header 排 → 底色帶一起套（第二段 query；display 覆蓋見檔尾 768–1023 段）；
+     橫向手機 <768（667×375）第三段：nav 進 header 帶後（landscape.css 檔尾）about／alumni 沒別的遮罩（about 原靠 strip ::before、strip 已藏；user 2026-10-30） */
+  @media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .mobile-header-bg {
       position: fixed;
       top: 0;
@@ -260,7 +261,7 @@ body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
 }
 /* about／faculty／curriculum／activities／admission 直向手機也不要（user 2026-10-27／28）：nav 移到畫面底 bar 後頂上不用遮罩（about：variables.css 檔尾；faculty：lists.css .nav-bottom-bar；curriculum：courses.css 直向段）；
    畢業展詳情頁同（user 2026-10-29；每屏內容從 92 起、tab／返回列在底，variables.css 檔尾 DSD 直向段） */
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   body:has(#about-content-wrapper, #faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section, #dsd-desc-section) #site-header .mobile-header-bg {
     display: none;
   }

@@ -57,9 +57,21 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   const _mqPortrait = window.matchMedia('(max-width: 767px)');
   const _mqGate = window.matchMedia(Helpers.LANDSCAPE_GATE);
   Helpers.isLandscapeGate = function() { return _mqGate.matches; };
+  // 橫向手機（高 ≤500）＝gate 前半：nav／tab 回 header 帶、內容左右排（user 2026-10-30「底 bar 一屏頁空間不夠」）；
+  // iPad（768–1023、高 >500）＝gate 後半：維持直向同款底 bar。CSS 對應 landscape.css 檔尾 @media (max-height: 500px) 巢狀段
+  Helpers.LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 500px)';
+  const _mqPhoneLand = window.matchMedia(Helpers.LANDSCAPE_PHONE);
+  Helpers.isLandscapePhone = function() { return _mqPhoneLand.matches; };
   // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（≥1024 且高 >500）
   Helpers.isMobileLayout = function() { return _mqPortrait.matches || _mqGate.matches; };
   Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
+  // 輸入判斷，跟版型分開（user 2026-10-31 定案：iPad 橫向 ≥1024 走桌面排版，但 hover／滾輪類互動要看輸入方式）。
+  // iPad 不論接不接 Magic Keyboard 都回報 hover:none／pointer:coarse（WebKit 至今如此）→ 一律當觸控；
+  // 觸控筆電主輸入仍是滑鼠＝桌面。勿拿 isMobileLayout() 兼判「是不是觸控」。
+  const _mqHover = window.matchMedia('(hover: hover)');
+  const _mqCoarse = window.matchMedia('(pointer: coarse)');
+  Helpers.canHover = function() { return _mqHover.matches; };
+  Helpers.isCoarsePointer = function() { return _mqCoarse.matches; };
 
   Helpers.scrollToElement = function(target, offset, behavior) {
     offset = offset || 0;
