@@ -53,6 +53,14 @@ body.overflow-hidden #custom-scrollbar-thumb {
   display: none !important;
 }
 
+/* 觸控裝置（iPad 橫向桌面排版）：iOS 不畫 ::-webkit-scrollbar、自己疊一條細的半透明 overlay 捲軸（捲才現），內捲框的樣式化
+   原生捲軸（about history／resources）對它無效 → scrollbar-width 全關（Safari 18.2+ 認），同手機無捲軸；window 自製 thumb 照常（user 2026-10-31） */
+@media (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+  }
+}
+
 /* 手機版不顯示 thumb（原生行為就是隱藏） */
 @media (max-width: 767px) {
   #custom-scrollbar-thumb {

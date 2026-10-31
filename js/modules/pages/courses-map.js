@@ -778,8 +778,14 @@ export async function renderCoursesGrid(program) {
 
   bindCardClick(panel);
   bindCardHover(panel);
-  // 偵測 marquee：render 後 panel 已 visible 才能量到正確 offsetWidth
-  runMarqueeOverflow(panel);
+  // 偵測 marquee：render 後 panel 已 visible 才能量到正確 offsetWidth。panel 還沒寬（display:none／切換中）就 render 的
+  // 那套永遠沒 marquee（iPad 實測「有時切班級標題不捲」，user 2026-10-31）→ 等它真的有寬再量一次
+  if (panel.offsetWidth > 0) runMarqueeOverflow(panel);
+  else {
+    const ro = new ResizeObserver(() => { if (panel.offsetWidth > 0) { ro.disconnect(); runMarqueeOverflow(panel); } });
+    ro.observe(panel);
+    registerPageCleanup(() => ro.disconnect());
+  }
 
   // 轉向重量（user 2026-07-04 轉向自癒）：桌面/手機兩套 grid 並存、只有 render 當下「可見」那套被量過
   // （隱藏套 row offsetWidth=0 → applyMarqueeOverflow bail）。轉向後換另一套顯示 → 沒 marquee 或帶舊 dual-copy

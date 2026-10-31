@@ -37,7 +37,7 @@
          讓出 header 帶用 margin-top 不用 top（2026-10-01）：top 只是視覺位移、main 底會短一個 header 高 → 左下當前頁卡
          （軌道量 main 底，header.js layoutPageIndicatorTrack）跟著高 96。margin 會 collapse 到 body、header 帶露 html 底色，
          切 mode 時兩者同步靠 View Transition 整頁一起淡變（theme-toggle.js）。 -->
-    <section class="relative overflow-visible" style="height: calc(100vh - var(--header-height)); margin-top: var(--header-height);">
+    <section class="relative overflow-visible" style="height: calc(100svh - var(--header-height)); margin-top: var(--header-height);">
       <!-- Mobile-only tab bar（桌面 display:none，由 CSS 控；JS 在 < 768 不跑 card stack 改用此 tab bar）
            沿用 .activities-section-bar / .activities-section-btn + anchor-nav-inner 結構，
            繼承 buttons.css 樣式（pill + active 隨機色/旋轉 + 手機 horizontal scroll） -->

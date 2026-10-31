@@ -297,6 +297,10 @@ html.mode-switching.mode-switching #canvas-container {
   outline: 2px solid var(--theme-fg);
   outline-offset: 2px;
 }
+/* 觸控／筆 tap 之後（helpers.js 掛 html.input-touch、keydown 拿掉）不畫外框：iPad 上 tap 也會命中 :focus-visible（user 2026-10-31） */
+html.input-touch :focus-visible {
+  outline: none;
+}
 
 /* router 換頁後把焦點移到 #page-content(tabindex=-1) 報讀新頁；它非互動元素、使用者無法 Tab 到，
  * 抑制其 outline 避免鍵盤換頁時整塊內容被大框框住（焦點移轉與 aria-live 報讀照常）。 */

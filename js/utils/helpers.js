@@ -72,6 +72,10 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   const _mqCoarse = window.matchMedia('(pointer: coarse)');
   Helpers.canHover = function() { return _mqHover.matches; };
   Helpers.isCoarsePointer = function() { return _mqCoarse.matches; };
+  // 觸控／筆 tap 後 WebKit 仍讓 :focus-visible 命中（iPad 實測每顆 btn 點了都有外框，user 2026-10-31）→ html.input-touch 關外框；
+  // 鍵盤一按就拿掉＝iPad 接鍵盤的人照常看得到焦點。typography.css 配對規則。
+  document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') document.documentElement.classList.add('input-touch'); }, { capture: true, passive: true });
+  document.addEventListener('keydown', () => document.documentElement.classList.remove('input-touch'), { capture: true, passive: true });
 
   Helpers.scrollToElement = function(target, offset, behavior) {
     offset = offset || 0;

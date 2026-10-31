@@ -116,7 +116,7 @@
   padding: 0;
   overflow: hidden;
   transition: background-color var(--dur-base) ease, color var(--dur-base) ease;
-  /* 填滿父層 <main>（create.html：100vh − header） */
+  /* 填滿父層 <main>（create.html：100dvh − header；dvh＝iPad Safari 工具列展開時的實際可視高，100vh 是收起的大視口） */
   width: 100%;
   height: 100%;
 }

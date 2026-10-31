@@ -41,13 +41,22 @@ html {
   }
 }
 
+/* 觸控（iPad 橫向桌面排版）關原生磁吸：mandatory 配比視窗高的 section，手指滑動會被拉過中段（iPad 實測 Programs 看不到、
+   nav btn 落點錯、換頁跳過 hero；user 2026-10-31）。手機本就無 CSS 磁吸（<768 不進上面 gate、gate 內 landscape.css 5c 關） */
+@media (pointer: coarse) {
+  html.snap-mandatory,
+  html.snap-proximity {
+    scroll-snap-type: none;
+  }
+}
+
 /* ===== about 100vh sections =====
    高視窗（≥900 高）：overview / class / works / resources 各 100vh、snap 頂對齊；矮視窗退回自然高度＋marker −100 落點。
    基準 scroll-margin 不分寬度（手機 deep-link 落點不變）；overview＝#anchor-nav sticky top（--nav-line） */
 #overview { scroll-margin-top: var(--nav-line); }
 #class, #class-info-anchor, #works { scroll-margin-top: 100px; }
-#class-info-area { min-height: 100vh; }
-#resources { min-height: 100vh; }
+#class-info-area { min-height: 100svh; }
+#resources { min-height: 100svh; }
 /* Programs 結構圖自成一屏（#class snap 落點）→ 下方 division 內容不擠進 tree 視窗 */
 #program-structure { min-height: 100svh; }
 /* 手機：anchor strip 全程 sticky（釘 88、高 91 → 底 179），落點要讓出 strip，180 = strip 底 +1。
@@ -99,7 +108,7 @@ html {
 
   /* overview：一屏、理念文字頂端對齊左側 #anchor-nav sticky 位置（--nav-line） */
   #overview {
-    height: 100vh;
+    height: 100svh;
     padding-top: var(--nav-line);
     padding-bottom: 0;
     display: flex;
@@ -111,13 +120,13 @@ html {
      btn 列 198 = pt-3xl + pills 內容 + pb-md 實測值，固定才加總不飄 */
   #class-buttons-sticky { height: 198px; }
   #class-info-area {
-    height: calc(100vh - 198px);
+    height: calc(100svh - 198px);
     min-height: 0;
     /* 落點少了 100px 緩衝 → 補進 padding，免被 sticky btn（底 298px）壓到 */
     padding-top: calc(var(--spacing-2xl, 64px) + 100px);
   }
   #works {
-    height: 100vh;
+    height: 100svh;
     padding-top: 100px; /* 同上：補回 100px 框景 */
   }
   #class-works-area { padding-bottom: 0; }
@@ -126,7 +135,7 @@ html {
   #class .section-title-strip,
   #works .section-title-strip { top: calc(15vh + 100px) !important; }
 
-  #resources { height: 100vh; }
+  #resources { height: 100svh; }
 
   /* Vision/Programs/Works 文字盒：一屏 section 下長文內捲（about.html 內層加 .list-scroll 顯細 scrollbar）。
      max-height＝扣各 section 內容起點 offset＋底部呼吸。只在 ≥900 高 gate 生效，短桌面維持自然高 */

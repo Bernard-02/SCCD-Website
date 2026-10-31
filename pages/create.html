@@ -31,7 +31,7 @@
        id="page-content" 是 SPA router 的注入錨點 — 直接訪問 / refresh 時 router.loadPage 必須找到此 id
        才會跑 initPageModules → initCreatePage → p5 init + body.overflow-hidden 設定
        缺 id → loadPage early return → 整頁沒初始化（看到 static HTML 但 p5 canvas 不動 + scrollbar 跑出來） -->
-  <main id="page-content" class="w-full relative" style="height: 100vh; padding-top: var(--header-height, 80px);">
+  <main id="page-content" class="w-full relative" style="height: 100vh; height: 100dvh; padding-top: var(--header-height, 80px);">
     <!-- #create-app: generate-app namespace wrapper（從 iframe 拆出來後直接 inline 進 site）
          mode class（standard-mode/inverse-mode/wireframe-mode）由首次載入的 inline script 或
          SPA 切頁時的 create-app.js initCreatePage 設定 -->

@@ -1961,4 +1961,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   .award-record-item .award-winners.is-hmarquee .award-winners-track {
     animation: award-winners-hmarquee var(--hmarquee-duration, 10s) linear infinite;
   }
+  #library-awards-list .award-ref-row .list-title-marquee.is-overflow p {
+    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
+  }
 }

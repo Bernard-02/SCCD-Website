@@ -539,8 +539,8 @@ function clearLibActive() {
 
 /** list item hover 底色 + overlay 顏色 follow */
 function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
-  // 矮橫向同手機：tap 會觸發 emulated mouseenter → 底色殘留，不綁
-  if (SCCDHelpers.isMobileLayout()) return;
+  // 矮橫向同手機：tap 會觸發 emulated mouseenter → 底色殘留，不綁；觸控的桌面排版（iPad 橫向）同（user 2026-10-31）
+  if (SCCDHelpers.isMobileLayout() || !SCCDHelpers.canHover()) return;
   containerEl.querySelectorAll(itemSelector).forEach(item => {
     item.addEventListener('click', () => { item.dataset.libActive = '1'; });
     item.addEventListener('mouseenter', () => {
@@ -1455,7 +1455,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
       // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
       // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
-      if (SCCDHelpers.isDesktopLayout()) {
+      if (SCCDHelpers.isDesktopLayout() && SCCDHelpers.canHover()) {   // 觸控的桌面排版（iPad 橫向）同手機不綁（user 2026-10-31）
         scope.querySelectorAll('.award-record-item').forEach(item => {
           item.addEventListener('mouseenter', () => {
             if (item.dataset.refOpen) return;

@@ -148,7 +148,10 @@ function updateDesktopScale() {
     // 鍵盤模式：控制盒＋header 暫藏，顯示區塞進鍵盤上方可視高（上下各留 24）
     s = Math.min(s, (window.visualViewport.height - 48) / 540);
   } else {
-    const H = window.innerHeight;
+    // 可視高以 visualViewport 為準：iPad Safari 的 innerHeight／100vh 都是「工具列收起」的大視口、比實際可視區高 ~50-70
+    // → 構圖算大了、bar 貼到可視區底下（user 2026-10-31 iPad Air 橫向）。create.html <main> 同步改 100dvh。雙指縮放中（scale>1）不算
+    const vv = window.visualViewport;
+    const H = (vv && vv.scale < 1.05) ? Math.min(window.innerHeight, vv.height) : window.innerHeight;
     // SCCD 字底（logo 中線＋字高 70/2）～bar 底（create.css --create-bar-bottom）之間塞得下顯示區 540＋控制盒 120。
     // 置中範圍（create.css）從 SCCD 中線起、比這裡多 35 → 顯示區頂至少在中線＋17.5，輸入字不會跟 SCCD 字標重疊
     const barBottom = parseFloat(getComputedStyle(app).getPropertyValue('--create-bar-bottom')) || 48;

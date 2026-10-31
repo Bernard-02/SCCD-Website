@@ -26,10 +26,16 @@ function _handleVisualViewportResize() {
 // （外接鍵盤只出 ~55px 快捷列不觸發；scale>1＝雙指縮放不算）→ 鍵盤模式：控制盒＋header 暫藏、構圖依可視高重算縮放
 // （create.css .create-kb-open）。不看 focus：桌面輸入框失焦會被立刻搶回 focus（見 setup），收鍵盤只能靠高度恢復判斷。
 // 手機排版有自己那套（mobile.js / _handleVisualViewportResize），這裡只管桌面排版。
+// 基準＝沒鍵盤時的可視高（同寬度下看過的最大 vv.height），不拿 innerHeight 當基準：iPad Safari 鍵盤開著捲動時 innerHeight
+// 會縮成 vv.height（WebKit 226689）→ 差 0＝誤判收鍵盤 → 桌面分支拿 ~370 高算縮放＝整組縮到 0.3 下限、bar 又回 100vh 底
+// （user 2026-10-31 iPad Air 橫向「custom 鈕超小、bar 超下面」）。只在觸控裝置判（桌面拖視窗變矮不是鍵盤）；寬變＝轉向／分割畫面重抓
+let _kbBaseH = 0, _kbBaseW = 0;
 function _handleDesktopKeyboard() {
-  if (!_p5 || isMobileMode || !window.visualViewport) return;
+  if (!_p5 || isMobileMode || !window.visualViewport || !window.SCCDHelpers.isCoarsePointer()) return;
   const vv = window.visualViewport;
-  const open = vv.scale < 1.05 && window.innerHeight - vv.height > 150;
+  if (window.innerWidth !== _kbBaseW) { _kbBaseW = window.innerWidth; _kbBaseH = 0; }
+  if (!createKbOpen) _kbBaseH = Math.max(_kbBaseH, vv.height);
+  const open = vv.scale < 1.05 && _kbBaseH - vv.height > 150;
   if (!open && !createKbOpen) return;
   const app = document.getElementById('create-app');
   app?.style.setProperty('--create-vv-h', `${Math.round(vv.height)}px`);
@@ -255,6 +261,7 @@ function setup() {
   // iPad 螢幕鍵盤 → 鍵盤模式（見 _handleDesktopKeyboard）；named ref 給 cleanupCreateApp 解綁
   window.visualViewport?.addEventListener('resize', _handleDesktopKeyboard);
   window.visualViewport?.addEventListener('scroll', _handleDesktopKbScroll);
+  _handleDesktopKeyboard();   // 先記下沒鍵盤的可視高當基準
 
   // 當輸入框失去 focus 時，檢查新焦點是否為角度 label，如果不是則重新 focus
   inputBox.elt.addEventListener('blur', function() {
@@ -1880,6 +1887,7 @@ function cleanupCreateApp() {
   window.visualViewport?.removeEventListener('resize', _handleDesktopKeyboard);
   window.visualViewport?.removeEventListener('scroll', _handleDesktopKbScroll);
   createKbOpen = false;
+  _kbBaseH = 0; _kbBaseW = 0;
   document.body.classList.remove('create-kb-open');   // header 暫藏 class 掛在 body，離頁必拔
   _mobileMediaQuery?.removeListener(_handleMobileMediaChange);
   // color picker 拖曳追蹤：sketch.js:1247-1249 + ui-state.js:93-95 兩處都會綁同 fn ref，

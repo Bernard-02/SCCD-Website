@@ -533,6 +533,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const titleEl = document.createElement('div');
     titleEl.className = 'color-rect-title';
     el.appendChild(titleEl);
+    // 觸控（iPad 桌面排版）不綁 hover：tap 會先發 emulated mouseenter＝第一下只抽角換色、第二下才切（user 2026-10-31）
+    if (!SCCDHelpers.canHover()) return;
 
     el.addEventListener('mouseenter', () => {
       // §17.3 hover ready gate（user 2026-09-06「色塊 ready 前 hover 無效」）：反向上色未擦完前 dataset.cardPending 擋 hover——
@@ -1409,7 +1411,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // hover 箭頭＝預覽將切往的色塊（previewNextTarget，見上）；離開還原。
     // btnHoverTarget 已提升到 function scope（供 syncHoverAfterUnlock 在切分頁動畫完成後補套預覽）。
     // 點擊後 target 變 activeEl / pending → mouseleave 的 guard 同色塊本身的 handler，不會誤還原。
-    nextBtnEl.addEventListener('mouseenter', previewNextTarget);
+    if (SCCDHelpers.canHover()) nextBtnEl.addEventListener('mouseenter', previewNextTarget);   // 觸控：tap 不預覽（同色塊）
     nextBtnEl.addEventListener('mouseleave', () => {
       if (exiting) return;   // 退場中不還原預覽（同色塊 mouseleave）
       const el = btnHoverTarget;

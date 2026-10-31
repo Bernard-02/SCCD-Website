@@ -1621,7 +1621,7 @@ export async function initAtlas(options = {}) {
   //   矮橫向 30fps（2026-09-24 user：co 環是 overview 唯一有字、連續流動在 20fps 肉眼可見步階；
   //   q2 量化已把每 tick 寫入砍半 → 30 的成本 ≈ 量化前的 20，實機不順再議 q2 步進細化）。
   //   位置由 performance.now() 絕對時間算 → 跳幀不影響速度。
-  const FLOAT_FPS_CAP = (isMobileAtlas && !isLandscapeGateAtlas) ? 20 : 30;
+  const FLOAT_FPS_CAP = ((isMobileAtlas && !isLandscapeGateAtlas) || SCCDHelpers.isCoarsePointer()) ? 20 : 30;   // 觸控（含 iPad 桌面排版）20：全文字星雲每幀寫幾百個 transform，iPad 跑 30 吃力（user 2026-10-31）
   let   FLOAT_MIN_DT  = 1000 / FLOAT_FPS_CAP;   // intro 期降到 1000/20（修改 3），finishIntroVisuals 還原
   // 半幀容差：Chrome 節能模式把 rAF 鎖 30Hz 時幀距 ~33.3ms 與 30fps 門檻貼齊，抖動讓「跳過/執行」
   // 亂翻＝實際幀率 15~30 亂跳（拍頻卡頓，2026-09-20 user 回報）。扣 8ms（≈60Hz 半幀）後：
