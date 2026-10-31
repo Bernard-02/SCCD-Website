@@ -1954,14 +1954,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   .files-item .files-item-title-zh.is-overflow .files-marquee-inner,
   .files-item .files-item-subtitle-en.is-overflow .files-marquee-inner,
   .files-item .files-item-subtitle-zh.is-overflow .files-marquee-inner,
-  #library-files-list .files-item .files-item-subtitle-tag.is-overflow .files-marquee-inner,
-  #library-awards-list .award-mid .award-cell-line.is-overflow .award-cell-inner {
+  #library-files-list .files-item .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
-  .award-record-item .award-winners.is-hmarquee .award-winners-track {
-    animation: award-winners-hmarquee var(--hmarquee-duration, 10s) linear infinite;
-  }
-  #library-awards-list .award-ref-row .list-title-marquee.is-overflow p {
-    animation: list-marquee var(--marquee-duration, 4s) linear infinite;
-  }
+  /* award 大表（600+ 列、每列多格溢出）刻意不自動捲：iPad 實測整頁動畫死機（user 2026-10-31）；溢出的格維持裁切，點列展開看全文 */
 }

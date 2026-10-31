@@ -50,10 +50,10 @@ export function setupClipReveal(elements, { hide = true } = {}) {
     wrapper.className = 'clip-reveal-wrapper';
     // reveal 動畫 yPercent:100→0 只動 y 軸 → 縱向要 clip 才有 wipe。
     // 一般 row：overflow-y:clip + overflow-x:visible，橫向放行讓旋轉 chip 左右凸出不被裁。
-    // 含旋轉 filter chip（.courses-filter-btn）的 row：overflow:clip 兩軸 + overflow-clip-margin 讓旋轉角縱向也不被切。
+    // 含旋轉 filter chip（.courses-filter-btn）的 row：clip-path 負 inset 外擴 1.25rem 讓旋轉角不被切
+    // （原 overflow:clip＋overflow-clip-margin：Safari 不支援 clip-margin＝iPad 上轉角被切，user 2026-10-31）。
     if (el.querySelector(':scope > .courses-filter-btn')) {
-      wrapper.style.overflow = 'clip';
-      wrapper.style.overflowClipMargin = '1.25rem';
+      wrapper.style.clipPath = 'inset(-1.25rem)';
     } else {
       wrapper.style.overflowY = 'clip';
       wrapper.style.overflowX = 'visible';

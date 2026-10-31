@@ -618,6 +618,8 @@ document.addEventListener('DOMContentLoaded', function () {
   initSmoothScroll();
   initIdleStandby();
   initCustomScrollbar();
+  // 觸控裝置（iPad 橫向桌面排版）：內捲框自繪 thumb（iOS overlay 捲軸只在捲動時閃現；user 2026-10-31）
+  if (SCCDHelpers.isCoarsePointer()) import('./modules/ui/touch-box-thumb.js').then(m => m.initTouchBoxThumbs());
   initShareModal();
   initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新

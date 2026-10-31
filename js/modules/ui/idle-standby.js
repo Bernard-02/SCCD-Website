@@ -83,7 +83,7 @@ function ensureOverlay() {
     overlay.style.cssText = `
       position: fixed;
       inset: 0;
-      z-index: 10000;
+      z-index: 10002;   /* > html.mobile-menu-open header 10001：menu 開著進待機，紙要連 menu 一起蓋（user 2026-10-31） */
       pointer-events: none;
     `;
     document.body.appendChild(overlay);

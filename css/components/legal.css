@@ -5,7 +5,7 @@
   .legal-page-section {
     position: relative;
     /* section 至少滿一屏，sticky 才有揮灑空間；padding-top 不放這層（會把 sticky 起點往下推） */
-    min-height: 100vh;
+    min-height: 100svh;   /* svh：iPad Safari 的 100vh 是工具列收起的大視口＝頁面多出一截可捲、對不到頂（user 2026-10-31） */
   }
 
   /* 左欄：grid item 不拉伸，自身 100vh + sticky top:0 → 整段內文 scroll 過程中持續貼在 viewport
@@ -14,7 +14,7 @@
     align-self: start;
     position: sticky;
     top: 0;
-    height: 100vh;
+    height: 100svh;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -51,7 +51,7 @@
      ⚠️ gate＝「≥1024 或 矮橫向」：直放 768–1023 標題壓內容欄 → 走 stack flow；矮橫向用 max-height:500 續留 frame＝landscape.css 5f 的前提，勿改 orientation 判。 */
   @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
     .legal-page-section {
-      height: 100vh;
+      height: 100svh;
       overflow: hidden;
     }
     /* box 上緣對齊 content 區頂、高度填到 100vh（底貼 viewport 底，同 inner-scroll 頁）；用 margin-top 定位（內容不捲到 header 底下）。
@@ -61,10 +61,11 @@
       --inner-pad-bottom: 0px;
       --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));
       margin-top: var(--inner-box-top);
-      height: calc(100vh - var(--inner-box-top) - var(--inner-pad-bottom));
+      height: calc(100svh - var(--inner-box-top) - var(--inner-pad-bottom));
       padding-top: 0;
       padding-bottom: var(--spacing-2xl, 64px);
       overflow-y: auto;
+      overflow-x: hidden;   /* sitemap 旋轉卡片會撐出 x 軸可捲範圍：觸控左右拖整欄被拖走、內容被裁（user 2026-10-31） */
       box-sizing: border-box;
       /* 隱藏原生捲軸（比照 inner-scroll 頁的 .no-scrollbar；全站自製 scrollbar 只畫 window 捲軸） */
       scrollbar-width: none;

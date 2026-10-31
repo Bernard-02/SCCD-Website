@@ -406,7 +406,7 @@ export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {})
             <button type="button" class="album-prev ${preChev ? '' : 'invisible '}absolute left-0 top-1/2 -translate-y-1/2 z-10 w-[32px] h-[32px] flex items-center justify-start text-s hover:opacity-60"${preChev ? ' style="opacity:0.5;cursor:var(--cursor-not-allowed)"' : ''}>
               <span class="icon icon-chevron-list icon-s"></span>
             </button>
-            <div class="album-track flex-1 min-w-0" style="overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible; padding: var(--spacing-xs) 0;">
+            <div class="album-track flex-1 min-w-0" style="clip-path: inset(-100px -0.5rem); padding: var(--spacing-xs) 0;">
               <div class="album-track-inner flex items-center gap-sm" style="transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;">
                 ${thumbsHtml}
               </div>
@@ -475,30 +475,51 @@ const mediaRot = () => {
 // 大清單會在背景建滿（idleBuild），出生就 src＝沒打開的列也把整條相簿抓完（展演 1124 張≈95MB，user 2026-10-04 定案）。
 // 載入中照常是佔位色塊循環。出生即展開的列（data-no-accordion）不延。
 const srcAttr = (defer) => (defer ? 'data-src' : 'src');
+// 出場（可多張同幀）：寫 animation:none＋蓋滿態 → 一次 style flush → 再寫出場值才走 transition
+//（同一次變更裡拿掉 animation 又寫終值＝Chromium 不起 transition、直接 snap，headless 實測）
+function phReveal(list) {
+  const live = list.filter(({ ph }) => !ph.dataset.done);
+  if (!live.length) return;
+  live.forEach(({ img, ph, block }) => {
+    ph.dataset.done = '1';
+    img.style.visibility = '';
+    if (prefersReducedMotion()) { ph.remove(); return; }
+    block.style.animation = 'none';
+    block.style.transform = 'translate(0, 0)';
+  });
+  void getComputedStyle(live[0].block).transform;   // 一次 flush 涵蓋整批
+  live.forEach(({ ph, block }) => {
+    if (prefersReducedMotion()) return;
+    block.style.transform = phDir();
+    setTimeout(() => ph.remove(), 700);
+  });
+}
+// 圖載完→出場：同幀批次處理（首開一列幾十張縮圖一起到；逐張「寫→讀 computed→寫」＝每張一次 forced style/layout，
+// 600+ 列的清單上 iPad 首開明顯頓，user 2026-10-31）。先全讀各 block 當下 transform、再分「本就蓋滿→立刻出場」與「等這圈回到蓋滿」
+const _phQueue = [];
+let _phRaf = 0;
+function phFlush() {
+  _phRaf = 0;
+  const batch = _phQueue.splice(0);
+  const states = batch.map(({ block }) => getComputedStyle(block).transform);   // 全讀
+  const now = [];
+  batch.forEach((it, i) => {
+    const t = states[i];
+    if (t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)') now.push(it);
+    else {
+      const go = () => phReveal([it]);
+      it.block.addEventListener('animationiteration', go, { once: true });   // 每圈終點＝蓋滿
+      setTimeout(go, 2400);   // 兜底：cv:auto 跳過渲染時 iteration 可能不來
+    }
+  });
+  phReveal(now);
+}
 if (typeof document !== 'undefined') document.addEventListener('load', (e) => {
   const img = /** @type {HTMLElement} */ (e.target);
   const ph = /** @type {HTMLElement | null} */ (img.tagName === 'IMG' ? img.parentElement?.querySelector(':scope > .gallery-ph') : null);
   if (!ph || ph.dataset.done) return;
-  const block = /** @type {HTMLElement} */ (ph.firstElementChild);
-  const go = () => {
-    if (ph.dataset.done) return;
-    ph.dataset.done = '1';
-    img.style.visibility = '';
-    if (prefersReducedMotion()) { ph.remove(); return; }
-    // 停循環、先落定蓋滿態（此刻本就蓋滿＝視覺不變）並 commit（只 style flush）→ 再寫出場值才走 transition；
-    // 同一次變更裡拿掉 animation 又寫終值＝Chromium 不起 transition、直接 snap（headless 實測）
-    block.style.animation = 'none';
-    block.style.transform = 'translate(0, 0)';
-    void getComputedStyle(block).transform;
-    block.style.transform = phDir();
-    setTimeout(() => ph.remove(), 700);
-  };
-  const t = getComputedStyle(block).transform;
-  if (t === 'none' || t === 'matrix(1, 0, 0, 1, 0, 0)') go();
-  else {
-    block.addEventListener('animationiteration', go, { once: true });   // 每圈終點＝蓋滿
-    setTimeout(go, 2400);   // 兜底：cv:auto 跳過渲染時 iteration 可能不來
-  }
+  _phQueue.push({ img, ph, block: /** @type {HTMLElement} */ (ph.firstElementChild) });
+  if (!_phRaf) _phRaf = requestAnimationFrame(phFlush);
 }, true);
 // 循環每圈重抽滑出／滑回方向（user 2026-10-04「四周隨機、不需要每次同方向」；gallery／poster／影片縮圖共用）：
 // 圈界＝蓋滿 translate(0,0)，此刻換 keyframe 引用的 var 不跳。document capture 一支接全部（animation 事件會冒泡）。
@@ -568,7 +589,7 @@ export function buildGalleryHtml(item, defer = false) {
       </button>
       <!-- min-w-0：flex item 的 min-width:auto 會被內容撐開（手機 327px 容器內 track 被撐到 ~357px），
            把 gallery-next 推出 viewport 右側「右 chevron 消失」；album-track 已有同款 fix -->
-      <div class="gallery-track flex-1 min-w-0" style="height: 120px; overflow-x: clip; overflow-clip-margin: 0.5rem; overflow-y: visible;">
+      <div class="gallery-track flex-1 min-w-0" style="height: 120px; clip-path: inset(-100px -0.5rem);">
         <div class="gallery-inner flex gap-md h-full" style="transition: transform var(--dur-fast) ease, opacity var(--dur-fast) ease;">
           ${galleryItems.join('')}
         </div>

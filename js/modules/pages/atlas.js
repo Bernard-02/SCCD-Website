@@ -5520,6 +5520,9 @@ export async function initAtlas(options = {}) {
       const flyBase = toList ? FLY_DUR + 1 : FLY_DUR;
       const flyCap  = toList ? FLIP_FLY_MAX_LIST : FLIP_FLY_MAX;
       const flyDur = Math.min(flyCap, flyBase + Math.hypot(srcC.x - dstC.x, srcC.y - dstC.y) / 3000);
+      // 觸控（iPad 桌面排版）精簡版：幾百顆同時飛，clip-path 補間＝每幀 repaint、CSS var 補間＝每幀 style recalc、弧線＝逐幀 gsap.set；
+      // 只留 transform 補間（合成層）→ 寬度裁切與字色落地瞬切、直線飛（user 2026-10-31「切換動畫超級吃力」）
+      const lite = SCCDHelpers.isCoarsePointer();
       // 裁切鏈（wrapper/sub-col/col-items）由 .atlas-morphing CSS 統一放開，這裡不逐項動 overflow
       n.classList.add('atlas-flying');
       if (toList) {
@@ -5576,7 +5579,7 @@ export async function initAtlas(options = {}) {
       // overflow），改由節點 clip-path 從「起點可見寬」掃到「終點可見寬」（user 的「右側 mask
       // 往左裁」）；短名兩端同寬＝跳過。量測全用未縮放 local px（offsetWidth/clientWidth）。
       let widthClip = false;
-      if (toList) {
+      if (lite) { /* 不裁：落地交還行級 overflow */ } else if (toList) {
         let overhang = 0;
         nb.querySelectorAll('.atlas-list-name-en, .atlas-list-name-zh').forEach(line => {
           const inner = /** @type {HTMLElement} */ (line.firstElementChild);
@@ -5597,7 +5600,7 @@ export async function initAtlas(options = {}) {
       if (toList) {
         // list 形態字色被 .atlas-as-list 的 !important fg 鎖死 → 走 --atlas-fly-c（.atlas-flying 規則讓位）
         n.style.setProperty('--atlas-fly-c', fromColor);
-        gsap.to(n, { '--atlas-fly-c': toColor, duration: flyDur, ease: EASE.move });
+        if (!lite) gsap.to(n, { '--atlas-fly-c': toColor, duration: flyDur, ease: EASE.move });   // lite：finish 拿掉 var＝落地瞬切 list 字色
       } else {
         n.style.color = fromColor;   // 反向：飛行途中維持黑（theme-fg）；上色不在此/finish，交給 Stage-3 bloom（switchToMap R_BLOOM／straggler onLand）＝色與色塊一起現身（user 09-04）
       }
@@ -5619,7 +5622,7 @@ export async function initAtlas(options = {}) {
       // 正向給了欄頭控制點＝x/y 沿 quadratic bezier 朝欄頭鼓弧（user 08-31「跟隨 nav btn 路徑、非整塊直線平移」）；
       // 控制點＝直線中點朝欄頭 local 位置拉 FLY_ARC_BULGE 比例＝溫和 bow（遠 row 也不暴衝成聚攏）。scale/rotation
       // 仍走 tween 本體（killTweensOf(n) 可中斷＝與直線版同一 kill 路徑）；x/y 用 tween.ratio 在 onUpdate 逐幀覆寫。
-      if (toList && ctrlPt) {
+      if (toList && ctrlPt && !lite) {
         const sx = base.x, sy = base.y;                        // 起點 local（srcA − dstA）
         const hx = ctrlPt.x - dstA.x, hy = ctrlPt.y - dstA.y;  // 欄頭 local（終點錨 dstA 為原點）
         const cx = sx / 2 + (hx - sx / 2) * FLY_ARC_BULGE;     // 直線中點 → 欄頭 拉 bulge

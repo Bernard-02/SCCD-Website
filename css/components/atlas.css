@@ -886,9 +886,9 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   flex: 1;
   min-width: 0;
   min-height: 0;
-  /* clip 非 hidden：不成為 scroll container；clip-margin 5px 讓貼欄緣的分頁鈕 hover 旋轉外溢不被切（Safari 不支援＝切掉 1~3px 角） */
-  overflow: clip;
-  overflow-clip-margin: 5px;
+  /* clip-path 負 inset 非 overflow:clip＋clip-margin：Safari 不支援 overflow-clip-margin＝貼欄緣的分頁鈕 hover 旋轉外溢被切角（iPad 實測，user 2026-10-31）；
+     clip-path 一樣不成為 scroll container、外擴 5px */
+  clip-path: inset(-5px);
   /* chevron nav 的 containing block（nav append 在這層、跨整欄左右緣） */
   position: relative;
   /* 標題→第一列 與 最後一列→箭頭 留白等寬：atlas.js applyListTopPad 寫（slack/2）；手機 0。host/employ 改推標題卡（下方） */
@@ -1110,9 +1110,9 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   font-size: var(--font-size-s);
   text-align: left;
   /* 按鈕本體＝固定不動的遮罩窗，.anchor-nav-inner 從窗內滑出/滑回（純 translate 單管線；本體 translate＋clip 同步 transition 會窗緣抖動）。
-     overflow:clip + clip-margin 12px 讓 active inner 旋轉外溢不被裁（clip 不建立 scroll container）。JS 加 .atlas-filter-revealed 才揭露 */
-  overflow: clip;
-  overflow-clip-margin: 12px;
+     clip-path 負 inset 12px 讓 active inner 旋轉外溢不被裁（不建立 scroll container；Safari 不支援 overflow-clip-margin＝iPad 上 nav btn 轉角被切，user 2026-10-31）。
+     JS 加 .atlas-filter-revealed 才揭露 */
+  clip-path: inset(-12px);
   transition: opacity var(--dur-micro) ease;
 }
 /* 未 reveal 時不吃 hover/click：否則滑過看不見的 btn 仍觸發變色 */

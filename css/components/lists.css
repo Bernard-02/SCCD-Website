@@ -10,7 +10,7 @@
    頁面專屬：activities 旋轉 chip-clearance + filter bar；curriculum sticky 表頭（courses.css）；admission 無 filter bar。 */
 @media (min-width: 768px) {
   .inner-scroll-frame-grid {
-    height: 100vh;
+    height: 100svh;   /* svh：iPad Safari 100vh＝大視口（user 2026-10-31） */
     --inner-pad: var(--spacing-2xl, 64px);                            /* content 區上 pad；nav chip resting = header 96 + 64 = 160（四頁 nav 共用） */
     --inner-pad-bottom: 0px;                                          /* box 底貼齊 viewport 底：卡片直接被螢幕邊緣切、不留白 bar */
     --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
@@ -25,7 +25,7 @@
   .inner-scroll-scroll-col {
     --chip-clearance: 0px;
     margin-top: calc(var(--inner-box-top) - var(--chip-clearance));
-    height: calc(100vh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
+    height: calc(100svh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
     padding-bottom: var(--spacing-2xl, 64px);
     align-self: start;
     overflow-x: hidden;
@@ -96,7 +96,7 @@
     display: flex;
     flex-direction: column;
     /* 欄高釘死＝frame 高：不釘的話 grid 列是 auto、清單一長就把欄（與列）撐過視窗＝永遠「放得下」、判不出溢出 */
-    height: 100vh;
+    height: 100svh;
     padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
   }
   /* about：nav 的 sticky 軌道（about.html #anchor-nav 父層 pb-6xl 192）底部留白縮到同一條線（當前頁卡上方 md）：
@@ -107,7 +107,7 @@
   }
   /* about：nav 黏在 nav line，最高長到當前頁卡上方 md；gap 歸零（清單↔chevron 間距由 chevron margin 給，同四頁） */
   #anchor-nav.nav-overflow-host {
-    max-height: calc(100vh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--spacing-md, 24px));
+    max-height: calc(100svh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--spacing-md, 24px));
     gap: 0;
   }
   #anchor-nav > .nav-scroll-list {
@@ -1008,7 +1008,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
      寬度＝高 × 1.65（resources 展開單卡實測比例）再扣原 era 左欄（7.5rem＋gap md）。手機/矮橫向由下方 block 覆寫。 */
   --tl-cell-h: min(
     calc((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 * 7 + 6 * var(--spacing-gutter)),
-    calc(100vh - 220px)
+    calc(100svh - 220px)
   );
   height: var(--tl-cell-h);
   width: calc(var(--tl-cell-h) * 1.65 - (7.5rem + var(--spacing-md)));
@@ -1520,6 +1520,17 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   .dsd-next-card-m .dshow-next-title {
     max-width: 100%;
   }
+}
+/* 觸控桌面排版（iPad 橫向）：沒有 hover → 上下屆 title 字卡常駐（degree-show-data-loader staticLabels），
+   字級 xl→md、寬上限減半＝兩組同屏不打架（user 2026-10-31）。padding 蓋 HTML inline card-pad-xl 要 !important */
+.dsd-labels-static > p {
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-md) !important;
+  padding: var(--card-pad-md) !important;
+}
+@media (min-width: 768px) {
+  #prev-labels.dsd-labels-static .dshow-next-title,
+  #next-labels.dsd-labels-static .dshow-next-title { max-width: 45vw; }
 }
 
 /* ===== Degree Show Detail hero 標題：過長換行（約兩行）、不 marquee =====

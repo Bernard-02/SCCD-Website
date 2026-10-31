@@ -104,7 +104,7 @@
   /* Banner 寬：桌面 ≥1024 由 JS inline 覆寫（hero-animation.js randomizeHeroLayout）；旋轉角由 JS 隨機設。
      min() cap：1.6 ≈ 旋轉 ±3° 下 bbH/寬 反比近似，確保旋轉後 bbox 落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 內 */
   .hero-banner {
-    width: min(88vw, calc((100vh - 120px) * 1.6));
+    width: min(88vw, calc((100svh - 120px) * 1.6));
     aspect-ratio: 16 / 9;
     overflow: hidden;
     visibility: hidden;

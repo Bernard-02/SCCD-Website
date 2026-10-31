@@ -735,11 +735,12 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
    SVG 只有 viewBox 沒寬高＝無固有尺寸 → 高要寫定值、寬 auto 吃比例：▶／❚❚ 正方＝40×40；▶❚❚ 255:150＝68 超內寬 →
    夾到 60（contain 等比＝圖案 60×35、框 60×40）。寬上限用 cqw（鈕＝size container，寬由盒高×aspect 決定、不看內容）：
    寫 % 會跟貼身遮罩互相依賴＝算成 0 */
-.custom-button-rotate { container-type: inline-size; }
+/* 寬上限寫死＝鈕內寬：鈕被 #rotation-box 撐成盒內高正方（120 − 2×18 盒內距 ＝ 84）、再扣鈕 padding 10×2 與 border 2×2 ＝ 60。
+   原 100cqw 靠鈕當 size container：Safari 對 <button> 的 container query 不可靠→ ▶❚❚ 68 寬沒被夾、右緣被換圖遮罩切掉（iPad 實測，user 2026-10-31） */
 .custom-button-rotate img {
   width: auto;
   height: calc(40px * var(--scale));
-  max-width: 100cqw;
+  max-width: calc(var(--rotation-box-min-height) - 2 * var(--control-box-padding) - 20px * var(--scale) - 4px);
 }
 
 /* --- 個別按鈕尺寸 --- */

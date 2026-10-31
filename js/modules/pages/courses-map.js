@@ -786,6 +786,10 @@ export async function renderCoursesGrid(program) {
     ro.observe(panel);
     registerPageCleanup(() => ro.disconnect());
   }
+  // 字型還沒到就量（iPad 首訪、快取冷）＝fallback 字寬、溢出判錯「有時不捲」（user 2026-10-31）→ ready 後再量（applyMarqueeOverflow 自帶 reset）
+  if (document.fonts && document.fonts.status !== 'loaded') {
+    document.fonts.ready.then(() => { if (panel.isConnected && panel.offsetWidth > 0) runMarqueeOverflow(panel); });
+  }
 
   // 轉向重量（user 2026-07-04 轉向自癒）：桌面/手機兩套 grid 並存、只有 render 當下「可見」那套被量過
   // （隱藏套 row offsetWidth=0 → applyMarqueeOverflow bail）。轉向後換另一套顯示 → 沒 marquee 或帶舊 dual-copy

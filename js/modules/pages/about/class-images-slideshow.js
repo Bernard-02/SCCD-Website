@@ -61,7 +61,7 @@ function buildImg(src, fixedWidth, onSized) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
   // wrapper＝滑動遮罩（inline 不動共用 .class-img class；桌面 timeline 照片另有自己的 clip 路線不受影響）
-  wrapper.style.overflow = 'clip';
+  wrapper.style.overflow = 'hidden';   // hidden 非 clip：iPad Safari 旋轉遮罩沒裁到 GSAP 位移的圖＝「從別處飛進來」（user 2026-10-31；同 cards.css faculty mask）
 
   const img = document.createElement('img');
   img.decoding = 'async';

@@ -296,13 +296,22 @@ export async function loadDegreeShowDetail() {
           if (deskLike) document.getElementById('dsd-desc-section')?.classList.add('dsd-media-row');
           kvImg.src = data.poster;
           if (animate) {
+            let ran = false;
             const run = () => {
+              if (ran) return;   // ScrollTrigger／IO 保險兩路都會叫
+              ran = true;
               gsap.set(kvImg, { ...dir, autoAlpha: 1 });   // 此刻圖已有尺寸 → ±110 解析成真實位移
               gsap.to(kvImg, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
             };
             const playPoster = () => {
               if (typeof ScrollTrigger !== 'undefined' && eventsSection) {
                 ScrollTrigger.create({ trigger: eventsSection, start: 'top 85%', once: true, onEnter: run });
+                // 保險：iPad 實測海報偶爾不現身（trigger 沒來；user 2026-10-31）→ IO 看到區塊進畫面就放行
+                if ('IntersectionObserver' in window) {
+                  const io = new IntersectionObserver((es) => { if (es.some(x => x.isIntersecting)) { io.disconnect(); run(); } }, { rootMargin: '0px 0px -15% 0px' });
+                  io.observe(eventsSection);
+                  registerPageCleanup(() => io.disconnect());
+                }
               } else { run(); }
             };
             if (kvImg.complete && kvImg.naturalWidth) playPoster();
@@ -671,7 +680,7 @@ function setupNextProject(prev, next) {
   const nextCard = /** @type {HTMLElement | null} */ (document.getElementById('next-card'));
   [document.getElementById('prev-link'), document.getElementById('next-link')].forEach(link => {
     if (!link) return;
-    link.style.overflow = 'clip';
+    link.style.overflow = 'hidden';   // hidden 非 clip：iPad Safari 旋轉遮罩沒裁到 GSAP 位移的卡（同 cards.css faculty mask，user 2026-10-31）
     const deg = localRot();
     link.dataset.rot = String(deg);   // hover 轉正、離開換新角（setupHover）要跟這個角比
     link.style.transform = `rotate(${deg}deg)`;
@@ -737,10 +746,27 @@ function setupNextProject(prev, next) {
   // 上下屆標題比照 hero「滿版」：色卡寬度收到最寬 wrap 行（不撐到 max-width 留空 accent 底），再撐開英/中標題不重疊。
   // 標題 clip-path 藏著仍有 layout（offsetParent 非 null）→ 量得到；等字體 ready 才量（行寬吃字型）。
   // ⚠️ label 旋轉是 labelRot() ±1~2°（收窄過，見上）→ 寬標題 en/zh 極端情況仍可能微疊，separate 保底。
+  // 觸控桌面排版（iPad 橫向）：沒有 hover → 兩組 title 字卡常駐、字級縮 md（lists.css .dsd-labels-static；user 2026-10-31
+  // 「iPad 另外加上這些 title 卡片自動提前渲染好、大小比較小」）；不綁 hover（tap 的 emulated mouseenter 會再把字卡收掉）
+  const staticLabels = !SCCDHelpers.canHover();
   document.fonts.ready.then(() => requestAnimationFrame(() => {
+    if (staticLabels) ['prev', 'next'].forEach(key => document.getElementById(`${key}-labels`)?.classList.add('dsd-labels-static'));   // 先換字級再量寬
     document.querySelectorAll('#prev-labels .dshow-next-title, #next-labels .dshow-next-title')
       .forEach(el => hugTitleBox(/** @type {HTMLElement} */ (el)));
     ['prev', 'next'].forEach(resetTitleSpacing);
+    if (staticLabels) {
+      // 一組一色（兩組不同色，getRandomAccentColor 不連抽同色）；清掉 HTML 的 clip 藏態與 transition
+      const colors = [SCCDHelpers.getRandomAccentColor(), SCCDHelpers.getRandomAccentColor()];
+      ['prev', 'next'].forEach((key, i) => LABEL_IDS.forEach(id => {
+        const el = /** @type {HTMLElement | null} */ (document.getElementById(`${key}-${id}`));
+        if (!el) return;
+        el.style.transition = 'none';
+        el.style.background = colors[i];
+        el.style.clipPath = 'inset(0 0 0 0)';
+        el.style.translate = '0px 0px';
+      }));
+      return;
+    }
     // 初始藏定位 translate（hug 定寬後才量，寬度定了位移向量才準）：讓「第一次」hover reveal 也滑入（非只原地 wipe）。
     // 方向對齊各自的 hidden clip 遮罩側：prev window 在左＝'right'、next window 在右＝'left'。
     ['prev', 'next'].forEach(key => {
@@ -913,8 +939,10 @@ function setupNextProject(prev, next) {
       otherClip.style.clipPath = otherClip.dataset.hiddenClip || 'inset(100% 0 0 0)';
     });
   };
-  setupHover('prev', 'next');
-  setupHover('next', 'prev');
+  if (!staticLabels) {
+    setupHover('prev', 'next');
+    setupHover('next', 'prev');
+  }
 
   // 進場：card 在 link 遮罩內滑入（方向沿用舊 wipe：prev 由左、next 由右；±110 過衝防 dpr hairline）。
   // 藏定位立即設（防閃現）；ScrollTrigger 延到圖片載入＋recompute 佈局完成後才建——link 的 top/width

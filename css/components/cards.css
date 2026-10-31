@@ -60,7 +60,7 @@
       width: auto;
       height: auto;
       max-width: 100%;
-      max-height: var(--dsd-kv-max-h, calc(100vh - 224px));
+      max-height: var(--dsd-kv-max-h, calc(100svh - 224px));
       object-fit: contain;
       object-position: right top;
       /* 直式海報靠右上：margin-left:auto ＝ 海報右緣貼齊全站內容右緣；KV 欄 col 14-20 ≈ 海報自然寬，清單 col 5-13。 */
@@ -69,7 +69,7 @@
     /* 活動清單桌面內捲：高度上限同 KV；scrollbar 樣式吃共用 .list-scroll hook（見 lists.css）。
        padding-right --spacing-md ＝ slide-in 內捲容器慣例（timeline .tl-list-content / curriculum 右欄同）。 */
     .dsd-events-scroll {
-      max-height: var(--dsd-kv-max-h, calc(100vh - 224px));
+      max-height: var(--dsd-kv-max-h, calc(100svh - 224px));
       overflow-y: auto;
       padding-right: var(--spacing-md);
     }
@@ -89,7 +89,7 @@
       --dsd-frame-h: calc(100svh - 2 * var(--header-logo-mid));
       display: flex;
       align-items: center;
-      height: 100vh;
+      height: 100svh;
       padding: var(--header-logo-mid) 0;
     }
     #dsd-desc-section.dsd-media-row > .site-container { padding-top: 0; padding-bottom: 0; }
@@ -220,7 +220,9 @@
      ① clip 在旋轉後的 local box 生效 → 旋轉角不被裁
      ② wrapper 不留 CSS transition → GSAP 每幀寫 transform 不被 transition 追打（卡頓） */
   .faculty-card-image-mask {
-    overflow: clip;
+    /* hidden 非 clip：iPad Safari 實測旋轉遮罩＋GSAP 位移的圖「從別處飛進來」＝clip 沒裁到合成層子元素（user 2026-10-31）；
+       遮罩內只有圖、當 scroll container 無害。about Programs 圖遮罩、DSD 上下屆海報遮罩同改 */
+    overflow: hidden;
     transform: rotate(var(--init-deg, 0deg));
     transition: transform var(--dur-fast) var(--ease-standard);
   }
@@ -653,7 +655,9 @@
     }
     /* top/bottom 0 ＋ height fit-content ＋ margin auto＝貼內容高且垂直置中；超過 max-height 就由內層捲動框內捲（flex column 讓內層能縮） */
     :is(#faculty-panel, #courses-detail-panel) {
-      inset: 0 calc(var(--container-padding) + 2 * var(--desk-col)) 0 calc(var(--container-padding) + 3 * var(--desk-col));
+      /* 右緣＝col-18 右緣，但不壓到 header 右上兩顆鈕（鈕區＝48＋gap 24＋48＝120，再留 sm）：窄桌面／iPad 1180 寬時 col-18 右緣
+         落在 mode 鈕底下（user 2026-10-31）→ 取較大的 inset；≥1440 不受影響 */
+      inset: 0 max(calc(var(--container-padding) + 2 * var(--desk-col)), calc(var(--container-padding) + 120px + var(--spacing-sm))) 0 calc(var(--container-padding) + 3 * var(--desk-col));
       width: auto;
       height: fit-content;
       max-height: calc(100% - 2 * var(--header-logo-mid));

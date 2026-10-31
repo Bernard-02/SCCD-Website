@@ -60,6 +60,27 @@ body.overflow-hidden #custom-scrollbar-thumb {
     scrollbar-width: none;
   }
 }
+/* 觸控裝置的內捲框捲軸＝自繪 thumb（js/modules/ui/touch-box-thumb.js，掛在每個 .list-scroll 框內）：iOS 的 overlay 捲軸只在捲動時閃現，
+   user 2026-10-31「iPad 上沒看到 scrollbar」。樣式同桌面 .list-scroll 原生樣式（lists.css：10 寬、黑、無軌道）；
+   holder＝0 高 sticky 釘在框可視區頂（只聽框自己的 scroll、不碰 window），thumb 依 scrollTop 比例 translateY */
+.touch-thumb-holder {
+  position: sticky;
+  top: 0;
+  height: 0;
+  width: 100%;
+  flex: none;
+  margin: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.touch-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  background: var(--color-black);
+}
+.dsd-events-scroll .touch-thumb { background: var(--theme-fg); }   /* 同 lists.css dsd events thumb 用 theme-fg */
 
 /* 手機版不顯示 thumb（原生行為就是隱藏） */
 @media (max-width: 767px) {

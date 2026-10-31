@@ -7,7 +7,7 @@
 
   /* ===== Shell + base colors ===== */
   .footer-shell {
-    height: 100vh;
+    height: 100svh;   /* svh：iPad Safari 100vh＝大視口（user 2026-10-31） */
     background-color: var(--footer-bg, var(--color-black));
     color: var(--footer-fg, var(--color-white));
     /* header（fixed z-9999）往下收起時不蓋 footer：footer 提到同層、DOM 在後→勝；
@@ -602,7 +602,7 @@
     }
     .footer-inner {
       padding: var(--popup-pad);   /* 卡內四周 20（user 2026-10-26；原 container-padding 一半＝30），不再綁 container-padding；faculty／curriculum 色卡共用 */
-      min-height: calc(100vh - var(--nav-line) - 48px);
+      min-height: calc(100svh - var(--nav-line) - 48px);
     }
     .footer-backdrop {
       position: fixed;
