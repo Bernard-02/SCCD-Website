@@ -276,6 +276,11 @@ body.mode-inverse #faculty-slide-in .text-black {
   color: black !important;
 }
 
+/* 代用 logo／輪替線框（.theme-invert）：panel 底是淺色 accent，維持黑線框、不吃全域 invert(1) */
+body.mode-inverse #faculty-slide-in .theme-invert {
+  filter: none;
+}
+
 /* ===== Search Bar ===== */
 body.mode-inverse .activities-search-inner {
   border-bottom-color: white;

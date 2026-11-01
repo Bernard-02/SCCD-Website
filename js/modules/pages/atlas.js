@@ -3191,8 +3191,13 @@ export async function initAtlas(options = {}) {
   /** @param {HTMLElement} b */
   const pickTabHide = (b) => b.style.setProperty('--tab-hide', TAB_HIDE[Math.floor(Math.random() * TAB_HIDE.length)]);
   btns.forEach(b => {
+    // 首繪已停在 CSS 預設左藏位、translate 帶 transition：init 這次改向要關掉 transition 再寫，否則從左角斜滑到新藏位、
+    // 中途穿過遮罩窗＝每次進場「閃一下再出來」（user 2026-11-01；同 showLayoutBtn 對 rotate 的做法）
+    const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
+    if (inner) inner.style.transition = 'none';
     pickTabHide(b);
-    b.querySelector('.anchor-nav-inner')?.addEventListener('transitionend', (e) => {
+    if (inner) { void inner.offsetWidth; inner.style.transition = ''; }
+    inner?.addEventListener('transitionend', (e) => {
       if (/** @type {TransitionEvent} */ (e).propertyName === 'translate' && b.classList.contains('atlas-filter-revealed')) pickTabHide(b);
     });
   });

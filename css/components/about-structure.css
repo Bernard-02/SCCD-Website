@@ -56,7 +56,7 @@
   .prog-top .prog-box { max-width: var(--prog-top-chip-max); }   /* 被下方逐 chip px 值覆寫 */
   /* 頂 chip 逐顆 max-width 只決定折行位置（盒寬由 JS hugChipWidths 收到最長行）＝最長行(lg)＋16 padding＋~3 餘裕。
      ⚠️ 仍要 ≥ 最長行＝維持兩行不掉三行；窄螢幕 fit-content clamp 會再縮 */
-  .prog-top .prog-box--dcd     { max-width: 370px; }   /* 首行 "Department of Communications"(351) */
+  .prog-top .prog-box--dcd     { max-width: none; }    /* 頂列只剩 DCD（BPAIDC 10-21 後台刪）→ 英文一行（user 11-01）；窄螢幕靠 fit-content clamp 折行 */
   .prog-top .prog-box--bpaidc  { max-width: 354px; }   /* 首行 "Bachelor Program of AI Design"(335) */
   /* 第三層 chip：max-width 卡在「desired 首行剛好容、下一字溢出」＝斷點正確
      （值＝首行 px＋16 padding＋餘裕，box-sizing:border-box，lg 22.4px 量） */

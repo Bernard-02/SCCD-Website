@@ -407,12 +407,12 @@
 
   /* 手機副標 collapse：同桌面機制（is-pinned 由 list-accordion.js sentinel-IO 加、grid-rows 0fr，詳見桌面 block）；
      手機只在捲過 pin 線才收，不複製桌面「一開就收」。 */
-  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
+  .list-header > * > .clip-reveal-wrapper:has(> .list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
     transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
-  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
+  .list-header > * > .clip-reveal-wrapper > .list-subtitles {
     min-height: 0;
     /* min-width:0：防長副標（nowrap）撐爆 grid 欄寬 → 手機整頁重縮放（詳見桌面 block） */
     min-width: 0;
@@ -422,7 +422,7 @@
     justify-content: flex-end;
   }
   /* 只有 lectures 收副標；手機需捲過 pin 線（.is-pinned）才收。 */
-  #panel-lectures .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(.list-subtitles) {
+  #panel-lectures .list-header.active.is-pinned > * > .clip-reveal-wrapper:has(> .list-subtitles) {
     grid-template-rows: 0fr;
     margin-top: calc(var(--spacing-xs) * -1);  /* 抵消父 flex-col gap-xs，收起後 title 不留 gap */
   }
@@ -704,14 +704,16 @@
 
   /* 副標 sticky-pinned collapse：is-pinned 由 list-accordion.js sentinel IO 偵測（CSS 無 :stuck）。
      副標被 setupClipReveal 包進 .clip-reveal-wrapper → 必須 target wrapper（:has 區分 title 那層），
-     grid-rows 0fr↔1fr + child min-height:0 做高度收合（wrapper 已 overflow-y:clip）。 */
-  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) {
+     grid-rows 0fr↔1fr + child min-height:0 做高度收合（wrapper 已 overflow-y:clip）。
+     ⚠️ :has 只能寫 `:has(> .list-subtitles)` 且只放 subject 位置：舊寫法 `:has(.list-subtitles) > *`（子孫＋非 subject）
+     讓 Chrome 把全站任何 DOM 插入都升級成全頁 style recalc（about 切 division 每次 ~20ms×44＝500ms long task，2026-11-01 量到）。 */
+  .list-header > * > .clip-reveal-wrapper:has(> .list-subtitles) {
     display: grid;
     grid-template-rows: 1fr;
     /* 純 clip-reveal 收起：不補間 opacity */
     transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
-  .list-header > * > .clip-reveal-wrapper:has(.list-subtitles) > * {
+  .list-header > * > .clip-reveal-wrapper > .list-subtitles {
     min-height: 0;
     /* grid item 預設 min-width:auto → 長副標（手機 nowrap）撐爆欄寬、溢出 viewport → 手機整頁 ICB 變寬重縮放。
        min-width:0 讓溢出交給 .list-title-marquee 截斷＋marquee。 */
@@ -722,7 +724,7 @@
     justify-content: flex-end;
   }
   /* 桌面只有 lectures 收副標，且一 .active 就收、不等 pin：在頂部點開時 header 不一定壓到 sticky 線，is-pinned 不會 fire。 */
-  #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(.list-subtitles) {
+  #panel-lectures .list-header.active > * > .clip-reveal-wrapper:has(> .list-subtitles) {
     grid-template-rows: 0fr;
     margin-top: calc(var(--spacing-xs) * -1);  /* 抵消父 flex-col gap-xs；純 clip 收起、不 fade */
   }

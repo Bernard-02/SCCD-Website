@@ -115,11 +115,16 @@
     overflow-x: visible;
   }
 
-  /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）→ 內文頂＝header 高＋3xl 呼吸（＝原標題 chip 起點）。
-     768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
+  /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）。user 2026-11-01：
+     有說明段（donate／sitemap）＝同 admission：文字頂＝header 帶下 92、展開標題釘 92（loader 寫 inline var）、blocker 92；
+     沒說明段（regulations）＝清單直接開頭，維持手機通用 8rem（lists.css blocker 高＝釘點 fallback，開卡與初始同高）。
+     原 header 80＋3xl＝164 已退（太深、也跟釘點不齊）。768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
   @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-    .legal-content-col {
-      padding-top: calc(var(--header-height, 80px) + var(--spacing-3xl));
+    .legal-content-col { padding-top: 92px; }
+    .legal-content-col:not(:has(.legal-page-desc, .legal-map-desc)) { padding-top: 8rem; }
+    .legal-content-col:has(.legal-page-desc) > .list-mobile-header-blocker {
+      height: 92px;
+      margin-top: -92px;
     }
   }
 
@@ -385,6 +390,12 @@
       padding-bottom: 0;
     }
     .legal-reg-unit { grid-column: 1; padding-top: 2px; }
+    /* 左緣同樣延伸到卡片左緣（base 只伸 xs＝:active 黑帶左邊留 8px deep 條；user 2026-11-01 整條都變黑）。文字位置不變 */
+    .legal-reg-name,
+    .legal-reg-unit {
+      padding-left: var(--spacing-sm);
+      margin-left: calc(-1 * var(--spacing-sm));
+    }
   }
 
   /* 手機 header blocker 左右外擴：blocker 在 .legal-content-col 內（margin-collapse 因素，見 donate.html）＝非滿版寬；

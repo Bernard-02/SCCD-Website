@@ -264,7 +264,9 @@ export function initAboutPolygons() {
         ` translate(${s.ax.toFixed(1)} ${s.ay.toFixed(1)}) scale(${k.toFixed(3)}) translate(${(-s.ax).toFixed(1)} ${(-s.ay).toFixed(1)})`);
     });
   };
-  gsap.ticker.add(tick);
+  // prioritize＝排在 GSAP tween 之前跑：updateGate 的位置讀取落在本幀所有寫入之前＝不強制 layout
+  // （原本排在 tween 後，morph／形狀位移每幀都已 dirty → getClientRects 每幀逼一次 layout ~2.5ms，2026-11-01 量到）
+  gsap.ticker.add(tick, false, true);
   registerPageCleanup(() => gsap.ticker.remove(tick));
 
   // --- section / division tab 切換 morph：換形（含真圓）+ 縮放 + 移動方向隨機重擲 ---

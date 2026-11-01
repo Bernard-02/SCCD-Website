@@ -136,15 +136,19 @@ function mountZebra(contentEl, html) {
     });
   });
   if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
-  // 頁面說明 sticky 貼框頂（桌面，legal.css）→ 展開標題列釘點＝說明段高：寫 inline var（getListStickyTop 讀它＝開 item
-  // 捲動落點同步；規章類別 sticky 也疊這個值）。非桌面說明段不 sticky → 移除、交回 CSS 值（user 2026-10-04）
+  // 展開標題列釘點＝inline var（getListStickyTop 只認 [style*=] 的 var＝開 item 捲動落點與 CSS 釘點同步；規章類別 sticky 也疊這值）：
+  // 桌面＝說明段高（說明 sticky 貼框頂，legal.css；沒說明段＝0）；<768 手機有說明段＝header 帶下 92＝文字頂（同 admission；
+  // legal.css 直向段把 col padding／blocker 一起設 92），沒說明段（regulations）＝移除、CSS／JS 各自 fallback 8rem＝清單初始頂
+  // （user 2026-11-01「有說明文字照 admission、沒有就原本高度」）；矮橫向 ≥768 走桌面 frame（CSS 0）、iPad 釘 96（legal.css 檔尾）→ 移除交回 CSS
   const pageDesc = /** @type {HTMLElement|null} */ (contentEl.querySelector('.legal-page-desc'));
+  const setStickyTop = () => {
+    if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc ? pageDesc.offsetHeight : 0}px`);
+    else if (window.innerWidth < 768 && pageDesc) contentEl.style.setProperty('--list-header-sticky-top', '92px');
+    else contentEl.style.removeProperty('--list-header-sticky-top');
+  };
+  setStickyTop();
   if (pageDesc && typeof ResizeObserver !== 'undefined') {
-    const ro = new ResizeObserver(() => {
-      if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc.offsetHeight}px`);
-      else contentEl.style.removeProperty('--list-header-sticky-top');
-      refreshStickyPinObservers(contentEl);
-    });
+    const ro = new ResizeObserver(() => { setStickyTop(); refreshStickyPinObservers(contentEl); });
     ro.observe(pageDesc);
     registerPageCleanup(() => ro.disconnect());
   }
