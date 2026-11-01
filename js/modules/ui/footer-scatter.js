@@ -41,7 +41,7 @@ function hideItemsClip(items) {
 }
 
 // 進場：item 從各自藏的那一邊滑回遮罩內（hero clip-reveal），跨卡 stagger 0.08
-function playClipRevealScatter(items) {
+function playClipRevealScatter(items, stagger = { each: 0.08 }) {
   if (typeof gsap === 'undefined') return;
   gsap.killTweensOf(items);
   gsap.to(items, {
@@ -49,7 +49,7 @@ function playClipRevealScatter(items) {
     yPercent: 0,
     duration: DUR.reveal,
     ease: EASE.enter,
-    stagger: { each: 0.08 },
+    stagger,
     overwrite: true,
     clearProps: 'transform',
   });
@@ -643,11 +643,9 @@ async function switchFooterGroup(footer, group) {
       applyGroupVisibility(area);       // JS 收舊群組顯新群組（取代舊 CSS 三向互斥）
       const entering = groupBlocks();   // 切換後 visible = 新群組
       if (entering.length) {
-        setupClipReveal(entering);      // 已包 wrapper（init 時）→ 只重設 yPercent:100 起點
-        // 全部同步升起（user 2026-08-11：icon 塊在 DOM 最前、有 stagger 時比文字早到位＝「icon 比文字快」；退場本就同步）。
-        // ⚠️ 用 { each: 0 } 不用 0：playClipReveal 是 `stagger || 預設`，傳 falsy 的 0 會落回預設 {each:0.12,axis:'y'}
-        // （反而依 y 位置 stagger、最下/最高的 office 拖最久）。物件 { each:0 } 為 truthy，才真的同步。
-        playClipReveal(entering, { stagger: { each: 0 } });   // phase 2：新群組同步升起
+        hideMobileBlocks(entering);     // 已包 wrapper（init 時）→ 重抽四向起點
+        // 全部同步滑入（user 2026-08-11：icon 塊在 DOM 最前、有 stagger 時比文字早到位＝「icon 比文字快」；退場本就同步）。
+        playClipRevealScatter(entering, 0);   // phase 2：新群組同步進場
       }
       return;
     }
@@ -1199,6 +1197,18 @@ function footerInViewport(footer) {
   return r.bottom > 0 && r.top < vh;
 }
 
+// 線性版 block 進場起點：四向隨機、每次重抽（user 2026-11-01，對齊桌面 scatter hideItemsClip）。
+// setupClipReveal 的遮罩橫向放行（給旋轉 chip 用）→ 這裡兩軸都 clip 才藏得住左右向；block 跟遮罩同寬，±110% 自身寬＝整塊出框
+function hideMobileBlocks(blocks) {
+  setupClipReveal(blocks);
+  if (prefersReducedMotion()) return;
+  blocks.forEach((b) => {
+    const w = b.parentElement;
+    if (w && w.classList.contains('clip-reveal-wrapper')) w.style.overflowX = 'clip';
+    gsap.set(b, revealHidden());
+  });
+}
+
 function initFooterMobileReveal(footer, animate = false) {
   if (typeof gsap === 'undefined') return;
   // 平板 768-1199、<768 手機（2026-09-05 起）、矮橫向（2026-09-19 起）都是 tab 切換版型（radio；CSS 各自段）。
@@ -1216,8 +1226,8 @@ function initFooterMobileReveal(footer, animate = false) {
   if (!blocks.length) return;
   mobileBlocks = blocks;
   if (animate && !prefersReducedMotion()) {
-    setupClipReveal(blocks);                          // 各包 overflow:clip 遮罩 + yPercent:100 藏好
-    playClipReveal(blocks, { stagger: { each: 0.08 } });
+    hideMobileBlocks(blocks);                         // 各包 overflow:clip 遮罩 + 四向隨機藏好
+    playClipRevealScatter(blocks);
   } else {
     // 靜態就位（刷新不進場，user 2026-08-10）：仍包遮罩供之後 exit/reset 用，但 hide:false 不藏、不播進場
     setupClipReveal(blocks, { hide: false });
@@ -1251,7 +1261,9 @@ function bindMobileFooterSnap() {
     if (y <= up + 1 || y >= down - 1) return;
     window.scrollTo({ top: dir > 0 ? down : up, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   };
-  const arm = () => { clearTimeout(timer); timer = setTimeout(settle, 120); };
+  // 150 非 120：比 snap-scroll.js 的 settle 晚 30ms，tab 段（curriculum 年級）在段尾往下＝它先接手切年級捲回頂、這裡等捲完
+  // 落在 up 之上就不動；沒 tab 可切它不動、這裡照常把 footer 吸上來（兩邊同一個 scroll 事件起算，晚到的 timer 一定後跑）
+  const arm = () => { clearTimeout(timer); timer = setTimeout(settle, 150); };
   window.addEventListener('scroll', () => {
     const y = window.scrollY;
     if (y !== lastY) dir = Math.sign(y - lastY);

@@ -196,7 +196,7 @@
         <!-- Programs division 圖文視圖的 snap 落點（零高度）：tree 佔了 #class 的 snap，division 視圖需自己的落點，
              否則往下捲會從 tree 直接吸到 #works、中間 division 視圖沒 frame 對齊 → 半屏錯位（2026-09-01 #7 修）。
              scroll-margin 規則在 scroll-snap.css（比照 #class）。 -->
-        <div id="class-info-anchor" class="snap-zone" style="height: 0;"><h2 class="sr-only">Programs 學制</h2></div>
+        <div id="class-info-anchor" class="snap-zone" data-snap-tabs="#mobile-division-nav .mobile-division-btn:not(.mobile-division-btn--bfa)" style="height: 0;"><h2 class="sr-only">Programs 學制</h2></div>
 
         <!-- Sticky 範圍容器：btn 的 sticky 只在 info 結束前生效 -->
         <div id="class-info-sticky-wrapper" class="relative z-10">
@@ -305,7 +305,7 @@
 
         <!-- Works View：#works 本體 = snap zone（桌面高視窗 = 100vh、鏡像 class 佈局；矮視窗/手機 = 自然高度、
              marker 行為同舊版）。100vh / scroll-margin / 封鎖綫 +100px 補償規則在 scroll-snap.css。 -->
-        <div id="works" class="snap-zone relative w-full">
+        <div id="works" class="snap-zone relative w-full" data-snap-tabs="#mobile-division-nav .mobile-division-btn">
           <!-- Works 標題（封鎖綫已移除，留 sr-only 保 heading 語意）-->
           <h2 class="sr-only">Works 作品</h2>
 

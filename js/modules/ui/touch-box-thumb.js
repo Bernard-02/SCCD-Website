@@ -4,7 +4,7 @@
  * DSD events／說明盒…＝桌面有細黑原生捲軸的那些）框內放一支自繪 thumb，樣式同桌面原生（scrollbar.css .touch-thumb）。
  * 做法：0 高 sticky holder 釘在框可視區頂、thumb 依 scrollTop 比例 translateY＝只聽框自己的 scroll，不掛 window 監聽
  * （about 一頁六個框、window scroll 逐框量 rect 會每幀 forced layout）。原生 scrollbar 畫在 padding 外側＝thumb right 退 padding-right。
- * 只在 pointer: coarse 啟用（main-modular.js）；faculty／curriculum 色卡已有 desk-card.js 自製 thumb、不重複。
+ * 只在 pointer: coarse＋桌面排版啟用（main-modular.js；手機排版不畫，user 2026-11-01）；faculty／curriculum 色卡已有 desk-card.js 自製 thumb、不重複。
  */
 const SKIP = '#faculty-panel, #courses-detail-panel';
 /** @type {WeakMap<Element, {holder: HTMLElement, place: () => void}>} */

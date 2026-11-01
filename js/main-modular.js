@@ -305,6 +305,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
   if (page === 'curriculum') {
     import('./modules/pages/courses-section-switch.js').then(m => { if (alive()) m.initCoursesSectionSwitch(fromUserNav, unlock); });
+    // 直向手機方向磁吸＋年級 tab 段（#courses-content-section data-snap-tabs：捲完當年級往下＝下一年級，user 2026-11-01）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
   }
 
   // --- Activities Page ---
@@ -618,8 +620,9 @@ document.addEventListener('DOMContentLoaded', function () {
   initSmoothScroll();
   initIdleStandby();
   initCustomScrollbar();
-  // 觸控裝置（iPad 橫向桌面排版）：內捲框自繪 thumb（iOS overlay 捲軸只在捲動時閃現；user 2026-10-31）
-  if (SCCDHelpers.isCoarsePointer()) import('./modules/ui/touch-box-thumb.js').then(m => m.initTouchBoxThumbs());
+  // 觸控＋桌面排版（iPad 橫向）才畫內捲框自繪 thumb（iOS overlay 捲軸只在捲動時閃現；user 2026-10-31）；
+  // 手機排版不要（user 2026-11-01「手機上內容超過 box 高也不需要 scrollbar」）。轉向跨 gate 會整頁 reload，init 判一次即可
+  if (SCCDHelpers.isCoarsePointer() && SCCDHelpers.isDesktopLayout()) import('./modules/ui/touch-box-thumb.js').then(m => m.initTouchBoxThumbs());
   initShareModal();
   initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新

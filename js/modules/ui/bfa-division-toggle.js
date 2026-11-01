@@ -520,9 +520,12 @@ export function initBFADivisionToggle() {
           window.SCCD_animateBfaChips?.(false);
           recenterAfterBfaToggle(); // 先設 pending 壓住即時置中，收合後依最終佈局重新置中（bfa/非 bfa active 皆修）
           const active = document.querySelector('.mobile-division-btn.active');
-          if (active?.getAttribute('data-division') === 'bfa') {
+          const activeId = active?.getAttribute('data-division');
+          if (activeId === 'bfa') {
             setActive('animation', randomColor(getCurrentStripColor()), randomRotation());
             showContent('animation');
+          } else if (activeId) {
+            showContent(activeId);   // works ctx 只切 works panel → 回 Programs 把圖文同步成 active（同桌面 syncInfoPanelToActive 但帶動畫：觸發線在 60% 圖文已露出；手機磁吸往上進 Programs／甩過 ctx 線再切 tab 都靠這條）
           }
         },
       });
