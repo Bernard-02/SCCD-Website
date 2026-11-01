@@ -4,7 +4,7 @@
  * 處理手機版漢堡選單的開關、圖示切換與手風琴效果
  */
 
-import { setupClipReveal } from './modules/ui/scroll-animate.js';
+import { setupClipReveal, revealHidden } from './modules/ui/scroll-animate.js';
 import { cycleHeaderBtn, rerollMobileBtnRot } from './header.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { randomSpinAngle } from './modules/ui/arrow-spin.js';
@@ -23,8 +23,12 @@ const DESKTOP_MENU_MQ = '(min-width: 1024px) and (min-height: 501px)';
 const OVERLAY_MENU_MQ = `${DESKTOP_MENU_MQ}, (max-width: 767px) and (orientation: portrait)`;
 const isDesktopMenu = () => window.matchMedia(DESKTOP_MENU_MQ).matches;   // 只剩 hover 抽角用（手機 tap 不抽）
 const isOverlayMenu = () => window.matchMedia(OVERLAY_MENU_MQ).matches || SCCDHelpers.isLandscapeGate();
-// 桌面實色 btn 藏起時多滑的 px：剛好 yPercent 100 貼遮罩邊，旋轉遮罩的反鋸齒會留一條縫（同 header.js BAR_HIDE_BUFFER）
-const DESKTOP_HIDE_BUFFER = 12;
+// 選項藏定位＝每顆隨機四向（user 2026-11-01「四周進場」）：同一次開／關 set 與 tween 共用同一組方向（函式值依 index 取）；
+// ±110 多滑 10% 防旋轉遮罩反鋸齒留縫（全站 revealHidden 慣例，取代原 yPercent 100 + 12px buffer）
+const hiddenVars = (items) => {
+  const d = Array.from(items, () => revealHidden());
+  return { xPercent: (i) => d[i].xPercent, yPercent: (i) => d[i].yPercent };
+};
 const randRot = () => `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
 
 // 給 header.js 用：footer-near 收起 header 鈕時，開著的桌面 menu 一起關（不然選項浮著、卻沒有鈕可關）
@@ -156,17 +160,18 @@ export function initMobileMenu() {
     if (overlay) watchScrollClose(true);
     // 桌面面板透明、頁面看得到 → 暫停 loop 會看到凍結，不停（close 端的 resume 呼叫無害）
     if (!overlay) setPageLoopsPaused(true);
-    const hideY = overlay ? DESKTOP_HIDE_BUFFER : 0;
-    // ⚠️ 先把選項藏好（clip wrapper + yPercent:100）再讓 nav 可見（user 2026-06-24 報「選項沒 stagger、閃一下出現」）：
+    const hid = menuItems ? hiddenVars(menuItems) : null;
+    // ⚠️ 先把選項藏好（clip wrapper + 四向藏定位）再讓 nav 可見（user 2026-06-24 報「選項沒 stagger、閃一下出現」）：
     // 上次 reveal onComplete 的 clearProps:'transform' 讓選項停在全顯態 → 若先 .open 再 set hidden，
     // nav 一可見會閃一幀全顯選項才被壓回隱藏。把 hide 提到 .open 之前，這一幀不存在。
     if (typeof gsap !== 'undefined' && menuItems && menuItems.length) {
       setupClipReveal(menuItems);
-      gsap.set(menuItems, { yPercent: 110, y: hideY });
+      gsap.set(menuItems, hid);
       // 桌面 btn 旋轉掛在 clip wrapper（遮罩跟著轉 → 滑入不切旋轉凸角，同 header bar 收合做法）；已有角度就沿用
       menuItems.forEach(a => {
         const w = a.parentElement;
         if (w?.classList.contains('clip-reveal-wrapper')) {
+          w.style.overflowX = 'clip';   // setupClipReveal 預設只裁 y；左右向進場要兩軸都裁（旋轉掛 wrapper、chip 本身不凸角）
           w.style.transform = overlay ? (w.style.transform || randRot()) : '';
         }
       });
@@ -202,12 +207,12 @@ export function initMobileMenu() {
         ease: EASE.enterSoft,
         onComplete: () => {
           if (!menuItems || !menuItems.length) { busy = false; return; }
-          // fromTo 自帶起點 100：不依賴 open 前的外部 set 撐過滑入段，stagger 每次都確定從隱藏播（user 2026-06-24）
+          // fromTo 自帶起點（同一組四向）：不依賴 open 前的外部 set 撐過滑入段，stagger 每次都確定從隱藏播（user 2026-06-24）
           revealTween = gsap.fromTo(menuItems,
-            { yPercent: 110, y: hideY },
+            hid,
             {
+              xPercent: 0,
               yPercent: 0,
-              y: 0,
               duration: DUR.slow,
               stagger: { each: 0.084, from: 'start' },
               ease: EASE.enter,
@@ -253,8 +258,7 @@ export function initMobileMenu() {
           revealTween?.kill(); revealTween = null;   // 開啟中途收：見 revealTween 宣告
           gsap.killTweensOf(menuItems);
           gsap.to(menuItems, {
-            yPercent: 110,
-            y: overlay ? DESKTOP_HIDE_BUFFER : 0,
+            ...hiddenVars(menuItems),   // 退場也隨機四向（每顆重抽）
             duration: itemDur,
             stagger: { each: itemStagger, from: 'end' },
             ease: EASE.exitSoft,

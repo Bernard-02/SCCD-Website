@@ -20,6 +20,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
+import { revealHidden } from '../ui/scroll-animate.js';
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
@@ -144,6 +145,15 @@ export function initMarquee(gate = Promise.resolve()) {
       const onMenuOpen = () => closeOpenPoster?.();
       document.addEventListener('menu:open', onMenuOpen);
       registerPageCleanup(() => document.removeEventListener('menu:open', onMenuOpen));
+      // 手機：點 news 以外的地方＝收合開著的海報（user 2026-11-01）。stack 內的點擊各自處理（bar toggle／海報跳連結）；
+      // 影片播放器 overlay 上的點擊不算（海報留著、關播放器才由 openWatch 的 onLeave 收尾）
+      const onDocClick = (e) => {
+        if (!closeOpenPoster || !SCCDHelpers.isMobileLayout()) return;
+        if (e.target instanceof Element && e.target.closest('#homepage-marquee-stack, #video-player-overlay')) return;
+        closeOpenPoster();
+      };
+      document.addEventListener('click', onDocClick);
+      registerPageCleanup(() => document.removeEventListener('click', onDocClick));
     })
     .catch(() => {});
 }
@@ -323,16 +333,16 @@ function setBtnState(b, posterOpen, animate = false) {
   b.btn.setAttribute('aria-label', label);
   const iconEl = /** @type {HTMLElement} */ (b.btn.firstChild);
   if (!animate || typeof gsap === 'undefined') { iconEl.className = `icon ${icon}`; return; }
-  // 換 icon＝整顆鈕往左出去、換好從左邊回來（遮罩＝.hm-banner-btn-clip 貼鈕大小；user 2026-10-29「是 btn 不是 icon」）；
-  // 每半段 DUR.base 同 header 鈕換 icon；多滑 12 防貼邊留縫（同 header BAR_HIDE_BUFFER）
+  // 換 icon＝整顆鈕隨機四向出去、換好同向回來（遮罩＝.hm-banner-btn-clip 貼鈕大小；user 2026-10-29「是 btn 不是 icon」、
+  // 2026-11-01「四周進場」）；每半段 DUR.base 同 header 鈕換 icon；±110 多滑 10% 防貼邊留縫（全站 revealHidden 慣例）
   const btn = b.btn;
-  const off = -(btn.offsetWidth + 12);
+  const hid = revealHidden();
   gsap.killTweensOf(btn);
   gsap.to(btn, {
-    x: off, duration: DUR.base, ease: EASE.exit,
+    ...hid, duration: DUR.base, ease: EASE.exit,
     onComplete: () => {
       iconEl.className = `icon ${icon}`;
-      gsap.fromTo(btn, { x: off }, { x: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
+      gsap.fromTo(btn, hid, { xPercent: 0, yPercent: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
     },
   });
 }
