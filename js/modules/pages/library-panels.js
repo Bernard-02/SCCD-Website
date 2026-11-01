@@ -1113,8 +1113,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     }, true);
 
     // ── 渲染 ──
-    // 手機＋矮橫向（user 2026-10-27 直向；2026-10-30 gate 同）：主列只出獎名＋得獎人，主辦／名次收進 chevron 展開區（ref 之上）；樣式 library.css 檔尾手機段
-    const portraitDetail = SCCDHelpers.isMobileLayout();
+    // 手機＋矮橫向（user 2026-10-27 直向；2026-10-30 gate 同）＋觸控的桌面排版（iPad 橫向，user 2026-10-31：桌面 6 欄在 1180 寬
+    // 擠到 45／27px、hover 才讀得到的 marquee 觸控用不了）：主列只出獎名＋得獎人，主辦／名次收進 chevron 展開區（ref 之上）；
+    // 樣式 library.css 手機段的 award 區塊（media 多了 touch-desktop 那段）
+    const portraitDetail = SCCDHelpers.isMobileLayout() || SCCDHelpers.isCoarsePointer();
     // 每行包 .award-cell-line > .award-cell-inner：矮橫向窄欄 crop 時逐行 marquee 用
     //（applyMarqueeOverflow row/inner 結構；桌面/直向無對應 CSS＝純多一層 span 零視覺差）
     const cellLine = (txt, weight) =>
@@ -1163,8 +1165,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 手機（< 768）：pair 不 viewport-wide（會異常慢），改自然寬度排列 + 純 CSS marquee
     //                CSS marquee keyframe = translateX(-50%) 配合複製一份 seamless；duration 依名字數線性放大
     function applyWinnersHMarquee(scope) {
-      // 矮橫向欄寬同手機一樣窄 → 走手機分支（直排 + 個別 marquee，不整位橫排）
-      const isMobile = SCCDHelpers.isMobileLayout();
+      // 矮橫向欄寬同手機一樣窄 → 走手機分支（直排 + 個別 marquee，不整位橫排）；觸控桌面排版同（收合列模板，portraitDetail）
+      const isMobile = SCCDHelpers.isMobileLayout() || SCCDHelpers.isCoarsePointer();
       const SECONDS_PER_WINNER = isMobile ? 3 : 2.5;
       // 讀寫分離（2026-09-15 search 卡頓戰役）：舊版逐 view「寫 reset → 讀 offsetWidth → 寫 dual-copy」，
       // 每 view 一次 forced reflow——每列 2~3 個 .award-winners cell × 670 列＝千餘次全表 reflow，
@@ -1598,8 +1600,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     function applyAwardMarqueesNow(scope) {
       // 多獲獎者水平 marquee（桌面 hover 才捲；量測需 panel 可見、隱藏時 offsetWidth=0 自動略過）
       applyWinnersHMarquee(scope);
-      if (SCCDHelpers.isMobileLayout()) {
-        // 手機／矮橫向照舊：溢出自動循環（applyMarqueeOverflow 自帶 reset——轉向殘留的兩份 copy 自癒）
+      if (portraitDetail) {
+        // 手機／矮橫向／觸控桌面排版照舊：溢出自動循環（applyMarqueeOverflow 自帶 reset——轉向殘留的兩份 copy 自癒）
         runMarqueeOverflow(scope, '.award-winner-en, .award-winner-zh', '.award-marquee-inner');
         runMarqueeOverflow(scope, '.award-cell-line', '.award-cell-inner');
         // 直向手機得獎人橫排：整排超過欄寬才捲（行級上面那條量不到——每位自然寬、行不溢出）

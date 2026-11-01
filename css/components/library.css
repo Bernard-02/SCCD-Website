@@ -1289,6 +1289,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   /* year block 間距走全域規則（含 :last-child 歸零）；勿在此加 !important 蓋掉 :last-child */
 
+}
+/* ↓ award 收合列（手機＋gate＋觸控桌面排版）：同一份規則、media 多了 (min-width:1024px) and (pointer: coarse)——iPad 橫向桌面 6 欄在 1180 寬擠到 45／27px、
+   hover 才讀得到的 marquee 觸控用不了（user 2026-10-31）→ 走 chevron 收合列（library-panels.js portraitDetail 同式）。位置不動＝cascade 順序同手機段 */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* award 主列 4 欄：[國旗][.award-mid 競賽/主辦/名次 直排][得獎人][ref 鈕]；兩欄各自 top-align、得獎人多名不撐開中間欄。
      4 欄 grid 在 .award-row（item 是 block） */
   #library-awards-list .award-record-item {
@@ -1330,11 +1334,15 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-awards-list .year-block > div:first-child {
     font-size: var(--font-size-s) !important;
   }
+}
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
   #library-press-list .press-year-label,
   #library-files-list .press-year-label,
   #library-album-list .press-year-label {
     font-size: var(--font-size-s) !important;
   }
+}
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* 中間欄各 cell：解開 truncate 讓 EN/ZH 自然換行 */
   #library-awards-list .award-mid > .award-cell-mask > div {
     min-width: 0 !important;
@@ -1780,6 +1788,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   [id^="library-"][id$="-year-picker"] button,
   #library-year-picker button { padding-top: 0 !important; padding-bottom: 0 !important; }
 
+}
+/* ↓ award 收合列第二段（同上：union ＋ 觸控桌面排版） */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* award（user 10-27）：主列只留 [國旗][獎名＋得獎人][chevron]；主辦／名次收進 chevron 展開區 .award-detail（ref 之上）。
      模板依 portraitDetail 出（library-panels.js buildAwardItemHtml）。獎名換行，其餘一行、超過 marquee */
   #library-awards-list .award-row {
@@ -1824,6 +1835,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     display: inline-block !important;
     white-space: nowrap !important;
   }
+}
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
 
   /* 選項、tab 鈕：英中一行（同 about 直向底 bar） */
   #library-files-cat-filter .lib-files-cat-btn,
@@ -1958,4 +1971,13 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
   /* award 大表（600+ 列、每列多格溢出）刻意不自動捲：iPad 實測整頁動畫死機（user 2026-10-31）；溢出的格維持裁切，點列展開看全文 */
+}
+
+/* 觸控桌面排版（iPad 橫向）的 award 收合列：模板／版面吃上面手機段（media 含 pointer: coarse），字級不跟手機的 s（桌面 token＝16）、
+   維持桌面大表的 xs；cv 估高跟桌面 42（只能估小） */
+@media (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
+  #library-awards-list .award-record-item {
+    font-size: var(--font-size-xs) !important;
+    contain-intrinsic-size: auto 42px;
+  }
 }

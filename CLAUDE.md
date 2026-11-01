@@ -376,7 +376,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 ### 測試 checklist
 - **桌面**：所有頁樣式一致 / nav 高亮 / mega menu / hover / GSAP 動畫流暢 / 資源載入
 - **手機**：響應式（375/414/768）/ 無 hover 殘留 / 觸控流暢 / 漢堡選單 / 字體 ≥14px / 點擊區 ≥44×44
-- **矮橫向**（844×390、667×375）：nav／tab 進 header 帶（hero 上藏、footer 前收）、內容左右排 / hero 隨機版不被切 / 不吃桌面 md: 樣式 / 轉向 reload 自癒；**iPad**（768×1024）：nav／tab 底 bar（chip 底 24、tab 列可見距 16）；**iPad 橫向**（1180×820，觸控）：桌面排版、hover 才捲的 marquee 自動捲、footer 卡手指推得開、atlas 可 pan／pinch、about／resources 內捲框有自繪 thumb、DSD 上下屆字卡常駐（md）、faculty 色卡右緣不壓 mode 鈕、legal 不多出可捲一截
+- **矮橫向**（844×390、667×375）：nav／tab 進 header 帶（hero 上藏、footer 前收）、內容左右排 / hero 隨機版不被切 / 不吃桌面 md: 樣式 / 轉向 reload 自癒；**iPad**（768×1024）：nav／tab 底 bar（chip 底 24、tab 列可見距 16）；**iPad 橫向**（1180×820，觸控）：桌面排版、hover 才捲的 marquee 自動捲、footer 卡手指推得開、atlas 可 pan／pinch、about／resources 內捲框有自繪 thumb、DSD 上下屆字卡常駐（md）、faculty 色卡右緣不壓 mode 鈕、legal 不多出可捲一截、library award 走 chevron 收合列（library-panels.js portraitDetail＝isMobileLayout()‖isCoarsePointer()，CSS 手機段 award 區塊 media 含 touch-desktop）；atlas 的 Safari 補丁只在 (pointer: coarse)（PC 優先、勿動 .atlas-list-col-items 的 overflow）
 - **RWD 互不影響**：手機改不影響桌面 / 媒體查詢正確包裹 / JS 條件式執行（gate 判準跟 CSS 同式）
 - **SPA 換頁**：footer 顯隱正確 / body overflow 復原 / listener 不累積（DevTools Memory 看 listener count）
 - **資料層**：Directus 斷線時降級正常（A 類走 sessionStorage LKG／其餘＝空清單、不報錯不卡頁）/ 後台改內容前台硬重整生效

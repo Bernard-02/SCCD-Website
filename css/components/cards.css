@@ -684,7 +684,9 @@
       flex-direction: row;
       gap: var(--spacing-3xl);
     }
-    #courses-detail-panel .courses-detail-title-sticky { flex: 3 1 0; min-width: 0; align-self: flex-start; }
+    /* background 蓋掉 courses.css 的 inherit：手機 sticky 標題才需要同色底遮住底下 desc，桌面兩欄並排不需要；
+       同色底多一層＝iPad Safari 旋轉課名 box 的四邊疊出 1px 接縫（user 2026-10-31） */
+    #courses-detail-panel .courses-detail-title-sticky { flex: 3 1 0; min-width: 0; align-self: flex-start; background: transparent; }
     /* 課名 box 貼字寬＝旋轉中點在課名本身中心（不是整欄中心；user 2026-10-20） */
     #courses-detail-panel .courses-detail-title-box { width: fit-content; max-width: 100%; }
     #courses-detail-panel .courses-detail-desc-wrapper { flex: 2 1 0; min-width: 0; }
