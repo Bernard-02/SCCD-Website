@@ -746,7 +746,7 @@ export async function renderCoursesGrid(program) {
     grid.parentElement?.insertBefore(mobileGrid, grid.nextSibling);
   }
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
-  // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27）
+  // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27），11-01 起疊在 program 列上方（courses.css 直向段）
   const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
   if (gradeBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
 

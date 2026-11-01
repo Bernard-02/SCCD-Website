@@ -186,7 +186,7 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 ### 間距
 xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96px) / 4xl (128px) / 7xl / 8xl
 
-**直向手機貼底界線＝`--mobile-bottom-anchor`（32，鏡像 header 鈕離頂 pt-lg；2026-10-30 統一）**：底 bar 的 chip（bar 高＝界線×2＋chip 28、chip 置中）、角落鈕（DSD 返回／分享、atlas 切換）、mode3 鉛筆、lightbox／PDF 底列、首頁 news 堆疊底，底邊一律落在這條線；第二層列（division／program／子分頁）疊在 bar 上方（bar 高 − xs）。新貼底元素照吃，別再各自寫 16／18／24。真桌面另有 48（頁卡底）不吃
+**直向手機貼底界線＝`--mobile-bottom-anchor`（32，鏡像 header 鈕離頂 pt-lg；2026-10-30 統一）**：底 bar 的 chip（bar 高＝界線×2＋chip 28、chip 置中）、角落鈕（DSD 返回／分享、atlas 切換）、mode3 鉛筆、lightbox／PDF 底列、首頁 news 堆疊底，底邊一律落在這條線；第二層列（about division／curriculum 年級／activities 子分頁）疊在 bar 上方（bar 高 − xs）。curriculum 底 bar＝program 列、年級 bar 在上（2026-11-01 user「先年級才班級」）。新貼底元素照吃，別再各自寫 16／18／24。真桌面另有 48（頁卡底）不吃
 
 ### 字卡內距（2026-10-26）
 有底色的單獨字卡一律依**字級**吃 `variables.css` 的 `--card-pad-<size>`（3xl `0 10px`／2xl `0 8px`／xl `5px 7px 4px`／lg `5.5px 7px`／md `6px 7px`／s `5px 6px`／xs `4px 5px`／2xs `3px 4px`＝atlas 星雲節點 11px 專用），行距吃同字級 `--line-height-<size>`。舊「全站 6px 8px 5px」已退役，新字卡別再寫死。卡中卡（手風琴內文；footer 卡內資訊卡／legal 連結、atlas hover 卡三段 10-26 起照吃 s）、列（list-header、規章列）、控制列不吃。JS 要數值就讀 `:root` 的 token（例：atlas.js createCareerController）
@@ -268,6 +268,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - **HTML string 一次組完再 innerHTML**；隱藏態直接烙在 HTML string（出生自帶 class），**不要**渲染後逐項 `gsap.set`——新元素對 GSAP 永遠「冷」，首觸逐列讀 computed style＝逐列全頁 recalc（50~120ms×N，切分頁曾凍 9~34s）
 - 事件綁定分幀（rAF 批次）＋ incremental（`data-bound` 守衛）；`.list-item` 加 `content-visibility: auto`
 - **讀寫分離**：先讀全部 layout 再寫全部 style，別逐項讀寫交錯（forced reflow thrash）；per-元素 ResizeObserver 要 bail 守衛
+- **`:has()` 只放 subject 位置、引數用子選擇器**（`.a:has(> .b)`）：`.a:has(.b) > *`（子孫引數＋非 subject）會讓 Chrome 把全站任何 DOM 插入升級成全頁 style recalc（~20ms×N；2026-11-01 about 切 division 500ms long task 根因＝lists.css 副標收合那條）。要選 `:has()` 元素的子孫＝直接寫子選擇器
 
 ### 動畫
 - 清單 rows 進退場用 **`list-row-reveal.js`**（CSS transition、compositor 接管、零 computed 讀），不用 GSAP yPercent。⚠️ 揭前隱藏態必須已 commit（painted）才會 transition 而非 snap——同步 hide→reveal 之間要 `void el.offsetHeight` 單次 reflow

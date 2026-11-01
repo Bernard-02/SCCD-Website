@@ -488,8 +488,9 @@
   }
 
   /* ===== 直向手機（user 2026-10-27，同 about／faculty）=====
-     年級 bar＝畫面底 bar（.nav-bottom-bar，lists.css；courses-map.js 綁 bindMobileBottomBar）；
-     program bar＝底 bar 上方固定列、BFA 學士班小標在鈕左併排（同 about division tab），範圍內才逐 chip clip-reveal
+     program 列＝畫面底固定列（chip 底落在全站貼底界線；user 2026-11-01「先年級、才班級」＝年級在上、班級在下）、
+     BFA 學士班小標在鈕左併排（同 about division tab），範圍內才逐 chip clip-reveal；
+     年級 bar（.nav-bottom-bar，lists.css；courses-map.js 綁 bindMobileBottomBar）疊在 program 列上方
      （courses-section-switch.js），出生 .is-div-hidden 藏、範圍外 .is-off 不擋點擊；必修／選修在卡片左欄 sticky。
      header 白底已拿掉（navigation.css）→ 頂上不再有 nav／年級／類型三層 sticky 白帶（類型標籤改左欄 sticky、不墊底色）。矮橫向 nav 進 header（landscape.css）不套。 */
   @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
@@ -499,21 +500,28 @@
       padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h) + 80px);
     }
     #courses-content-section .courses-content-row { gap: 0; }
-    /* 下移 xs 收窄兩列間距＝同 about .mobile-division-wrap（variables.css 直向段） */
+    #courses-content-section {
+      --courses-m-program-chip-h: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + 10px);   /* 英上中下兩行＋card-pad-s 上下 5 */
+      /* 年級 bar 底：年級 chip 底到 program chip 頂可見距 sm（bar 高＝界線×2＋28、chip 置中 → bar 底＋界線＝chip 底，界線互相抵銷） */
+      --courses-m-grade-bar-bottom: calc(var(--courses-m-program-chip-h) + var(--spacing-sm));
+    }
     #courses-content-section .inner-scroll-nav-col {
       position: fixed;
       left: 0;
       right: 0;
-      bottom: calc(var(--mobile-bottom-anchor) + 28px);   /* 同 about .mobile-division-wrap：chip 頂；外框 16 內距＝可見距離 sm 16 */
+      bottom: 0;
       z-index: 40;
       padding: 0;   /* 蓋 lists.css ≥768 frame 的 padding-top --inner-box-top／padding-bottom（fixed 列會被撐高、透明區擋到卡片點擊） */
     }
+    #courses-content-section .courses-mobile-grade-bar { bottom: var(--courses-m-grade-bar-bottom); }
+    /* 藏起＝多滑過自己的 bottom 偏移才出畫面（lists.css 110% 是給 bottom:0 算的） */
+    #courses-content-section .courses-mobile-grade-bar.is-bar-hidden { transform: translateY(calc(110% + var(--courses-m-grade-bar-bottom))); }
     #courses-content-section .inner-scroll-nav-col.is-div-hidden { visibility: hidden; }
     #courses-content-section .inner-scroll-nav-col.is-off { pointer-events: none; }
-    /* 上下 sm＝active 旋轉角 clearance（同 about #mobile-division-nav py-sm）；項目間 md、底對齊同 about（#id 蓋 HTML items-start） */
+    /* 上 sm＝active 旋轉角 clearance（同 about #mobile-division-nav py-sm）、下＝貼底界線；項目間 md、底對齊同 about（#id 蓋 HTML items-start） */
     #courses-content-section .courses-program-bar {
       margin: 0;
-      padding: var(--spacing-sm) var(--container-padding);
+      padding: var(--spacing-sm) var(--container-padding) var(--mobile-bottom-anchor);
       gap: var(--spacing-md);
       align-items: flex-end;
       /* gate（≥768 寬）吃不到上方 <768 的 row／overflow 規則、HTML 又是 flex-col → 這裡寫死（!important 同上方理由：蓋 utility） */
