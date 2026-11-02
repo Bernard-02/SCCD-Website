@@ -620,6 +620,9 @@ document.addEventListener('DOMContentLoaded', function () {
   initSmoothScroll();
   initIdleStandby();
   initCustomScrollbar();
+  // 純觸控裝置（iPad／手機 Safari）工具列收展會發 resize：ScrollTrigger 每次都 refresh＝捲動中反覆重算、越過邊界的 callback 可能漏
+  // （DSD sticky 卡 iPad 實測偶爾不現身，user 2026-11-02）。只在寬度變（轉向）才 refresh；桌面不受影響
+  if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.config({ ignoreMobileResize: true });
   // 觸控＋桌面排版（iPad 橫向）才畫內捲框自繪 thumb（iOS overlay 捲軸只在捲動時閃現；user 2026-10-31）；
   // 手機排版不要（user 2026-11-01「手機上內容超過 box 高也不需要 scrollbar」）。轉向跨 gate 會整頁 reload，init 判一次即可
   if (SCCDHelpers.isCoarsePointer() && SCCDHelpers.isDesktopLayout()) import('./modules/ui/touch-box-thumb.js').then(m => m.initTouchBoxThumbs());

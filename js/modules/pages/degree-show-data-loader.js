@@ -2076,7 +2076,7 @@ function setupStickyAndHeroChips(data, year) {
   // end 用 next-project section top 當邊界 — 整段內容（events list / albums / 主影片 / 紀錄影片）都顯示 sticky title。
   const nextProjectSection = document.getElementById('next-project-section');
   if (descSection && nextProjectSection) {
-    ScrollTrigger.create({
+    const st = ScrollTrigger.create({
       trigger: descSection,
       // 延後到 descSection top 捲到 sticky chip 的 top 位置（CSS nav line+40：200／≥1200 224，讀 computed）才出 sticky：
       // 此時 hero 文字（在 hero section 底、pb-2xl）已捲到 sticky 上方 → sticky 出現不跟 hero 重疊，
@@ -2089,5 +2089,20 @@ function setupStickyAndHeroChips(data, year) {
       onEnterBack: showCard,
       onLeaveBack: () => hideCard(),
     });
+    // iPad 實測往下捲時 sticky 卡有時不出現（user 2026-11-02）：Safari 工具列收起＝resize → ScrollTrigger refresh，
+    // 剛好在那一幀越過 start 的話 callback 不發、狀態停在藏。每個捲動幀照 isActive 對一次帳（方向看 scrollY vs start），
+    // 只在對不上時補叫 showCard／hideCard；trigger 本身由 cleanupPageModules 的 ScrollTrigger kill 收
+    let syncRaf = 0;
+    const syncCard = () => {
+      syncRaf = 0;
+      if (!st.trigger) return;   // 已 kill（換頁）
+      const below = st.scroll() > st.start;
+      if (st.isActive) { if (!cardShown) showCard(); }
+      else if (cardShown) hideCard(below);
+      else if (backShown && !below) hideCard();
+    };
+    const onScrollSync = () => { if (!syncRaf) syncRaf = requestAnimationFrame(syncCard); };
+    window.addEventListener('scroll', onScrollSync, { passive: true });
+    registerPageCleanup(() => { window.removeEventListener('scroll', onScrollSync); if (syncRaf) cancelAnimationFrame(syncRaf); });
   }
 }
