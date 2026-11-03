@@ -89,7 +89,6 @@
   --button-rotate-height: calc(70px * var(--scale));
 
   --control-box-padding: calc(18px * var(--scale));
-  --control-gap: calc(4px * var(--scale));
   --panel-gap: calc(30px * var(--scale));
 
   --custom-area-padding-vertical: calc(10px * var(--scale));

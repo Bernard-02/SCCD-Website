@@ -46,7 +46,7 @@ function parseSheet() {
       if (!year) return;
     }
     prevYear = year;
-    // 國旗：country 已改 csv 多選（patch-library-awards-country-multi.cjs）→ 多國全收、逗號串接
+    // 國旗：country 已改 csv 多選（2026-09-13 schema 改多選）→ 多國全收、逗號串接
     const flagNames = lines(r[1]);
     flagNames.forEach(n => { if (!COUNTRY[n]) warnings.push(`row ${rowNo}: 國名「${n}」無 ISO 對應，略過`); });
     const country = flagNames.map(n => COUNTRY[n]).filter(Boolean).join(',');

@@ -1,11 +1,11 @@
 // 把指定的 ui_labels key 補進 Directus（新 nav btn / 新標籤用）。安全版：只 POST 缺的 key、已存在跳過，
-// 絕不 PATCH 其他 row（setup-ui-labels.cjs 是全量重推、會蓋掉老師的線上編輯，加新 key 別用它）。
+// 絕不 PATCH 其他 row（舊 setup-ui-labels.cjs 是全量重推、會蓋掉老師的線上編輯，已刪；加新 key 只用本檔）。
 // en/zh 取自 data-source/ui-labels.json（單一來源，先把 key 加進那份）；group 依 categorize-ui-labels.cjs 同規則。
 //
 // 跑（repo 根目錄）：node scripts/add-ui-label-keys.cjs about.structure [more.keys ...]
 // token：scripts/.directus-token（gitignore）或環境變數 DIRECTUS_TOKEN。
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // *.usc.edu.tw 萬用憑證對不上裸連線（同 setup-ui-labels.cjs）
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // *.usc.edu.tw 萬用憑證對不上裸連線
 const fs = require('fs');
 
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();

@@ -2,7 +2,7 @@
 
 > 本檔講 **前台 SPA 首次上線**。後台 Directus 的安裝／設定看 `SPA-接-Directus-Headless-最佳實踐.md`。
 > ⚠️ 那份舊文件把前台寫成「Lightsail + Apache」——**與實況不符**，前台網域接在 S3 + CloudFront（見下方檢查證據）。
-> ⚠️ **現況（2026-08-16）：新 SPA 尚未部署、全在本地開發**；`sccd.usc.edu.tw` 目前放的是**現行的舊 WordPress 站**。本檔＝把 SPA **首次部署**上去、**取代**舊站的流程。
+> ✅ **現況（2026-11-02）**：SPA 已上線 `sccd.usc.edu.tw`（coming soon 版，純手動 S3 上傳）、乾淨網址已生效。本檔保留**首次上線與重新上傳**的流程，之後出包照 CLAUDE.md「部署」。
 
 ---
 
@@ -17,9 +17,8 @@ sccd.usc.edu.tw                       sccdtest.usc.edu.tw
 CloudFront（CDN + 快取）               nginx / 1.22.1
    │                                     │
    ▼                                     ▼
-Amazon S3（靜態網站）                   Directus（:8055）＋ PostgreSQL
-  現放「舊 WP 站」                       （在 Lightsail 上）
-  → 上線改放 SPA build
+Amazon S3（靜態網站）                   Directus（:8055）＋ MySQL
+  SPA build（coming soon 版）             （在 Lightsail 上）
 ```
 
 檢查方式（隨時可重驗）：
@@ -31,7 +30,6 @@ curl -sI https://sccdtest.usc.edu.tw/    # → Server: nginx/1.22.1 + X-Powered-
 **重點**：
 - 「Lightsail + nginx」是**後台 Directus 那台**，不是前台。
 - 前台是 **S3 + CloudFront**，所以清 URL **不能**用 `.htaccess`（Apache）也不能用 nginx `try_files`。repo 根目錄那份 `.htaccess` 在這個架構下是**死檔**（S3/CloudFront 不讀），可留可刪。
-- ⚠️ **`sccd.usc.edu.tw` 現在放的是「舊 WordPress 站」**（實測 HTML：`wp-content/themes/sccd_com_0925`、Bootstrap3；**無** `#page-content`/`main-modular.js`）。**新 SPA 還沒部署、全在本地**。本檔的「上線」＝把 SPA build 傳上那個 S3 bucket **取代舊站**（首次部署）。
 - 本地開發時前台接的是**測試 CMS**（`sccdtest`）；上線時把 `js/config/api.js` 改指向正式 Directus 子網域（見 §1①）。
 
 ---

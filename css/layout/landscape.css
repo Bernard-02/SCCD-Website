@@ -570,12 +570,6 @@
     }
   }
 
-  /* 5g) 首頁比照手機版：WATCH 圓卡縮手機尺寸（cards.css 桌面 160/手機 96）；漂浮 items 數量與 news banner
-     slot/寬度由 floating-items.js / index-marquee.js 的版型判斷處理（JS 端）。 */
-  body .homepage-card {
-    width: 96px;
-    height: 96px;
-  }
   /* 5g+) index WATCH 播放器：保留 control bar + 全螢幕；返回鍵改常駐 mobileCloseBtn 釘右上、箭頭轉 →
      （video-player.js 矮橫向分支顯示它、藏 controls 內返回塊）。bar 高 44（最小可點）＋兩側 padding 收
      （inline 24rem 是桌面寬值，844 寬只剩 76px）。inline style 都要 !important 蓋。 */
