@@ -5,7 +5,7 @@
 
 ## 技術棧
 - **前端**：原生 HTML/CSS/JavaScript（ES6 modules）
-- **後台 CMS**：Directus（headless，REST API；WP/CMB2 路線 2026-06 已退場）
+- **後台 CMS**：Directus（headless，REST API）
 - **架構**：自製 SPA router（`js/router.js`）+ 模組化頁面初始化
 - **CSS 工具**：Tailwind CSS（`css/output.css` 為編譯產物）
 - **設計系統**：CSS Variables（`css/variables.css`）
@@ -56,7 +56,7 @@
 │   └── Panel Icon/ Easter Egg/ # 資源
 ├── data/                       # 前台還在讀的本地 JSON：Lottie logo、alumni*（尚未上 CMS）、accessibility.json（網站地圖）。fallback 快照 2026-10-04 全退場
 ├── data-source/                # 匯入管線的來源檔（xlsx、ui-labels.json 新增 key 預設值、about-* 匯入源）；前台不讀
-├── scripts/                    # 內容批量匯入管線（generate-*-sheet → parse-* → import-*.cjs 進 Directus）＋ 部署（make-upload-package.ps1 → minify-package.cjs）
+├── scripts/                    # 內容批量匯入（import-*.cjs 直接讀 data-source/ 的 xlsx／json 寫進 Directus）＋ 部署（make-upload-package.ps1 → minify-package.cjs）＋ 媒體／icon 同步工具
 ├── images/  assets/            # 圖片與其他資源
 ├── js/config/api.js            # Directus API base 唯一注入點（CMS_API_BASE / CMS_ASSETS_BASE / CMS_CDN_BASE）＋ 共用 cdnUrl / cdnUrls / fetchCmsJson / saveLKG / readLKG
 ├── docs/                       # 深度參考文件（CLAUDE.md 只當索引、細節看這裡）
@@ -123,7 +123,7 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 > 架構細節、schema 建法、permission 設定的權威文件＝`docs/SPA-接-Directus-Headless-最佳實踐.md`。
 
 ### 架構
-- **主機**：學校 IT 提供的 Lightsail（Bitnami）**只跑後台** Directus（Apache reverse proxy `/cms/*` → Node :8055 ＋ MySQL——實測是 MySQL 非 PostgreSQL）。前台靜態檔**不在** Lightsail：開發預覽＝GitHub Pages（bernard-02.github.io/SCCD-Website，push main 自動上線）；正式網域 sccd.usc.edu.tw＝S3 + CloudFront（現仍為舊 WP 站，SPA 首次上線流程見《docs/前台上線流程-S3-CloudFront.md》）
+- **主機**：學校 IT 提供的 Lightsail（Bitnami）**只跑後台** Directus（Apache reverse proxy `/cms/*` → Node :8055 ＋ MySQL——實測是 MySQL 非 PostgreSQL）。前台靜態檔**不在** Lightsail：開發預覽＝GitHub Pages（bernard-02.github.io/SCCD-Website，push main 自動上線）；正式網域 sccd.usc.edu.tw＝S3 + CloudFront（coming soon 版 SPA 已上線；首次上線與重新上傳流程見《docs/前台上線流程-S3-CloudFront.md》）
 - **API base**：`js/config/api.js` 是唯一注入點——`CMS_API_BASE = https://sccdtest.usc.edu.tw/items`、`CMS_ASSETS_BASE = .../assets`、`CMS_CDN_BASE = https://d2df28pyzslt2v.cloudfront.net/Directus`。⚠️ 網域帶 test，正式上線換子網域只改這一檔
 - **檔案交付分流**（2026-08-31 起）：圖片＋PDF 走 `CMS_CDN_BASE`（CloudFront 直吃 S3，用即時 `filename_disk` 組 key、不寫死副檔名——離線 webp 轉檔自動跟上；繞過弱機 `/assets` S3 逾時掉圖問題）；`/assets` 只剩下載附件（要漂亮檔名）；影片＝HLS CloudFront 網址直貼
 - **鐵則**：SPA 100% 保留（Directus 只給 JSON）；schema 在後台 GUI 建（不寫 code）；Public role 必須開 Read（沒開 = 前台 fetch 全 401）；collection 名 = endpoint 名
@@ -138,13 +138,14 @@ router 換頁時 `runPageExit(route)` await 完成才繼續 cleanup + swap。
 2. single-flight cache：cache 存 Promise，同頁多個消費者共用一次請求
 3. 圖片欄位 = Directus 檔案 → `cdnUrl()` 組 URL；**沒圖＝不顯示／灰底（`var(--lib-bg)`），不放本地佔位圖**
 - **尚未上 Directus**：alumni 整頁（`data/alumni*.json`）、網站地圖（`data/accessibility.json`）；其餘頁面已全接（atlas workshops/industry 已改讀 atlas_workshops / atlas_industry）
-- **legal 三頁後台**（2026-10-04 整理，`scripts/migrate-legal-cms.cjs`）：`regulations`（規章與政策＝頁面說明＋① 學系規章表格＋② 政策列）、`donate`（捐贈＝頁面說明＋捐贈項目；route 名仍叫 support）、`accessibility_statement`（網站地圖的聲明）。可展開的列共用 標題／最後更新／內文（富文本），文字列另有小節、規章列另有分類表格；後台介面預設繁中。舊 `support`／`policy_and_statements` 與 regulations 舊欄位已刪（2026-10-04 `--cleanup`）
+- **legal 三頁後台**（2026-10-04 整理；遷移腳本已刪、見 git 歷史）：`regulations`（規章與政策＝頁面說明＋① 學系規章表格＋② 政策列）、`donate`（捐贈＝頁面說明＋捐贈項目；route 名仍叫 support）、`accessibility_statement`（網站地圖的聲明）。可展開的列共用 標題／最後更新／內文（富文本），文字列另有小節、規章列另有分類表格；後台介面預設繁中。舊 `support`／`policy_and_statements` 與 regulations 舊欄位已刪（2026-10-04 `--cleanup`）
 - activities 的 `'/data/xxx.json'` 字串只剩 section 識別字（檔案已刪、不會被 fetch），見 activities-data-loader.js 檔頭
 - **影片**：自架（user 明確排除 YouTube）——S3 + CloudFront HLS，原生 `<video>` 播放。⚠️ 播放必須 no-cors（加 crossOrigin 會炸，見 memory）
+- **後台整個連不上（憑證過期／DNS／拒連＝fetch TypeError；2026-11-03 `*.usc.edu.tw` 憑證過期實例）→ 每頁只剩 COMING SOON hero**（user 定案）：`api.js` `cmsDown` 由 `fetchCmsJson` 順手更新（逾時／HTTP 錯不算），`main-modular.js` `renderComingSoon`＝換 `<main>` 為共用 hero（文字 COMING SOON／即將上線）、藏 footer、不進待機；首次進站等 ui_labels 回來（上限 1.5s）再 init，之後換頁同步判；COMING SOON 中每頁 `probeCms` 探路、後台回來下一頁恢復；**/create 例外照常可用**（p5／字型／彩蛋／icon 全本地檔）。HTML 靜態 nav 字＝後台掛時的 fallback，改後台 nav 名要同步 `pages/header.html`＋`data/accessibility.json`
 
 ### 內容更新方式（給後台編輯者）
 - **日常編輯**：Directus 後台 GUI（老師登入改文案／傳圖／拖 sort 欄排序），前台重新整理即生效；後台 label 全繁中、雙語欄位英上中下
-- **批量匯入**：`scripts/` 管線——`generate-*-sheet.js` 產 Excel 給編輯者填 → `parse-*-sheet.js` 解析 → `import-*.cjs` 寫入 Directus；匯入來源檔放 `data-source/`（新增 ui_labels key 的預設值＝`data-source/ui-labels.json`）
+- **批量匯入**：`scripts/import-*.cjs` 直接讀 `data-source/` 的 xlsx／json 寫入 Directus（舊 Excel 模板產生／解析管線 2026-11-02 已刪）；匯入來源檔放 `data-source/`（新增 ui_labels key 的預設值＝`data-source/ui-labels.json`）
 - 前台沒有本地快照要同步：後台改完硬重整即生效
 
 ## 設計系統
@@ -208,6 +209,8 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    SCCDHelpers.isMobileLayout()   // 直向手機 <768 或 gate（＝手機排版）
    SCCDHelpers.isDesktopLayout()  // 其餘（≥1024 且高 >500）
    SCCDHelpers.isLandscapeGate()  // 只看 gate；監聽轉向用 matchMedia(SCCDHelpers.LANDSCAPE_GATE)
+   SCCDHelpers.isPortraitPhone()  // <768 直向（非 gate）；flex stack 版 hero／DSD 用
+   SCCDHelpers.isBottomBarLayout() // 直向＋iPad 底 bar（橫向手機 nav 回 header 帶、不算）
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(min-width: 1024px) and (min-height: 501px)`**（HTML 用 `min-[1024px]:`；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024）
 6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出；**桌面一屏框也一樣**——iPad Safari 橫向的 100vh 是工具列收起的大視口，legal／inner-scroll frame／footer 卡／DSD 媒體屏 2026-10-31 全掃成 svh）——但 **section 框本身用 `100lvh`＋底 pad 多墊 `100lvh − 100svh`**（iOS Safari 底部工具列半透明、視窗底之外的內容會透出：svh 框下方的 footer 黑／下一屏會露；lvh 框多出的那截是自己的底、工具列收起後剛好一屏可磁吸到頂）。直向手機跨頁共通的版面骨架（一屏框高、首頁第一屏）寫在 **`css/layout/portrait.css`**（跟 landscape.css gate 層對稱、互斥），不要塞進 landscape.css
@@ -412,7 +415,6 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 |---|---|---|
 | `hero-animation.js randomizeHeroLayout` → 用 `awaitLayoutReady` | 小 | 動到 hero animation 時 |
 | `error-404.js randomizeAllPlacements` → 用 `awaitLayoutReady` | 小 | 動到 404 頁時 |
-| 其餘 `*-source.js` 的「fetch → !ok throw → 空 throw → catch」樣板改走 `fetchCmsJson`（api.js；目前只有 activities / degree-show / summer-camp 用） | 小（每檔約 -5 行） | 動到該 loader 時 |
 | 清單縮圖產「小尺寸版本」（每日 webp Action 順便產 ~480px 寬變體，前台縮圖吃它）：strip 縮圖都是 1600×1200 原圖（中位 74KB、最大 ~430KB）只顯示 ~160×120；抽樣縮到 2× 顯示寬重壓 -82% | 中（轉檔腳本＋S3 key 規則＋前台組網址＋fallback） | user 決定做時 |
 | 首頁 floating-items 改 `fields=` 只抓 poster/id（現抓整包活動 ~1MB；代價＝不再與 activities 頁共用記憶體快取） | 小 | user 2026-10-04：先不做 |
 | atlas.css 同時編進 output.css 又被 router 動態載一份 raw：移除 PAGE_CSS 那份可省 atlas 頁 ~5KB gz，但 raw 那份目前在 cascade 贏了 color/inverse/landscape 的同特異度規則，拿掉要 3 mode＋矮橫向視覺回歸 | 小（驗證成本為主） | 動 atlas 樣式時 |
