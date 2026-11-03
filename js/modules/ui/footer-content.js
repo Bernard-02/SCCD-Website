@@ -15,7 +15,7 @@
  * 社群 icon 走全站 .icon（--icon mask + currentColor=--footer-fg）；tab 標誌 mask src+aspect-ratio 由 SVG viewBox 量。
  */
 
-import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, fetchCmsJson } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
 
 // 圖示檔案欄位深取 filename_disk（<uuid>.svg）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 CMS_CDN_BASE）。
@@ -37,21 +37,17 @@ let _dataPromise = null;
 // copyright 設定（footer_settings 單例）：抓不到＝null（維持 HTML 靜態字），不拖累 tabs 主資料
 async function fetchCopyright() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/footer_settings?fields=copyright_text,copyright_auto_year`);
-    if (!res.ok) return null;
-    const s = (await res.json()).data;
+    const s = await fetchCmsJson(`${CMS_API_BASE}/footer_settings?fields=copyright_text,copyright_auto_year`);
     return s ? { text: s.copyright_text, autoYear: !!s.copyright_auto_year } : null;
   } catch (_) { return null; }
 }
 
 async function fetchFooterData() {
   try {
-    const [res, copyright] = await Promise.all([
-      fetch(`${CMS_API_BASE}/footer_tabs?sort=sort&limit=-1&fields=${TAB_FIELDS}&deep=${DEEP}`),
+    const [tabs, copyright] = await Promise.all([
+      fetchCmsJson(`${CMS_API_BASE}/footer_tabs?sort=sort&limit=-1&fields=${TAB_FIELDS}&deep=${DEEP}`),
       fetchCopyright(),
     ]);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const tabs = (await res.json()).data;
     if (!Array.isArray(tabs) || tabs.length === 0) throw new Error('empty data');
     // 圖示 filename_disk → CloudFront URL
     tabs.forEach((t) => {
@@ -65,7 +61,7 @@ async function fetchFooterData() {
   }
 }
 
-export function getFooterData() {
+function getFooterData() {
   if (!_dataPromise) _dataPromise = fetchFooterData();
   return _dataPromise;
 }

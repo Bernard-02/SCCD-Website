@@ -11,6 +11,8 @@ interface SCCDHelpersAPI {
   isMobileLayout(): boolean;
   isDesktopLayout(): boolean;
   isLandscapePhone(): boolean;
+  isPortraitPhone(): boolean;
+  isBottomBarLayout(): boolean;
   // 輸入判斷（版型看寬度、互動看輸入；CLAUDE.md 規範 7）
   canHover(): boolean;
   isCoarsePointer(): boolean;

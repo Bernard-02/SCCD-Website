@@ -2,8 +2,8 @@
  * Faculty Slide-in Module
  * 處理師資頁面的詳情頁：真桌面＝固定色卡（library 灰卡同款，ui/desk-card.js）；手機／矮橫向＝右側滑入 slide-in
  *
- * 對齊 WP CMB2 schema：educations[] / experiences[] / awards[] 三個 sibling group，
- * 不再是舊版 sections[].items[] 雙層結構。本檔負責將打平資料重組成 3 個 section
+ * 資料＝educations[] / experiences[] / awards[] 三個打平的 sibling 陣列（Directus repeater），
+ * 本檔負責重組成 3 個 section
  * （學歷 / 經歷 / 獲獎）渲染到 #faculty-detail-sections。
  *
  * Header 處理：比照 activities-lightbox / library-viewer 透過 lightbox-shell

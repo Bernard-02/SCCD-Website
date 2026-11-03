@@ -4,12 +4,12 @@
  *
  * 資料只存「內容」不存樣式：內文是富文本 HTML（後台 WYSIWYG 產的乾淨 <p>/<ul>/<a>，無樣式 class）
  * → 老師可自由增減 bullet / 加連結粗體。編號與排版全由本檔 + legal.css 負責。
- * 後台結構（2026-10-04 整理，scripts/migrate-legal-cms.cjs）：每頁一筆 singleton＝頁面說明＋可展開的列；
+ * 後台結構（2026-10-04 整理，scripts/migrate-legal-cms.cjs，腳本已刪、見 git 歷史）：每頁一筆 singleton＝頁面說明＋可展開的列；
  *   列共用 標題／最後更新／內文（富文本），文字列另有小節（sections）、規章列另有分類表格。
  *   regulations（規章與政策）＝學系規章表格（reg*）＋政策列（policyRows）；donate＝捐贈項目（rows）。
  */
 
-import { CMS_API_BASE } from '../../config/api.js';
+import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 import { normalizeBodyHtml } from './activities-data-loader.js';  // 富文本比照 admission-body：自動補 lang="zh-Hant" → ZH 區塊吃 ZH 行距
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
@@ -33,9 +33,7 @@ const CMS_COLLECTIONS = {
 // 後台是唯一來源：fetch 失敗（CORS / 斷網 / 5xx / 空資料）→ null（頁面只剩標題，不再退本地 JSON，user 2026-10-04）
 async function fetchLegalData(pageName) {
   try {
-    const response = await fetch(`${CMS_API_BASE}/${CMS_COLLECTIONS[pageName]}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = (await response.json()).data;   // singleton 回傳單一物件（非陣列），直接取 .data
+    const data = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTIONS[pageName]}`);   // singleton 回傳單一物件（非陣列）
     if (!data) throw new Error('empty data');
     return data;
   } catch (err) {
@@ -582,9 +580,7 @@ export async function loadSitemap() {
 // 無障礙聲明 singleton accessibility_statement：回傳 {titleEn/Zh, overviewEn/Zh, points, ...}；
 // 空（尚未填）→ throw（caller 不顯示聲明段）。singleton → .data 是物件非陣列。
 async function fetchAccessibilityStatement() {
-  const res = await fetch(`${CMS_API_BASE}/accessibility_statement`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = (await res.json()).data;
+  const data = await fetchCmsJson(`${CMS_API_BASE}/accessibility_statement`);
   if (!data || (!data.overviewEn && !data.overviewZh)) throw new Error('empty');
   return data;
 }

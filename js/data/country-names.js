@@ -1,11 +1,11 @@
 /**
  * ISO 3166-1 alpha-2 (小寫) → 中英文名稱對照
  *
- * 由 scripts/build-country-choices-full.cjs 產生（與後台 faculty country 下拉同源）。
+ * 由 scripts/build-country-choices-full.cjs 產生（腳本已刪、見 git 歷史）（與後台 faculty country 下拉同源）。
  * 前 249 國為 curated 常用國（順序＆名稱固定），其餘由 Intl.DisplayNames 產、依英文名排序。
  * Schema 的 country field 存 code（如 'tw'），前端用 countryName(code, 'zh'/'en')。
  */
-export const COUNTRY_NAMES = {
+const COUNTRY_NAMES = {
   tw: { zh: '台灣', en: 'Taiwan' },
   jp: { zh: '日本', en: 'Japan' },
   kr: { zh: '韓國', en: 'South Korea' },

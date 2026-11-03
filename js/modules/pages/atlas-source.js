@@ -13,20 +13,18 @@
  *
  * ── workshops / industry ──
  *   2026-09-15 user：改接 atlas 專用扁平名單 atlas_workshops / atlas_industry（partnership.xlsx 匯入，
- *   scripts/build-atlas-partnership.cjs）；原 activities_workshops/industry 來源退場＝原資料先隱藏。
+ *   scripts/build-atlas-partnership.cjs，腳本已刪、見 git 歷史）；原 activities_workshops/industry 來源退場＝原資料先隱藏。
  *   扁平 rows（nameEn/nameZh/country ISO）→ flatToNested 映射成 atlas.js 既有的
  *   「年份 → items → guests」巢狀 shape（每單位一個 item＝hover 只亮自己＋國家線，同舊行為）。
  */
 
-import { CMS_API_BASE } from '../../config/api.js';
+import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
 
 // 抓 collection 全部 rows（依後台 sort）→ mapFn；失敗/空 → null（該類不渲染）
 async function cmsList(collection, mapFn) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     return rows.map(mapFn);
   } catch (err) {

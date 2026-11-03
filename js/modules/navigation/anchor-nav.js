@@ -176,7 +176,7 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 矮橫向 gate 交給下方雙向分支接管（同一組 inner 不能雙驅動）。
   const isLandscapeGate = SCCDHelpers.isLandscapePhone();   // 橫向手機 nav 進 header 帶；iPad 走底 bar（10-30）
   // about 直向手機：strip＝畫面底部 bar（variables.css 檔尾 about 直向段，user 2026-10-27）
-  const mobileBar = reveal && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()   // 直向＋iPad 底 bar
+  const mobileBar = reveal && SCCDHelpers.isBottomBarLayout()   // 直向＋iPad 底 bar
     ? document.querySelector('.mobile-anchor-strip-wrap') : null;
   if (reveal && typeof gsap !== 'undefined' && SCCDHelpers.isDesktopLayout()) {
     const inners = Array.from(document.querySelectorAll('#anchor-nav .anchor-nav-inner'));

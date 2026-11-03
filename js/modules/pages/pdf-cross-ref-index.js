@@ -19,7 +19,7 @@
  */
 
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
-import { CMS_API_BASE } from '../../config/api.js';
+import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
 
 const SECTION_LABELS = {
@@ -72,9 +72,7 @@ async function buildIndexFromDirectus() {
       'references.item:library_documents.pdfLink',
     ].filter(Boolean).join(',');
     try {
-      const res = await fetch(`${CMS_API_BASE}/${host.collection}?fields=${fields}&limit=-1`);
-      if (!res.ok) throw new Error(String(res.status));
-      return { host, rows: (await res.json())?.data || [] };
+      return { host, rows: (await fetchCmsJson(`${CMS_API_BASE}/${host.collection}?fields=${fields}&limit=-1`)) || [] };
     } catch (e) {
       // 單一 collection 失敗（欄位不存在 / 該母未接 Directus）→ 只略過它，別拖垮整個反查
       console.warn('[pdf-cross-ref-index] skip', host.collection, e.message);

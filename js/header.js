@@ -390,7 +390,7 @@ function getVisibleFooter() {
 // （body lock scroll 期間 scroll listener 不 fire → barsHidden 殘留 true）
 // activities 頁可 scroll 才會中招，library 是 h-screen overflow-hidden 不會
 // 暴露給 window 讓 lightbox-shell.enterLightboxMode 自動 call（解耦避免循環依賴）
-export function resetFooterHide() {
+function resetFooterHide() {
   if (!barsHidden) return;
   if (typeof gsap !== 'undefined') {
     resetFooterBarsState();

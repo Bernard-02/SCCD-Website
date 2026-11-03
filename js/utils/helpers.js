@@ -65,6 +65,11 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（≥1024 且高 >500）
   Helpers.isMobileLayout = function() { return _mqPortrait.matches || _mqGate.matches; };
   Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
+  // 兩個常用組合（2026-11-02 收斂，取代散在各頁的布林式）：
+  // 直向手機＝<768 且非 gate（<768 的窄橫向算 gate、走隨機版 hero）；DSD／hero 的 flex stack 版看這個
+  Helpers.isPortraitPhone = function() { return _mqPortrait.matches && !_mqGate.matches; };
+  // 底 bar 排版＝直向手機＋iPad（gate 後半）；橫向手機（高 ≤500）nav／tab 回 header 帶、不算
+  Helpers.isBottomBarLayout = function() { return Helpers.isMobileLayout() && !_mqPhoneLand.matches; };
   // 輸入判斷，跟版型分開（user 2026-10-31 定案：iPad 橫向 ≥1024 走桌面排版，但 hover／滾輪類互動要看輸入方式）。
   // iPad 不論接不接 Magic Keyboard 都回報 hover:none／pointer:coarse（WebKit 至今如此）→ 一律當觸控；
   // 觸控筆電主輸入仍是滑鼠＝桌面。勿拿 isMobileLayout() 兼判「是不是觸控」。

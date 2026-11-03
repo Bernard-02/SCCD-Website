@@ -6,13 +6,11 @@
  * 組別按鈕文字走 ui_labels（見 memory）。
  * 圖片走 CloudFront（cdnUrl）：deep-fetch filename_disk 組 URL，null（尚未上傳）→ 空字串，render 端 onerror 自藏。
  */
-import { CMS_API_BASE, cdnUrl, cdnUrls } from '../../../config/api.js';
+import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson } from '../../../config/api.js';
 
 async function fetchRows(query, label) {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${query}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()).data;
+    const data = await fetchCmsJson(`${CMS_API_BASE}/${query}`);
     if (!data || (Array.isArray(data) && !data.length)) throw new Error('empty');
     return data;
   } catch (err) {

@@ -5,15 +5,13 @@
  * 後台是唯一來源：失敗/空 → []（不再退本地 JSON，user 2026-10-04）。
  * 消費者：library-panels.js 的 ALBUM_SOURCES、首頁 floating-items（同 summer-camp-source.js 的模式）。
  */
-import { CMS_API_BASE, cdnUrls } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrls, fetchCmsJson } from '../../config/api.js';
 
 const CMS_COLLECTION = 'library_album';
 
 export async function loadOthersAlbum() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?fields=*,images.directus_files_id.filename_disk&sort=sort&limit=-1`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTION}?fields=*,images.directus_files_id.filename_disk&sort=sort&limit=-1`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     return groupByYear(rows.map(mapRow));
   } catch (err) {

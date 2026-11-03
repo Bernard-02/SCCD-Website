@@ -201,7 +201,7 @@ function bindRefBtnClick(btn) {
 
 // Helper: 為 list-item 內的海報及 gallery 圖片加上 hover 旋轉歸 0 效果
 // 對齊 library files/album 模式：random rotation 1~3°（兩邊隨機 sign），hover 歸 0
-export function bindMediaHover(container) {
+function bindMediaHover(container) {
   // scope 可為容器（掃內含 .list-item）或單一 .list-item（分幀逐 item 綁時傳自己）
   const _items = container.matches?.('.list-item') ? [container] : container.querySelectorAll('.list-item');
   _items.forEach(workshopItem => {
@@ -253,35 +253,17 @@ export function bindMediaHover(container) {
 // 不去重：user 要求後台 key 兩張一樣的圖就放兩張（外層 thumbnail 與 lightbox 數量必須對齊）
 // 防禦性：images/videos 陣列裡若有 null/空字串/whitespace，map 前先 filter 掉避免 lightbox 出現空 thumbnail
 const isValidUrl = (s) => typeof s === 'string' && s.trim() !== '';
-// 把 item.videos / item.images 從新 endpoint group shape 還原成 string array
-// 支援 3 shape:
-//   - string array (legacy data/X.json): ["url", "url"]
-//   - group repeater array (CMB2 type:group): [{videoUrl|image|url: "url"}, ...]
-//   - dict object (CMB2 type:file_list a.k.a. image_list / video_list): { "12345": "url", "12346": "url" }
-function normalizeMediaArr(arr, key) {
-  if (!arr) return [];
-  // dict object (CMB2 file_list)
-  if (!Array.isArray(arr) && typeof arr === 'object') {
-    return Object.values(arr).filter(v => typeof v === 'string' && v);
-  }
-  return arr.map(x => typeof x === 'string' ? x : (x?.[key] || '')).filter(Boolean);
-}
+// *-source.js 已把 images／videos／videoLinks 都整成 string array（cdnUrls／ytUrls）；這裡只擋空值與非陣列。
+const normalizeMediaArr = (arr) => Array.isArray(arr) ? arr.filter(isValidUrl) : [];
 
-// 取整筆 item 所有影片 URL（merge 3 來源）：
-//   - item.videos (legacy group `[{videoUrl}]` or string array)
-//   - item.videoLinks (新 schema group `[{url}]`)
-//   - item.videoFiles (新 schema video_list dict `{id: url}`)
+// 取整筆 item 所有影片 URL：activities 已把 videoLinks 折進 videos；degree-show／album 來源只給 videoLinks
 function getAllVideos(item) {
-  return [
-    ...normalizeMediaArr(item.videos, 'videoUrl'),
-    ...normalizeMediaArr(item.videoLinks, 'url'),
-    ...normalizeMediaArr(item.videoFiles, ''), // video_list dict，第二參數不重要
-  ];
+  return [...normalizeMediaArr(item.videos), ...normalizeMediaArr(item.videoLinks)];
 }
 
 // wysiwyg content 後台 user 編輯後可能只剩純文字 + \r\n（TinyMCE Text mode / Shift+Enter）
 // 沒 <p> wrap 的話前端 admission-body flex gap-md 抓不到 children，視覺一坨。
-// 偵測到 raw 不含 <p>/<br>/<div>/<li> 等 block tag → wpautop-like 轉換：
+// 偵測到 raw 不含 <p>/<br>/<div>/<li> 等 block tag → 自動分段：
 //   - 連續換行（空行）→ </p><p>
 //   - 單一換行 → <br>
 //   - 整段 wrap <p>
@@ -322,9 +304,9 @@ export function normalizeBodyHtml(raw) {
   }
   return tagCjkBlocks(html);
 }
-export function buildItemMedia(item) {
+function buildItemMedia(item) {
   const videos = getAllVideos(item);
-  const images = normalizeMediaArr(item.images, 'image');
+  const images = normalizeMediaArr(item.images);
   const all = [
     ...(isValidUrl(item.poster) ? [{ type: 'image', src: item.poster.trim(), thumb: item.poster.trim() }] : []),
     ...videos.filter(isValidUrl).map(url => videoMediaFromUrl(url)).filter(Boolean),
@@ -337,7 +319,7 @@ export function buildItemMedia(item) {
 // 過濾掉沒有 images 的 album：user 反映「list 裡有些 album 沒圖片卻仍能切換過去」
 // 沒圖片就不該佔 list 位置（即使有 date/location 也不渲染）
 // unbounded=true 時拿掉內層 max-height + scroll（permanent exhibitions 預設展開，user 希望整個 album list 直接攤開不需內層 scroll）
-export function buildAlbumsHtml(item, { unbounded = false, defer = false } = {}) {
+function buildAlbumsHtml(item, { unbounded = false, defer = false } = {}) {
   if (!item.albums?.length) return '';
   // images 內任何 null/空字串/whitespace 先剔除。無圖 album 仍渲染其 metadata（year/date/location）——
   //   場次是事實紀錄（如常設展每學期一場），「有什麼渲染什麼」；只是無圖時不出縮圖列、整列不可點（不開空 lightbox）。
@@ -448,10 +430,7 @@ export function buildPosterHtml(item, defer = false) {
   `;
 }
 
-// Gallery 區塊 HTML（videos + images）
-// 支援 2 種 input shape：
-//   - 舊：item.videos = ["url", "url"], item.images = ["url", "url"]
-//   - 新（WP endpoint group repeater）：item.videos = [{videoUrl: "url"}, ...], item.images = [{image: "url"}, ...]
+// Gallery 區塊 HTML（videos + images，皆 string array）
 // 縮圖／poster 載入佔位（2026-10-03，user「先用 ref 的顏色做 placeholder，像 lightbox 書本的 loading；渲染好 clip reveal 出去」，
 // 取代 09-10 的逐張 birth clip-path 揭圖與七輪 poster 滑入）：框內疊 ref 色塊（lists.css .gallery-ph＝--item-color-deep）。
 //   ①載入中循環「蓋滿→滑出→空一拍→從另一邊滑回」（CSS gallery-ph-loop；單色要看得出在動、換手要有一刻沒顏色）
@@ -530,10 +509,10 @@ if (typeof document !== 'undefined') document.addEventListener('animationiterati
   block.style.setProperty('--ph-in', phDir());
 }, true);
 
-export function buildGalleryHtml(item, defer = false) {
+function buildGalleryHtml(item, defer = false) {
   const posterOffset = item.poster ? 1 : 0;
   const videos = getAllVideos(item);
-  const images = normalizeMediaArr(item.images, 'image');
+  const images = normalizeMediaArr(item.images);
   // 不蓋整片半透明黑遮罩（user 2026-06-28：遮罩沒跟卡片旋轉、看起來分兩層）→ 改 play 鍵實心白 + drop-shadow，亮縮圖上仍可見
   const playOverlay = `<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
           <svg width="20" height="24" viewBox="0 0 20 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 4px rgba(0,0,0,0.55));">
@@ -1224,7 +1203,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       pending.push(...ws);
       if (!pumpArmed) { pumpArmed = true; requestAnimationFrame(pump); }
     };
-    // deep-link 卡頓修（2026-09-09，診斷見 docs/activities-deeplink-卡頓診斷與修法.md）：舊版一次派發整個
+    // deep-link 卡頓修（2026-09-09；診斷文件已刪，見 git 歷史 docs/activities-deeplink-卡頓診斷與修法.md）：舊版一次派發整個
     // container 的 wraps——deep-link `_lazyRenderAll` 建滿全清單時＝百項級量測，每 chunk 對全量 DOM forced
     // reflow 30~150ms、8ms 預算「跑完才檢查」擋不住，且讀畫面外 item 幾何值破功 content-visibility。
     // 改 per-item IO：wrap 依所屬 .list-item 分組，item 捲近（200px margin）才量該組——量測量體從全清單
@@ -1580,20 +1559,13 @@ export async function loadListInto(containerId, url, options = {}) {
 
   // 媒體導向 list (沒 bodyField，主內容是 poster/gallery/albums) 必須有可視 media 才渲染
   // 文字導向 list (有 bodyField，如 admission news content) 跳過 media 檢查
-  // 「可視 media」= poster / images / videos / albums.any(images) 任一
-  // images / videos 可能是 array (group/legacy) 或 dict object (CMB2 file_list)
-  const mediaCount = (v) => {
-    if (!v) return 0;
-    if (Array.isArray(v)) return v.length;
-    if (typeof v === 'object') return Object.keys(v).length;
-    return 0;
-  };
+  // 「可視 media」= poster / images / videos / albums.any(images) 任一（media 欄都是 string array，見 normalizeMediaArr）
+  const mediaCount = (v) => Array.isArray(v) ? v.length : 0;
   const hasVisibleMedia = (i) =>
     !!i.poster ||
     mediaCount(i.images) > 0 ||
     mediaCount(i.videos) > 0 ||
     mediaCount(i.videoLinks) > 0 ||
-    mediaCount(i.videoFiles) > 0 ||
     (i.albums?.some(a => mediaCount(a.images) > 0));
 
   const filteredData = sourceData
@@ -2011,7 +1983,7 @@ export async function loadListInto(containerId, url, options = {}) {
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
   // activities／admission 直向手機（user 2026-10-28：nav／tab 移到畫面底、filter bar 回 flow、header 白底拿掉）：
   // 開啟的 title 釘 header 帶下 92（同 curriculum 類型標籤）。alumni 等其他 loadListInto 頁不套
-  const portraitPin = !filterBarSticky && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()
+  const portraitPin = !filterBarSticky && SCCDHelpers.isBottomBarLayout()
     && !!container.closest('#activities-content-section, #admission-content-section');
   const stickyActive = window.innerWidth >= 768 || filterBarSticky || portraitPin;
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝

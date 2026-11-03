@@ -322,7 +322,7 @@ function snapSubtitleHeight(header) {
  */
 // 瞬間收合單一展開的 list-header（無動畫 + 完整 cleanup，對齊 closeListHeader 的 onComplete cleanup）。
 // 用於：① section 切換清殘留 ② 開新 item 時瞬間關掉上方其他展開項（讓版面立即定局、量得到 header 真實落點）。
-export function instantCloseListHeader(header) {
+function instantCloseListHeader(header) {
   const content = (header.nextElementSibling?.classList.contains('list-content')
     ? header.nextElementSibling
     : header.closest('.list-item')?.querySelector('.list-content')) || header.nextElementSibling;

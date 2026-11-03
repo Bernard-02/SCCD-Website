@@ -9,7 +9,7 @@ import { initHeroMobileSync } from './hero-mobile-sync.js';
 import { playRevealExit, setupClipReveal, playClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden, ensureCardMask, fitCardToText, tiltCardMask } from '../ui/scroll-animate.js';
 import { createClassImagesSlideshow } from './about/class-images-slideshow.js';
 import { SECTION_LABELS } from './activities-data-loader.js';
-import { CMS_API_BASE, CMS_CDN_BASE } from '../../config/api.js';
+import { CMS_API_BASE, CMS_CDN_BASE, fetchCmsJson } from '../../config/api.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { applyMarqueeOverflow, bindMarqueeReturn, prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
@@ -28,7 +28,7 @@ import { initAboutMobileSnap } from '../ui/snap-scroll.js';
 
 // 直向手機（user 2026-10-29）：版面跟桌面同一套（子展覽 tab＋說明 box＋圖、海報影片一屏、無活動清單），尺寸／位置走 variables.css 檔尾 DSD 直向段；
 // 矮橫向維持舊手機版（清單＋每個 event 一段＋header 帶 strip）
-const isPortraitPhone = () => SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate();
+const isPortraitPhone = () => SCCDHelpers.isPortraitPhone();
 
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
 // 上限，色卡實際寬仍會撐到 max-width（短末行右側空一大塊 accent 底）；用 Range 量 wrapped lines 取最寬行寫回
@@ -1512,9 +1512,8 @@ async function resolveRefImages(ref) {
   const collections = REF_SECTION_COLLECTIONS[ref.source] || [];
   for (const col of collections) {
     try {
-      const res = await fetch(`${CMS_API_BASE}/${col}/${ref.id}?fields=images.directus_files_id.filename_disk`);
-      if (!res.ok) continue;  // 404＝不在此 collection → 試下一個（exhibitions/visits 兩子類）
-      const item = (await res.json())?.data;
+      // 404＝不在此 collection → fetchCmsJson throw → catch 試下一個（exhibitions/visits 兩子類）
+      const item = await fetchCmsJson(`${CMS_API_BASE}/${col}/${ref.id}?fields=images.directus_files_id.filename_disk`);
       const imgs = normalizeRefImages(item?.images);
       if (imgs.length) return imgs;
     } catch (e) { /* 該 collection fetch 失敗 → 試下一個；全失敗回 [] */ }

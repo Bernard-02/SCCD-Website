@@ -455,7 +455,7 @@ function openCourseSlideIn(card, onOpened) {
 }
 
 /** @param {() => void} [onClosed] 收完才呼叫（page exit 等卡收完再換頁） */
-export function closeCourseSlideIn(onClosed) {
+function closeCourseSlideIn(onClosed) {
   // 確保關閉時清除 activeCard 狀態與角度（處理 ESC 或點擊 overlay 關閉的情境）。
   // 底色留到 panel 滑出完才清（user 2026-10-19「active 中底色不能先拿掉」）；期間被重選或游標移上去（hover 自上色）就不清
   // 角度不動（點開當下的 hover 角保留）
@@ -748,7 +748,7 @@ export async function renderCoursesGrid(program) {
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
   // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27），11-01 起疊在 program 列上方（courses.css 直向段）
   const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
-  if (gradeBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
+  if (gradeBar && SCCDHelpers.isBottomBarLayout()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
 
   // 年級 bar：初始 active 套 accent 樣式 + 點擊切換（delegation，一次性）
   const firstGradeBtn = mobileGrid.querySelector('.courses-mobile-grade-btn');

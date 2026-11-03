@@ -305,7 +305,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   // 每顆固定一個隨機方向（2026-07-17 全站四方向隨機、reveal/hide 來回一致）；離頁退場的 navExit 也吃這份
   const navDir = new Map(navTargets.map(el => [el, pickNavDir(el)]));
   const navCol = /** @type {HTMLElement|null} */ (sectionEl ? sectionEl.querySelector('.inner-scroll-nav-col') : null);
-  if (navCol && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone() && typeof ScrollTrigger !== 'undefined') {   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
+  if (navCol && SCCDHelpers.isBottomBarLayout() && typeof ScrollTrigger !== 'undefined') {   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
     // 直向手機：program bar＝畫面底固定列、年級 bar 疊其上（courses.css 直向段；user 2026-10-27 原年級在底、11-01 對調「先年級才班級」）。
     // 範圍跟底 bar 同拍（bindMobileBottomBar：hero 底過 100 才現、footer 頂過 75% 線收）＝兩條一起進退；
     // 進退＝逐 chip clip-reveal；範圍外 .is-off 不擋點擊；HTML 出生 .is-div-hidden，同步設好藏起態才拿掉＝首繪不閃。

@@ -19,7 +19,7 @@ import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-anima
 
 export function initClassButtonsSticky() {
   if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
-  if (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) return;   // 直向＋iPad 走底部 division 列；橫向手機維持左欄 sticky chip
+  if (SCCDHelpers.isBottomBarLayout()) return;   // 直向＋iPad 走底部 division 列；橫向手機維持左欄 sticky chip
 
   const infoArea          = document.getElementById('class-info-area');
   const worksPanels       = document.getElementById('class-works-panels');

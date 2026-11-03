@@ -82,6 +82,9 @@ function splitCatLabel(s) {
 // 讓 album 卡片 tag ＋ ref chip 跟篩選鈕吃同一份文字 → 後台改 lib.cat.* 一列，三處同步（含 camp 加 s 等）。
 // _catUiMap 由 initAlbumPanel 載入時填（loadUiLabels single-flight cache，快）；ref chip 於點擊時才用、屆時已填。
 let _catUiMap = null;
+// 各面板 init 完掛上的 re-init hook（showLibPanel 切 tab 時呼叫；原本掛 window._xxx，11-02 盤點只在本檔用→收成模組變數）
+let _awardsMarqueeInit = null, _awardsResetAccordions = null, _awardsRerender = null, _awardsTickerStart = null;
+let _pressMarqueeInit = null, _filesMarqueeInit = null, _albumMarqueeInit = null;
 function catLabelCombined(cat) {
   const row = _catUiMap && _catUiMap[`lib.cat.${cat}`];
   const combined = row ? [row.en, row.zh].filter(Boolean).join(' ') : '';
@@ -1075,7 +1078,7 @@ function loadAwardsDataCached() {
         const records = rowsToRecords(rows);
         _awardsDataPromise = Promise.resolve({ records, awardsImages });
         _awardsFreshRecords = records;
-        if (typeof window._awardsRerender === 'function') window._awardsRerender(records);
+        if (typeof _awardsRerender === 'function') _awardsRerender(records);
       }).catch(() => {});
       return { records: rowsToRecords(cachedRows), awardsImages };
     }
@@ -1187,7 +1190,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       });
       if (!views.length) return;
 
-      // ① 全寫：reset——idempotent：本函式可被 showLibPanel 重跑（window._awardsMarqueeInit）。
+      // ① 全寫：reset——idempotent：本函式可被 showLibPanel 重跑（_awardsMarqueeInit）。
       // 首次記乾淨 track HTML（單份、無 inline width），重跑時先還原再重套，避免複製份疊加。
       views.forEach(({ view, track }) => {
         if (view._hmOrig == null) {
@@ -1741,7 +1744,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
     // offsetWidth=0 → 多名得獎者擠成一團）。對齊 press/files/album 的 _XMarqueeInit 重觸發 pattern。
-    window._awardsMarqueeInit = () => applyAwardMarquees(listEl);
+    _awardsMarqueeInit = () => applyAwardMarquees(listEl);
 
     // 視窗 resize 後欄寬變了、但 is-overflow / dual-copy / inline 寬全是舊視窗的量測快照 →
     // 字其實塞得下時第二份 copy 從窗內「提早露出」（user 2026-09-13 截圖 Red Dot）。
@@ -1764,24 +1767,24 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     document.fonts?.ready?.then(remeasureAwardMarquees);
 
     // showLibPanel 切走 awards 時呼叫：瞬間收合所有展開的 ref 手風琴，回到 awards 不殘留展開態
-    window._awardsResetAccordions = () => {
+    _awardsResetAccordions = () => {
       listEl.querySelectorAll('.award-record-item').forEach(item => collapseAwardItem(item, { instant: true }));
     };
 
     // localStorage 快取背景 revalidate 發現後台資料變了 → latest-wins 就地重渲染（罕見：真的有編輯才觸發）。
     // records 就地替換（getSorted 等 closure 引用同一 array）；年份鈕不重建（年份集合變動更罕見，下次進頁補上）。
     // 進場動畫窗口內不 commit 大 innerHTML（2026-09-11 首渲染閘教訓）→ reveal busy 時改期到收完再換。
-    window._awardsRerender = (newRecords) => {
+    _awardsRerender = (newRecords) => {
       if (!listEl.isConnected) return; // SPA 已離頁：快取已更新、下次進頁生效
       const busy = revealBusyRemaining();
-      if (busy > 60) { setTimeout(() => window._awardsRerender(newRecords), busy + 150); return; }
+      if (busy > 60) { setTimeout(() => _awardsRerender(newRecords), busy + 150); return; }
       records.length = 0;
       records.push(...newRecords);
       renderItems(getSorted());
       applyAwardsFilters();
     };
     // 背景 revalidate 若比本 init 先回來（hook 還沒掛）→ 這裡補收
-    if (_awardsFreshRecords) { const fresh = _awardsFreshRecords; _awardsFreshRecords = null; window._awardsRerender(fresh); }
+    if (_awardsFreshRecords) { const fresh = _awardsFreshRecords; _awardsFreshRecords = null; _awardsRerender(fresh); }
 
     // 年份 Picker
     const yearPickerEl = document.getElementById('library-year-picker');
@@ -1914,7 +1917,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         if (tickerStarted) return;
         const trackW = t1.offsetWidth;
         // 從非 awards panel 進 library 時 awards 仍 display:none → 寬 0 → bail；
-        // 切到 awards 顯示後由 window._awardsTickerStart 重試（armTicker 重量）。
+        // 切到 awards 顯示後由 _awardsTickerStart 重試（armTicker 重量）。
         if (!trackW) return;
         tickerStarted = true;
         setTimeout(tickerSlideIn, chromeStartRemaining());  // §46：ready 即滑入、只等 chrome 起跑那刻（撤 §42 等整個 busy 窗＝看起來在等 list）
@@ -1941,7 +1944,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       onEntranceDoneCallback(armTicker);
       // 從非 awards panel 進 library：進場時 awards 隱藏、startTicker 量寬=0 bail → ticker 不動。
       // showLibPanel('awards') 顯示後呼叫此 hook 重試；tickerStarted 旗標保證只啟動一次（直接進 awards 時 no-op）。
-      window._awardsTickerStart = () => { if (!tickerStarted) armTicker(); };
+      _awardsTickerStart = () => { if (!tickerStarted) armTicker(); };
     } else if (tickerWrapper) {
       document.getElementById('library-awards-ticker').style.display = 'none';
     }
@@ -2188,14 +2191,14 @@ async function initPressPanel() {
       // marquee 溢出偵測（panel 顯示後才執行）
       // 不 self-null：tab 切回 / window resize 變寬度後需重算；applyMarqueeOverflow 內含 dual-copy → single
       // reset 邏輯所以重跑安全
-      window._pressMarqueeInit = () => {
+      _pressMarqueeInit = () => {
         runMarqueeOverflow(listEl,
           '.press-item-title-en, .press-item-title-zh, .press-item-subtitle',
           '.press-marquee-inner, .press-subtitle-inner', '.press-item');
       };
       // sort 重渲染的新 DOM 沒 marquee（user 2026-07-03 手機報）→ 每次 render 尾端重跑；
       // panel 隱藏時量寬 0 = 無害 no-op，showLibPanel 顯示時會再觸發補量
-      requestAnimationFrame(window._pressMarqueeInit);
+      requestAnimationFrame(_pressMarqueeInit);
     }
 
     renderItems(getSorted());
@@ -2615,11 +2618,11 @@ async function initFilesPanel() {
 
       bindListItemHover(listEl, '.files-item', '.files-thumb-overlay');
 
-      window._filesMarqueeInit = () => {
+      _filesMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh, .files-item-subtitle-en, .files-item-subtitle-zh, .files-item-subtitle-tag', '.files-marquee-inner', '.files-item');
       };
       // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
-      requestAnimationFrame(window._filesMarqueeInit);
+      requestAnimationFrame(_filesMarqueeInit);
     }
 
     renderItems(getSorted());
@@ -2836,7 +2839,7 @@ function fitAlbumStrip(item) {
   if (!strip || !ws.length || ws.some(w => !w)) return;
   strip.style.width = `${ws.reduce((a, b) => a + b, 0) + ALBUM_FAN_GAP * (ws.length - 1)}px`;
   clearTimeout(_albumMqTimer);
-  _albumMqTimer = setTimeout(() => { if (typeof window._albumMarqueeInit === 'function') window._albumMarqueeInit(); }, 100);
+  _albumMqTimer = setTimeout(() => { if (typeof _albumMarqueeInit === 'function') _albumMarqueeInit(); }, 100);
 }
 
 async function initAlbumPanel() {
@@ -3056,11 +3059,11 @@ async function initAlbumPanel() {
 
       bindListItemHover(listEl, '.files-item', '.album-thumb-overlay');
 
-      window._albumMarqueeInit = () => {
+      _albumMarqueeInit = () => {
         runMarqueeOverflow(listEl, '.files-item-title-en, .files-item-title-zh', '.files-marquee-inner', '.files-item');
       };
       // 同 press：sort 重渲染後重跑 marquee（隱藏時 no-op、顯示時 showLibPanel 補量）
-      requestAnimationFrame(window._albumMarqueeInit);
+      requestAnimationFrame(_albumMarqueeInit);
     }
 
     renderItems(getSorted());
@@ -4284,15 +4287,15 @@ function showLibPanel(tab, { reveal = true, instant = false } = {}) {
         // 預設隱藏，等之後 onTabSwitch / 手動 showPanel 再 reveal
         hidePanelChildren(el);
       }
-      if (key === 'awards' && typeof window._awardsMarqueeInit === 'function') requestAnimationFrame(window._awardsMarqueeInit);
-      if (key === 'awards' && typeof window._awardsTickerStart === 'function') window._awardsTickerStart();
-      if (key === 'press'  && typeof window._pressMarqueeInit === 'function') requestAnimationFrame(window._pressMarqueeInit);
-      if (key === 'files'  && typeof window._filesMarqueeInit === 'function') requestAnimationFrame(window._filesMarqueeInit);
-      if (key === 'album'  && typeof window._albumMarqueeInit === 'function') requestAnimationFrame(window._albumMarqueeInit);
+      if (key === 'awards' && typeof _awardsMarqueeInit === 'function') requestAnimationFrame(_awardsMarqueeInit);
+      if (key === 'awards' && typeof _awardsTickerStart === 'function') _awardsTickerStart();
+      if (key === 'press'  && typeof _pressMarqueeInit === 'function') requestAnimationFrame(_pressMarqueeInit);
+      if (key === 'files'  && typeof _filesMarqueeInit === 'function') requestAnimationFrame(_filesMarqueeInit);
+      if (key === 'album'  && typeof _albumMarqueeInit === 'function') requestAnimationFrame(_albumMarqueeInit);
     } else {
       el.style.display = 'none';
       // 切走 awards → 重置 ref 手風琴，回來時不殘留展開態
-      if (key === 'awards' && typeof window._awardsResetAccordions === 'function') window._awardsResetAccordions();
+      if (key === 'awards' && typeof _awardsResetAccordions === 'function') _awardsResetAccordions();
     }
   });
 }
@@ -4376,6 +4379,8 @@ function ensureSerifFonts() {
  * }}
  */
 export function initLibraryPanels() {
+  // 離頁放掉各面板掛的 re-init hook（舊閉包抓著整份 DOM／records）；下次進頁各 init 重掛
+  registerPageCleanup(() => { _awardsMarqueeInit = _awardsResetAccordions = _awardsRerender = _awardsTickerStart = _pressMarqueeInit = _filesMarqueeInit = _albumMarqueeInit = null; });
   ensureSerifFonts();
   let _entranceDoneCb = null;
   let _entranceDoneFired = false;

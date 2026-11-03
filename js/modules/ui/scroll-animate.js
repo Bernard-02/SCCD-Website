@@ -146,7 +146,7 @@ export function clipRevealIconSwap(iconEl, newClass, { duration = 0.4, delay = 0
 // scrollbar 呼吸 pr（scroll-snap.css 100vh gate 內、限 .has-scroll-pr）：內層捲動盒真的溢出(顯 scrollbar)才掛、
 // 不捲則拿掉 → 不捲時貼文字、捲時 thumb 不貼字（user 2026-09-05；桌面才判、手機/矮橫向一律拿掉）。
 // 通用給 about program/works/vision（皆 fitCardToText 內叫；vision 2026-09-05 起也 hug）。
-export function toggleScrollPr(scroller) {
+function toggleScrollPr(scroller) {
   if (!scroller) return;
   const desktop = SCCDHelpers.isDesktopLayout();
   scroller.classList.toggle('has-scroll-pr', desktop && scroller.scrollHeight > scroller.clientHeight + 1);

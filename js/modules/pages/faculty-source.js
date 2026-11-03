@@ -11,7 +11,7 @@
  * 且不快取失敗結果＝下次呼叫重抓。沒上傳照片＝image ''（卡片只留灰底，不放假照片）。
  */
 
-import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, fetchCmsJson } from '../../config/api.js';
 
 const COLLECTION = 'faculty';
 
@@ -51,9 +51,7 @@ export function getFacultyData() {
 }
 
 async function _fetchFacultyData() {
-  const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active&fields=${FACULTY_FIELDS}`);
-  if (!res.ok) throw new Error(`${COLLECTION} HTTP ${res.status}`);
-  const rows = (await res.json()).data || [];
+  const rows = (await fetchCmsJson(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=active&fields=${FACULTY_FIELDS}`)) || [];
   if (!rows.length) throw new Error('empty');
   return rows.map(mapRow);
 }
@@ -65,9 +63,7 @@ export function getFormerFacultyData() {
 }
 
 async function _fetchFormerFacultyData() {
-  const res = await fetch(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=former`);
-  if (!res.ok) throw new Error(`${COLLECTION} (former) HTTP ${res.status}`);
-  const rows = (await res.json()).data || [];
+  const rows = (await fetchCmsJson(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=former`)) || [];
   if (!rows.length) throw new Error('empty');
   return rows.map(r => {
     const t = (Array.isArray(r.titles) && r.titles[0]) || {};

@@ -4,16 +4,14 @@
  * 欄位：titleZh/En、startDate/endDate、content(HTML)、images(files M2M)、attachments(o2m: titleZh/En/file/link)。
  * startDate（YYYY-MM-DD）→ 'YYYY.MM.DD' 顯示字串（loadListInto dateInHeader 無 dates group 時直接吃 item.date）。
  */
-import { CMS_API_BASE, CMS_ASSETS_BASE, cdnUrls } from '../../config/api.js';
+import { CMS_API_BASE, CMS_ASSETS_BASE, cdnUrls, fetchCmsJson } from '../../config/api.js';
 
 // 附件維持走 /assets：可能是 PDF/下載檔，要保留正確檔名、且 viewer range 依賴這條 URL。
 const asset = (u) => (u ? `${CMS_ASSETS_BASE}/${typeof u === 'string' ? u : u.id}` : '');
 
 export async function loadAdmissionAnnouncements() {
   try {
-    const res = await fetch(`${CMS_API_BASE}/admission_announcement?limit=-1&sort=sort&fields=*,images.directus_files_id.filename_disk,attachments.*`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = (await res.json()).data;
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/admission_announcement?limit=-1&sort=sort&fields=*,images.directus_files_id.filename_disk,attachments.*`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     return rows.map(r => ({
       id: r.id,

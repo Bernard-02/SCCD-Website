@@ -289,7 +289,7 @@ export function initColoredCardAccordion(wrapper, { animateEntry = false } = {})
 }
 
 // ── 標準版（其他 accordion）──────────────────────────────────────
-export function initSingleAccordion(wrapper) {
+function initSingleAccordion(wrapper) {
   if (!wrapper || accordionWrappers.includes(wrapper)) return;
 
   accordionWrappers.push(wrapper);

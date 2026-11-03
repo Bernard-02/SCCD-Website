@@ -7,7 +7,7 @@
  * 後台是唯一來源：失敗 → {}（課表空；不再退本地 JSON，user 2026-10-04），不快取失敗＝下次重抓。
  */
 
-import { CMS_API_BASE } from '../../config/api.js';
+import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 
 const CMS_COLLECTION = 'curriculum_courses';
 // 2026-06-09 起課表不再分上下學期 → semester 不再使用（後台該欄保留但前端忽略）
@@ -29,9 +29,7 @@ export function loadCourses() {
 }
 
 async function _fetchCourses() {
-  const res = await fetch(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const rows = (await res.json()).data;
+  const rows = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort`);
   if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
   return groupByProgram(rows);
 }

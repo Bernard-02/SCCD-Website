@@ -10,7 +10,7 @@ const SKIP = '#faculty-panel, #courses-detail-panel';
 /** @type {WeakMap<Element, {holder: HTMLElement, place: () => void}>} */
 const bound = new WeakMap();
 
-export function attachTouchBoxThumb(scroller) {
+function attachTouchBoxThumb(scroller) {
   if (scroller.closest(SKIP)) return;
   const prev = bound.get(scroller);
   if (prev) {

@@ -329,7 +329,7 @@ export function initFacultyFilter(initialSection = null, unlock) {
   const exitInners = navInners;   // 離頁退場目標（矮橫向 header 帶同一組）
   // 直向手機：nav＝畫面底 bar，整條滑進滑出（bindMobileBottomBar），chip 不另逐顆進退場
   const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#faculty-cards .nav-bottom-bar'));
-  const isBottomBar = !!bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone();   // 直向＋iPad 底 bar；橫向手機 nav 回 header 帶（10-30）
+  const isBottomBar = !!bottomBar && SCCDHelpers.isBottomBarLayout();   // 直向＋iPad 底 bar；橫向手機 nav 回 header 帶（10-30）
   if (isBottomBar) bindMobileBottomBar(bottomBar);
   else if (typeof gsap !== 'undefined' && navInners.length && !prefersReducedMotion()) {  // 減少動態：nav 維持靜態可見
     navInners.forEach(inner => { inner.style.transition = 'none'; gsap.set(inner, navChipHidden(inner, navDir.get(inner))); });

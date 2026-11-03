@@ -55,7 +55,7 @@ let _lastIsLightBg = null;
 const HUE_PER_FRAME = 0.04;
 
 // HSB → RGB（對齊 generate-app wireframe color(hue, 80, 100) HSB 模式；mode-color-panel 共用）
-export function hsbToRgb(h, s, v) {
+function hsbToRgb(h, s, v) {
   s /= 100; v /= 100;
   const c = v * s;
   const hp = (h % 360) / 60;
@@ -76,7 +76,7 @@ export function hsbToRgb(h, s, v) {
 }
 
 // WCAG relative luminance（gamma-corrected sRGB）—— 對齊 generate-app getRelativeLuminance
-export function relativeLuminance(r, g, b) {
+function relativeLuminance(r, g, b) {
   const lin = (c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);

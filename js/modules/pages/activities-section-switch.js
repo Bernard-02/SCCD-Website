@@ -551,7 +551,7 @@ function setupSectionNavReveal() {
   // 直向手機（user 2026-10-28）：nav＝畫面底 bar（lists.css .nav-bottom-bar），整條滑進滑出、chip 不另逐顆進退場（同 faculty）；
   // 子分頁 tab 列固定在底 bar 上方 → 範圍跟底 bar 同拍（hero 底過 100 才現、footer 頂過 75% 線收），逐 chip 進退沿用 scroll 收放那套
   const bottomBar = /** @type {HTMLElement|null} */ (document.querySelector('#activities-content-section .nav-bottom-bar'));
-  if (bottomBar && SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapePhone()) {   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
+  if (bottomBar && SCCDHelpers.isBottomBarLayout()) {   // 直向＋iPad；橫向手機 nav 回 header 帶（10-30）
     bindMobileBottomBar(bottomBar);
     const sec = document.getElementById('activities-content-section');
     if (!sec || typeof ScrollTrigger === 'undefined') return;

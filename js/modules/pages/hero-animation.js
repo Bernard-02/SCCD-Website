@@ -196,7 +196,7 @@ function tightenParagraphWidths(grid) {
 function randomizeHeroLayout() {
   const grid = document.querySelector('.hero-rand-grid');
   if (!grid) return;
-  if (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) return;  // 直向手機 flex stack，不 random（矮橫向含 <768 窄橫向 2026-10-30 起走隨機版）
+  if (SCCDHelpers.isPortraitPhone()) return;  // 直向手機 flex stack，不 random（矮橫向含 <768 窄橫向 2026-10-30 起走隨機版）
 
   const W = window.innerWidth;
   const H = window.innerHeight;
@@ -868,7 +868,7 @@ export function initHeroAnimation() {
     const csCn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-cn-wrapper'));
     const csEn = /** @type {HTMLElement|null} */ (document.querySelector('.coming-soon-title-wrapper'));
     if (csCn || csEn) {
-      const jitVw = (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate()) ? 4 : 10;   // 直向手機標題寬、jitter 收小免推出畫面
+      const jitVw = (SCCDHelpers.isPortraitPhone()) ? 4 : 10;   // 直向手機標題寬、jitter 收小免推出畫面
       const rot = (min, max) => +(min + Math.random() * (max - min)).toFixed(2);
       const corners = [
         (/** @type {HTMLElement} */ el) => {   // 右上格
@@ -899,7 +899,7 @@ export function initHeroAnimation() {
   const inRandGrid = !!document.querySelector('.hero-rand-grid');
   let heroGapPx = 0;
   if (heroTextEn && heroTextCn && !inRandGrid) {
-    const isDesktop = !(SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate());   // 隨機版（桌面＋矮橫向）
+    const isDesktop = !SCCDHelpers.isPortraitPhone();   // 隨機版（桌面＋矮橫向）
     const enRotDeg = isDesktop ? 3 : 1;
     const cnRotDeg = isDesktop ? 2 : 1;
     const w = heroTextEn.offsetWidth;
@@ -973,7 +973,7 @@ export function initHeroAnimation() {
   // 限高內捲拆掉「390px 高必互疊」前提；user：圖同桌面等比縮、分佈同桌面）→ gate 只剩寬度；
   // <768 窄橫向（SE 等）2026-10-30 起也走隨機版（landscape.css 3) 翻回 .hero-rand-grid；原手機 stack 一屏放不下必被切）→ 只剩直向走這支。
   // 跨 gate 轉向由 orientation-reload 重載。
-  if (SCCDHelpers.isMobileLayout() && !SCCDHelpers.isLandscapeGate() && document.querySelector('.hero-mobile')) {
+  if (SCCDHelpers.isPortraitPhone() && document.querySelector('.hero-mobile')) {
     playMobileHeroEntrance();
     setupComingSoonReveal();   // coming-soon 佔位屏：此分支不進 buildHeroTimeline，這裡補註冊
     return;

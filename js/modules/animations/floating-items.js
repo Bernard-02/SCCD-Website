@@ -12,7 +12,7 @@ import { loadSummerCamp } from '../pages/summer-camp-source.js';
 import { loadActivityCollection, loadPermanentExhibitions } from '../pages/activities-source.js';
 import { loadOthersAlbum } from '../pages/library-album-source.js';
 import { sitePath } from '../ui/site-base.js';
-import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
+import { CMS_API_BASE, cdnUrl, fetchCmsJson } from '../../config/api.js';
 import { shortLibId } from '../pages/library-deeplink.js';
 import { revealHidden } from '../ui/scroll-animate.js';
 
@@ -111,9 +111,7 @@ async function fetchActivityPosters() {
   // ⚠️ 必須跟 library files 面板「同源、同 id 規則」：element id = f-<row.id>、封面用後台預產 cover 欄（generate-library-covers.cjs 產）
   const files = [];
   try {
-    const res = await fetch(`${CMS_API_BASE}/library_documents?fields=id,docType,cover.filename_disk&sort=-year,sort&limit=-1`);
-    if (!res.ok) throw new Error('CMS ' + res.status);
-    ((await res.json())?.data || []).forEach(r => {
+    ((await fetchCmsJson(`${CMS_API_BASE}/library_documents?fields=id,docType,cover.filename_disk&sort=-year,sort&limit=-1`)) || []).forEach(r => {
       const cover = cdnUrl(r.cover);
       if (cover && r.id != null && r.docType !== 'contributions') {
         files.push({ type: 'image', src: cover, url: `pages/library.html#f-${shortLibId(r.id)}` });
@@ -169,9 +167,7 @@ function buildAwardText(competition, rank, competitionEn, rankEn) {
 async function fetchAwardTexts() {
   const pool = [];
   try {
-    const res = await fetch(`${CMS_API_BASE}/library_awards?fields=id,country,competitionEn,competitionZh,rankEn,rankZh,ranks&sort=-year,sort&limit=-1`);
-    if (!res.ok) throw new Error('CMS ' + res.status);
-    const rows = (await res.json())?.data;
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/library_awards?fields=id,country,competitionEn,competitionZh,rankEn,rankZh,ranks&sort=-year,sort&limit=-1`);
     if (!Array.isArray(rows) || rows.length === 0) throw new Error('CMS empty');
     rows.forEach(r => {
       if (!r.competitionZh && !r.competitionEn) return;

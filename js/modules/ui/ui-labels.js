@@ -11,7 +11,7 @@
  * 之後 about 內容整批上 Directus 時：組別按鈕已在此、about-class 那邊只留段落內容即可。
  */
 
-import { CMS_API_BASE } from '../../config/api.js';
+import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 
 let cache;
 
@@ -26,9 +26,7 @@ export function loadUiLabels() {
   if (cache) return cache;
   cache = (async () => {
     try {
-      const res = await fetch(`${CMS_API_BASE}/ui_labels?limit=-1`);
-      if (!res.ok) throw new Error('cms');
-      const { data } = await res.json();
+      const data = await fetchCmsJson(`${CMS_API_BASE}/ui_labels?limit=-1`);
       if (!data || !data.length) throw new Error('empty');
       return indexRows(data);
     } catch (err) {
