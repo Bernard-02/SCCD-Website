@@ -154,7 +154,7 @@
     },
     {
       "labelEn": "Library",
-      "labelZh": "檔案室",
+      "labelZh": "檔案館",
       "labelKey": "nav.library",
       "url": "library.html",
       "subs": [
@@ -185,8 +185,8 @@
       ]
     },
     {
-      "labelEn": "Atlas",
-      "labelZh": "圖譜",
+      "labelEn": "World",
+      "labelZh": "世界",
       "labelKey": "nav.atlas",
       "url": "atlas.html",
       "subs": []

@@ -31,6 +31,7 @@
 // module cache 與 atlas 頁共用同一份；atlasApi 存 namespace 供 unmount 的 cleanupAtlas 用。
 let atlasApi = null;
 import { DUR, EASE } from './motion.js';
+import { cmsDown } from '../../config/api.js';
 import { hideHeaderChromeForStandby, showHeaderChromeForStandby } from '../../header.js';
 
 const IDLE_TIMEOUT = 3 * 60 * 1000; // 3 分鐘
@@ -168,6 +169,8 @@ function mountAtlasOnVisible() {
 
 async function enterStandby() {
   if (isStandby || isTransitioning) return;
+  // 後台抓不到＝全站 COMING SOON（main-modular renderComingSoon）：星雲資料也在後台、待機只會是空畫面（user 2026-11-03）
+  if (cmsDown) return;
   // 手機不進待機畫面（user 2026-06-12）；guard 放進場時點而非 init，視窗大小變了也準
   if (window.innerWidth < 768) return;
   // 矮橫向（橫向手機）也不進（user 2026-07-04「橫向自然不該有待機」）：atlas 星雲在 <500px 高是文字湯，

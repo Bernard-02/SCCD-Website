@@ -20,6 +20,7 @@ import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-a
 import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { loadHero } from './modules/pages/hero-source.js';
+import { probeCms, cmsDown } from './config/api.js';
 import { initShareModal } from './modules/ui/share-modal.js';
 import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-helpers.js';
 import { resetLightboxMode, getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
@@ -128,6 +129,46 @@ function revealHeaderWhenReady(headerAt = Promise.resolve()) {
   });
 }
 
+// 後台抓不到（憑證過期／主機掛；2026-11-03 實例）→ 每頁只剩 hero、文字換 COMING SOON（user 2026-11-03）：
+// header／換頁照常，footer（內容也在後台）藏起，待機畫面不進（idle-standby 讀同一個 cmsDown）。
+// markup＝faculty 等 4 頁共用 hero 只留兩個標題字卡（placement engine 對 banner／段落缺席都容忍）：不要說明段、左下當前頁卡藏起、
+// 一屏 100svh＋body 鎖捲（user 2026-11-03「不用往下滾動」；.hero-mobile 全域 min-height 100vh 會超出 svh → inline 歸零）
+const COMING_SOON_HTML = `
+    <section class="snap-zone relative overflow-hidden" style="height:100svh">
+      <div class="hero-mobile" style="min-height:0;height:100%">
+        <div class="hero-mobile-text">
+          <h1 class="text-black hero-mobile-title" data-hero-hl></h1>
+          <h1 class="text-black hero-mobile-title-cn" data-hero-hl></h1>
+        </div>
+      </div>
+      <div class="hero-rand-grid">
+        <h1 class="text-black hero-title inline-block" data-hero-hl>COMING SOON</h1>
+        <h1 class="text-black hero-title-cn inline-block" data-hero-hl>即將上線</h1>
+      </div>
+    </section>`;
+let cmsGate = null;   // 首次進站的可達性判定（見 initPageModules）
+function renderComingSoon() {
+  const main = document.getElementById('page-content');
+  if (!main) return;
+  main.innerHTML = COMING_SOON_HTML;
+  main.className = '';
+  main.removeAttribute('style');
+  // 鎖頁：about／faculty 等 needsClipX 頁 html 帶 overflow-x:clip → body 的 overflow 不再傳到 viewport（body class 鎖不住），
+  // 所以 html 也鎖；下次換頁 cleanupPageModules 清 html inline overflow、router 依目標頁重設 body class
+  document.body.classList.add('overflow-hidden');
+  document.documentElement.style.overflow = 'hidden';
+  document.querySelectorAll('#site-footer, #site-footer-static').forEach(el => { /** @type {HTMLElement} */ (el).style.display = 'none'; });
+  // 左下「當前頁」卡藏起：清空＝CSS :empty 不顯示；dataset.page 改掉，下次 updateNavActive 看 key 不同就重填＋揭露
+  const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
+  if (indCard) { indCard.innerHTML = ''; indCard.dataset.page = 'coming-soon'; }
+  // 首頁首訪：intro 模組可能已被 cleanup 作廢、沒人收 overlay／放 header → 這裡保險放（已放過＝no-op）
+  revealHeaderWhenReady();
+  resetHeroDone();
+  initHeroMobileSync();
+  if (document.querySelector('#site-header header')) initHeroAnimation();
+  else document.addEventListener('header:ready', initHeroAnimation, { once: true });
+}
+
 export function initPageModules(page, searchParams = new URLSearchParams(), fromUserNav = false) {
 
   // deep-link 呈現完的解鎖鑰匙：init 當下同步取（admission／faculty 的 init 要等資料、library 等進場，晚取會拿到
@@ -157,6 +198,20 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
   applyModeForPage(page);
   updateToggleBtnVisualState(page);
+
+  // 後台連不上 → 本頁只剩 COMING SOON hero（renderComingSoon）、頁面模組不跑；probeCms＝後台回來下一頁就恢復。
+  // 首次進站 cmsDown 還沒人探過 → 等 header 已在抓的 ui_labels 回來（同一支請求、不多打）再重進一次本函式；
+  // 憑證／DNS 錯誤毫秒內回，上限 1.5s＝弱機 hang 時照常進頁（走各 loader 原本的 LKG／空資料降級）。
+  // ponytail: 進站後才掛掉的 CMS 不中途換畫面，下一次換頁才變 COMING SOON
+  // /create 例外：p5、字型、彩蛋、icon 全是本地檔、不接後台 → 後台掛著照常可用（user 2026-11-03）
+  if (page !== 'generate') {
+    if (cmsDown) { renderComingSoon(); probeCms(); return; }
+    if (!cmsGate) {
+      cmsGate = Promise.race([loadUiLabels(), new Promise(r => setTimeout(r, 1500))]);
+      cmsGate.then(() => { if (alive()) initPageModules(page, searchParams, fromUserNav); });
+      return;
+    }
+  }
 
   // Nav / 分頁按鈕文字：後台 ui_labels 為主、本地 fallback（見 ui-labels.js）。
   // 只在該頁有帶 data-label-key 的按鈕時才抓（避免無關頁面打 Directus）；fire-and-forget，
@@ -612,6 +667,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // 無障礙：reduce 模式下先裝全域 GSAP 開關（所有有限 tween 瞬間完成），必須在任何動畫 init 之前。
   installReducedMotionGsap();
 
+  // 後台可達性探針先發（single-flight，header／initPageModules 的 gate 共用同一支）：讓 TLS 握手跟 header／頁面 fetch 並行，
+  // 首頁 gate 1.5s 內更穩拿到結果（憑證錯誤本身毫秒級，但 DNS＋握手偶爾慢）
+  loadUiLabels();
   // Global Modules（只執行一次）
   initHeader();
   initThemeToggle();

@@ -33,15 +33,24 @@ export function cdnUrls(arr) {
 
 // 抓 Directus JSON 回 .data。弱機的故障模式是「hang 而非拒絕」→ 統一逾時 abort 讓呼叫端走失敗鏈。
 // ⚠️ 逾時必須涵蓋到 body 讀完：headers 到了 body stream 照樣可能 hang（只保護 headers＝json() 永不 settle、切換鎖死）
+// cmsDown：後台連不上（憑證過期／DNS／拒連＝fetch 丟 TypeError；逾時與 HTTP 錯誤不算——弱機偶爾 hang 不該整站 COMING SOON）。
+// 任一 fetchCmsJson 都順手更新；main-modular 換頁時讀它決定要不要只顯 COMING SOON hero（user 2026-11-03）。live binding＝importer 讀到最新值
+export let cmsDown = false;
 export async function fetchCmsJson(url, ms = 10000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
     const res = await fetch(url, { signal: ctrl.signal });
+    cmsDown = false;
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()).data;
+  } catch (e) {
+    if (e instanceof TypeError) cmsDown = true;
+    throw e;
   } finally { clearTimeout(t); }
 }
+// COMING SOON 狀態下沒有別的請求會去碰後台 → 每次換頁打一筆最小請求探路，後台回來下一頁就恢復
+export const probeCms = () => fetchCmsJson(`${CMS_API_BASE}/ui_labels?limit=1`).catch(() => {});
 
 // sessionStorage last-known-good：上次成功的真資料，後台失敗時退這份（存不進去／壞快取都當沒有）
 export function saveLKG(key, data) { try { sessionStorage.setItem(`sccd:act:${key}`, JSON.stringify(data)); } catch {} }
