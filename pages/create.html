@@ -112,7 +112,8 @@ ROTATE FOR BEST EXPERIENCE</div></div>
                     <div class="custom-area-wrapper" id="custom-area-wrapper">
                         <!-- Custom 按鈕 -->
                         <button class="custom-button custom-button-custom">
-                            <img id="custom-icon" src="../website-icons/custom.svg" alt="Custom">
+                            <!-- span 當尺寸盒、img 100%（同 random／reset／save）：img 自己吃 calc(48px×scale) 在 iPad Safari 展開態會縮 1/4（create.css） -->
+                            <span class="custom-icon-box"><img id="custom-icon" src="../website-icons/custom.svg" alt="Custom"></span>
                         </button>
 
                         <!-- 自訂角度控制 (由 JS 控制顯隱) -->

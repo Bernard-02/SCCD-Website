@@ -31,11 +31,14 @@ function _handleVisualViewportResize() {
 // （user 2026-10-31 iPad Air 橫向「custom 鈕超小、bar 超下面」）。只在觸控裝置判（桌面拖視窗變矮不是鍵盤）；寬變＝轉向／分割畫面重抓
 let _kbBaseH = 0, _kbBaseW = 0;
 function _handleDesktopKeyboard() {
-  if (!_p5 || isMobileMode || !window.visualViewport || !window.SCCDHelpers.isCoarsePointer()) return;
+  if (!_p5 || !window.visualViewport) return;
+  // 鍵盤模式開著時不早退：Chrome for iPad 開鍵盤會連 innerHeight 一起縮、跨過 ≤500 高的手機斷點 → isMobileMode 翻 true，
+  // 收鍵盤那次 resize 若早退，.create-kb-open 永遠清不掉（控制盒 display:none 卡住；Playwright WebKit 1194×420 重現）
+  if (!createKbOpen && (isMobileMode || !window.SCCDHelpers.isCoarsePointer())) return;
   const vv = window.visualViewport;
   if (window.innerWidth !== _kbBaseW) { _kbBaseW = window.innerWidth; _kbBaseH = 0; }
   if (!createKbOpen) _kbBaseH = Math.max(_kbBaseH, vv.height);
-  const open = vv.scale < 1.05 && _kbBaseH - vv.height > 150;
+  const open = !isMobileMode && vv.scale < 1.05 && _kbBaseH - vv.height > 150;
   if (!open && !createKbOpen) return;
   const app = document.getElementById('create-app');
   app?.style.setProperty('--create-vv-h', `${Math.round(vv.height)}px`);
@@ -67,6 +70,7 @@ function _handleMobileMediaChange() {
   setTimeout(() => {
     if (!_p5) return;
     checkMobileMode();
+    if (createKbOpen) _handleDesktopKeyboard();   // 斷點翻轉時順手收掉卡住的鍵盤模式（見 _handleDesktopKeyboard）
     updateUI();
   }, 10);
 }
