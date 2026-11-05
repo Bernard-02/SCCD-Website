@@ -340,6 +340,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sw.initAdmissionSectionSwitch(fromUserNav, unlock);
       search.initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
     });
+    // 直向手機方向磁吸＋nav 段（#admission-content-section data-snap-tabs：清單捲完往下＝下一個 nav，user 2026-11-04）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
   }
 
   // --- Faculty Pages ---
@@ -355,12 +357,14 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       filter.initFacultyFilter(facultySection, unlock);
       slideIn.initFacultySlideIn();
     });
+    // 直向手機方向磁吸：每類一個落點（牆＝.snap-zone，user 2026-11-04「跟 about 一樣」）；桌面是右欄原生 CSS snap
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
   }
 
   // --- Curriculum Page（route/file 改名 curriculum；內部模組/CSS class 仍叫 courses-*）---
   if (page === 'curriculum') {
     import('./modules/pages/courses-section-switch.js').then(m => { if (alive()) m.initCoursesSectionSwitch(fromUserNav, unlock); });
-    // 直向手機方向磁吸＋年級 tab 段（#courses-content-section data-snap-tabs：捲完當年級往下＝下一年級，user 2026-11-01）
+    // 直向手機方向磁吸（hero ↔ 課程段＋每個年級一段，年級 block 的 .snap-zone 由 courses-section-switch 掛；不再段尾換年級 tab）
     import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
   }
 
@@ -374,6 +378,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sw.initActivitiesSectionSwitch('exhibitions', fromUserNav, unlock);
       search.initActivitiesSearch();
     });
+    // 直向手機方向磁吸＋步驟段（section-switch 建的 data-snap-tabs：清單捲完往下＝下一個子分頁／nav，user 2026-11-04）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
     // viewer：modal 單例 guard、重複 init 安全 → 不需 seq guard
     import('./modules/pages/library-viewer.js').then((m) => m.initPdfViewer());
@@ -484,7 +490,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // → tab 鈕 hero 式 clip-reveal（同 activities section nav，translate＋同步 clip 滑動）→ panel chip/內容 wipe（playPanelReveal）
       // → 完成才 onEntranceDone + handleHash（deep-link 等進場完才捲，對齊桌面 onEntranceDone 時序）
       const librarySection = /** @type {HTMLElement | null} */ (document.querySelector('main#page-content > section'));
-      const tabInners = /** @type {HTMLElement[]} */ (tabsRoot ? [...tabsRoot.querySelectorAll('.anchor-nav-inner')] : []);
+      // ＋灰卡右上工具鈕的 icon（user 2026-11-04「也要做進出場」）：同 tab 鈕一起 clip-reveal 進場、離頁反向收（遮罩＝icon 自己的框）
+      const tabInners = /** @type {HTMLElement[]} */ ([...(tabsRoot ? tabsRoot.querySelectorAll('.anchor-nav-inner') : []),
+        ...document.querySelectorAll('#lib-tools-btn > .icon')]);
       const LIB_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
       const pickLibClip = () => LIB_CLIPS[Math.floor(Math.random() * LIB_CLIPS.length)];
       // tab 鈕：每顆固定一個隨機方向（2026-07-17 全站四方向隨機），進場 set 與離頁 exit 共用同一份

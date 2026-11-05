@@ -26,7 +26,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 .mcp-cap-mask {
   --mcp-h: 44px;
   position: absolute;
-  right: var(--container-padding);
+  right: var(--mcp-right, var(--container-padding));
   bottom: var(--mobile-bottom-anchor, 32px);
   overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩 */
   border-radius: calc(var(--mcp-h) / 2);    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
@@ -34,6 +34,15 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 }
 @media (min-width: 1024px) and (min-height: 501px) {
   .mcp-cap-mask { --mcp-h: 48px; bottom: 48px; }
+  /* 右下角讓給 footer 鈕（footer.css .footer-btn-mask，user 2026-11-04 對調）：鉛筆排在它左邊、間距 md 24（＝header mode↔menu）；
+     capsule 從這裡往左長、不推 footer 鈕。沒 footer 的頁（router 掛 body.no-footer）回角落。掛 body＝--mcp-footprint-x 也吃得到 */
+  body:not(.no-footer) { --mcp-right: calc(var(--container-padding) + 48px + var(--spacing-md)); }
+}
+/* 手機／iPad／矮橫向：右下讓給 footer 鈕（44，footer.css 手機段）、鉛筆疊在它正上方（user 2026-11-04「移到 footer btn 上方」）、
+   間距 sm＝同 header mode↔menu 鈕（header.html gap-sm；user 同日「鉛筆到 footer 鈕的 gap 跟 mode 到 menu 一致」）；
+   capsule 照樣往左長。這高度落在第二層 tab 列 → 那幾列 mode3 也讓（portrait.css／landscape.css 檔尾；首頁 news 一律讓到 header mode 鈕右緣、點開的 ↗ 可蓋過鉛筆） */
+@media not all and (min-width: 1024px) and (min-height: 501px) {
+  body:not(.no-footer) .mcp-cap-mask { bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm)); }
 }
 .mcp-cap {
   position: relative;
@@ -168,4 +177,35 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   -webkit-mask: var(--icon) center / contain no-repeat;
           mask: var(--icon) center / contain no-repeat;
   transform: scaleX(-1);
+}
+
+/* 手機／iPad／矮橫向：點開往上長（user 2026-11-04；鉛筆疊在 footer 鈕上方、左邊是 nav／tab 列）——capsule 高 --mcp-h→217+--mcp-h
+   （mode-color-panel.js capDim／capLen），row 直排靠底：色條在上、play、chevron 格＝收起時的圓鈕在底；色條直立、hue 由上往下（barHue 同座標）。
+   間距：頂 20、色條→play 17（pause 墨跡上下滿版）、play→chevron 墨跡 ~17、chevron→底 ~16；朝下 chevron 墨跡本來就置中＝不用橫排那個左移 */
+@media not all and (min-width: 1024px) and (min-height: 501px) {
+  .mcp-cap-row {
+    top: auto;
+    bottom: 0;
+    width: var(--mcp-h);
+    height: calc(217px + var(--mcp-h));
+    flex-direction: column;
+    padding-left: 0;
+    padding-top: 20px;
+  }
+  .mcp-bar-mask { width: 20px; }   /* flex-basis 160＝直排時的高 */
+  .mcp-bar { width: 20px; height: 160px; }
+  .mcp-bar-track { background: linear-gradient(to bottom, #f33, #ff3, #3f3, #3ff, #33f, #f3f, #f33); }
+  .mcp-bar-ind {
+    top: auto;
+    bottom: auto;
+    left: -1px;
+    right: -1px;
+    width: auto;
+    height: 2px;
+    margin-left: 0;
+    margin-top: -1px;
+  }
+  .mcp-cap-play { width: var(--mcp-h); height: 20px; margin-left: 0; margin-top: 17px; }
+  .mcp-cap-toggle .icon-chevron-right { margin-right: 0; }
+  .mcp-cap-toggle .icon-chevron-right::before { transform: rotate(-90deg); }   /* 朝下＝往下收回 */
 }

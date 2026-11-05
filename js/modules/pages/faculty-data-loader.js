@@ -259,7 +259,7 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
     // 真實照片 decoding async：1600² 原圖單張解碼 15–18ms，同步解碼會卡住進場／捲動那幀（user 2026-10-01 掉幀診斷）。
     // 代用 logo 不加：hover／切 mode 會換 src，async 可能先畫一格空白才出新圖
     const asyncDecode = !isModePlaceholder(item);
-    const color = SCCDHelpers.ACCENT_COLORS[index % SCCDHelpers.ACCENT_COLORS.length];
+    const color = SCCDHelpers.getRandomAccentColor();   // 初始色；hover 時每次重抽（見下方 mouseenter）
     const sign = Math.random() < 0.5 ? -1 : 1;
     const initDeg = (sign * (1 + Math.random() * 2)).toFixed(2);   // ±1–3°，理由見 faculty-filter.js facultyImgDeg
     const imgDir = randomRevealDir();   // 圖片進場 4 方向 random 抽，faculty-filter setupFacultyCardAnim 讀 data-img-dir
@@ -291,6 +291,10 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
   // 代用 logo（透明去背）→ 維持 4:5 框 + object-contain 完整顯示（不裁切），登記給 applyPlaceholderMode 依 mode 切圖/底色
   container.querySelectorAll('.faculty-card').forEach((cardEl, i) => {
     const item = items[i];
+    // hover 底色每次重抽（user 2026-11-04）；詳情開著的那張（.is-active）不換，slide-in 讀的是點下去當下的色
+    cardEl.addEventListener('mouseenter', () => {
+      if (!cardEl.classList.contains('is-active')) /** @type {HTMLElement} */ (cardEl).style.setProperty('--card-color', SCCDHelpers.getRandomAccentColor(/** @type {HTMLElement} */ (cardEl).style.getPropertyValue('--card-color')));
+    });
     const img = cardEl.querySelector('.faculty-card-image');
     if (!img) return;
     if (isModePlaceholder(item)) {

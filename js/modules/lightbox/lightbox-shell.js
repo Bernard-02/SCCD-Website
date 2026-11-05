@@ -189,17 +189,6 @@ function restoreLightboxTops() {
   });
 }
 
-// 可 scroll 頁（activities）user 滾到 footer 區時 header bars+logo 已被 footer-near scroll listener
-// clip 收起；body lock 後 listener 不再 fire → 殘留 hide state 蓋掉 lightbox 的 hide/show 動畫。
-// 用 window 全域 hook 解耦：header.js 載入時 set window.__sccdResetFooterHide，
-// shell 在 enterLightboxMode 時 call 一下；對 library 等 h-screen 頁是 no-op（barsHidden false）。
-// 不用 import header.js 避免循環依賴。
-function callResetFooterHide() {
-  if (typeof window !== 'undefined' && typeof window.__sccdResetFooterHide === 'function') {
-    window.__sccdResetFooterHide();
-  }
-}
-
 // ── 底層 scroll freeze：擋捲動「輸入」而非鎖 overflow ──────────────────────────────
 // 為什麼不用 html overflow:hidden 來 freeze（前兩版的做法，已棄）：
 //   對 <html> 設任何 overflow（hidden / 兩軸 hidden）都會讓它變成自身 scroll container，
@@ -286,12 +275,13 @@ function installScrollLock() {
 // （footer 也是 z-9999，slide-in 開啟時靠 css/layout/footer.css 的 html.has-slide-in .footer-shell{z-index:40} 讓位。）
 // keepHeader（faculty 桌面色卡不 dim，user 2026-10-20）：header mode／menu 鈕不收（點擊放行由 CSS html.overlay-no-dim 管）、
 // logo 連結不拔＝點 logo 照常回首頁（卡片的收場由 caller 掛 page exit）
+// menuBack（手機 slide-in，user 2026-11-04）：menu 鈕不收、換成返回箭頭，點了呼叫 menuBack 關閉；exit 時換回漢堡。
+//   panel 從鈕下方滑入＝navigation.css html.has-slide-in 把 header 抬過 slide-in
 let headerBarsKept = false;
-export function enterLightboxMode({ keepHeader = false } = {}) {
+export function enterLightboxMode({ keepHeader = false, menuBack = null } = {}) {
   if (openCount === 0) {
     headerBarsKept = keepHeader;
     savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦
-    callResetFooterHide();
     // freeze 底層捲動：純擋輸入，完全不碰 body/html overflow（保住頁內 sticky 不跳、也不跳頂部）。
     // ⚠️ 連 body.overflow:hidden 都不能設：clip 頁（faculty/activities，html inline overflow-x:clip）html overflow
     //    非 visible → body overflow 不會傳播到 viewport，body 自己變 scroll container → 頁內 sticky 改以 body 為
@@ -307,6 +297,7 @@ export function enterLightboxMode({ keepHeader = false } = {}) {
     portalLogoAboveOverlay(!keepHeader);
     if (!keepHeader) disableLogoLinks();
     padLightboxTops();
+    if (menuBack) window.__sccdMenuBtnBack?.(menuBack);   // 要在收鈕之前：收鈕才會跳過返回態的 menu 鈕
     if (!keepHeader) animateHeaderHide(getHeaderTargets());
   }
   openCount++;
@@ -318,6 +309,7 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
     document.body.classList.remove('lightbox-open', 'lightbox-keep-header');
     restoreLogoLinks();
+    window.__sccdMenuBtnBack?.(null);   // 返回箭頭換回漢堡（跟 panel 滑出同時；不是返回態＝no-op）
     // 無障礙：把焦點還給開啟 lightbox 的元素（preventScroll：別把頁面捲走）
     if (savedFocusEl && typeof savedFocusEl.focus === 'function') savedFocusEl.focus({ preventScroll: true });
     savedFocusEl = null;
@@ -351,6 +343,7 @@ export function resetLightboxMode() {
   restoreLightboxTops();
   restoreLogoDown();   // 把 portal 到 #site-header 的 logo 搬回 header 原位（SPA 換頁時 modal 還開著兜底）
   restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結
+  window.__sccdMenuBtnBack?.(null);   // 同上：menu 鈕別停在返回態
   // 解除底層 scroll freeze（若 lightbox 沒走正規 exit 流程退出時兜底）
   if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
 }

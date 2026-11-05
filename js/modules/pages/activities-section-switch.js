@@ -719,8 +719,9 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   // hover-dim 只在滑鼠真的移動後才生效（打開短 list 捲到頂→cursor 底下換 item 不誤觸半透明）
   initHoverDimMoveGuard(document.getElementById('activities-content-section'));
 
-  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
-  bindFrameScrollSplit(document.getElementById('activities-content-section'));
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers；
+  // 右欄捲到底／頂再滾＝下一／上一步（bindSteps）
+  bindFrameScrollSplit(document.getElementById('activities-content-section'), bindSteps(btns));
 
   // SPA 換頁後 DOM 重建，需重置 loaded 狀態讓資料重新載入（DOM 已換、但資料快取跨頁保留＝秒開）
   Object.keys(loaded).forEach(k => delete loaded[k]);
@@ -880,6 +881,94 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   });
 }
 
+// ── 捲完接下一段（user 2026-11-04「跟 about 一樣：有 tab 先跑完 tab 的內容再到下一個 nav，也要 snap」）──
+// 一次仍只顯示一段（lazy render 不動）；步驟＝nav 順序、有子分頁的展開：展演（特設→畢業展→常設）→ 工作營 → … → 參訪（出訪→來訪）→ …
+// 真桌面：右欄捲到底／頂之後新的一下滾輪（bindFrameScrollSplit steps）；直向手機：snap-scroll 的 tab 段磁吸（清單捲完再往下滑過 15%）
+// 點 #activities-snap-steps 的隱藏步驟鈕——磁吸要「DOM 順序＝步驟順序、目前那顆 .active」，nav 鈕跟子分頁鈕不在同一串。
+// 往下進段＝第一個子分頁、往上進＝最後一個（同 about／curriculum），都落在新段頂
+function actSteps() {
+  return [...document.querySelectorAll('.activities-section-btn')].flatMap(navEl => {
+    const nav = /** @type {HTMLElement} */ (navEl);
+    const s = nav.dataset.section;
+    const types = /** @type {HTMLElement[]} */ ([...document.querySelectorAll(`#${s}-type-filter .${s}-type-btn`)]);
+    return types.length ? types.map(type => ({ nav, type })) : [{ nav, type: /** @type {HTMLElement|null} */ (null) }];
+  });
+}
+/** @param {ReturnType<typeof actSteps>} steps */
+const stepIndex = (steps) => steps.findIndex(s => s.nav.classList.contains('active') && (!s.type || s.type.classList.contains('active')));
+// 清單還在 lazy 續建＝還沒到真的底：不往下一段（user 2026-11-04「滑到最底部才可以去下一段」）
+const listPending = () => [...document.querySelectorAll('.activities-panel:not(.hidden) [data-lazy-list]')]
+  .some(c => c.getClientRects().length && /** @type {any} */ (c)._lazyPending?.());
+// 捲動換段＝新的 active 抽新角（同 about scroll-spy；桌面 setActiveNavBtn／子分頁點擊沿用 inline 當前角）
+/** @param {HTMLElement|null} el */
+const rerollNavRot = (el) => el?.querySelectorAll('.anchor-nav-inner').forEach(i => { /** @type {HTMLElement} */ (i).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
+/** @param {NodeListOf<Element>} btns @param {number} k */
+function goStep(btns, k) {
+  const to = actSteps()[k];
+  if (!to || switching || subFilterSwitching) return;
+  if (k > stepIndex(actSteps()) && listPending()) return;
+  if (to.nav.classList.contains('active')) {
+    if (to.type && !to.type.classList.contains('active')) { rerollNavRot(to.type); to.type.click(); }
+    return;
+  }
+  rerollNavRot(to.nav);
+  rerollNavRot(to.type);
+  const section = /** @type {string} */ (to.nav.dataset.section);
+  userSwitchedSection = true;
+  scrollToSectionTopNow(document.getElementById('activities-content-section'));   // 直向手機：同點底 bar nav
+  switchToSection(section, btns, true, false, to.type?.dataset.type);
+  centerSectionNavBtn(section);
+}
+/** @param {NodeListOf<Element>} btns */
+function bindSteps(btns) {
+  const section = document.getElementById('activities-content-section');
+  const count = actSteps().length;
+  if (section && count) {
+    const box = document.createElement('div');
+    box.id = 'activities-snap-steps';
+    box.hidden = true;
+    box.innerHTML = '<button type="button" tabindex="-1"></button>'.repeat(count);
+    section.appendChild(box);
+    section.dataset.snapTabs = '#activities-snap-steps > button';
+    const proxies = [...box.children];
+    proxies.forEach((p, k) => p.addEventListener('click', () => goStep(btns, k)));
+    // 磁吸在手勢結束時讀 .active → 每次手指一放上去就對一次（切換一律經點擊、手勢前早已定案）
+    // 清單沒建完＝往後的步驟 disabled（snap-scroll 跳過 disabled＝不會先捲回段頂再點空）
+    const sync = () => {
+      const i = stepIndex(actSteps()), pending = listPending();
+      proxies.forEach((p, k) => { p.classList.toggle('active', k === i); /** @type {HTMLButtonElement} */ (p).disabled = pending && k > i; });
+    };
+    window.addEventListener('touchstart', sync, { capture: true, passive: true });
+    registerPageCleanup(() => window.removeEventListener('touchstart', sync, { capture: true }));
+    sync();
+  }
+  return {
+    has: (/** @type {number} */ dir) => { const steps = actSteps(), i = stepIndex(steps); return i >= 0 && !!steps[i + dir]; },
+    go: (/** @type {number} */ dir) => goStep(btns, stepIndex(actSteps()) + dir),
+  };
+}
+// 換段落在指定子分頁（往上進＝最後一個）：panel 還藏著＝直接擺好，跟著整段一起進場（不另播子分頁退/進場）。
+// 同 exhibitions／visits 的子分頁點擊（init*TypeFilter）少了動畫與捲動
+/** @param {string} section @param {string} type */
+async function presetSubType(section, type) {
+  const btns = /** @type {HTMLElement[]} */ ([...document.querySelectorAll(`#${section}-type-filter .${section}-type-btn`)]);
+  const btn = btns.find(b => b.dataset.type === type);
+  if (!btn || btn.classList.contains('active')) return;
+  if (type === 'degree-show') await ensureDegreeShowLoaded().catch(() => {});   // 失敗＝空清單，再點 tab 會重試
+  btns.forEach(b => {
+    const on = b === btn;
+    b.classList.toggle('active', on);
+    const inner = /** @type {HTMLElement|null} */ (b.querySelector('.anchor-nav-inner'));
+    if (inner) inner.style.background = on ? currentSectionColor : '';
+    const t = b.dataset.type;
+    const list = document.getElementById(t === 'degree-show' ? 'degree-show-list' : `${section}-list-${t}`);
+    if (list) list.style.display = on ? '' : 'none';
+  });
+  const group = document.querySelector(`#panel-${section} .panel-desc-group`);
+  group?.querySelector('.panel-desc.active')?.classList.remove('active');
+  group?.querySelector(`.panel-desc[data-desc-type="${type}"]`)?.classList.add('active');
+}
+
 // P1-3：資料層失敗（三層鏈連 last-known-good 都沒有）時 panel 的錯誤態，比照 search empty-state 置中。
 // 再點分頁鈕會 delete loaded[] + 清此元素 → 自動重試（不需 retry 按鈕）。
 function showPanelLoadError(section) {
@@ -897,13 +986,14 @@ function showPanelLoadError(section) {
 }
 
 // Part 4-1：wrapper 存進行中那輪的 promise；guard 命中回傳它（原本回 undefined → navigateToItem 的 await 形同虛設）。
-function switchToSection(section, btns, shouldScroll, isInitial = false) {
+// type：落在該段的哪個子分頁（捲完接下一段往上進＝最後一個，見 goStep）；不給＝維持該段上次的子分頁
+function switchToSection(section, btns, shouldScroll, isInitial = false, type = undefined) {
   // P2-4 latest-wins：動畫期間連點記下最後一個，finally 收尾接手（中間的丟棄）→ 點擊不再被整顆吞
-  if (switching) { pendingSwitch = { section, btns, shouldScroll }; return currentSwitchPromise; }
-  currentSwitchPromise = _switchToSection(section, btns, shouldScroll, isInitial);
+  if (switching) { pendingSwitch = { section, btns, shouldScroll, type }; return currentSwitchPromise; }
+  currentSwitchPromise = _switchToSection(section, btns, shouldScroll, isInitial, type);
   return currentSwitchPromise;
 }
-async function _switchToSection(section, btns, shouldScroll, isInitial = false) {
+async function _switchToSection(section, btns, shouldScroll, isInitial = false, type = undefined) {
   const currentPanel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
   const targetId = `panel-${section}`;
   // 已 active 同 panel：跳過退場/進場動畫；如果是 click（shouldScroll）仍 scroll 對齊 anchor。
@@ -958,6 +1048,7 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
 
     // 3. 退場結束才 fetch(命中快取)+render（見 step 0 註解；已載入的 panel 此步為 no-op）
     await loadPanel(section);
+    if (type) await presetSubType(section, type);   // panel 還藏著：子分頁先擺好、下面 setup 一起藏一起揭
 
     // 4. 拿到 target panel（還是 .hidden 狀態，setup 先跑）
     target = /** @type {HTMLElement | null} */ (document.getElementById(targetId));
@@ -1058,7 +1149,7 @@ async function _switchToSection(section, btns, shouldScroll, isInitial = false) 
     // P2-4 latest-wins：動畫期間被吞的最後一次切換，收尾後接手（section 不同才切）
     if (pendingSwitch && pendingSwitch.section !== section) {
       const next = pendingSwitch; pendingSwitch = null;
-      switchToSection(next.section, next.btns, next.shouldScroll);
+      switchToSection(next.section, next.btns, next.shouldScroll, false, next.type);
     } else {
       pendingSwitch = null;
     }

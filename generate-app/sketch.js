@@ -10,22 +10,11 @@ let _p5 = null;
 
 // SPA cleanup 用：setup() 內登記的 window/document 級 listeners，每次 initCreateApp 都重綁，
 // 沒在 cleanupCreateApp removeEventListener 會累積（feedback_async_init_must_recheck_context_after_await
-// 同類陷阱）；module-scope 保 handler ref + initialHeight 給 cleanup 用
-let _initialMobileHeight = 0;
-function _handleVisualViewportResize() {
-  if (!window.visualViewport) return;
-  const currentHeight = window.visualViewport.height;
-  const keyboardHeight = _initialMobileHeight - currentHeight;
-  if (keyboardHeight > 150) {
-    adjustLayoutForKeyboard(keyboardHeight);
-  } else {
-    resetLayoutAfterKeyboard();
-  }
-}
+// 同類陷阱）；module-scope 保 handler ref 給 cleanup 用
 // iPad 等觸控裝置走桌面排版、沒外接鍵盤＝螢幕鍵盤吃掉近半屏（user 2026-10-04）：可視高比 layout 少 >150px
 // （外接鍵盤只出 ~55px 快捷列不觸發；scale>1＝雙指縮放不算）→ 鍵盤模式：控制盒＋header 暫藏、構圖依可視高重算縮放
 // （create.css .create-kb-open）。不看 focus：桌面輸入框失焦會被立刻搶回 focus（見 setup），收鍵盤只能靠高度恢復判斷。
-// 手機排版有自己那套（mobile.js / _handleVisualViewportResize），這裡只管桌面排版。
+// 手機排版有自己那套（mobile.js「手機鍵盤模式」），這裡只管桌面排版。
 // 基準＝沒鍵盤時的可視高（同寬度下看過的最大 vv.height），不拿 innerHeight 當基準：iPad Safari 鍵盤開著捲動時 innerHeight
 // 會縮成 vv.height（WebKit 226689）→ 差 0＝誤判收鍵盤 → 桌面分支拿 ~370 高算縮放＝整組縮到 0.3 下限、bar 又回 100vh 底
 // （user 2026-10-31 iPad Air 橫向「custom 鈕超小、bar 超下面」）。只在觸控裝置判（桌面拖視窗變矮不是鍵盤）；寬變＝轉向／分割畫面重抓
@@ -318,35 +307,7 @@ function setup() {
         e.preventDefault();
       }
     });
-
-    // 手機版：鍵盤彈出檢測
-    if (isMobileMode) {
-      _initialMobileHeight = window.innerHeight;
-
-      // 監聽 focus 事件（鍵盤即將彈出）
-      mobileInputBoxBottom.elt.addEventListener('focus', function() {
-        // 給一點延遲讓鍵盤完全彈出
-        setTimeout(() => {
-          let currentHeight = window.innerHeight;
-          let keyboardHeight = _initialMobileHeight - currentHeight;
-
-          // 如果高度差異大於 150px，認為是鍵盤彈出
-          if (keyboardHeight > 150) {
-            adjustLayoutForKeyboard(keyboardHeight);
-          }
-        }, 300);
-      });
-
-      // 監聽 blur 事件（鍵盤收起）
-      mobileInputBoxBottom.elt.addEventListener('blur', function() {
-        setTimeout(() => {
-          resetLayoutAfterKeyboard();
-        }, 100);
-      });
-
-      // 監聽視窗大小變化（更精確的鍵盤檢測）— 用 named ref 才能在 cleanupCreateApp removeEventListener
-      window.visualViewport?.addEventListener('resize', _handleVisualViewportResize);
-    }
+    // 鍵盤升降的排版在 mobile.js「手機鍵盤模式」（canvas 跟著 logo 容器 ResizeObserver 重算）
   }
   
   // 參考 ref.js:123
@@ -824,7 +785,9 @@ function setup() {
 function handleOrientationChange() {
   if (!isMobileMode) return;
 
-  const isLandscape = window.innerWidth > window.innerHeight;
+  // 打字中鍵盤把高度縮到比寬小不算橫向（mobile.js isMobileTypingResize；否則輸入框被藏、失焦、鍵盤收，一直循環）
+  const isLandscape = window.innerWidth > window.innerHeight
+    && !(typeof isMobileTypingResize === 'function' && isMobileTypingResize());
   const landscapeOverlay = document.getElementById('landscape-overlay');
   const mainContainer = document.querySelector('.main-container');
 
@@ -1208,8 +1171,10 @@ function draw() {
     wireframeColor = _p5.color(normalizedHue, 80, 100);
     _p5.colorMode(_p5.RGB, 255);
 
-    let newStrokeColor = getContrastColor(wireframeColor);
-    startStrokeColorTransition(newStrokeColor);
+    // 描邊黑白＝site --theme-fg（getContrastColor），跟背景、icon、文字同一幀翻（user 2026-11-04「拉色條時顏色切換速率要同步」：
+    // 原本描邊另跑 300ms lerp、icon 等 ~200ms 一次的 theme:changed、門檻也跟 site 的遲滯不同）。切進 mode3 的那段 lerp 照跑完
+    if (strokeColorLerpProgress >= 1) wireframeStrokeColor = getContrastColor(wireframeColor);
+    updateBackgroundColor(wireframeColor);   // dark-icons class：只在跨門檻時才寫 DOM
 
     // 計算 indicator 在色環上的位置（colorpicker drag 跟著 site colorHue 動）
     let angleRad = _p5.radians(normalizedHue - 90);
@@ -1662,38 +1627,14 @@ function animateSaveButton(button, iconElement) {
 
 // UI 狀態機（updateUI / updateSliders）已移至 js/ui-state.js
 
-// --- 視窗大小調整處理 ---
-// --- 手機版鍵盤調整函數 ---
-function adjustLayoutForKeyboard(keyboardHeight) {
-  if (!isMobileMode) return;
-
-  // 鍵盤彈出時，mobile-logo-container 的可用空間可能改變，需要重新調整 canvas 尺寸
-  // 延遲執行以確保 DOM 更新完成
-  setTimeout(() => {
-    if (typeof requestCanvasResize === 'function') {
-      requestCanvasResize(true); // 立即執行
-    }
-  }, 100);
-}
-
-function resetLayoutAfterKeyboard() {
-  if (!isMobileMode) return;
-
-  // 鍵盤收起時，mobile-logo-container 的可用空間恢復，需要重新調整 canvas 尺寸
-  // 延遲執行以確保 DOM 更新完成
-  setTimeout(() => {
-    if (typeof requestCanvasResize === 'function') {
-      requestCanvasResize(true); // 立即執行
-    }
-  }, 100);
-}
-
 // --- 重新調整 Canvas 尺寸（手機版專用）---
 function resizeMobileCanvas() {
   if (!isMobileMode) return;
 
   // 重新計算 canvas 尺寸（會根據當前 logo-container 的大小）
   let canvasSize = getCanvasSize();
+  // 尺寸沒變不重建（resizeCanvas 會重配整張點陣圖；resize／ResizeObserver／換 mode 常連發同尺寸）
+  if (canvasSize.width === _p5.width && canvasSize.height === _p5.height) return;
   _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true，防止自動重繪
 
   // 根據 canvas 尺寸動態調整 logo 文字大小
@@ -1718,7 +1659,6 @@ function windowResized() {
         // 根據新的模式重新計算並調整Canvas尺寸
         if (isMobileMode) {
             updateDesktopScale();   // 跨到手機排版：縮放歸 1、清 --scale
-            if (typeof reserveMobileInputHeight === 'function') reserveMobileInputHeight();   // 寬變了＝輸入框最壞情況行數重量
             // 手機版：使用統一的 resize 機制（如果有的話）
             if (typeof requestCanvasResize === 'function') {
                 requestCanvasResize(true); // 傳入 immediate=true，因為 window resize 沒有 CSS transition
@@ -1887,7 +1827,7 @@ function cleanupCreateApp() {
   window.removeEventListener('theme:changed', handleSiteThemeChange);
   window.removeEventListener('orientationchange', handleOrientationChange);
   window.removeEventListener('resize', handleOrientationChange);
-  window.visualViewport?.removeEventListener('resize', _handleVisualViewportResize);
+  if (typeof setMobileKeyboard === 'function') setMobileKeyboard(false);   // 手機鍵盤模式的 body 鎖（inline）離頁必解
   window.visualViewport?.removeEventListener('resize', _handleDesktopKeyboard);
   window.visualViewport?.removeEventListener('scroll', _handleDesktopKbScroll);
   createKbOpen = false;
@@ -1939,10 +1879,10 @@ function syncDarkIconsClass(fgHex) {
 // 對齊 setSiteMode dispatch 的 detail: { mode: 'standard'|'inverse'|'color', fg, bg, hue }
 function handleSiteThemeChange(e) {
   if (!e || !e.detail || !e.detail.mode) return;
-  // mode-color 下每 ~200ms 一次的 dispatch 帶當前 hue 對比色 fg，用它同步 dark-icons class
-  // （取代 draw() 每幀在 updateBackgroundColor 內 toggle 的舊邏輯，避手機 frame rate 拖累 DOM 寫入）
+  // mode-color 下每 ~200ms 一次的 dispatch：同步 dark-icons class（進 mode3 那一下 draw 還沒接手時用）。
+  // 讀當下的 --theme-fg 不用 detail.fg：event 帶的是發出當時的值，拉色條時會比 draw() 每幀的同步晚、把 icon 翻回去閃一下
   if (e.detail.mode === 'color' && setupComplete) {
-    syncDarkIconsClass(e.detail.fg);
+    syncDarkIconsClass(document.documentElement.style.getPropertyValue('--theme-fg').trim() || e.detail.fg);
   }
   const _siteToGen = { standard: 'Standard', inverse: 'Inverse', color: 'Wireframe' };
   const _newTarget = _siteToGen[e.detail.mode];

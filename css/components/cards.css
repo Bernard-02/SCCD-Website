@@ -284,6 +284,14 @@
     row-gap: var(--spacing-xl);
     justify-content: space-between;
   }
+  /* faculty 四類牆由上往下接著捲（user 2026-11-04）：牆與牆之間＝兩倍行距；空牆（該類沒老師）不佔位。桌面改走下方卡片 margin 版 */
+  #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall:not(:empty) {
+    margin-top: calc(2 * var(--spacing-xl));
+  }
+  /* 每面牆被 JS 補到至少一屏（faculty-filter.js fitWalls）：列不跟著撐高、多的高度留在下面 */
+  #faculty-cards .faculty-card-wall {
+    align-content: start;
+  }
 
   @media (min-width: 768px) {
     .faculty-card-wall {
@@ -314,6 +322,13 @@
     }
     #faculty-cards .faculty-card:nth-child(-n+4) {
       margin-top: 0;
+    }
+    /* 牆與牆之間＝兩倍行距（行距公式吃牆寬 100cqw，牆自己的 margin 讀不到 → 掛在後面牆的首列卡片上） */
+    #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall:not(:empty) {
+      margin-top: 0;
+    }
+    #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall .faculty-card:nth-child(-n+4) {
+      margin-top: calc(3 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
     }
     #faculty-cards .faculty-card > .text-left {
       display: contents;
@@ -568,35 +583,23 @@
     }
   }
 
+  /* 手機／矮橫向 slide-in 分片進場（desk-card.js createSlideInEntrance）的遮罩＝片本身：滿寬的片左右向要滑整條寬＝像從遠處飛進來
+     → 片縮成字寬（user 2026-11-04「就跟 footer 一樣」）。section 標題欄的 sticky 底色要滿寬 → 進場改動 h3（faculty-slide-in.js mobileBlocks） */
+  @media not all and (min-width: 1024px) and (min-height: 501px) {
+    :is(#faculty-detail-name-en, #faculty-detail-name-zh, #faculty-detail-titles > *, #faculty-detail-lead > *, .faculty-lead-rows > *, .faculty-section-title-col h3),
+    #faculty-panel .faculty-grid-row {
+      width: fit-content;
+      max-width: 100%;
+    }
+  }
+
   /* Sticky section title col：bg = panel 卡片色，蓋住右欄捲過的 row 文字。
      bg 由 faculty-slide-in.js setProperty 寫入 panel（inherit 拿不到 painted color，所以走 CSS var） */
   .faculty-section-title-col {
     background: var(--faculty-panel-bg, transparent);
   }
 
-  /* 手機返回鍵：釘在 header 右側 menu 鈕位置（panel 不捲、absolute 即固定）；高度 = header 高 + 置中 → 對齊 menu 鈕。
-     不包 max-width media：矮橫向用 #id 規則 display:block 重新顯示，定位要一起生效；desktop 由 md:hidden 收掉。
-     align-content 給 landscape 蓋成 block 時仍垂直置中 */
-  /* 10-27 user：觸控框 44×44＋同 header 鈕黑方塊（buttons.css .mobile-header-btn 44／icon 28）＝跟 menu 鈕同框同位；
-     原版只有 icon 20 寬可點。top＝header 高 − 底 pb(md) − 44：直向 32、矮橫向 24，兩版都對齊 menu 鈕（curriculum 共用） */
-  .faculty-back-header {
-    position: absolute;
-    top: calc(var(--header-height, 100px) - var(--spacing-md) - 44px);
-    right: var(--container-padding);
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--theme-fg) !important;   /* 蓋 HTML bg-transparent utility */
-    z-index: 20;
-  }
-  /* icon 勿掛 .text-black：themes 的 .text-black 規則（#faculty-slide-in 等，權重更高）會把它翻成 theme-fg＝跟方塊同色（mode3 白底白箭頭） */
-  .faculty-back-header .icon {
-    font-size: 28px;
-    color: var(--theme-fg-inverse);
-  }
+  /* 手機／矮橫向 slide-in 的返回鍵＝header menu 鈕換成返回箭頭（mobile-menu.js 返回態，user 2026-11-04；原 panel 內 .faculty-back-header 已撤） */
 
   /* 桌面 slide-in 黑方塊返回鍵（faculty / curriculum 共用）：方塊中線＝panel 左緣、貼畫面底、隨機旋轉（JS 套 transform）。
      尺寸 3rem＝全站黑方塊 icon 鈕標準（lists.css .tl-icon-btn-inner）。panel 左緣＝100% − --slide-panel-w；margin-left 拉回半個方塊寬。

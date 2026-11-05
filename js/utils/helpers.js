@@ -125,10 +125,11 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   Helpers.ACCENT_COLORS = Object.freeze(['#FF448A', '#00FF80', '#26BCFF']);
   let _lastColorIndex = -1;
 
-  // 隨機一色，不跟上一次（全站共用）重複
-  Helpers.getRandomAccentColor = function() {
+  // 隨機一色，不跟上一次（全站共用）重複；avoid＝再排除這個色（同一元素每次 hover 都換色用，user 2026-11-04）
+  Helpers.getRandomAccentColor = function(avoid) {
+    const skip = avoid ? Helpers.ACCENT_COLORS.findIndex(c => c.toLowerCase() === String(avoid).trim().toLowerCase()) : -1;
     let index;
-    do { index = Math.floor(Math.random() * Helpers.ACCENT_COLORS.length); } while (index === _lastColorIndex);
+    do { index = Math.floor(Math.random() * Helpers.ACCENT_COLORS.length); } while (index === _lastColorIndex || index === skip);
     _lastColorIndex = index;
     return Helpers.ACCENT_COLORS[index];
   };

@@ -163,24 +163,29 @@ export function retightenHeroParagraphs() {
 function tightenParagraphWidths(grid) {
   ['hero-text-en', 'hero-text-cn'].forEach(cls => {
     const p = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}`));
-    if (!p) return;
-    // 先清掉上一輪 tighten 留下的 inline width，量測一律在「當前 maxWidth 的自然 wrap」下做（idempotent）。
-    // 否則 cache buildNext 用較小 random maxWidth 把 width 收到較窄值後，applyLayoutSnapshot 還原較寬 maxWidth 時，
-    // 殘留的窄 width 仍 cap 住 wrap（width < maxWidth → width 勝）→ tighten 在窄寬量、還原不回原組寬度
-    // → hero 說明文字 chip 寬度在進場後「跳一下」（user 2026-06-07 回報；實測 618px→482px）。
-    p.style.width = '';
-    void p.offsetWidth;  // 強制 reflow，下面 getClientRects 拿到 maxWidth 下的 wrap、不受殘留 width 影響
-    const range = document.createRange();
-    range.selectNodeContents(p);
-    const rects = range.getClientRects();
-    let maxLineW = 0;
-    for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
-    if (maxLineW <= 0) return;
-    const cs = getComputedStyle(p);
-    const padL = parseFloat(cs.paddingLeft) || 0;
-    const padR = parseFloat(cs.paddingRight) || 0;
-    p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
+    if (p) hugWidestLine(p);
   });
+}
+
+// 字卡寬收到「換行後最寬一行＋左右 padding」：fit-content／inline-block 一換行，框就撐到可用寬（短行右側空一大塊底色）。
+// 也給直向手機 hero 標題用（hero-mobile-sync.js；COMING SOON 兩行，user 2026-11-04）。看不見（display:none）＝量不到、不動
+export function hugWidestLine(p) {
+  // 先清掉上一輪 tighten 留下的 inline width，量測一律在「當前 maxWidth 的自然 wrap」下做（idempotent）。
+  // 否則 cache buildNext 用較小 random maxWidth 把 width 收到較窄值後，applyLayoutSnapshot 還原較寬 maxWidth 時，
+  // 殘留的窄 width 仍 cap 住 wrap（width < maxWidth → width 勝）→ tighten 在窄寬量、還原不回原組寬度
+  // → hero 說明文字 chip 寬度在進場後「跳一下」（user 2026-06-07 回報；實測 618px→482px）。
+  p.style.width = '';
+  void p.offsetWidth;  // 強制 reflow，下面 getClientRects 拿到 maxWidth 下的 wrap、不受殘留 width 影響
+  const range = document.createRange();
+  range.selectNodeContents(p);
+  const rects = range.getClientRects();
+  let maxLineW = 0;
+  for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
+  if (maxLineW <= 0) return;
+  const cs = getComputedStyle(p);
+  const padL = parseFloat(cs.paddingLeft) || 0;
+  const padR = parseFloat(cs.paddingRight) || 0;
+  p.style.width = `${Math.ceil(maxLineW + padL + padR)}px`;
 }
 
 // 隨機定位 5 元素（title-wrapper / title-cn-wrapper / banner / EN-wrapper / CN-wrapper）至 absolute 座標

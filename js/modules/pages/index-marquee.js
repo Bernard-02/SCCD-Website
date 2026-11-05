@@ -4,10 +4,10 @@
  * url 是影片（.m3u8／.mp4）的那則點了開首頁播放器（openWatch）、不開新分頁——後台 index_video 併進 news
  * （user 2026-10-26，取代同日的最底固定 WATCH 條）；播放期間暫停 cycle，關閉時黑底才收得回那條 banner；
  * items > 3 時每 5s 依序 cycle：
- * - slot 0（最上方 / 第一個 / 最舊）→ yPercent up clip-reveal 收起退場（duration 0.35s，先於 survivor 平移完成避免 overlap）
+ * - slot 0（最上方 / 第一個 / 最舊）→ 四向隨機 clip-reveal 收起退場（duration 0.35s，先於 survivor 平移完成避免 overlap）
  * - slot 1, 2 → 往上平移一個 slot，duration 0.6s power2.inOut（同 about resources accordion）；
  *   中間 banner（slot 1）位移到第一個（slot 0），slot 2 跟著上來填 slot 1；每個 banner 帶著自己的 rotation + 色塊跟著走
- * - 新 item 從 slot 2（最後一個）→ clip-path top-down wipe 展開進場
+ * - 新 item 從 slot 2（最後一個）→ 四向隨機 clip-reveal 進場
  * 任一 banner 被 hover 時暫停 cycle；hoverCount 歸 0 後若有 pending 立即 advance
  * Banner 寬度依 poster orientation：landscape=400 / portrait=300（poster 自然尺寸 preload 判定）
  */
@@ -35,9 +35,13 @@ const MOBILE_PADDING_X = 24;
 // 直向手機 375-430 扣 padding 後本來就 < cap、不受影響。
 const WIDTH_MOBILE_MAX = 480;
 const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WIDTH_MOBILE_MAX);
+// 直向手機三則收著時的右緣＝header mode 鈕右緣（user 2026-11-04）＝讓出 menu 鈕那一欄（44＋mode↔menu 間距 sm 16，header.html gap-sm；
+// 右下 footer 鈕／mode3 鉛筆同欄）；有 ↗ 的卡總寬再多那格：點開時 ↗ 伸進鈕欄、蓋過鉛筆／footer 鈕（body.hm-poster-open，footer.css）。
+// ponytail: 寫死，手機鈕尺寸改了同步這裡（同 lists.css .hm-banner-btn）
+const BTN_COL = 44 + 16;
+const SHARE_W = 44;   // ↗ 鈕＝icon 28＋左右 xs 8
 const BAR_HEIGHT = 40;        // 單行 bar 高度（h5 font 1.4rem + 預設 line-height + padding 上下 --card-pad-lg ≈ 40）
-// 色塊配色：專案三原色固定一輪，順序＝全站「rgb」慣例 粉/綠/藍（同 helpers.js ACCENT_COLORS）；
-// cycle 時消失的 banner 顏色由新進場 banner 繼承 → 同時始終保有三色各一個
+// hover 色（--hm-accent／播放器 UI 色）：每次 hover 重抽三原色（user 2026-11-04「每次 hover 的顏色都不一樣」）
 // hover WATCH 卡時整條 news 被遮蔽：色塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
 // clip-path wipe（跟浮卡 newsOverlay 同款 0.5s cubic-bezier）。四個藏起方向（上/下/右/左）；進場一律 wipe 到滿版，
 // 退場改抽一個新隨機方向 wipe 出去 → 下次進場自然從那個新方向進來，四方向輪替（user 2026-09-04）。
@@ -181,8 +185,15 @@ async function preloadOrientations(items) {
 function createBanner(item, squareColor) {
   // 手機統一寬度（max-width 視 viewport），桌面依 poster orientation
   const side = SCCDHelpers.isLandscapeGate();
+  // 沒 url（或舊資料 '#'）＝純公告：不給 href、cursor 維持 default、不跳轉（user 2026-09-28）
+  const hasLink = !!item.url && item.url !== '#';
+  // url 是影片＝開播放器的鈕（不給 href、Tab＋Enter 可開）；點擊在 bindBannerInteraction 綁（要暫停 cycle）
+  const isVideo = isVideoUrl(item.url);
+  const hasShare = !!item.poster && hasLink && !isVideo;   // 手機開著時右邊多一顆 ↗（下方 mkBtn）
+  // 直向手機：收著的右緣對齊 header mode 鈕（BTN_COL）、有 ↗ 的再多一格（寬視窗 banner 封頂 480 本來就碰不到＝min 不動它）
   const totalWidth = SCCDHelpers.isMobileLayout()
-    ? (side ? Math.min(WIDTH_MOBILE(), sideColW()) : WIDTH_MOBILE())
+    ? (side ? Math.min(WIDTH_MOBILE(), sideColW())
+      : Math.min(WIDTH_MOBILE(), window.innerWidth - MOBILE_PADDING_X * 2 - BTN_COL + (hasShare ? SHARE_W : 0)))
     : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
   // rotation 樞紐＝中心（同全站 nav btn；user 2026-09-28，原 left center 是錯的錨點）：兩端各擺 (w/2)·sinθ、
   // 左緣在 1° 內只飄 ~4px。手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
@@ -221,10 +232,6 @@ function createBanner(item, squareColor) {
   `;
   row.style.setProperty('--hm-accent', squareColor);   // hover 對調（.is-swap）時 bar 吃這個色，見 lists.css
 
-  // 沒 url（或舊資料 '#'）＝純公告：不給 href、cursor 維持 default、不跳轉（user 2026-09-28）
-  const hasLink = !!item.url && item.url !== '#';
-  // url 是影片＝開播放器的鈕（不給 href、Tab＋Enter 可開）；點擊在 bindBannerInteraction 綁（要暫停 cycle）
-  const isVideo = isVideoUrl(item.url);
   const link = document.createElement('a');
   link.className = 'homepage-marquee-link';
   if (hasLink && !isVideo) {
@@ -275,21 +282,35 @@ function createBanner(item, squareColor) {
   });
 
   row.appendChild(link);
-  // 手機：bar 右邊正方形鈕（user 2026-10-29）——有海報＝↑ 點開海報、開著改 ↗ 跳連結；沒海報＝↗ 跳連結（不開 share 卡）。
-  // 影片／既無連結也無海報＝不給鈕。寬＝icon＋左右 padding（lists.css），從 marquee 扣、banner 總寬不變
-  let btn = null;
-  if (SCCDHelpers.isMobileLayout() && !isVideo && (hasLink || item.poster)) {
-    btn = document.createElement('button');
-    btn.className = 'hm-banner-btn';
-    btn.innerHTML = '<span class="icon"></span>';
-    const btnClip = document.createElement('div');   // 換 icon 時整顆鈕在這裡面左進左出（setBtnState）
-    btnClip.className = 'hm-banner-btn-clip';
-    btnClip.appendChild(btn);
-    row.appendChild(btnClip);
-    link.style.paddingRight = '0';   // 字的裁切邊直接貼鈕（鈕自帶左右 padding）
-  }
   clipWrap.appendChild(row);
   wrap.appendChild(clipWrap);
+  // 手機：bar 右邊正方形鈕（user 2026-10-29）——有海報＝↑ 點開海報、開著 ↓ 收合；沒海報＝↗ 跳連結（不開 share 卡）。
+  // 有海報又有連結：開著時右邊再長一顆 ↗（user 2026-11-04）；位置一開始就留著（收著＝透明空位、inert 不擋點擊），
+  // 點開時 marquee 不用變窄。影片／既無連結也無海報＝不給鈕。
+  // 寬＝icon＋左右 padding（lists.css），從 marquee 扣、banner 總寬不變
+  let btn = null, shareBtn = null;
+  if (SCCDHelpers.isMobileLayout() && !isVideo && (hasLink || item.poster)) {
+    const mkBtn = () => {
+      const el = document.createElement('button');
+      el.className = 'hm-banner-btn';
+      el.innerHTML = '<span class="hm-banner-btn-icon"><span class="icon"></span></span>';   // icon 自己的遮罩（setBtnState）
+      const clip = document.createElement('div');   // ↗ 進出的遮罩＝鈕本身大小（setShareBtn）
+      clip.className = 'hm-banner-btn-clip';
+      clip.appendChild(el);
+      row.appendChild(clip);
+      return el;
+    };
+    btn = mkBtn();
+    if (hasShare) {
+      // ↗ 跟 bar 同一列＝一體（拆到 clip-wrap 外會在 ↓↗ 之間留旋轉接縫，user 2026-11-04）；收著時進退場遮罩扣掉這格（maskEmptyShareSlot）
+      shareBtn = mkBtn();
+      shareBtn.querySelector('.icon').className = 'icon icon-share';
+      shareBtn.setAttribute('aria-label', '前往連結 Open link');
+      shareBtn.parentElement.inert = true;
+      if (typeof gsap !== 'undefined') gsap.set(shareBtn, revealHidden('left'));
+    }
+    link.style.paddingRight = '0';   // 字的裁切邊直接貼鈕（鈕自帶左右 padding）
+  }
 
   let posterEl = null;
   if (item.poster) {
@@ -314,12 +335,12 @@ function createBanner(item, squareColor) {
     if (hasLink && !isVideo) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
   }
 
-  const b = { el: wrap, row, link, btn, lines, posterEl, item, isVideo, hasLink: hasLink && !isVideo, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
-  setBtnState(b, !posterEl);
+  const b = { el: wrap, row, link, btn, shareBtn, lines, posterEl, item, isVideo, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
+  setBtnState(b, false);
   return b;
 }
 
-// 手機右邊鈕三態（點擊在 bindBannerInteraction）：open ↑ 開海報／link ↗ 跳連結（海報開著或沒海報）／close ↓ 收合（有海報沒連結）
+// 手機右邊鈕三態（點擊在 bindBannerInteraction）：open ↑ 開海報／close ↓ 收合／link ↗ 跳連結（沒海報的卡）
 const BTN_STATES = {
   open:  ['icon-arrow-up',   '展開海報 Show poster'],
   link:  ['icon-share',      '前往連結 Open link'],
@@ -327,28 +348,41 @@ const BTN_STATES = {
 };
 function setBtnState(b, posterOpen, animate = false) {
   if (!b.btn) return;
-  const state = !posterOpen ? 'open' : b.hasLink ? 'link' : 'close';
+  const state = !b.posterEl ? 'link' : posterOpen ? 'close' : 'open';
   const [icon, label] = BTN_STATES[state];
   b.btn.dataset.state = state;   // 點擊判斷立刻換；icon 等藏好才換
   b.btn.setAttribute('aria-label', label);
-  const iconEl = /** @type {HTMLElement} */ (b.btn.firstChild);
-  if (!animate || typeof gsap === 'undefined') { iconEl.className = `icon ${icon}`; return; }
-  // 換 icon＝整顆鈕隨機四向出去、換好同向回來（遮罩＝.hm-banner-btn-clip 貼鈕大小；user 2026-10-29「是 btn 不是 icon」、
-  // 2026-11-01「四周進場」）；每半段 DUR.base 同 header 鈕換 icon；±110 多滑 10% 防貼邊留縫（全站 revealHidden 慣例）
-  const btn = b.btn;
+  const box = /** @type {HTMLElement} */ (b.btn.querySelector('.hm-banner-btn-icon'));
+  const old = /** @type {HTMLElement} */ (box.lastElementChild);
+  if (!animate || typeof gsap === 'undefined') { old.className = `icon ${icon}`; return; }
+  // 換 icon＝icon 本身在自己的框（.hm-banner-btn-icon）裡推移交棒、鈕不動（user 2026-11-04「icon 本身做 clip reveal」）：
+  // 舊的往隨機一向出去、新的同時從對面進來，一段 DUR.base＝跟海報展開／↗ 進場同拍（先出後進兩段＝慢一倍，user 打回）
+  [...box.children].slice(0, -1).forEach(el => el.remove());   // 連點：上一輪還沒走完的舊 icon 直接收掉
+  gsap.killTweensOf(old);
+  const next = document.createElement('span');
+  next.className = `icon ${icon}`;
+  box.appendChild(next);
   const hid = revealHidden();
-  gsap.killTweensOf(btn);
-  gsap.to(btn, {
-    ...hid, duration: DUR.base, ease: EASE.exit,
-    onComplete: () => {
-      iconEl.className = `icon ${icon}`;
-      gsap.fromTo(btn, hid, { xPercent: 0, yPercent: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
-    },
-  });
+  gsap.to(old, { ...hid, duration: DUR.base, ease: EASE.enter, onComplete: () => old.remove() });
+  gsap.fromTo(next, { xPercent: -hid.xPercent, yPercent: -hid.yPercent },
+    { xPercent: 0, yPercent: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
 }
 
-// 海報寬＝marquee 寬（手機扣掉右邊鈕）；側邊海報在右欄、不跟 banner
-const posterWidth = (b) => (b.side ? sideColW() : b.width - (b.btn?.offsetWidth || 0));
+// ↗ 鈕（有海報又有連結的卡）：位置一直留著，海報開著才 clip-reveal 進場、收合時出場（同 DUR.base＝跟海報同拍）。
+// 進退場固定從左邊（user 2026-11-04「share btn 都改成左邊出場退場」；例外於全站四向隨機）。
+// 收合也用 EASE.enter＝跟展開同速度感、一點就動（EASE.exit 起步慢＝看起來比 ↑↓ 晚，user 2026-11-04 打回）
+function setShareBtn(b, show) {
+  if (!b.shareBtn) return;
+  const btn = b.shareBtn;
+  btn.parentElement.inert = !show;
+  if (show) /** @type {HTMLElement} */ (b.el.querySelector('.hm-banner-clip')).style.clipPath = '';   // 進場中就點開：別被進場遮罩裁掉
+  gsap.killTweensOf(btn);
+  if (show) gsap.fromTo(btn, revealHidden('left'), { xPercent: 0, yPercent: 0, duration: DUR.base, ease: EASE.enter, clearProps: 'transform' });
+  else gsap.to(btn, { ...revealHidden('left'), duration: DUR.base, ease: EASE.enter });
+}
+
+// 海報寬＝marquee 寬（手機扣掉右邊鈕；有 ↗ 的卡兩顆，↗ 的位置一直留著）；側邊海報在右欄、不跟 banner
+const posterWidth = (b) => (b.side ? sideColW() : b.width - (b.btn?.offsetWidth || 0) * (b.shareBtn ? 2 : 1));
 
 // 文字放得下 banner 時停掉橫向捲動（否則單則短 news 也一直滑，看起來像一直刷新）；
 // 需 banner 已進 DOM 才能量寬。clone 是為無縫 loop 準備的第二份，靜態時藏起來避免看到兩份。逐行獨立 gate。
@@ -392,10 +426,21 @@ function enterBanner(b) {
   // rotation 掛在外層 b.el（已 item-bound）＝打破 slot 視覺連續性、不會再「跟著往上」（見 memory
   // feedback_clip_reveal_context_overrides_ypercent：clip-path 曾是 slot-bound rotation 的治標，現已可回 yPercent）。
   // delay ENTER_DELAY → 等前面的 exit + 平移先進行一陣子才開始 reveal
+  // 方向四向隨機、每次重抽（user 2026-11-04「news 卡片四周進場」）
+  const cw = maskEmptyShareSlot(b);
   gsap.fromTo(b.row,
-    { yPercent: 110 },
-    { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY }
+    revealHidden(),
+    { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: ENTER_DELAY,
+      onComplete: () => { if (cw) cw.style.clipPath = ''; } }
   );
+}
+
+// ↗ 沒展開＝右邊那格是空位：卡片進退場的遮罩先扣掉它＝從 ↑ 的邊進出（user 2026-11-04「進場先忽略沒展開的部分」）
+function maskEmptyShareSlot(b) {
+  if (!b.shareBtn?.parentElement.inert) return null;
+  const cw = /** @type {HTMLElement} */ (b.el.querySelector('.hm-banner-clip'));
+  cw.style.clipPath = `inset(0 ${b.shareBtn.parentElement.offsetWidth}px 0 0)`;
+  return cw;
 }
 
 function exitBanner(b) {
@@ -407,9 +452,10 @@ function exitBanner(b) {
   }
   const clipWrap = b.el.querySelector('.hm-banner-clip');
   if (clipWrap) clipWrap.style.pointerEvents = 'none';
-  // 第一個 row 整列 yPercent 上滑出 clip-wrap；duration 短於 survivor 0.6s 平移 → 不 overlap
+  maskEmptyShareSlot(b);   // ↗ 開著＝跟著 row 一起出去
+  // 第一個 row 整列隨機四向滑出 clip-wrap；duration 短於 survivor 0.6s 平移 → 不 overlap
   gsap.to(b.row, {
-    yPercent: -110,
+    ...revealHidden(),
     duration: DUR.fast,
     ease: EASE.enterSoft,
     onComplete: () => { b.el.remove(); b.posterEl?.remove(); },
@@ -419,6 +465,14 @@ function exitBanner(b) {
 function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
   const img = b.posterEl?.querySelector('img');
   const posterW = () => posterWidth(b);
+  // active＝bar 換成三原色（.is-swap，lists.css）；每次進 active 重抽（user 2026-11-04）。桌面 hover、手機點開海報共用
+  const setSwap = (on) => {
+    if (on) {
+      b.color = SCCDHelpers.getRandomAccentColor(b.color);   // 播放器開在 active 中＝同色
+      b.row.style.setProperty('--hm-accent', b.color);
+    }
+    b.row.classList.toggle('is-swap', on);
+  };
   if (img) {
     const calc = () => {
       if (img.naturalWidth) {
@@ -440,12 +494,19 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       if (b.side) b.posterEl.parentNode.appendChild(b.posterEl);
       // 保底：banner 已收窄到 MIN_BANNER_W 仍放不下（極矮視窗）／resize 變矮 → 海報再縮、比 bar 窄（靠左）。
       // 側邊海報底固定＝可長的高是它的底到上界
-      const anchorY = b.side ? b.posterEl.getBoundingClientRect().bottom : b.row.getBoundingClientRect().top;
+      // 從下面那張切過來：自己還被它推高、restoreAbove 剛開始往下歸位 → 量「歸位後」的頂（加回 y 還沒走完的那段），
+      // 不然可長的高少了被推的量、同一張海報兩種開法大小不同（user 2026-11-04）
+      const yTween = gsap.getTweensOf(b.el).filter(t => typeof t.vars.y === 'number').pop();
+      const settle = yTween ? yTween.vars.y - Number(gsap.getProperty(b.el, 'y')) : 0;
+      const anchorY = b.side ? b.posterEl.getBoundingClientRect().bottom : b.row.getBoundingClientRect().top + settle;
       const room = Math.max(0, anchorY - POSTER_TOP_GAP);
       b._openH = Math.min(b._posterH, room);
       b.posterEl.style.width = `${b._openH / b._posterH * posterW()}px`;
       b.el.classList.add('is-poster-open');   // 抬過 header logo（lists.css .hm-banner）；也是開合狀態
+      document.body.classList.add('hm-poster-open');   // footer 鈕降到開著這則底下＝↗ 可以蓋過它（footer.css）
       setBtnState(b, true, true);
+      setShareBtn(b, true);
+      if (SCCDHelpers.isMobileLayout()) setSwap(true);   // 手機點開＝桌面 hover 同款 active（user 2026-11-04）
       // 只長到圖高（舊 +20 是 max-height 超過內容高的空跑段、視覺不變，但 push 也 +20 → 海報上方多出 20px 假 gap）
       gsap.to(b.posterEl, { maxHeight: b._openH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       if (!b.side) pushAbove(b);
@@ -455,7 +516,10 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     if (b.posterEl) {
       if (closeOpenPoster === closePoster) closeOpenPoster = null;
       b.el.classList.remove('is-poster-open');
+      document.body.classList.remove('hm-poster-open');
       setBtnState(b, false, true);
+      setShareBtn(b, false);
+      setSwap(false);
       gsap.to(b.posterEl, { maxHeight: 0, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       if (!b.side) restoreAbove(b);
     }
@@ -501,14 +565,14 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     // 同時色塊與 bar 配色對調（user 2026-10-03：bar 吃方塊的 rgb、方塊變 bar 色），瞬間切換
     b.el.addEventListener('mouseenter', () => {
       openPoster();
-      b.row.classList.add('is-swap');
+      setSwap(true);
       let deg = randomRotation();
       if (Math.sign(deg) === Math.sign(b.rotation)) deg = -deg;
       b.rotation = deg;
       gsap.to(b.el, { rotation: deg, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
     });
     b.el.addEventListener('mouseleave', () => {
-      b.row.classList.remove('is-swap');
+      setSwap(false);
       closePoster();
     });
   }
@@ -660,8 +724,7 @@ function runMarqueeStack(stack, items) {
 
   // 初始排列：靠底（slotOffset 已在上方算好）→ 單則落最底 slot，不懸在 slot 0 留空白
   for (let i = 0; i < visibleCount; i++) {
-    // 顏色仍依 item 順序 R/G/B（不足 3 個用前 N 個顏色）
-    const b = createBanner(items[i], SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length]);
+    const b = createBanner(items[i], SCCDHelpers.getRandomAccentColor());
     stack.appendChild(b.el);
     // 首個 banner 進 DOM 後量 bar 實高（中英兩行 > 舊常數 40）→ slotConfigs 以實高排 slot 間距
     if (i === 0) {
@@ -673,28 +736,36 @@ function runMarqueeStack(stack, items) {
     bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove);
     banners.push(b);
     // 進場前先藏在 clip-wrap 底邊下（clip-reveal 起點；initial banner 原本 instant 顯示、無進場）
-    if (typeof gsap !== 'undefined') gsap.set(b.row, { yPercent: 110 });   // 藏起量 110 非 100：banner 帶旋轉，row 剛好貼齊遮罩邊會留 1px 反鋸齒縫（全站 revealHidden ±110 慣例；user 2026-10-26 離頁退場看到縫）
+    if (typeof gsap !== 'undefined') gsap.set(b.row, revealHidden());   // 四向隨機（user 2026-11-04）；藏起量 110 非 100：banner 帶旋轉，row 剛好貼齊遮罩邊會留 1px 反鋸齒縫（全站 revealHidden ±110 慣例；user 2026-10-26 離頁退場看到縫）
   }
   cursor = visibleCount % items.length;
 
-  // 進場：initial banner clip-reveal（yPercent:100→0）stagger 揭露（同 enterBanner）。
+  // 進場：initial banner clip-reveal（四向隨機→原位）stagger 揭露（同 enterBanner）。
   // 首頁進場順序（user 2026-10-21）：news 與 logo／header 同時（delay 0）、floating 最後。
   if (typeof gsap !== 'undefined') {
-    banners.forEach((b, i) => gsap.to(b.row, {
-      yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: i * 0.12,
-    }));
+    banners.forEach((b, i) => {
+      const cw = maskEmptyShareSlot(b);
+      gsap.to(b.row, {
+        xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, delay: i * 0.12,
+        onComplete: () => { if (cw) cw.style.clipPath = ''; },
+      });
+    });
   }
 
-  // 離頁退場：停 cycle + 當前 banner clip-reveal 收回（yPercent:0→100 沉回底邊，reveal 的反向）。
+  registerPageCleanup(() => document.body.classList.remove('hm-poster-open'));   // 開著海報就換頁：別把 footer 鈕留在低層
+  // 離頁退場：停 cycle + 當前 banner clip-reveal 收回（每條重抽四向滑出遮罩）。
   // fromTo 顯式起點避免 to-from-none snap。
   registerPageExit(() => new Promise(resolve => {
     if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
     if (typeof gsap === 'undefined' || !banners.length) { resolve(); return; }
     let done = 0;
     const onOne = () => { if (++done >= banners.length) resolve(); };
-    banners.forEach((b, i) => gsap.fromTo(b.row,
-      { yPercent: 0 },
-      { yPercent: 110, duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne }));
+    banners.forEach((b, i) => {
+      maskEmptyShareSlot(b);
+      gsap.fromTo(b.row,
+        { xPercent: 0, yPercent: 0 },
+        { ...revealHidden(), duration: DUR.medium, ease: EASE.exit, delay: i * 0.06, overwrite: true, onComplete: onOne });
+    });
   }));
 
   // 轉向重建用：清 timer、殺 tween、拔 banner DOM、還原 hover 態；呼叫後本 closure 全部退役
@@ -715,7 +786,6 @@ function runMarqueeStack(stack, items) {
     if (!stack.isConnected) return;
 
     const exiting = banners.shift();
-    const inheritedColor = exiting.color;  // 新進場 banner 補上消失那個的顏色
     exitBanner(exiting);
 
     for (let i = 0; i < banners.length; i++) {
@@ -724,7 +794,7 @@ function runMarqueeStack(stack, items) {
 
     const newItem = items[cursor];
     cursor = (cursor + 1) % items.length;
-    const nb = createBanner(newItem, inheritedColor);
+    const nb = createBanner(newItem, SCCDHelpers.getRandomAccentColor());   // 新的從最底那格進場
     stack.appendChild(nb.el);
     fitBannerToRoom(nb, posterRoom());
     gateMarqueeScroll(nb);

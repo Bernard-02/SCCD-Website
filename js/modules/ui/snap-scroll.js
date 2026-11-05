@@ -146,6 +146,9 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
   let lastY = window.scrollY, dir = 0, timer = 0, touching = false;
   let startY = window.scrollY;   // 這次手勢的起點（touchstart／程式捲動的目的地）＝tab 規則看的「出發段」
   let enterFirst = false;        // 往下換屏進 tab 段：落地後點第一個 tab
+  // 捲到頁底再往上推的手指位移：footer 改浮層後（2026-11-04）文件底下沒東西可捲，段尾往下的 tab 手勢量不到捲動位移
+  //（scrollY 卡在最大值）→ 改量手指。只在頁底、這一手勢沒捲動時代替位移
+  let touchY0 = 0, pull = 0;
   const points = () => {
     const vh = window.innerHeight, sy = window.scrollY, fullH = lvhPx();
     const max = document.documentElement.scrollHeight - vh;
@@ -159,12 +162,16 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
     const pts = [...new Set(ys.map(clamp))].sort((a, b) => a - b);
     // 長段門檻用 100lvh：各屏 min-height 100lvh（iOS 工具列展開時比 innerHeight 高幾十 px，多出的是刻意留白）不算長段；
     // 多出不到換屏門檻（矮機多半是 bar 後的底 padding）也不算——否則捲 20% 只停在段尾那幾十 px、換不了屏
+    // footer 點本身已是「內容底貼視窗底」＝段尾，不再往上補一屏：補了會在最後一屏多一個假落點（清單捲到最後一屏，
+    // 每捲一點都被吸回去，user 2026-11-04 activities／admission「只滾一點都會自己滾」）→ 多出超過換屏門檻就整段自由捲
+    const heads = ys.map(clamp), footerPt = footer ? heads[heads.length - 1] : null;
     const free = [];
     for (let i = pts.length - 1; i > 0; i--) {
-      if (pts[i] - pts[i - 1] > fullH + vh * SNAP_SWITCH) { free.push([pts[i - 1], pts[i] - vh]); pts.splice(i, 0, pts[i] - vh); }
+      const gap = pts[i] - pts[i - 1];
+      if (pts[i] === footerPt) { if (gap > vh * SNAP_SWITCH) free.push([pts[i - 1], pts[i]]); }
+      else if (gap > fullH + vh * SNAP_SWITCH) { free.push([pts[i - 1], pts[i] - vh]); pts.splice(i, 0, pts[i] - vh); }
     }
     // tab 段的段尾落點（見檔頭）：下一段頭＝footer 點就是它；否則下一段頭之前最後一個落點（長段＝補的段尾點、一屏段＝段頂）
-    const heads = ys.map(clamp), footerPt = footer ? heads[heads.length - 1] : null;
     const tailOf = new Map([...tabsAt.keys()].map(top => {
       const next = heads.filter(h => h > top).sort((a, b) => a - b)[0];
       return [top, next === undefined ? top : next === footerPt ? next : pts.filter(p => p < next).pop()];
@@ -175,19 +182,23 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
     if (!mq.matches || touching || !dir || document.body.classList.contains('anchor-jumping')
       || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const y = window.scrollY;
+    const pushed = pull; pull = 0;   // 這一手勢在頁底往下推的量（觸控／滾輪），讀一次就清
     const { pts, free, tabsAt, tailOf } = points();
     const th = window.innerHeight * SNAP_SWITCH;
     const tabsOf = (p) => [...document.querySelectorAll(tabsAt.get(p) || '')].map(b => /** @type {HTMLElement} */ (b));
     // tab 段：看手勢淨位移（起點＝出發落點）；放在「已在落點」判斷之前（甩到剛好落在別的落點也不能跳過 tab）。
-    // 起點要真的停在落點上（footer 內的停點往上查也會查到 footer 點＝不算）
-    const from = pts.filter(p => p <= startY + 1).pop();
+    // 起點要真的停在落點上（footer 內的停點往上查也會查到 footer 點＝不算）。
+    // 頁底一律算最後一個落點：footer 點用 100lvh 算，iOS 工具列展開時比頁底高一截＝停在頁底也要能往下換 tab（user 2026-11-04）
+    const atEnd = y >= document.documentElement.scrollHeight - window.innerHeight - 1;
+    const startAtEnd = startY >= document.documentElement.scrollHeight - window.innerHeight - 1;
+    const from = startAtEnd ? pts[pts.length - 1] : pts.filter(p => p <= startY + 1).pop();
     const top = [...tabsAt.keys()].find(t => from === t || from === tailOf.get(t));
-    if (top !== undefined && Math.abs(startY - from) <= 1) {
-      const d = y - startY;
+    if (top !== undefined && (startAtEnd || Math.abs(startY - from) <= 1)) {
+      const d = y === startY && atEnd && pushed > 0 ? pushed : y - startY;
       const want = d > 0 && from === tailOf.get(top) ? 1 : d < 0 && from === top ? -1 : 0;   // 段尾往下／段頂往上才算 tab 手勢
       const tabs = tabsOf(top);
       const to = want ? tabs[tabs.findIndex(b => b.classList.contains('active')) + want] : null;
-      if (to) {
+      if (to && !(/** @type {HTMLButtonElement} */ (to).disabled)) {   // disabled＝該段還沒準備好（activities 清單沒建完）＝原地不動
         // 先捲再點：點擊自帶捲頂的（curriculum 年級鈕 scrollToSectionTopNow：GSAP 接手＋鎖段高防新年級較短先露 footer）會蓋掉這條
         if (Math.abs(d) > th) { startY = top; window.scrollTo({ top, behavior: 'smooth' }); to.click(); }
         else { startY = from; window.scrollTo({ top: from, behavior: 'smooth' }); }
@@ -218,15 +229,92 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
     lastY = y;
     arm();
   };
-  const onTouchStart = () => { touching = true; startY = window.scrollY; enterFirst = false; };   // 手指介入＝使用者接手，取消落地自動切 tab
-  const onTouchEnd = () => { touching = false; arm(); };
+  const onTouchStart = (/** @type {TouchEvent} */ e) => {   // 手指介入＝使用者接手，取消落地自動切 tab
+    touching = true; startY = window.scrollY; enterFirst = false;
+    touchY0 = e.touches[0]?.clientY ?? 0; pull = 0;
+  };
+  const onTouchMove = (/** @type {TouchEvent} */ e) => { if (e.touches[0]) pull = touchY0 - e.touches[0].clientY; };
+  const onTouchEnd = () => {
+    touching = false;
+    // 頁底往上推（沒捲動＝沒 scroll 事件給方向）：補方向，settle 才會看 tab 手勢
+    if (pull > 0 && window.scrollY >= document.documentElement.scrollHeight - window.innerHeight - 1) dir = 1;
+    arm();
+  };
+  // 滾輪（桌面窄視窗／DevTools 手機模擬）：頁底再往下滾＝同觸控上推，累計到停手 settle（user 2026-11-04 滾到底不換年級）
+  const onWheel = (/** @type {WheelEvent} */ e) => {
+    if (e.deltaY <= 0 || window.scrollY < document.documentElement.scrollHeight - window.innerHeight - 1) return;
+    pull += e.deltaY; dir = 1;
+    arm();
+  };
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('wheel', onWheel, { passive: true });
   window.addEventListener('touchstart', onTouchStart, { passive: true });
+  window.addEventListener('touchmove', onTouchMove, { passive: true });
   ['touchend', 'touchcancel'].forEach(t => window.addEventListener(t, onTouchEnd, { passive: true }));
   registerPageCleanup(() => {
     clearTimeout(timer);
     window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('wheel', onWheel);
     window.removeEventListener('touchstart', onTouchStart);
+    window.removeEventListener('touchmove', onTouchMove);
     ['touchend', 'touchcancel'].forEach(t => window.removeEventListener(t, onTouchEnd));
   });
+}
+
+// ── 真桌面 frame 右欄的分段磁吸（faculty 四類／curriculum 三 program，user 2026-11-04「跟 about 一樣每個 section 都 snap」）──
+// 不用原生 CSS snap：比欄高的區段尾，滑鼠一格一格（100px）滾會被吸回段尾＝出不去（Chrome 實測 mandatory／proximity 都是；
+// about 每區剛好一屏才沒踩到）。改 JS：落點＝欄內 .snap-zone 頂 − scroll-margin-top（＝點 nav 的落點，各頁 JS 寫好）；
+// 比欄高的段補「段尾貼欄底」落點、段中自由捲；停手（120ms）時若停在兩落點之間＝往捲動方向吸到下一個（同 about 桌面原生
+// 的手感：一格就換段，不設門檻）。只認使用者自己的滾輪／按鍵（600ms 內）＝點 nav、deep-link 這類程式捲動不會被拉走。
+// 觸控（iPad 橫向）／reduced-motion 不開（同 window 那套）。
+/** @param {HTMLElement|null} col @param {HTMLElement|null} [inputHost] 收滾輪的範圍（含欄外留白帶，bindFrameScrollSplit 會路由進欄） */
+export function initColSnap(col, inputHost = col) {
+  if (!col || !SCCDHelpers.isDesktopLayout() || !window.matchMedia('(pointer: fine)').matches) return;
+  let last = col.scrollTop, dir = 0, timer = 0, lastInput = 0;
+  const points = () => {
+    const H = col.clientHeight, max = col.scrollHeight - H, top = col.getBoundingClientRect().top;
+    const clamp = (/** @type {number} */ y) => Math.round(Math.min(Math.max(y, 0), max));
+    const starts = [...new Set([...col.querySelectorAll('.snap-zone')].filter(z => z.getClientRects().length)
+      .map(z => clamp(z.getBoundingClientRect().top - top + col.scrollTop - (parseFloat(getComputedStyle(z).scrollMarginTop) || 0))))]
+      .sort((a, b) => a - b);
+    const pts = [...starts], free = /** @type {[number, number][]} */ ([]);
+    // 段 i 覆蓋 [起點, 下一段起點 − 欄高]：比欄高＝段中自由捲＋補段尾落點；最後一段一路到捲動終點（終點也是落點）
+    starts.forEach((s, i) => {
+      const tail = i < starts.length - 1 ? starts[i + 1] - H : max;
+      if (tail > s) { free.push([s, tail]); pts.push(tail); }
+    });
+    return { pts: [...new Set(pts)].sort((a, b) => a - b), free };
+  };
+  const settle = () => {
+    if (!dir || performance.now() - lastInput > 600 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const y = col.scrollTop;
+    const { pts, free } = points();
+    if (pts.some(p => Math.abs(p - y) <= 1) || free.some(([a, b]) => y > a && y < b)) return;
+    const to = dir > 0 ? pts.find(p => p > y) : pts.filter(p => p < y).pop();
+    if (to !== undefined) col.scrollTo({ top: to, behavior: 'smooth' });
+  };
+  col.addEventListener('scroll', () => {
+    const y = col.scrollTop;
+    if (y !== last) dir = Math.sign(y - last);
+    last = y;
+    clearTimeout(timer);
+    timer = window.setTimeout(settle, 120);
+  }, { passive: true });   // 欄在 #page-content 內＝換頁隨 DOM 丟
+  const onInput = () => { lastInput = performance.now(); };
+  inputHost?.addEventListener('wheel', onInput, { passive: true });
+  window.addEventListener('keydown', onInput);
+  registerPageCleanup(() => { clearTimeout(timer); window.removeEventListener('keydown', onInput); });
+}
+
+// 捲動停了（150ms 沒新的 scroll）才叫 cb；回傳取消函式（連點 nav＝取消上一個再掛新的）。
+// faculty／curriculum 點 nav：經過的 section 進場照播、落地才收成終態（user 2026-11-04「去的時候不會看到直接 load 完，回到上面也不會空白」）
+/** @param {Window|HTMLElement} target @param {() => void} cb */
+export function whenScrollSettles(target, cb) {
+  let t = 0;
+  const kick = () => { clearTimeout(t); t = window.setTimeout(done, 150); };
+  const off = () => { clearTimeout(t); target.removeEventListener('scroll', kick); };
+  const done = () => { off(); cb(); };
+  target.addEventListener('scroll', kick, { passive: true });
+  kick();
+  return off;
 }

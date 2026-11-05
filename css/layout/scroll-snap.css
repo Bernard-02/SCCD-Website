@@ -41,6 +41,9 @@ html {
   }
 }
 
+/* faculty／curriculum 真桌面右欄的分段磁吸不用 CSS（snap-scroll.js initColSnap）：比欄高的區段尾，滑鼠一格一格滾會被
+   原生 snap 吸回段尾＝出不去（Chrome 實測 mandatory／proximity 都是，2026-11-04）；about 每區剛好一屏才沒踩到 */
+
 /* 觸控（iPad 橫向桌面排版）關原生磁吸：mandatory 配比視窗高的 section，手指滑動會被拉過中段（iPad 實測 Programs 看不到、
    nav btn 落點錯、換頁跳過 hero；user 2026-10-31）。手機本就無 CSS 磁吸（<768 不進上面 gate、gate 內 landscape.css 5c 關） */
 @media (pointer: coarse) {

@@ -188,8 +188,18 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
   // 初始隨機角＋桌面 hover 抽新角（離開保持；click 由 setActiveNavBtn 桌面沿用當前角）
   bindNavBtnSpin(btns);
 
-  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers
-  bindFrameScrollSplit(document.getElementById('admission-content-section'));
+  // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers。
+  // 捲完接下一段（user 2026-11-04，同 activities）：右欄捲到底／頂再滾＝下一／上一個 nav；直向手機＝section 的 data-snap-tabs
+  // （HTML，snap-scroll 磁吸點同一排 nav 鈕）
+  const neighbor = (/** @type {number} */ dir) => btns[[...btns].findIndex(b => b.classList.contains('active')) + dir];
+  bindFrameScrollSplit(document.getElementById('admission-content-section'), {
+    has: (dir) => !!neighbor(dir),
+    go: (dir) => {   // 捲動換段＝抽新角（同 about scroll-spy；桌面點擊沿用 hover 當下角）
+      const b = neighbor(dir);
+      b?.querySelectorAll('.anchor-nav-inner').forEach(i => { /** @type {HTMLElement} */ (i).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
+      b?.click();
+    },
+  });
 
   // 矮橫向「hero 藏 nav」已併入 setupSectionNavReveal 的 clip-path 雙向分支（user 2026-07-10
   // 定為原則：nav btn 進出場用 clip-path 不用 opacity；舊 .admission-nav-shown opacity 版退役）。

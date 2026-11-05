@@ -288,6 +288,13 @@
   #activities-lightbox .alb-thumb {
     height: 36px !important;
   }
+  /* 縮圖列寬＝螢幕扣左右 container padding（user 2026-11-04：先撐滿左右，同日改「縮圖框本身要離螢幕邊有左右 padding」）；
+     蓋 inline max-width min(80vw, 960px)；當前那張照舊靠 runway 置中 */
+  #activities-lightbox.alb-album .alb-thumbs {
+    align-self: stretch;
+    max-width: none !important;
+    margin-inline: var(--container-padding, 1.5rem);
+  }
 
   /* topbar（返回 + ref + 標題）沉到畫面最底：thumbs-wrap 改直向、topbar order 排在縮圖列後，回 flow 並左對齊 container-padding */
   #activities-lightbox .alb-thumbs-wrap {
@@ -335,9 +342,7 @@
   /* ── PDF viewer 手機版：一次一頁 + 上下滑換頁 + 雙指 pinch ──
      翻頁/縮放/平移全在 library-viewer.js touch handler，CSS 不碰渲染 */
 
-  /* 拿掉翻頁 chevron 與縮放控制（!important 蓋 JS inline） */
-  #pdf-viewer-modal #pdf-prev-btn,
-  #pdf-viewer-modal #pdf-next-btn,
+  /* 拿掉縮放控制（!important 蓋 JS inline）；翻頁 chevron 在頁碼那列的最左／最右（見下 .pdf-page-nav） */
   #pdf-viewer-modal .pdf-zoom-controls {
     display: none !important;
   }
@@ -353,13 +358,18 @@
     min-height: 140px !important;
   }
 
-  /* 頁碼移到按鈕上方、畫面置中：absolute 貼底部 bar 頂端 */
-  #pdf-viewer-modal #pdf-page-info {
-    position: absolute !important;
-    top: var(--spacing-sm) !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
+  /* 頁碼（＋左右翻頁 chevron，library-viewer.js 斷點搬進來）移到按鈕上方：absolute 貼底部 bar 頂端。
+     chevron 在最左／最右（user 2026-11-04：同桌面＝貼 container padding、跟返回／分享鈕同欄，不夾著頁碼）；頁碼在中間（兩側 chevron 同寬＝置中）。
+     chevron 44×44 觸控區＝nav 高 44，頁碼文字中線跟舊版（top sm＋半行高）同高 → top 往上扣半個高差 */
+  #pdf-viewer-modal .pdf-page-nav {
+    position: absolute;
+    top: calc(var(--spacing-sm) + var(--font-size-s) * var(--line-height-s) / 2 - 22px);
+    left: var(--container-padding, 1.5rem);
+    right: var(--container-padding, 1.5rem);
+    justify-content: space-between;
+  }
+  #pdf-viewer-modal .pdf-page-nav :is(#pdf-prev-btn, #pdf-next-btn) {
+    position: static;
   }
 
   /* back / ref / title / share 沉到底部 bar 底端（桌面 top:50%），頁碼在其上方

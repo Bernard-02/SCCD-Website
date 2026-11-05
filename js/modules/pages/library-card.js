@@ -57,6 +57,9 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const right = document.getElementById('page-indicator')?.getBoundingClientRect().right || 200;
     return { r: right + 16, t: sh - top - 16 };
   }
+  // 右下 mode3 鉛筆（library 沒 footer＝鉛筆回角落：右 container padding 60、底 48、鈕 48，mode-color-panel.css）同理避開、含 16 呼吸
+  //（user 2026-11-04）；不分 mode 都避＝切到 mode3 不用重排。只算收起的圓鈕，展開的 capsule 是暫時的
+  const pencilZone = (sw, sh) => ({ l: sw - DESK_COLOR_PAD_X - 48 - 16, t: sh - DESK_BOTTOM_GAP - 48 - 16 });
   let activeEl = null;
   const tabOf   = new Map();
   const colorOf = new Map();
@@ -177,6 +180,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       ? (parseFloat(rootCs.getPropertyValue('--nav-line')) || 184) - (parseFloat(rootCs.getPropertyValue('--header-height')) || 96)
       : BASE_TOP_GAP;
     const zone = desk ? indicatorZone(sh) : null;
+    const pen = desk ? pencilZone(sw, sh) : null;
     const maxBW = sw - padX * 2, maxBH = sh - topY - padB;
     const gCx = grayCx(sw), gCy = centerY();
     let best = null, bestRatio = -1;
@@ -208,16 +212,22 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       let cy = Math.max(cyMin, Math.min(cyMax, gCy + by));
       // bbox 落進左下當前頁卡區 → 先抬到卡區上方；太高抬不上去就換貼右 padding（仍貼邊）
       const inZone = () => zone && cx - fBW/2 < zone.r && cy + fBH/2 > zone.t;
+      const inPen = () => pen && cx + fBW/2 > pen.l && cy + fBH/2 > pen.t;
       let flipped = false;
       if (zone && inZone()) {
         if (zone.t - fBH/2 >= cyMin) cy = zone.t - fBH/2;
         else { cx = cxMax; flipped = true; }
       }
+      // 右下鉛筆：同樣抬到鉛筆區上方；太高抬不上去＝備胎（不換邊：左邊是當前頁卡）
+      if (pen && inPen()) {
+        if (pen.t - fBH/2 >= cyMin) cy = pen.t - fBH/2;
+        else flipped = true;
+      }
 
       const candidate = { cx, cy, w, h, rot };
       // 還是避不開（極寬又極高）＝只當最後備胎，不參與可見度競選（全部都避不開才用它，避免回傳 null）
       // 換貼右也只當備胎：先擲矮一點、抬得上去的留在左邊（否則左側塊常被推過去＝右邊常態兩塊，user 2026-10-29「兩邊平均分配」）
-      if (flipped || inZone()) { if (!best) best = candidate; continue; }
+      if (flipped || inZone() || inPen()) { if (!best) best = candidate; continue; }
       const ratio = visScore(candidate, occluders, sw, sh);
       if (ratio >= 1) { best = candidate; break; }
       if (ratio > bestRatio) { bestRatio = ratio; best = candidate; }
@@ -365,10 +375,16 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     try { edge = findFreeEdge(cfg, occluders, grayCx(sw), centerY()); } catch(e) {}
     const isVertical = (edge === 'left' || edge === 'right');
 
+    // 直排：英文右推 0.1em 對齊中文直排中線（同 accordion.css resources 標籤的量測結論；relative 位移不改沿軸長度）；
+    //   中文吃直排字距（--zh-vert-tracking，同 resources；也擋掉混排繼承的 Inter 負字距）＝會改沿軸長度 → probe 要量同一份 HTML
+    const vertHtml = (/** @type {string} */ s) => s
+      .replace(/[A-Za-z]+/g, w => `<span style="position:relative;left:0.1em">${w}</span>`)
+      .replace(/[一-鿿]+/g, w => `<span style="letter-spacing:var(--zh-vert-tracking)">${w}</span>`);
+
     // 量單位長度：直向用同 writing-mode 量（英側躺＋中直立的實際沿軸長度）
     const probe = document.createElement('span');
     probe.style.cssText = PROBE_CSS + (isVertical ? 'writing-mode:vertical-rl;' : '');
-    probe.textContent   = unit;
+    probe.innerHTML     = isVertical ? vertHtml(unit) : unit;   // unit＝寫死的 TAB_LABELS，無使用者輸入
     document.body.appendChild(probe);
     const unitPx = (isVertical ? probe.offsetHeight : probe.offsetWidth) || 1;
     const lineH  = (isVertical ? probe.offsetWidth : probe.offsetHeight) || 0;   // 直向字條厚度；右緣定位扣掉它貼內側
@@ -410,10 +426,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     }
 
     const shift = isVertical ? `--marquee-shift-x:0px;--marquee-shift-y:-${unitPx}px` : `--marquee-shift-x:-${unitPx}px;--marquee-shift-y:0`;
-    // 直排英文右推 0.1em 對齊中文直排中線（同 accordion.css resources 標籤的量測結論；relative 位移不改沿軸長度＝unitPx 照舊）
-    const html = isVertical
-      ? repeated.replace(/[A-Za-z]+/g, w => `<span style="position:relative;left:0.1em">${w}</span>`)
-      : repeated;
+    const html = isVertical ? vertHtml(repeated) : repeated;
     titleEl.innerHTML = `<span class="color-rect-title-inner" style="${shift}">${html}</span>`;
   }
 

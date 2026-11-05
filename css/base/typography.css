@@ -209,6 +209,8 @@ html.mode-vt *::after {
 /* 例外＝會動的層：⚠️清單與 theme-toggle.js MODE_VT_LIVE_LAYERS 兩邊同步。整層抽出快照只顯示即時畫面＝照動不殘影；
    層內變色無快照可淡 → 自己 transition。只收一直在動的（不動的留快照照常淡）。
    逐條寫不用 :is()＝祖先 id/class 能被 bloom filter 快篩（library 4 萬節點） */
+/* footer 鈕＝全站最高（z 10002），過渡中也要壓過所有具名層（首頁漂浮卡層）；theme-toggle.js 命名 footer-btn */
+::view-transition-group(footer-btn) { z-index: 1; }
 ::view-transition-old(.vt-live) { display: none; }
 ::view-transition-new(.vt-live) { animation: none; }
 html.mode-vt #floating-layer, html.mode-vt #floating-layer *,
@@ -232,21 +234,23 @@ html.mode-vt .lib-title-box {
 /* library 三原色卡本來就只顯示即時畫面：卡上的跑馬燈不必凍（灰卡那張的字條是 visibility:hidden） */
 html.mode-vt .color-rect-title-inner { animation-play-state: running !important; }
 /* 只顯示即時新畫面（舊圖消失、新圖不淡）：library 三原色卡 snap；header logo 過渡中照轉不消失；
-   鉛筆（#mode-color-panel）照常滑進滑出；mode 鈕 icon 直接切不淡 */
+   鉛筆（#mode-color-panel）照常滑進滑出；mode 鈕 icon、footer 鈕直接切不淡 */
 ::view-transition-old(lib-snap-1),
 ::view-transition-old(lib-snap-2),
 ::view-transition-old(lib-snap-3),
 ::view-transition-old(header-logo),
 ::view-transition-old(mcp),
 ::view-transition-old(mode-icon-0),
-::view-transition-old(mode-icon-1) { display: none; }
+::view-transition-old(mode-icon-1),
+::view-transition-old(footer-btn) { display: none; }
 ::view-transition-new(lib-snap-1),
 ::view-transition-new(lib-snap-2),
 ::view-transition-new(lib-snap-3),
 ::view-transition-new(header-logo),
 ::view-transition-new(mcp),
 ::view-transition-new(mode-icon-0),
-::view-transition-new(mode-icon-1) { animation: none; }
+::view-transition-new(mode-icon-1),
+::view-transition-new(footer-btn) { animation: none; }
 
 /* curriculum / activities / admission 的 sticky 遮罩＋pseudo 遮罩：用 background(-color) var(--theme-*) 上色，
    不加會 snap、跟大背景 fade 不同步。含 ::before/::after 與 shorthand `background`。 */

@@ -194,15 +194,24 @@ export function bindNavBtnFit(btns) {
  * 手機/矮橫向（frame 拆掉、window 捲）不介入。
  * @param {HTMLElement|null} section
  */
-export function bindFrameScrollSplit(section) {
+/**
+ * @param {HTMLElement|null} section
+ * @param {{ has: (dir: number) => boolean, go: (dir: number) => void } | null} [steps] 一次只顯示一段的頁（activities／admission）：
+ *   右欄捲到底／頂之後再滾＝換下一個／上一個 tab 或 nav（user 2026-11-04「捲完接下一段」）；沒有下一步＝照舊放行 window
+ */
+export function bindFrameScrollSplit(section, steps = null) {
   const box = /** @type {HTMLElement|null} */ (section && section.querySelector('.inner-scroll-scroll-col'));
   const navCol = section && section.querySelector('.inner-scroll-nav-col');
   if (!section || !box || !navCol) return;
   const PAUSE_MS = 500;                   // 邊界停頓多久後再滾＝刻意離開（手感鈕）
   const FLING_WIN = 150, FLING_PX = 250;  // 近 150ms 累積 250px＝快速滑動（手感鈕：越大越難甩出去）
+  // 換段的手勢間隔：已在邊上、且跟上一個滾輪事件隔 ≥ 這麼久＝新的一下（滑鼠一格一格／觸控板重新滑）才換段；
+  // 捲到底那一手勢的連滾、觸控板慣性（~16ms 一發）都不算＝快速捲清單不會一路衝進下一段。換段後同一手勢剩下的也吞掉
+  const STEP_GAP = 200;
   let lastHit = 0;                        // 上次「吸收或鎖住」的時間（停頓冷卻基準）
   let recent = [];                        // 近 FLING_WIN 的事件位移
   let releasedDir = 0, lastRelease = 0;
+  let lastEvt = 0, stepSwallow = false;
   const onWheel = (/** @type {WheelEvent} */ e) => {
     if (SCCDHelpers.isMobileLayout()) return;
     if (e.ctrlKey) return;                                    // pinch / ctrl+wheel 縮放不攔
@@ -212,6 +221,9 @@ export function bindFrameScrollSplit(section) {
     // （user 2026-09-09；footer 側同機制鏡像）。2px 容差＝Win11 顯示縮放 sub-pixel（footer snap 同款坑）。
     if (Math.abs(section.getBoundingClientRect().top) > 2) return;
     const now = e.timeStamp;
+    const gap = now - lastEvt;
+    lastEvt = now;
+    if (stepSwallow) { if (gap < STEP_GAP) { e.preventDefault(); return; } stepSwallow = false; }
     const px = (e.deltaMode === 1 ? 33 : 1) * e.deltaY;       // Firefox 滾輪 line 制換算
     const dir = Math.sign(px);
     recent = recent.filter(r => now - r.t < FLING_WIN);
@@ -221,6 +233,13 @@ export function bindFrameScrollSplit(section) {
     const canScroll = box.scrollHeight > box.clientHeight + 1;
     const atTop = box.scrollTop <= 0;
     const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 1;
+    // 已在該方向的邊上（這一下之前就到了）＋有下一步：鎖住，新的一下才換段（見 STEP_GAP）
+    if (steps && dir && (dir > 0 ? atBottom : atTop) && steps.has(dir)) {
+      e.preventDefault();
+      lastHit = now;
+      if (gap >= STEP_GAP) { steps.go(dir); stepSwallow = true; }
+      return;
+    }
     if (canScroll && !((atTop && dir < 0) || (atBottom && dir > 0))) {
       lastHit = now;                                          // box 吸收得了：內部捲
       if (box.contains(/** @type {Node} */ (e.target))) return; // box 本體：原生捲

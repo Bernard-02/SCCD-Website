@@ -3,7 +3,7 @@
  * Activities Search Module
  * 各 panel 各自的 search input，對應各自 panel 內容
  */
-import { hideRows, revealRows, snapRowsShown, clearZebraCover } from './list-row-reveal.js';
+import { hideRows, flipTitleRows, revealRows, snapRowsShown, clearZebraCover } from './list-row-reveal.js';
 import { setupClipReveal } from './scroll-animate.js';
 import { isAccordionBusy } from '../accordions/list-accordion.js';
 import { DUR } from './motion.js';
@@ -41,7 +41,7 @@ function animateMatches(panel) {
   const sc = panelScroller(panel);
   panel.querySelector('.activities-filter-bar')?.classList.remove('bar-hidden');   // 結果回頂＝bar 保留在畫面上（與清空側對稱）
   if (sc) { markProgrammaticScroll(); sc.scrollTop = 0; }   // 從頭開始；window path（手機 bar 非 sticky＝本來就在頂部打字）不捲
-  const animUnits = [];   // { rows, slot }：year 標籤與該組第一筆同 slot（同拍滑入）、每筆 item 一 slot
+  const animUnits = [];   // { rows, slot, item? }：year 標籤與該組第一筆同 slot（同拍滑入）、每筆 item 一 slot
   const snapRows = [];
   let itemCount = 0;
   getVisibleYearGroups(panel).forEach(group => {
@@ -57,7 +57,7 @@ function animateMatches(panel) {
       if (it.style.display === 'none') return;
       it.removeAttribute('data-pre-reveal');
       const rows = [...it.querySelectorAll('.list-reveal-row')];
-      if (itemCount < SEARCH_ANIM_ITEMS) animUnits.push({ rows, slot: itemCount });
+      if (itemCount < SEARCH_ANIM_ITEMS) animUnits.push({ rows, slot: itemCount, item: it });
       else snapRows.push(...rows);
       itemCount++;
     });
@@ -66,6 +66,7 @@ function animateMatches(panel) {
   const allAnimRows = animUnits.flatMap(u => u.rows);
   if (!allAnimRows.length) return;
   hideRows(allAnimRows);
+  animUnits.forEach(u => { if (u.item) flipTitleRows(u.item); });   // 標題＋副標逐筆隨機上下（同清單捲入）
   void allAnimRows[0].offsetHeight;  // ⚠️ 必要：同步區塊先藏再揭、無中間 paint 會 snap（list-row-reveal 檔頭警語）；單次 reflow commit 起點
   animUnits.forEach(u => {
     if (u.rows.length) revealRows(u.rows, { dur: DUR.reveal, delay: u.slot * SEARCH_ITEM_STAGGER, stagger: 0.05 });
@@ -114,50 +115,6 @@ function setEmptyState(panel, show) {
   const el = getOrCreateEmptyState(panel);
   el.style.display = show ? 'flex' : 'none';
   if (show) snapRowsShown(el.querySelectorAll('p'));   // 上回被淨空退場留在藏起態 → 顯示時歸位
-}
-
-// setupClipReveal 把 .activities-separator（有 .list-reveal-row class）wrap 進 .clip-reveal-wrapper，
-// 所以 group.nextElementSibling 拿到的是 wrapper 不是 separator 本身；下列 helper 統一處理 wrapped / unwrapped 兩種結構
-function getSeparatorAfter(group) {
-  const next = group.nextElementSibling;
-  if (!next) return null;
-  if (next.classList.contains('clip-reveal-wrapper') && next.firstElementChild?.classList.contains('activities-separator')) {
-    return /** @type {HTMLElement} */ (next.firstElementChild);
-  }
-  if (next.classList.contains('activities-separator')) return /** @type {HTMLElement} */ (next);
-  return null;
-}
-function setSeparatorVisibility(sep, show) {
-  if (!sep) return;
-  // wrapper 才是真正佔位的 sibling；wrapper 不存在就直接操作 separator
-  const wrapper = sep.parentElement?.classList.contains('clip-reveal-wrapper') ? sep.parentElement : null;
-  /** @type {HTMLElement} */ ((wrapper || sep)).style.display = show ? '' : 'none';
-  if (show) {
-    // separator 本身要清掉 inline display:none 且 yPercent reset 到 0
-    // （ScrollTrigger reveal 在 search 期間若沒 fire 過會留 yPercent:100 被 wrapper clip 看不見）
-    sep.style.display = '';
-    if (typeof gsap !== 'undefined') gsap.set(sep, { yPercent: 0 });
-  }
-}
-
-// 空結果時把 panel 內所有 .activities-separator 一律收掉
-// 避免 search bar 下方殘留多餘橫綫；清空 search 時 !query 分支會逐一恢復
-function hideAllSeparators(panel) {
-  panel.querySelectorAll('.activities-separator').forEach(sep => {
-    setSeparatorVisibility(/** @type {HTMLElement} */ (sep), false);
-  });
-}
-
-// ── Border 重建 ───────────────────────────────────────────────────────────
-
-function rebuildBorders(visibleItems) {
-  visibleItems.forEach((item, idx) => {
-    const isLast = idx === visibleItems.length - 1;
-    const divider = item.querySelector('.list-item-divider');
-    if (divider) {
-      divider.style.display = isLast ? 'none' : '';
-    }
-  });
 }
 
 // 記住每個 items container 的原始 DOM 順序
@@ -241,11 +198,6 @@ function applyGenericSearch(panelId, query) {
     // 否則每次切分頁的 +300ms 重 apply（:414 listener）都會對全建 panel 跑整套還原
     // ＋revealAllInstant＝數百列冷觸 recalc storm（headless 實測 34s 單一 task）。
     if (!/** @type {any} */ (panel)._searchShown) { setEmptyState(panel, false); return; }
-    // 防禦性：先把 panel 內所有 .activities-separator restore（含 wrapper），再讓 hideLastSeparator
-    // 收掉最後一條。覆蓋任何前一輪 no-match 狀態下 hideAllSeparators 殘留的 hidden 分隔線。
-    panel.querySelectorAll('.activities-separator').forEach(sep => {
-      setSeparatorVisibility(/** @type {HTMLElement} */ (sep), true);
-    });
     // ⚠️ 還原走「全 groups」不濾可見：搜尋中切 sub-filter 再清空時，被 type filter 藏掉的 container 也有
     //   搜尋殘態（item inline display:none／重排／collapsedBySearch 強開）——只還原可見那半，切回去會殘留
     //   「搜尋框是空的但清單被濾過」的死狀態。藏起的 container 還原純 DOM 寫、無視覺影響。
@@ -256,8 +208,6 @@ function applyGenericSearch(panelId, query) {
       const allItems = [...group.querySelectorAll('.list-item')];
       allItems.forEach(item => { item.style.display = ''; });
       group.style.display = '';
-      setSeparatorVisibility(getSeparatorAfter(group), true);
-      rebuildBorders(allItems);
       // 還原被 search 強制展開的 year-items
       if (container && collapsedBySearch.has(container)) {
         container.style.display = 'none';
@@ -267,7 +217,6 @@ function applyGenericSearch(panelId, query) {
         collapsedBySearch.delete(container);
       }
     });
-    hideLastSeparator(yearGroups);
     revealAllInstant(panel);   // lazy 藏起的 item 清空搜尋後也要現，否則留白
     restripeVisibleZebra(panel);   // 八輪 Part 2：還原後 DOM 序＝原始序 → restripe 天然等於 default 交錯（免另存舊態）
     // user 2026-09-03：捲回搜尋前的位置（DOM 已全還原、scrollHeight 回滿→不被 clamp）；否則停在搜尋結果短清單頂端
@@ -295,7 +244,7 @@ function applyGenericSearch(panelId, query) {
   });
   const allMatched = groupMatched.flatMap(g => g.matched);
 
-  // 命中集合＋順序與上輪完全相同（如連續輸入到結果已穩定）→ DOM 重排／divider 重建／animate 全跳過（免 cross-tween race + 閃）
+  // 命中集合＋順序與上輪完全相同（如連續輸入到結果已穩定）→ DOM 重排／animate 全跳過（免 cross-tween race + 閃）
   const prev = /** @type {any} */ (panel)._searchShown;
   const unchanged = Array.isArray(prev) && prev.length === allMatched.length && allMatched.every((it, i) => prev[i] === it);
   if (unchanged) {
@@ -310,22 +259,14 @@ function applyGenericSearch(panelId, query) {
     if (!matched.length) {
       allItems.forEach(item => { item.style.display = 'none'; });
       group.style.display = 'none';
-      setSeparatorVisibility(getSeparatorAfter(group), false);
       return;
     }
 
     group.style.display = '';
-    setSeparatorVisibility(getSeparatorAfter(group), true);
-
-    allItems.forEach(item => {
-      item.style.display = 'none';
-      const divider = item.querySelector('.list-item-divider');
-      if (divider) divider.style.display = 'none';
-    });
+    allItems.forEach(item => { item.style.display = 'none'; });
 
     if (container) matched.forEach(item => container.appendChild(item));
     matched.forEach(item => { item.style.display = ''; });
-    rebuildBorders(matched);
 
     // 若 year-items 因 year toggle 被收合，展開讓結果可見，並記錄以便清空時還原
     if (container && (container.style.height === '0px' || container.style.display === 'none')) {
@@ -336,8 +277,6 @@ function applyGenericSearch(panelId, query) {
       if (chevron && typeof gsap !== 'undefined') gsap.set(chevron, { rotation: 270 });  // open → 朝下（270；base 朝左，90=上/180=右/270=下）
     }
   });
-
-  hideLastSeparator(yearGroups);
 
   // 八輪 Part 2：排序＋顯隱寫完、animateMatches 之前重排 zebra——matched rows 照常滑入、zebra 底色按新交錯直接現
   //   （與 3-3「zebra 直寫清」一致、無動畫）。
@@ -350,17 +289,7 @@ function applyGenericSearch(panelId, query) {
 
   // Empty state
   const anyVisible = yearGroups.some(g => g.style.display !== 'none');
-  if (!anyVisible) hideAllSeparators(panel);
   setEmptyState(panel, !anyVisible);
-}
-
-function hideLastSeparator(yearGroups) {
-  /** @type {Element | null} */
-  let lastVisible = null;
-  yearGroups.forEach(g => { if (g.style.display !== 'none') lastVisible = g; });
-  if (lastVisible) {
-    setSeparatorVisibility(getSeparatorAfter(lastVisible), false);
-  }
 }
 
 // ── 給 section / sub-filter 切換用：換子分頁＝搜尋清空（user 2026-10-01）─────────
@@ -437,7 +366,7 @@ export function initActivitiesSearch() {
     // 跟著反覆位移＝user 看到「一直在做進場動畫」（#3/#4 同根因）。
     if (goingDown && currentY > threshold) {
       activeBar.classList.add('bar-hidden');
-    } else if (goingUp) {
+    } else if (goingUp && currentY < document.documentElement.scrollHeight - window.innerHeight - 1) {   // 文件底的夾回不算上捲（同下方 col handler）
       activeBar.classList.remove('bar-hidden');
     }
   };
@@ -461,9 +390,11 @@ export function initActivitiesSearch() {
       // 方向式（往下收、往上還原），比照改 100vh 前的 window 版（user 2026-06-30「往上要看得到 search bar」）。
       // 可靠的前提＝scroll-col 已設 overflow-anchor:none：收合改高度不補償 scrollTop → 無自觸發 scroll →
       // lastColY 純由使用者捲動驅動、方向不會被翻轉（先前方向式抖動、位置式不還原都是這個 anchoring 補償造成）。
+      // 在底上變小＝bar 收合讓清單變矮、瀏覽器把 scrollTop 夾回去，不是往上捲：短清單（工作營）會 收→夾回→還原→再收 振盪、
+      // 永遠到不了底（捲完接下一段判不到底，user 2026-11-04）
       if (activeBar) {
         if (cur > lastColY && cur > 8) activeBar.classList.add('bar-hidden');
-        else if (cur < lastColY) activeBar.classList.remove('bar-hidden');
+        else if (cur < lastColY && cur + scrollCol.clientHeight < scrollCol.scrollHeight - 1) activeBar.classList.remove('bar-hidden');
       }
       lastColY = cur;
     };

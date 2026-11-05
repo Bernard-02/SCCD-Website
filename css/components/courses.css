@@ -196,6 +196,33 @@
     margin-top: var(--spacing-sm);
   }
 
+  /* 疊排（桌面 grid 三個 program 接著捲，courses-section-switch.js stacked；user 2026-11-04）：program 間留白 ≥ 下一段
+     表頭 ::before 上補丁 200px（下方），否則下一段表頭還沒釘住時補丁會蓋掉上一段最底的卡片。手機 grid 一次只顯示一個＝不吃 */
+  .courses-panel:not(.hidden) ~ .courses-panel:not(.hidden) {
+    margin-top: calc(200px + var(--spacing-sm));
+  }
+
+  /* 桌面疊排：年級表頭只留一份（courses-section-switch createSharedCover）＝右欄頂 0 高 sticky wrapper 疊在第一個 panel 的
+     cover 原位、整條捲動釘在欄頂；各 panel 自己的 cover 隱形佔位（版面／點 nav 落點不變） */
+  @media (min-width: 768px) {
+    .courses-shared-cover {
+      position: sticky;
+      top: 0;
+      height: 0;
+      z-index: 4;
+    }
+    .courses-shared-cover > .courses-grid-row-cover {
+      position: relative;
+    }
+    #courses-content-section.has-shared-cover .courses-panel .courses-grid-row-cover {
+      visibility: hidden;
+    }
+    /* 各段表頭隱形了＝沒有上補丁要讓位（下方 216 的理由不在）；隱形表頭本身已佔一條空帶 → 段距收回 2xl */
+    #courses-content-section.has-shared-cover .courses-panel:not(.hidden) ~ .courses-panel:not(.hidden) {
+      margin-top: var(--spacing-2xl);
+    }
+  }
+
   /* 必修列上方 sm buffer：卡片 ±2° 旋轉角凸出 ~4px，不被 sticky cover 切掉。改這值要同步 type-label 的 sticky top。 */
   @media (min-width: 768px) {
     .courses-grid > .courses-grid-row-cover + .courses-required-row {
@@ -414,14 +441,14 @@
     .courses-grid-mobile {
       display: flex;
       flex-direction: column;
-      /* bar ↔ 當前年級 block 的間距（block 同時只顯示一個，hidden 不吃 gap） */
+      /* 年級 block 之間（全部往下排）；直向＋iPad 的年級 bar 是 fixed 底 bar、不吃 gap */
       gap: var(--spacing-xl);
     }
   }
 
   /* ===== Mobile grid 結構（年級 btn bar 切換）=====
      .courses-mobile-grade-bar        ← 年級 pill btn（.courses-filter-btn 同款），在 program nav 下方
-     .courses-mobile-grade-block × N  ← 每年級一塊，只顯示 active 年級（其餘 .hidden）
+     .courses-mobile-grade-block × N  ← 每年級一塊，全部往下排（2026-11-04 起；bar＝scroll-spy＋點擊捲到）
        .courses-mobile-row × 2        ← 必修 / 選修
          .courses-mobile-row-label    ← 類型小標（en 上 zh 下），在卡片上方
          .courses-mobile-cells        ← 課程卡片直排 */
@@ -500,10 +527,20 @@
       padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h) + 80px);
     }
     #courses-content-section .courses-content-row { gap: 0; }
+    /* 三個 program 疊著捲（user 2026-11-04 手機也跟 pc 一樣往下排）：年級 bar 每個 panel 一條，只顯示目前 program 那條
+       （courses-section-switch syncGradeSpy 掛 .is-current）。
+       年級／program 間距＝落點 92＋2×sm（同 faculty 牆距）：點年級落在 92 時上一個年級整段已捲出視窗頂（＋旋轉卡角餘量），
+       header 帶後面不露別的年級（user 同日「定位時上面不要有其他年級的內容」「gap 拉大比較好分辨」） */
+    #courses-content-section .courses-panel:not(.is-current) .courses-mobile-grade-bar { display: none; }
+    #courses-content-section .courses-grid-mobile { gap: calc(92px + 2 * var(--spacing-sm)); }
+    /* 年級＝磁吸段（JS 掛 .snap-zone）：落點＝年級頂貼 header 帶下 92（同點年級鈕） */
+    #courses-content-section .courses-mobile-grade-block { scroll-margin-top: 92px; }
+    #courses-content-section .courses-panel:not(.hidden) ~ .courses-panel:not(.hidden) { margin-top: calc(92px + 2 * var(--spacing-sm)); }
     #courses-content-section {
       --courses-m-program-chip-h: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + 10px);   /* 英上中下兩行＋card-pad-s 上下 5 */
-      /* 年級 bar 底：年級 chip 底到 program chip 頂可見距 sm（bar 高＝界線×2＋28、chip 置中 → bar 底＋界線＝chip 底，界線互相抵銷） */
-      --courses-m-grade-bar-bottom: calc(var(--courses-m-program-chip-h) + var(--spacing-sm));
+      /* 年級 bar 底：年級 chip 底到 program chip 頂可見距 sm。program chip 中線＝footer 鈕中線（界線＋22，下方 program 列底 padding）
+         → chip 頂＝界線＋22＋半高；年級 bar 的 chip 底＝bar 底＋界線＋8（.nav-bottom-bar 底 16 的置中位移）→ 界線抵銷剩 14 */
+      --courses-m-grade-bar-bottom: calc(var(--courses-m-program-chip-h) / 2 + 14px + var(--spacing-sm));
     }
     #courses-content-section .inner-scroll-nav-col {
       position: fixed;
@@ -518,10 +555,11 @@
     #courses-content-section .courses-mobile-grade-bar.is-bar-hidden { transform: translateY(calc(110% + var(--courses-m-grade-bar-bottom))); }
     #courses-content-section .inner-scroll-nav-col.is-div-hidden { visibility: hidden; }
     #courses-content-section .inner-scroll-nav-col.is-off { pointer-events: none; }
-    /* 上 sm＝active 旋轉角 clearance（同 about #mobile-division-nav py-sm）、下＝貼底界線；項目間 md、底對齊同 about（#id 蓋 HTML items-start） */
+    /* 上 sm＝active 旋轉角 clearance（同 about #mobile-division-nav py-sm）、下＝chip 中線對齊 footer 鈕中線（界線＋22 − 半顆兩行 chip，
+       user 2026-11-04）；項目間 md、底對齊同 about（#id 蓋 HTML items-start） */
     #courses-content-section .courses-program-bar {
       margin: 0;
-      padding: var(--spacing-sm) var(--container-padding) var(--mobile-bottom-anchor);
+      padding: var(--spacing-sm) var(--container-padding) calc(var(--mobile-bottom-anchor) + 22px - var(--courses-m-program-chip-h) / 2);
       gap: var(--spacing-md);
       align-items: flex-end;
       /* gate（≥768 寬）吃不到上方 <768 的 row／overflow 規則、HTML 又是 flex-col → 這裡寫死（!important 同上方理由：蓋 utility） */

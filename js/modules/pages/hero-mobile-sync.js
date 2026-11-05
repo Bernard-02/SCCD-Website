@@ -14,6 +14,8 @@
  * - 手機 DOM 是 mirror，sync 完才把 visibility 開起來避免首屏閃白
  */
 
+import { hugWidestLine } from './hero-animation.js';
+
 export function initHeroMobileSync() {
   const desktop = document.querySelector('.hero-rand-grid');
   const mobile = document.querySelector('.hero-mobile');
@@ -89,6 +91,8 @@ export function initHeroMobileSync() {
       const t = /** @type {HTMLElement | null} */ (stack.querySelector('.hero-mobile-title'));
       if (!t) return;
       t.style.fontSize = '';
+      t.style.width = '';   // 下方 hugTitles 收過的寬會讓 clientWidth 變窄＝縮過頭
+      void t.offsetWidth;
       const cs = getComputedStyle(t);
       const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
       if (t.scrollWidth > t.clientWidth) t.style.fontSize = `${Math.floor(parseFloat(cs.fontSize) * (t.clientWidth - pad) / (t.scrollWidth - pad) * 2) / 2}px`;
@@ -96,6 +100,14 @@ export function initHeroMobileSync() {
     fitTitle();
     document.fonts?.ready.then(fitTitle);
   }
+
+  // 標題換行（COMING SOON 兩行）＝框收到最寬那行（user 2026-11-04）；字型到了字寬會變→再收一次。放在 fitTitle 之後＝量縮過的字
+  const hugTitles = () => ['.hero-mobile-title', '.hero-mobile-title-cn'].forEach(s => {
+    const t = /** @type {HTMLElement | null} */ (mobile.querySelector(s));
+    if (t) hugWidestLine(t);
+  });
+  hugTitles();
+  document.fonts?.ready.then(hugTitles);
 
   // Sync 完才 reveal，避免首屏空殼閃白（CSS 預設 visibility:hidden）
   mobile.style.visibility = 'visible';

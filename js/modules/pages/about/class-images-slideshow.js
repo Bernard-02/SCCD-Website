@@ -257,7 +257,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // hover：暫停自動輪播 + 旋轉歸 0°（預設 slot 0 不做旋轉但仍暫停；hoverAll 含 slot 0）；leave 換新角、無 slot 被 hover 才恢復。
   function attachInteractions(wrapper) {
     wrapper.addEventListener('click', () => {
-      if (isShifting) return;
+      if (isShifting || dragged) return;   // 拖完放開也會發 click：已由 swipe 處理
       if (peekNav) {
         const i = slots.indexOf(wrapper);
         if (i < 0 || i === center) return;
@@ -280,6 +280,52 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     wrapper.addEventListener('mouseleave', () => {
       clearHoverState(wrapper, true);
       if (!slots.some(s => s.matches(':hover'))) resumeAutoplay();
+    });
+  }
+
+  // peekNav 左右滑（user 2026-11-04「圖片區可以左右 scroll、保留目前功能」）：手指拖著整列走，放開依距離換幾張（同點那張的 tick）、
+  // 不到門檻彈回；自動輪播／點圖置中照舊。touch-action pan-y＝直向捲頁交給瀏覽器（一開始直捲＝pointercancel、彈回）
+  let dragged = false;
+  if (peekNav) {
+    container.style.touchAction = 'pan-y';
+    let id = null, x0 = 0, dx = 0;
+    container.addEventListener('dragstart', e => e.preventDefault());   // 滑鼠拖圖別叫出原生拖曳殘影
+    container.addEventListener('pointerdown', (e) => {
+      if (id !== null || slots.length !== slotCount) return;   // 自動輪播換到一半也能拖（每 3 秒換一次，擋掉＝常常滑不動）
+      id = e.pointerId; x0 = e.clientX; dx = 0;
+      pauseAutoplay();
+    });
+    const onMove = (/** @type {PointerEvent} */ e) => {
+      if (e.pointerId !== id) return;
+      dx = e.clientX - x0;
+      if (Math.abs(dx) > 6) dragged = true;
+      gsap.set(slots, { x: dx });
+    };
+    // 放開時還在換圖＝等那次換完（拖曳位移先留著）再一起推
+    const release = (/** @type {number} */ d) => {
+      if (!container.isConnected) return;   // 換頁 cleanup 砍掉 tween＝isShifting 不會再歸零
+      if (isShifting) { requestAnimationFrame(() => release(d)); return; }
+      // 一張的距離＝中心到拖往那側鄰張的間距；過 40px 至少換一張、最多換到畫面外那圈（center 張）
+      const nb = slots[center + (d < 0 ? 1 : -1)];
+      const step = (nb && Math.abs(parseFloat(nb.style.left) - parseFloat(slots[center].style.left))) || container.clientWidth / 3;   // DSD 單張＝沒鄰張
+      const n = Math.abs(d) < 40 ? 0 : Math.min(center, Math.max(1, Math.round(Math.abs(d) / step)));
+      gsap.to(slots, { x: 0, duration: ANIM_DUR, ease: EASE.wipe });   // 收拖曳位移＋推移同時跑＝從手放開的位置接著走
+      if (n) tick(d < 0 ? n : -n);
+      resumeAutoplay();
+    };
+    const onEnd = (/** @type {PointerEvent} */ e) => {
+      if (e.pointerId !== id) return;
+      id = null;
+      release(dx);
+      setTimeout(() => { dragged = false; });   // 等這次放開的 click 過去
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    registerPageCleanup(() => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
     });
   }
 

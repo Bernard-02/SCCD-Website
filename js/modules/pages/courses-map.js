@@ -19,11 +19,9 @@ import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { createDeskCard } from '../ui/desk-card.js';
-import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport } from '../ui/scroll-animate.js';
-import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { DUR, EASE } from '../ui/motion.js';
+import { createDeskCard, createSlideInEntrance } from '../ui/desk-card.js';
+import { openSlideInBg, closeSlideInBg, SLIDE_IN_ARRIVE } from '../ui/slide-in-bg-sync.js';
+import { setActiveNavBtn, bindNavBtnSpin, bindNavBtnHover, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
 import { loadCourses } from './courses-source.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 
@@ -133,8 +131,8 @@ function renderCard(chip) {
 // 不能少 emit cell 否則 grid auto-flow 會把後續 type-label 推到空欄位錯亂整張表
 const TOTAL_YEAR_COLS = 4;
 
-// 手機版（2026-07-09 改版）：「年級 btn bar」直接切換（直向手機 10-27 起＝畫面底 bar），
-// 每個年級一個 block、同時只顯示一個；block 內必修/選修 label 在卡片上方、卡片滿寬直排。
+// 手機版：每個年級一個 block，全部年級往下排（2026-11-04 user「跟 pc 類似、一直排到最後一個班級」；原本一次只顯示一個）；
+// 年級 bar（直向 10-27 起＝畫面底 bar）＝scroll-spy＋點擊捲到該年級（courses-section-switch initStacked）。block 內必修/選修 label 在卡片上方。
 // 年級 btn 沿用 .courses-filter-btn（activities 子濾鏡同款 pill，buttons.css + 三 mode themes 現成）。
 // 兩種 DOM 結構共存（CSS media query 切顯示），同 program 的卡片各自存在 → 點擊兩邊都能觸發
 // slide-in（bindCardClick 走 panel 級 grid，兩個 grid 都會綁）
@@ -166,89 +164,10 @@ function buildMobileHTML(program, courses) {
           <div class="courses-mobile-cells">${cellChips.map(renderCard).join('')}</div>
         </div>`;
     });
-    return `<div class="courses-mobile-grade-block${i === 0 ? '' : ' hidden'}" data-grade="${g.key}">${blockInner}</div>`;
+    return `<div class="courses-mobile-grade-block" data-grade="${g.key}">${blockInner}</div>`;
   }).join('');
 
   return bar + blocks;
-}
-
-// ── 手機年級切換 ──
-// setActiveNavBtn 共用 helper（accent 底 + 隨機旋轉，與 program btn / activities 濾鏡一致）；
-// 灰卡 + 必修/選修 label 比照「桌面切 program」的過場：舊卡 hero clip-reveal 反向收場 → 新卡 clip-reveal 進場
-// （translate 獨立屬性＋同步 clip，與全站卡片統一；user 2026-07-09：卡片要保留切換動畫；pill 本身不動）。
-// 隱藏 block 的卡片 render 時量不到寬（offsetWidth=0 → marquee bail）→ 每次露出重跑量測
-/** @param {HTMLElement} mobileGrid @param {string} gradeKey */
-async function activateGrade(mobileGrid, gradeKey, { animate = true } = {}) {
-  const doAnim = animate && typeof gsap !== 'undefined' && !prefersReducedMotion();
-  // 動畫進行中忽略連點（exit await 期間再切會兩條序列交錯亂 toggle）
-  if (doAnim && mobileGrid.dataset.gradeSwitching) return;
-
-  const prev = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-block:not(.hidden)'));
-  if (doAnim && prev && prev.getAttribute('data-grade') !== gradeKey) {
-    // label 各年級文字相同（Required/Elective）且 sticky 釘同位置：跟著收再進會看成「同一個 tag 渲染兩次」
-    // → 切年級只動卡片，label 原地不動（user 2026-07-21）
-    const prevItems = [...prev.querySelectorAll('.courses-grid-card')];
-    if (prevItems.length) {
-      mobileGrid.dataset.gradeSwitching = '1';
-      await new Promise(resolve => {
-        gsap.killTweensOf(prevItems);
-        // viewport-cull：視窗外的卡不陪跑（block 隨後 .hidden；enter 端 fromTo 自帶顯式起點，無殘留問題）
-        const { on: exitItems } = cullByViewport(prevItems, 200);
-        if (!exitItems.length) { resolve(); return; }
-        // hero 式 clip-reveal 反向：fromTo 顯式起點 NAV_CHIP_SHOWN（reveal 後 translate/clip 已 none，直接 to 會 snap）
-        // → 各自四方向隨機（pickNavDir() 無 el）滑出＋同步 clip
-        const hid = exitItems.map(el => navChipHidden(el, pickNavDir()));
-        gsap.fromTo(exitItems,
-          { ...NAV_CHIP_SHOWN },
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate, duration: DUR.fast, ease: EASE.wipe, overwrite: true, onComplete: resolve }
-        );
-      });
-      delete mobileGrid.dataset.gradeSwitching;
-    }
-  }
-
-  bindNavBtnSpin(mobileGrid.querySelectorAll('.courses-mobile-grade-btn'));   // 初始隨機角（dataset 守衛、重呼叫 no-op；手機 UI：click 由 setActiveNavBtn 現抽）
-  setActiveNavBtn(mobileGrid.querySelectorAll('.courses-mobile-grade-btn'), gradeKey, 'data-grade');
-  /** @type {HTMLElement|null} */ let shown = null;
-  mobileGrid.querySelectorAll('.courses-mobile-grade-block').forEach(b => {
-    const on = b.getAttribute('data-grade') === gradeKey;
-    b.classList.toggle('hidden', !on);
-    if (on) shown = /** @type {HTMLElement} */ (b);
-  });
-  if (doAnim && shown) {
-    // 保險：entrance 的 gsap.set 可能把這個 block 的 label 留在 hidden 態（reveal 未播就切年級）→ 直接清成可見
-    gsap.set(shown.querySelectorAll('.courses-mobile-row-label'), { clearProps: 'clipPath,translate' });
-    const items = [...shown.querySelectorAll('.courses-grid-card')];
-    if (items.length) {
-      gsap.killTweensOf(items);
-      // viewport-cull：視窗外的卡 snap 終態（要清殘留——上次 exit wipe 留的 hidden inline 態，不清會隱形）
-      const { on: enterItems, off: enterOff } = cullByViewport(items, 200);
-      if (enterOff.length) gsap.set(enterOff, { clearProps: 'clipPath,translate' });
-      if (enterItems.length) {
-        // 同 program 切換 reveal：每張四方向隨機（pickNavDir() 無 el）的 hidden 態 → 無 stagger 同時收到 NAV_CHIP_SHOWN
-        const hid = enterItems.map(el => navChipHidden(el, pickNavDir()));
-        gsap.fromTo(enterItems,
-          { clipPath: (i) => hid[i].clipPath, translate: (i) => hid[i].translate },
-          { ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, overwrite: true, clearProps: 'clipPath,translate' }
-        );
-      }
-    }
-  }
-  const panel = mobileGrid.closest('.courses-panel');
-  if (panel) requestAnimationFrame(() => runMarqueeOverflow(/** @type {HTMLElement} */ (panel)));
-}
-
-// deep-link（?item=slug）目標卡片可能在非 active 年級 block 內（隱藏 → 量測/highlight 找不到可見卡）
-// → 先把該年級切成 active。桌面 mobile grid display:none，切了無視覺影響、無害。
-export function ensureMobileGradeForSlug(program, slug) {
-  if (!slug) return;
-  const panel = document.getElementById(`panel-${program}`);
-  const mobileGrid = /** @type {HTMLElement|null} */ (panel ? panel.querySelector('.courses-grid-mobile') : null);
-  if (!mobileGrid) return;
-  const card = mobileGrid.querySelector(`.courses-grid-card[data-slug="${CSS.escape(slug)}"]`);
-  const block = card ? card.closest('.courses-mobile-grade-block') : null;
-  if (!block || !block.classList.contains('hidden')) return;
-  activateGrade(mobileGrid, block.getAttribute('data-grade') || '', { animate: false });
 }
 
 function buildHTML(program, courses) {
@@ -329,6 +248,13 @@ let deskPanel = /** @type {HTMLElement|null} */ (null);
 let deskMode = false;
 let deskClosing = false;
 const closeWaiters = /** @type {(() => void)[]} */ ([]);
+// 手機／矮橫向 slide-in 內容首開進場（user 2026-11-04，同 faculty）；換頁回來 panel 是新的＝重建、記錄歸零
+let entrance = /** @type {ReturnType<typeof createSlideInEntrance>|null} */ (null);
+let entrancePanel = /** @type {HTMLElement|null} */ (null);
+function getEntrance(panel) {
+  if (!entrance || entrancePanel !== panel) { entrance = createSlideInEntrance(); entrancePanel = panel; }
+  return entrance;
+}
 function getDesk(panel) {
   if (desk && deskPanel === panel) return desk;
   desk = createDeskCard({
@@ -409,13 +335,6 @@ function openCourseSlideIn(card, onOpened) {
   coursesReturnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
   slideIn.classList.remove('invisible', 'pointer-events-none');
   slideIn.classList.add('pointer-events-auto');
-  // 手機／矮橫向返回鍵（.faculty-back-header 黑方塊）：每點一次換角（user 2026-10-27，同手機 header 鈕；沒 hover＝arrow-spin 點擊重抽）
-  const backMobile = document.getElementById('courses-back-btn-mobile');
-  if (backMobile && !backMobile.dataset.hoverRotBound) {
-    backMobile.dataset.hoverRotBound = '1';
-    backMobile.style.transition = 'transform var(--dur-base) ease';
-    bindArrowSpin(backMobile, d => { backMobile.style.transform = `rotate(${d}deg)`; }).reroll();
-  }
   // 桌面黑方塊返回鍵：每次開重隨機旋轉（角度套外層遮罩）+ inner 平移做 hero clip-reveal（比照 header bars：外層 overflow:clip 當遮罩、inner 隨機四方向滑入被剪裁）
   const backBtn = document.getElementById('courses-back-btn-desktop');
   if (backBtn) {
@@ -433,25 +352,20 @@ function openCourseSlideIn(card, onOpened) {
   // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
   // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
   //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
-  // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）
-  enterLightboxMode({ keepHeader: deskMode });
+  // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）；手機 menu 鈕換成返回箭頭（user 2026-11-04）
+  enterLightboxMode({ keepHeader: deskMode, menuBack: deskMode ? null : () => closeCourseSlideIn() });
   if (deskMode) {
     deskClosing = false;
     getDesk(panel).open({ id: card.dataset.slug || titleEn, onOpened });
     return;
   }
-  const htmlEl = document.documentElement;
-  htmlEl.classList.add('has-slide-in');
-
-  if (typeof gsap !== 'undefined') {
-    gsap.timeline({ onComplete: onOpened })
-      .to(overlay, { opacity: 0.8, duration: DUR.fast }, 0)
-      .to(panel, { x: '0%', duration: DUR.medium, ease: EASE.enter }, 0.3);
-  } else {
-    overlay.style.opacity = '0.8';
-    panel.style.transform = 'translateX(0%)';
-    onOpened?.();
-  }
+  // 課名兩行、說明兩段＝兩類（每片自己的框四向進；只取視窗內的）
+  const inView = (els) => els.filter(el => el && el.getBoundingClientRect().top < window.innerHeight);
+  // panel 進場同 faculty（slide-in-bg-sync：不 dim、四向進場、logo 碰到才換）
+  const tl = openSlideInBg({ panel });
+  getEntrance(panel).play(card.dataset.slug || titleEn, [inView([enT, zhT]), inView([enD, zhD])], SLIDE_IN_ARRIVE);
+  if (tl) tl.eventCallback('onComplete', onOpened || null);
+  else onOpened?.();
 }
 
 /** @param {() => void} [onClosed] 收完才呼叫（page exit 等卡收完再換頁） */
@@ -500,25 +414,7 @@ function closeCourseSlideIn(onClosed) {
     return;
   }
 
-  const htmlEl = document.documentElement;
-  if (typeof gsap !== 'undefined') {
-    const tl = gsap.timeline()
-      .to(panel, { x: '110%', duration: DUR.medium, ease: EASE.exit }, 0)
-      .to(overlay, { opacity: 0, duration: DUR.fast }, 0.5);
-    tl.call(() => {
-        htmlEl.classList.remove('has-slide-in');
-        hideSlideIn();
-        onClosed?.();
-      });
-  } else {
-    overlay.style.opacity = '0';
-    panel.style.transform = 'translateX(110%)';
-    setTimeout(() => {
-      htmlEl.classList.remove('has-slide-in');
-      hideSlideIn();
-      onClosed?.();
-    }, 500);
-  }
+  closeSlideInBg({ panel, onComplete: () => { hideSlideIn(); onClosed?.(); } });
 }
 
 let _slideInBound = false;
@@ -528,12 +424,12 @@ function ensureSlideInClose() {
   // overlay 點擊用 document delegation：SPA 切頁時 <main> 會被換掉，原本綁在
   // overlay element 上的 listener 隨 element 一起消失，flag 又設過 true → 切回來時
   // 新 overlay 沒監聽 = 點空白關不掉。改 document 級 + e.target.id 比對才能跨 SPA 存活
-  // 手機返回鍵 #courses-back-btn-mobile 同 pattern（closest 兜 icon 點到 span 的情況）
+  // 桌面返回鍵 #courses-back-btn-desktop 同 pattern（closest 兜 icon 點到 span 的情況）；手機返回＝header menu 鈕（mobile-menu.js 返回態）
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (!(t instanceof Element)) return;
     const isOverlay = t.id === 'courses-overlay';
-    const isBackBtn = !!t.closest('#courses-back-btn-mobile') || !!t.closest('#courses-back-btn-desktop');
+    const isBackBtn = !!t.closest('#courses-back-btn-desktop');
     if (!isOverlay && !isBackBtn) return;
     const slideIn = getSlideIn();
     if (!slideIn || slideIn.classList.contains('invisible')) return;
@@ -750,30 +646,11 @@ export async function renderCoursesGrid(program) {
   const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
   if (gradeBar && SCCDHelpers.isBottomBarLayout()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
 
-  // 年級 bar：初始 active 套 accent 樣式 + 點擊切換（delegation，一次性）
-  const firstGradeBtn = mobileGrid.querySelector('.courses-mobile-grade-btn');
-  if (firstGradeBtn) {
-    const mg = mobileGrid;
-    // 初始不動畫（進場 reveal 由 section-switch 統一跑）
-    activateGrade(mg, firstGradeBtn.getAttribute('data-grade') || '', { animate: false });
-    if (!mg.dataset.gradeBound) {
-      mg.dataset.gradeBound = '1';
-      mg.addEventListener('click', (e) => {
-        const btn = /** @type {HTMLElement|null} */ (e.target instanceof Element ? e.target.closest('.courses-mobile-grade-btn') : null);
-        if (!btn || btn.classList.contains('active')) return;
-        // 年級 bar 是水平 scroll strip：點到的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣
-        // （同 program bar 的對齊，courses-section-switch.js）。只動 bar 自己 scrollLeft，不連帶垂直捲動。
-        const bar = /** @type {HTMLElement|null} */ (btn.closest('.courses-mobile-grade-bar'));
-        if (bar) {
-          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
-          const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
-          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
-        }
-        // 直向手機：年級 bar 在畫面底、可能正捲在清單下段 → 換年級一律回 section 頂（user 2026-10-27）
-        scrollToSectionTopNow(mg.closest('#courses-content-section'));
-        activateGrade(mg, btn.getAttribute('data-grade') || '');
-      });
-    }
+  // 年級 bar：初始 active＝第一個年級；之後的 spy／點擊捲到該年級在 courses-section-switch（initStacked）
+  const gradeBtns = mobileGrid.querySelectorAll('.courses-mobile-grade-btn');
+  if (gradeBtns.length) {
+    bindNavBtnSpin(gradeBtns);   // 初始隨機角（手機 UI：之後 setActiveNavBtn 現抽）
+    setActiveNavBtn(gradeBtns, gradeBtns[0].getAttribute('data-grade') || '', 'data-grade');
   }
 
   bindCardClick(panel);

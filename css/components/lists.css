@@ -218,7 +218,8 @@
     z-index: 40;
     height: var(--mobile-bar-h);
     margin: 0;
-    padding: 0 var(--container-padding);
+    /* 底 16（＝footer 鈕 44 − chip 28）：置中的 chip 上移 8＝中線對齊右下 footer 鈕中線（user 2026-11-04）；bar 高不動＝各頁一屏預算不變 */
+    padding: 0 var(--container-padding) 16px;
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
@@ -246,6 +247,15 @@
   }
   /* nav col 只剩 fixed bar → 去掉它在 flex-col 裡的 box（否則多一格 gap） */
   #faculty-cards .inner-scroll-nav-col { display: contents; }
+  /* 四類牆接著捲（faculty-filter.js）：點 nav 落點＝段頂 pad 92＋首牆 sm，牆間距要至少這麼大＋旋轉角餘量 sm，
+     捲到某類時上一類才整個出畫面（這段沒有 header 遮擋帶；user 2026-11-04「不要讓我看到上一個 nav 的內容」）。
+     iPad 寬 ≥768 吃 cards.css 的「間距掛首列卡片」那條 → 一併歸零、統一掛牆上 */
+  #page-content #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall:not(:empty) {
+    margin-top: calc(92px + 2 * var(--spacing-sm));
+  }
+  #page-content #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall .faculty-card:nth-child(-n+4) {
+    margin-top: 0;
+  }
 }
 
 /* ===== Panel Description：同 panel 多個 .panel-desc 以 data-desc-type 對應 sub-tab，只顯示 .active（JS 切 sub-filter 時同步）===== */
@@ -299,39 +309,22 @@
     padding-top: 12px;
     padding-bottom: 12px;
   }
-  /* 年份→list 間距：HTML 的 mt-md (24px) → 0（list-item 自帶 bottom border 接管視覺分隔） */
+  /* 年份→list 間距：HTML 的 mt-md (24px) → 0 */
   .list-year-items.mt-md {
     margin-top: 0 !important;
   }
-  /* 年份組分隔線在手機隱藏（改用 list-item 自帶 bottom border 視覺分隔） */
-  .activities-separator {
-    display: none;
-  }
-  /* 年份組間距：separator 雖 display:none 仍在 DOM，且可能被 setupClipReveal 包進 .clip-reveal-wrapper →
-     用 year-group:not(:first-child) margin-top 跨過 wrapper 結構。 */
   .list-year-group:not(:first-child) {
     margin-top: var(--spacing-md);   /* 2xl(手機 48) 減半（user 2026-10-29） */
   }
-  /* camp：年份組間改用容器 flex gap（md）而非 margin-top。
-     ⚠️ 必須同時隱藏 separator 的 .clip-reveal-wrapper：它仍是 flex 子，不隱藏 gap 會在 wrapper 兩側各加一次＝雙倍。
-     只 scope #summer-camp-list（其他頁仍走上面 margin-top）。 */
+  /* camp：年份組間改用容器 flex gap（md）而非 margin-top（只 scope #summer-camp-list，其他頁仍走上面 margin-top） */
   #summer-camp-list {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
   }
-  #summer-camp-list > .clip-reveal-wrapper:has(> .activities-separator) {
-    display: none;
-  }
   #summer-camp-list > .list-year-group:not(:first-child) {
     margin-top: 0;
   }
-  /* list-item 之間的 4px 分隔線＝JS 渲染的 .list-item-divider（activities-data-loader）。
-     桌面年份組最後一筆 .is-last 隱藏（避免與 .activities-separator 疊 8px）；手機 separator 已隱藏，.is-last 反而要顯示當收尾。 */
-  .list-item-divider.is-last {
-    display: block;
-  }
-
   /* === admission 手機 list-content：desc+poster 兩欄 → 單欄、poster 排前（同 activities；內距＝HTML p-sm 四邊同、全尺寸共用）=== */
   #admission-content-section .list-content > .grid {
     grid-template-columns: minmax(0, 1fr) !important;   /* 同 activities：講者名一行 nowrap 不撐出卡片 */
@@ -351,10 +344,6 @@
   #panel-summer-camp .list-content > .grid .grid {
     grid-template-columns: 1fr !important;
     gap: var(--spacing-xs);
-  }
-  /* 年份組間距（separator 已隱藏，改用 group margin） */
-  #panel-summer-camp .list-year-group + .list-year-group {
-    margin-top: var(--spacing-xl);
   }
   /* title 與右側 icons/chevron 之間補 gap：手機窄欄 marquee 跑時尾段才不撞 chevron */
   .list-header {
@@ -615,19 +604,9 @@
   line-height: var(--line-height-zh-s);
 }
 
-/* list-item-divider.is-last 桌面隱藏（年份組末端走 .activities-separator，避免疊 8px）；手機見 max-width block */
-@media (min-width: 768px) {
-  .list-item-divider.is-last {
-    display: none;
-  }
-}
-
-/* .list-item 全站去 marker：Tailwind .list-item 是 display:list-item，admission 為 sticky 不能靠 overflow-hidden 藏 marker。
-   padding-bottom 4px ＋ divider 負 margin（下一條）：divider 畫在 .list-item 內，sticky header 的 containing block 原涵蓋 divider、
-   被推走前會蓋掉分割線；負 margin 移出 content box、padding 補回 → 視覺不變、sticky 停在分割線上緣。 */
+/* .list-item 全站去 marker：Tailwind .list-item 是 display:list-item，admission 為 sticky 不能靠 overflow-hidden 藏 marker。 */
 .list-item {
   list-style: none;
-  padding-bottom: 4px;
 }
 
 /* content-visibility:auto：畫面外 item 退出 recalc/layout（互動成本 O(全清單)→O(一屏)）。
@@ -637,12 +616,6 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 144px;
 }
-/* divider 進場時被 setupClipReveal 包進 .clip-reveal-wrapper → wrap 前後兩種結構都 target */
-.list-item > .list-item-divider,
-.list-item > .clip-reveal-wrapper:has(> .list-item-divider) {
-  margin-bottom: -4px;
-}
-
 /* 進場動畫未完成時禁止 hover/click */
 .list-item[data-pre-reveal] {
   pointer-events: none;
@@ -768,7 +741,7 @@
     position: fixed;
     left: 0;
     right: 0;
-    bottom: calc(var(--mobile-bottom-anchor) + 28px);   /* 同 about .mobile-division-wrap：chip 頂；外框 16 內距＝可見距離 sm 16 */
+    bottom: calc(var(--mobile-bottom-anchor) + 36px);   /* 同 about .mobile-division-wrap：bar chip 頂（界線＋8 置中位移＋28）；外框 16 內距＝可見距離 sm 16 */
     z-index: 40;
     flex-wrap: nowrap;
     align-items: flex-end;
@@ -1418,35 +1391,26 @@ body.lightbox-open .hm-banner.is-poster-open { z-index: 15; }
   cursor: var(--cursor-pointer);
 }
 .hm-banner-btn .icon { font-size: 28px; }
-/* 換 icon 時鈕左進左出的遮罩＝鈕本身大小（index-marquee.js setBtnState） */
+/* ↗ 鈕進出的遮罩＝鈕本身大小（index-marquee.js setShareBtn）；↑↓ 換 icon＝新舊 icon 在自己的框裡推移交棒（setBtnState，
+   新的疊在舊的上面、舊的走完就拔掉） */
 .hm-banner-btn-clip { flex: none; display: flex; overflow: clip; }
+.hm-banner-btn-icon { position: relative; display: flex; overflow: clip; }
+.hm-banner-btn-icon > .icon + .icon { position: absolute; inset: 0; }
 
-/* ponytail: activities/admission list 無分割線 + 斑馬紋。
-   - item divider / 年份 separator 隱藏、search 底線去掉。
-   - 交叉要「連續」跨年份組：靠 loadListInto 全域計數加 .list-item-zebra（CSS nth-child 會在各 .list-year-items 內重新計數）。 */
-:is(#activities-content-section, #admission-content-section) .list-item-divider,
-:is(#activities-content-section, #admission-content-section) .clip-reveal-wrapper:has(> .list-item-divider),
-:is(#activities-content-section, #admission-content-section) .activities-separator {
-  display: none;
-}
-/* divider 藏了，給它讓位的 4px padding 也歸零（同 legal-zebra）。原本靠 divider wrapper 的 -4px margin 抵銷＝
-   只有包過遮罩的列抵得掉；deep-link born-shown 列沒包、每列多 4px，settle 補包時整串上跳（user 2026-10-04）
-   （畢業展 2026-10-29 改走共用列＋連結列變體，內距在 header／封面外框，不再排除） */
-:is(#activities-content-section, #admission-content-section) .list-item {
-  padding-bottom: 0;
-}
+/* loadListInto 清單（activities／admission／alumni）無分割線＋斑馬紋（分割線 2026-11-04 整套刪除，alumni 同日改斑馬）。
+   交叉要「連續」跨年份組：靠 loadListInto 全域計數加 .list-item-zebra（CSS nth-child 會在各 .list-year-items 內重新計數）。 */
 .activities-search-inner {
   border-bottom-width: 0;
 }
 /* standard / inverse：前景色 × --list-zebra-alpha 疊色（:root 0.05、inverse.css 0.1）。
    直接寫在 item 上 rgba(var(--theme-fg-rgb), …)，不走中介 :root 變數（會 inherit 成死黑、失去 mode-aware）。
    --zb-color 給下方 .zb-cover 進場用（定義在 item 本身＝照樣 mode-aware）。 */
-:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
+:is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra {
   --zb-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
   background-color: var(--zb-color);
 }
 /* mode3：固定白色疊色；alpha 由 theme-toggle.js 依 hue 亮暗寫進 --list-zebra-strip（暗 0.15、亮 0.4）。 */
-body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra {
+body.mode-color :is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra {
   --zb-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
 }
 /* 斑馬底色進場（list-row-reveal.js coverZebra／uncoverZebra）：底色改由 background-image 長出（內容之下），
@@ -1471,16 +1435,16 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 /* hover 其他 item 時 list-accordion.js 移除展開項的 accent inline → 露出 zebra：sticky title 變透明會跟下方內容疊字，
    故 title 與 content 都補「不透明」同款 zebra 灰（疊在 theme-bg 上）。有 accent inline 時 inline 勝 → 此規則自動休眠。
    content 也用不透明同色（與 title 每幀同色，避免褪色感知不同步）；rest 態與 item 半透明疊色視覺相同。 */
-:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active,
-:is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active + .list-content {
+:is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra > .list-header.active,
+:is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra > .list-header.active + .list-content {
   background: linear-gradient(rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05)), rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05))), var(--theme-bg);
 }
-:is(#activities-content-section, #admission-content-section) .list-item:not(.list-item-zebra) > .list-header.active,
-:is(#activities-content-section, #admission-content-section) .list-item:not(.list-item-zebra) > .list-header.active + .list-content {
+:is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item:not(.list-item-zebra) > .list-header.active,
+:is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item:not(.list-item-zebra) > .list-header.active + .list-content {
   background: var(--theme-bg);
 }
-body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active,
-body.mode-color :is(#activities-content-section, #admission-content-section) .list-item.list-item-zebra > .list-header.active + .list-content {
+body.mode-color :is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra > .list-header.active,
+body.mode-color :is(#activities-content-section, #admission-content-section, #alumni-activities-list, #alumni-org-list, #alumni-gatherings-list) .list-item.list-item-zebra > .list-header.active + .list-content {
   background: linear-gradient(var(--list-zebra-strip, rgba(255,255,255,0.15)), var(--list-zebra-strip, rgba(255,255,255,0.15))), var(--theme-bg);
 }
 
@@ -1627,14 +1591,14 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
 /* 當前播放＝lightbox 縮圖同款：2px 框外推 2px 留縫（activities-lightbox renderMain） */
 .works-playlist-item.is-active { outline: 2px solid var(--color-black); outline-offset: 2px; }
 
-/* 手機：縮圖列移到播放器下方、橫向捲動；縮圖 56px 高（>44 觸控；user 10-27 從 72 縮小） */
+/* 手機：縮圖列移到播放器下方、橫向捲動；縮圖 44px 高（＝觸控下限；user 10-27 從 72 縮到 56、11-04 再縮） */
 @media (max-width: 767px) {
   .works-video-row { flex-direction: column; }
   .works-playlist-list {
     flex: 0 0 auto;
     margin-left: 0;
     margin-top: -1px;                 /* 蓋 player 底緣 sub-pixel 縫 */
-    height: 88px;                     /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖 56 */
+    height: 76px;                     /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖 44；改了同步 variables.css --works-text-room 的 75 */
   }
   /* 四邊同桌面：inset 6 ＋ padding 10＝色塊邊→縮圖 16（user 10-27）；手機無 thumb → 右邊也 10 */
   .works-playlist-inner {
@@ -1655,7 +1619,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section) .li
   .works-playlist-inner::-webkit-scrollbar { display: none; }
   .works-playlist-item {
     width: auto;
-    height: 100%;                     /* 72px（aspect-ratio 撐出 128 寬） */
+    height: 100%;                     /* 44px（aspect-ratio 撐出寬） */
   }
   /* 左右 chevron（user 10-29，同 activities gallery：鈕 32、icon 16 距色塊邊 16、縮圖從 48 起、端點半透明）；
      JS 判溢出才掛 .has-chev，捲動列左右讓出 6＋32 */

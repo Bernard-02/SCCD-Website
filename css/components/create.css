@@ -55,12 +55,14 @@
 }
 
 /* 矮橫向硬 gate：只留 header＋旋轉提示。iOS 轉向時 JS inline display 時序不穩會漏 → CSS 釘死（!important 蓋 JS inline）。
-   z-index 40 < header z-50＝header 照常可點；gate 外維持 JS 行為。 */
+   z-index 40 < header z-50＝header 照常可點；gate 外維持 JS 行為。
+   打字中（.create-typing，mobile.js）不算：Chrome 開鍵盤連 innerHeight 都縮、直向手機變「寬＞高」→ 輸入框被藏＝失焦收鍵盤
+   → 又變回直向，一直循環（user 2026-11-04「Chrome 輸入超卡、畫面一直抖」）。真的轉橫向由 JS 看寬度變了處理 */
 @media (orientation: landscape) and (max-height: 500px) {
-  #create-app .main-container {
+  #create-app:not(.create-typing) .main-container {
     display: none !important;
   }
-  #create-app #landscape-overlay {
+  #create-app:not(.create-typing) #landscape-overlay {
     display: flex !important;
     z-index: 40;
   }
@@ -118,6 +120,8 @@
   /* 填滿父層 <main>（create.html：100dvh − header；dvh＝iPad Safari 工具列展開時的實際可視高，100vh 是收起的大視口） */
   width: 100%;
   height: 100%;
+  /* 觸控點擊不出 iOS 預設的灰色點擊框（點色條 thumb 時像一層陰影，user 2026-11-04）；會繼承＝整個 app 都不出 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* 三 mode 都不自畫 bg：底色全由 site body 單一 paint 透過來（跟 header 同一條 .mode-switching fade）。
@@ -1080,9 +1084,16 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     top: var(--header-height, 80px);
     left: 0;
     width: 100vw;
-    /* 高也扣 header，否則底部按鈕被截掉 */
+    /* 高也扣 header，否則底部按鈕被截掉。--create-base-h＝沒開鍵盤時的可視高（mobile.js updateMobileKbBase；
+       Chrome 開鍵盤連 dvh 都縮、鍵盤升降途中排版會跟著擠）；JS 寫值前退回 100dvh */
     height: calc(100vh - var(--header-height, 80px));
-    height: calc(100dvh - var(--header-height, 80px));
+    height: calc(var(--create-base-h, 100dvh) - var(--header-height, 80px));
+  }
+
+  /* iOS Safari 底部工具列半透明：文件只到 100dvh＝工具列後面是文件外，Safari 拿它自己取樣的舊底色填（mode3 拉色條後
+     底部跟畫面不同色，user 2026-11-04）→ 文件撐到 100lvh＝工具列後面也是 body 自己的底（即時 --theme-bg）。body 鎖捲動，不會多出可捲的一截 */
+  #page-content {
+    min-height: 100lvh;
   }
 
   /* === 手機主容器 === */
@@ -1129,7 +1140,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     /* 不設 aspect-ratio：canvas 尺寸由 JS 依可用空間算 */
     display: flex;
     justify-content: center;
-    align-items: center;
+    /* 靠上不置中：mode3 多一條色條、容器高不同，置中＝三個 mode 的 logo 高低不一（user 2026-11-04）；靠上＝離 header 固定距離 */
+    align-items: flex-start;
     padding: 0;
     box-sizing: border-box;
     transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
@@ -1158,7 +1170,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     max-height: 100%;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;   /* 同 logo 容器靠上：canvas 尺寸過渡中比容器高時不往上偏（鍵盤開關那一下） */
     transition: background-color var(--dur-base) ease;
     box-sizing: border-box;
   }
@@ -1314,21 +1326,24 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     margin-top: calc(-1 * var(--mobile-content-gap));
   }
 
+  /* 盒內距（user 2026-11-04「視覺上對齊」）：上下左＝--cp-pad、色條跟盒同心圓角；右邊＝「色條→icon」「icon 寬」「icon→盒右緣」
+     三段都等於 --cp-pad（▶ 本身寬＝--cp-pad），右內距由 play 鈕吃掉（鈕寬 3 段、觸控區也夠大） */
   .mobile-colorpicker-bar .colorpicker-bar-inner {
+    --cp-pad: var(--spacing-sm);
     display: flex;
     flex-direction: row;
     align-items: center;
     width: 100%;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0;
+    padding: var(--cp-pad) 0 var(--cp-pad) var(--cp-pad);
     border: none;
     border-radius: 9999px;   /* 膠囊（user 2026-10-27；同桌面 mode3 膠囊） */
     box-sizing: border-box;
   }
 
-  /* 色條容器：bar : play 鈕 = 9 : 1 */
   #mobile-colorpicker-container {
-    flex: 9;
+    flex: 1 1 auto;
+    min-width: 0;
     position: relative;
     height: 25px;
     border: 2px solid;
@@ -1349,24 +1364,32 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     border-color: var(--wireframe-border);
   }
 
+  /* 鈕高跟色條同高（原 30＞色條 25 → 上下內距比左邊多 2.5、盒不同心） */
   .mobile-colorwheel-play-btn {
-    flex: 1;
-    height: 30px;
+    flex: none;
+    width: calc(var(--cp-pad) * 3);
+    height: 25px;
     border: none;
     background: none;
     cursor: var(--cursor-pointer);
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
+    justify-content: flex-start;
+    padding: 0 0 0 var(--cp-pad);
     box-sizing: border-box;
     transition: opacity var(--dur-micro) ease;
   }
 
+  /* ▶（play_create.svg）圖形佔 viewBox 左 80%＝img 寬 --cp-pad÷0.8 時 ▶ 剛好 --cp-pad 寬、左緣貼 img 左緣；
+     ❚❚ 圖形在 viewBox 正中＝往左挪半格差、跟 ▶ 同一個中心（.is-play 由 utils.js updateColorWheelIcon 切） */
   .mobile-colorwheel-play-btn img {
-    width: 70%;
-    height: 70%;
+    width: calc(var(--cp-pad) / 0.8);
+    height: calc(var(--cp-pad) / 0.8);
+    flex: none;
     object-fit: contain;
+  }
+  .mobile-colorwheel-play-btn:not(.is-play) img {
+    margin-left: calc(var(--cp-pad) / 2 - var(--cp-pad) / 1.6);
   }
 
   .mobile-colorwheel-play-btn:active {
@@ -1392,81 +1415,32 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     justify-content: center;
     flex: 0 0 auto;
     width: 100%;
-    /* 固定 height（非 min-height）：字級變化時容器高不變。
-       --mobile-input-h＝最壞情況（40 個 W）實際行高（mobile.js reserveMobileInputHeight 量）→ 打滿也不溢出；量到前 3 行保底 */
-    height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
+    /* 全 mode 一行（user 2026-11-04「手機的 input 都改成一行，不需要三行」；原 mode1/2 三行預留＋≤6 字大字，改跟 mode3 同一套）：
+       一行字＋上下 padding、固定高＝打字不改版面 */
+    height: calc(2rem * 1.2 + 2rem * 0.8 * 2);
+    padding-block: calc(2rem * 0.8);
     margin-bottom: var(--mobile-content-gap);
     transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease;
     overflow: visible;
   }
 
-  /* --- 手機輸入框高度規範（依 mode／字數／Custom 狀態）--- */
-
-  /* <6 字的大字靠 JS 調 padding-top 在 3 行容器內置中 */
-
-  /* --- 1. 無 Custom --- */
-
-  /* 1.1 Standard/Inverse：沿用預設 3 行 */
-
-  /* 1.2 mode3：恆為小字單行＋上下 padding */
-  #create-app.wireframe-mode .mobile-input-area:not(.has-custom) {
-    height: calc(2rem * 1.2 + 2rem * 0.8 * 2);
-    padding-top: calc(2rem * 0.8);
-    padding-bottom: calc(2rem * 0.8);
-  }
-
-  /* --- 2. 開啟 Custom --- */
-
-  /* 2.1 Standard/Inverse＋Custom：同上預留高 */
-  #create-app.standard-mode .mobile-input-area.has-custom,
-  #create-app.inverse-mode .mobile-input-area.has-custom {
-    height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
-    margin-bottom: 0;
-    padding: 0;
-  }
-
-  /* 2.2 mode3＋Custom：小字單行＋gap */
-  #create-app.wireframe-mode .mobile-input-area.has-custom {
+  /* Custom 開著：只留一行＋gap（負 margin 抵消 logo↔輸入框 gap） */
+  .mobile-input-area.has-custom {
     height: calc(2rem * 1.2 + var(--mobile-content-gap));
-    margin-top: calc(-1 * var(--mobile-content-gap)); /* 負 margin 抵消 logo↔輸入框 gap */
+    margin-top: calc(-1 * var(--mobile-content-gap));
     margin-bottom: 0;
     padding: 0;
-    display: flex;
-    align-items: center;
   }
 
-  /* 2.3 有色條無 Custom：去下方 gap */
+  /* 有色條無 Custom：去下方 gap */
   .mobile-input-area.has-colorpicker:not(.has-custom) {
     margin-bottom: 0;
   }
 
-  /* --- 3. 彩蛋：沿用上面規則（3 行容器＋JS padding-top 置中；mode3 小字單行），無額外 CSS --- */
-
-  /* 鍵盤開啟（JS .keyboard-active）：輸入框強制單行 */
-  .mobile-input-area.keyboard-active {
-    flex: none !important;
-    min-height: auto !important;
-    padding: 0 !important;
-    margin-bottom: 0 !important;
-  }
-
-  .mobile-input-area.keyboard-active #mobile-input-box {
-    min-height: auto !important;
-    height: 100% !important;
-    max-height: none !important;
-    overflow: hidden;
-    white-space: nowrap;
-    text-align: center;
-    font-size: 2rem !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    line-height: 40px !important; /* line-height 垂直置中，須與 mobile.js inputHeight（40）一致 */
-  }
-
+  /* 一行、字多於框寬＝橫向捲（捲軸藏起來） */
   #mobile-input-box {
     width: 100%;
-    height: auto;
-    min-height: max(calc(2rem * 1.2 * 3), var(--mobile-input-h, 0px));
+    height: calc(2rem * 1.2);
     font-size: 2rem;
     font-family: inherit;
     font-weight: 500;
@@ -1476,53 +1450,43 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     outline: none;
     color: inherit;
     resize: none;
+    white-space: nowrap;
+    overflow-x: auto;
     overflow-y: hidden;
-    overflow-x: hidden;
+    scrollbar-width: none;
     line-height: 1.2;
     box-sizing: border-box;
     /* 防鍵盤彈出時自動捲動 */
     scroll-margin: 0;
-    /* padding 由 JS 動態調整以垂直置中 */
-    padding-top: 0;
-    padding-bottom: 0;
-    transition: font-size var(--dur-micro) ease, padding-top var(--dur-micro) ease;
+    padding: 0 0.5rem;
   }
 
-  /* ≤6 字用大字；>6 字 JS 加 .small-text 縮回 2rem */
-  #mobile-input-box:not(:placeholder-shown):not(.small-text) {
-    font-size: 3.5rem;
+  #mobile-input-box::-webkit-scrollbar {
+    display: none;
   }
 
-  #mobile-input-box.small-text {
-    font-size: 2rem;
-  }
-
-  /* 最滿狀態（mode3＋Custom＋色條）：單行最小字、可橫捲 */
-  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box {
-    font-size: 2rem !important;
-    height: calc(2rem * 1.2);
-    min-height: calc(2rem * 1.2);
-    max-height: calc(2rem * 1.2);
-    white-space: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    text-align: center;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    /* 隱藏捲軸但保留捲動 */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  /* 溢出（JS .overflowing）時靠左，方便滑看 */
-  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box.overflowing {
+  /* 溢出（mobile.js checkInputOverflow 掛 .overflowing）時靠左：置中的一行超寬＝左半截捲不到 */
+  #mobile-input-box.overflowing {
     text-align: left;
   }
 
-  #create-app.wireframe-mode .mobile-input-area.has-custom.has-colorpicker #mobile-input-box::-webkit-scrollbar {
-    display: none;
+  /* 鍵盤開著（mobile.js setMobileKeyboard）：app 縮成鍵盤上方的可視高（--create-vv-h）、只留 logo＋輸入框；
+     logo 由容器 ResizeObserver 依新高度重算一次（user 2026-11-04：舊版鍵盤滑動中每次 resize 都重排＝打字卡、畫面抖、
+     收鍵盤 logo 先變大再變小；logo 高沒扣 header＝小手機被切） */
+  #create-app.create-kb-mobile {
+    height: calc(var(--create-vv-h, 100dvh) - var(--header-height, 80px));
+  }
+  #create-app.create-kb-mobile .main-container {
+    padding-block: var(--spacing-sm);
+  }
+  /* 特異度同 #create-app .mobile-colorpicker-bar.hidden（display:grid !important），排在它後面才贏 */
+  #create-app.create-kb-mobile :is(.mobile-custom-angle-controls, .mobile-colorpicker-bar, .mobile-bottom-bar) {
+    display: none !important;
+  }
+  #create-app.create-kb-mobile .mobile-input-area {
+    height: calc(2rem * 1.2);
+    padding: 0;
+    margin: 0;
   }
 
   #create-app.standard-mode #mobile-input-box {
@@ -1550,24 +1514,6 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   #create-app.wireframe-mode #mobile-input-box {
     color: var(--wireframe-border);
-    font-size: 2rem !important;
-    height: calc(2rem * 1.2);
-    min-height: calc(2rem * 1.2);
-    max-height: calc(2rem * 1.2);
-    white-space: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    text-align: center;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  #create-app.wireframe-mode #mobile-input-box::-webkit-scrollbar {
-    display: none;
   }
 
   #create-app.wireframe-mode #mobile-input-box::placeholder {

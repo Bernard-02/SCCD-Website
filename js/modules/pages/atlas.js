@@ -9,6 +9,7 @@ import { loadAtlasData } from './atlas-source.js';
 import { countryName } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
+import { isColorLoopRunning, stopSiteColorLoop, startSiteColorLoop } from '../ui/theme-toggle.js';
 import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';
 import { bindArrowSpin, randomSpinAngle } from '../ui/arrow-spin.js';
 import { bindNavBtnHover, isNavSpinDesktop } from '../ui/section-switch-helpers.js';
@@ -1912,6 +1913,19 @@ export async function initAtlas(options = {}) {
   // 回 map 收尾 refreshFloatRunning 用既有 floatPausedAt 補償 → 從凍結相位接續、落點零跳動。
   // 宣告在此（refreshFloatRunning init 就會讀，宣告在 morph 區會 TDZ）
   let viewMorphing = false;
+  // mode3：切 list／回星雲的 morph 期間背景色相暫停（user 2026-11-04：過渡中 chip 色跟底色對不上）。
+  // 只停本來在跑的（鉛筆 Pause 過的不動）；中途反向切＝沿用同一次暫停、最後落地那段才恢復；離頁 cleanup 兜底
+  let morphHuePaused = false;
+  const pauseHueForMorph = () => {
+    if (morphHuePaused || !document.body.classList.contains('mode-color') || !isColorLoopRunning()) return;
+    stopSiteColorLoop();
+    morphHuePaused = true;
+  };
+  const resumeHueAfterMorph = () => {
+    if (!morphHuePaused) return;
+    morphHuePaused = false;
+    if (document.body.classList.contains('mode-color')) startSiteColorLoop();   // 過渡中切離 mode3＝不重啟
+  };
   // 反向 morph「全 item 掀完」提前解凍（user 08-25：host 圈落地後呆等城市線收尾才轉）：
   // mask 全離場＋落點量測全完成後，wobble 不必等 master（被城市/線 2.25s 拖尾）收尾
   let floatThawEarly = false;
@@ -5389,6 +5403,7 @@ export async function initAtlas(options = {}) {
   }
   cleanupFns.push(() => {
     viewMorphing = false;
+    resumeHueAfterMorph();
     floatThawEarly = false;
     if (morphLayer) { morphLayer.remove(); morphLayer = null; }
   });
@@ -5398,7 +5413,8 @@ export async function initAtlas(options = {}) {
   // （user 08-27：靠攏 item 不需要先離開）→ chevron 最後；反向＝鏡像倒放
   const M_CITY_DUR   = 0.5;    // 正向 stage A：城市方塊掃出（也＝褪黑/擦色塊窗長）
   const M_LINE_DUR   = 0.35;   // 正向 stage A 前半：城市線先收完，方塊才掃出（user 10-01「先線後點」；原本線跟方塊同時起跑、線還比方塊晚 0.2s 收完）
-  const M_CITY_LEAD  = M_LINE_DUR + M_CITY_DUR;   // user 08-31：城市方塊+線段「先離開」的領先窗＝其餘元素等城市走完才開始（線→城市→變黑擦塊→位移）；10-01 起含線的 0.35
+  // 線先收（10-01「先線後點」）→ 城市方塊跟 host 色塊同拍掃出（user 2026-11-04：國家 box 不必比 hosting chip 早）＝同 decolorize 窗
+  const M_CITY_LEAD  = M_LINE_DUR;
   const M_FADE_START = M_CITY_LEAD + M_CITY_DUR;   // 非第一頁 chip 靠攏+fade＝Phase C（城市→decolorize→才位移，與 item 同波）
   const M_FADE_DUR   = 0.45;
   const M_FADE_RANGE = 0.25;   // fade 微 stagger 散開
@@ -5406,7 +5422,7 @@ export async function initAtlas(options = {}) {
   const M_NAV_STEP   = 0;      // user 08-31 選 B：nav btn 不階梯、同一刻起飛＝同時到位（0.12 階梯拉開 ~0.48s 跟 option C 俐落感不搭）
   // 起飛波演進：1.0→0.3(option C 重疊)→M_CITY_DUR(緊接 decolorize)→M_CITY_LEAD+M_CITY_DUR(user 08-31 三拍：
   // 城市/線先走[0,0.5]→全體變黑+擦色塊[0.5,1.0]→全黑無底色才位移[1.0,]；paired 起飛時已全黑＝flipFlyNode 補色 no-op）
-  // 10-01 加「先線後點」後整體後移 M_LINE_DUR：線[0,0.35]→城市[0.35,0.85]→變黑擦塊[0.85,1.35]→位移[1.35,]
+  // 10-01 加「先線後點」後整體後移 M_LINE_DUR；11-04 城市併入變黑擦塊窗：線[0,0.35]→城市＋變黑擦塊[0.35,0.85]→位移[0.85,]
   const M_ITEM_START = M_CITY_LEAD + M_CITY_DUR;   // 位移等 城市離開 + decolorize+erase 都完成（user 08-31）
   const M_ITEM_RANGE = 0.3;
   const M_COLOR_FADE = M_CITY_DUR;   // 彩→theme-fg 褪黑窗＝對齊 host 色塊掃除（user 08-31：item 變黑要跟色塊消失「同時同 ease」＝EASE.exitSoft，否則黑 item 夾雜殘留色塊很突兀）；paired 起飛後由 flipFlyNode --atlas-fly-c 續完
@@ -5423,7 +5439,17 @@ export async function initAtlas(options = {}) {
   // 反向 stage3 bloom（user 09-04）：非 host item 到位後，全體 recolor（黑→彩色）＋ host 色塊 clip-in「一起現身」＝正向 exit「decolorize + 色塊 clip-out」的鏡像；
   //   ＝R_FADE_START＋M_FADE_RANGE＋CONVERGE_DUR(0.85，定義在下方)＝未配對 A/C 落地窗尾（晚到的 paired straggler 各自 onLand 自補、不卡此時點）
   const R_BLOOM = R_FADE_START + M_FADE_RANGE + 0.85;
-  const R_CITY_START = R_BLOOM + M_COLOR_FADE;   // 反向 stage4：城市「最後」出現（user）；bloom 上色收完才起＝城市確實壓軸
+  const R_INK_LEAD = 0.15;   // 回程 host 文字比色塊早 0.15s 起 fade（色塊 clip-in delay 此值；user 09-08，0.2→0.15）
+  const R_CITY_START = R_BLOOM + R_INK_LEAD;   // 反向：城市跟 host 色塊 clip-in 同拍出現（user 2026-11-04，原壓軸在 bloom 之後）；線照舊等城市淡入完才畫
+  // list 副標＋國家後綴逐筆擲上下（同一筆共用方向；user 2026-11-04 進退場都要，原固定由下）→ Map(el → ±110)
+  const randomSubDirs = (/** @type {any[]} */ its) => {
+    const m = new Map();
+    its.forEach(it => {
+      const dir = Math.random() < 0.5 ? 110 : -110;
+      [...it._subsEl.querySelectorAll('.atlas-list-item-label'), ...it._span.querySelectorAll('.atlas-list-cc > span')].forEach(el => m.set(el, dir));
+    });
+    return m;
+  };
   const NAV_ORDER = /** @type {Record<string, number>} */ ({ faculty: 0, alumni: 1, host: 2, employ: 3, partners: 4 });
 
   // ── 遮罩三段核心（單一節點架構）────────────────────────────
@@ -5796,7 +5822,7 @@ export async function initAtlas(options = {}) {
         clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
         duration: M_CITY_DUR, ease: EASE.enterSoft,
         onComplete: () => { i._anchor.style.opacity = '0'; n.style.clipPath = ''; },   // 藏住後清 clip（回程 fade in 顯全塊）
-      }, M_LINE_DUR + Math.random() * 0.1);   // 線先收完（M_LINE_DUR）方塊才掃出
+      }, M_CITY_LEAD + Math.random() * 0.1);   // 線先收完方塊才掃出＝跟 host 色塊同拍（同起跑式）
     });
     // overwrite:true 防止 clearDetail() 觸發的 setCityLineRetract 反向 tween 拉扯
     cityLines.forEach(cl => {
@@ -5842,7 +5868,7 @@ export async function initAtlas(options = {}) {
     moves.forEach(({ i, d }) => {
       const at = M_FADE_START + Math.random() * M_FADE_RANGE;
       if (i.category === 'B') {
-        // 未配對 B：Phase B 底色 ghost clip-reveal 掃除（隨機四向、同城市方塊＋paired host；M_CITY_LEAD＝城市走完才擦、dur 對齊 M_CITY_DUR）。
+        // 未配對 B：Phase B 底色 ghost clip-reveal 掃除（隨機四向、同城市方塊＋paired host；M_CITY_LEAD＝線收完、跟城市方塊同拍擦、dur 對齊 M_CITY_DUR）。
         // ghost 起點 clipPath=COVER_SHOWN_M（全顯）→掃到隨機 hide inset；裸文字（theme-fg）Phase C 才位移＝不與色塊分離。
         tl.call(() => {
           if (destroyed) return;
@@ -5873,7 +5899,7 @@ export async function initAtlas(options = {}) {
   }
 
   /** 星雲分階段進場（morph 反向＝正向鏡像倒放；spanItems=未被 clone 接管者）：
-   *  其餘 A/B/C chip fade in（R_FADE_START）→ 最後 D 城市 fade in + 連線 draw（R_CITY_START）
+   *  其餘 A/B/C chip fade in（R_FADE_START）→ D 城市跟 host 色塊同拍 fade in（R_CITY_START）→ 連線 draw
    *  init 把 anchors 壓到 opacity:0 / cityLines 縮點 / ring 隱形；onComplete 清 inline opacity
    * @param {any[]} spanItems */
   function buildMapEnterTl(spanItems) {
@@ -5981,6 +6007,7 @@ export async function initAtlas(options = {}) {
     }
 
     viewMorphing = true;
+    pauseHueForMorph();
     floatThawEarly = false;
     refreshFloatRunning();   // 凍結 wobble（floatPausedAt 記點；回 map 收尾恢復時補償＝相位接續）
     main.classList.add('atlas-morphing');
@@ -6093,6 +6120,7 @@ export async function initAtlas(options = {}) {
         stage.style.opacity = '';
         deferListNodes = false;
         viewMorphing = false;
+        resumeHueAfterMorph();
         refreshFloatRunning();   // stage 已藏 → 維持暫停（floatPausedAt 已記，回 map 恢復時補償）
         chromePairs.forEach(p => { p.srcEl.style.visibility = ''; });   // filterEl 即將藏，歸位無感
         pairs.forEach(p => { p.item._span.style.visibility = ''; });    // 保險（landing 已還原）
@@ -6122,7 +6150,7 @@ export async function initAtlas(options = {}) {
     }, null, restoreDelay);
     const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
     master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
-    // Phase B（restoreDelay + M_CITY_LEAD）：城市走完才「全體變黑 + 擦色塊」。全 map item 文字統一漸變到 theme-fg
+    // Phase B（restoreDelay + M_CITY_LEAD）：線收完、城市方塊同拍「全體變黑 + 擦色塊」。全 map item 文字統一漸變到 theme-fg
     // （黑／inverse 白／mode3 前景）；dur＝M_COLOR_FADE、ease exitSoft 對齊 host 色塊掃除（見 buildMapExitTl / paired 分支）。
     // ⚠️ gsap 不能 interp CSS var 目標 → 先用隱形 probe 把 var(--theme-fg) 解成 concrete 色。
     // 回程各自還原 item.color（paired 靠 flipFlyNode 飛行補色、unpaired A/C 靠 buildMapEnterTl、unpaired B 靠 fade onComplete）
@@ -6147,7 +6175,7 @@ export async function initAtlas(options = {}) {
       const flyAt = M_ITEM_START + Math.random() * M_ITEM_RANGE;
       // 副標＋右箭頭都改「全體同刻」批次揭露（見下方 SUB_REVEAL_AT）＝不跟各欄落地分波（user 09-04：副標要跟箭頭那批一起出現）
       if (p.item.category === 'B') {
-        // host 底色塊移除排在 Phase B（restoreDelay + M_CITY_LEAD，跟 decolorize 同波、城市走完之後）＝與
+        // host 底色塊移除排在 Phase B（restoreDelay + M_CITY_LEAD，跟 decolorize 同波、城市方塊同拍）＝與
         // 「全體變黑」同一拍擦色塊；色塊掃除、留裸文字（已轉 theme-fg）在原地，Phase C（flyAt）才直飛歸列。
         master.call(() => {
           if (destroyed) return;
@@ -6170,12 +6198,13 @@ export async function initAtlas(options = {}) {
     // 不是等所有 item 落地的最晚時刻）。title 文字在 maskFlyChrome onComplete 揭露＝chrome delay(M_NAV_START，STEP 0 同刻)
     // ＋CHROME_TEXT_OUT＋flyDurC(FLY_DUR+1)。此刻 ≥ 全 item 起飛完(M_ITEM_START+M_ITEM_RANGE=1.3)＝副標 yPercent 已被 flipFlyNode 藏好、無 race。
     const SUB_REVEAL_AT = restoreDelay + M_NAV_START + CHROME_TEXT_OUT + (FLY_DUR + 1);
-    const allSubs = /** @type {HTMLElement[]} */ (pairs.flatMap(p => [...p.item._subsEl.querySelectorAll('.atlas-list-item-label'), ...p.item._span.querySelectorAll('.atlas-list-cc > span')]));
+    const subDirs = randomSubDirs(pairs.map(p => p.item));
+    const allSubs = [...subDirs.keys()];
     master.call(() => {
       if (destroyed) return;
-      // 副標＋國家後綴＝各自遮罩內由下往上 clip-reveal。force3D:false：GSAP 預設補間中用 translate3d 提升合成層，
+      // 副標＋國家後綴＝各自遮罩內逐筆隨機上／下 clip-reveal（藏態 flipFlyNode 設 110、遮罩外換方向看不見）。force3D:false：GSAP 預設補間中用 translate3d 提升合成層，
       //   文字改對齊整數像素、結束回一般渲染又跳回小數座標＝「國家出現時左右抖一下」（user 2026-10-20，實測偏 0.155px）
-      if (allSubs.length) gsap.fromTo(allSubs, { yPercent: 110 },
+      if (allSubs.length) gsap.fromTo(allSubs, { yPercent: (/** @type {number} */ _, /** @type {Element} */ el) => subDirs.get(el) },
         { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true, force3D: false });
       navItems.forEach(revealNav);   // 右箭頭跟副標同刻（navShown 去重＝onComplete 補揭露變 no-op）
       if (listCareerCtrl) listCareerCtrl.show({ delay: 0 });   // 職業chip 併入同批＝跟 title/副標/箭頭一起（user 09-04：不要 onComplete 最後單獨出）
@@ -6221,6 +6250,7 @@ export async function initAtlas(options = {}) {
 
     currentView = 'map';
     viewMorphing = true;
+    pauseHueForMorph();
     main.classList.add('atlas-morphing');
     drainRevealTimers();
     if (introTween) introTween.kill();
@@ -6292,6 +6322,7 @@ export async function initAtlas(options = {}) {
         btns.forEach(b => b.classList.add('atlas-filter-revealed'));     // 落地已加；漏網補上
         stage.style.opacity = '';
         viewMorphing = false;
+        resumeHueAfterMorph();
         refreshFloatRunning();   // 恢復 float（通常 floatThawEarly 已提前解凍＝no-op；補償在解凍當下做）
         floatThawEarly = false;
         resumeRingFlow();   // 保險：B 飛行 tween 被砍、沒走到最後一顆 onLand 也不會整圈凍住（已放＝no-op）
@@ -6320,7 +6351,6 @@ export async function initAtlas(options = {}) {
     const themeFgInvC = getComputedStyle(_bwProbe).color;
     _bwProbe.remove();
     const R_INK_DUR = M_CITY_DUR;   // mode3 文字白→黑 fade dur＝跟色塊同 0.5s（user 09-08）；ease 走 exitSoft(power2.in)、色塊走 power2.out＝回程唯一帶「不同 ease」的元素
-    const R_INK_LEAD = 0.15;        // 回程文字比色塊早 0.15s 起 fade（色塊 clip-in delay 此值；user 09-08，0.2→0.15）
     const bloomItem = (i) => {
       gsap.to(i._span, { color: i.color, duration: M_COLOR_FADE, ease: EASE.enterSoft, overwrite: 'auto' });   // standard/inverse 補色（黑→彩色）；mode3 被 !important 擋、改由 .atlas-b-bloom var tween 上色
       if (i.category === 'B') {   // host 色塊 clip-in（ghost 隨機四向掃入＝exit clip-out 鏡像）
@@ -6407,10 +6437,9 @@ export async function initAtlas(options = {}) {
     // 只收「即將飛回的當頁 item」副標（非全 listView，避免掃到 off-screen 量測 ghost）；
     // 全體同刻一起收（撤 stagger＝user 09-04：正向一起現、回程也要一起消）；跟去程揭露同曲線同時長（user 10-26「跟去的一樣」）＝
     // 一點就動、速度感同去程。副標在 item span 內、起飛換 chip 形就隱藏：R_LIST_EXIT 時已收 ~91%，尾巴被藏掉看不出
-    const subExitR = flyItems.flatMap(it =>
-      /** @type {HTMLElement[]} */ ([...it._subsEl.querySelectorAll('.atlas-list-item-label'), ...it._span.querySelectorAll('.atlas-list-cc > span')]));
-    if (subExitR.length) {
-      gsap.to(subExitR, { yPercent: 110, duration: DUR.reveal, ease: EASE.enter, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
+    const subExitDirs = randomSubDirs(flyItems);
+    if (subExitDirs.size) {
+      gsap.to([...subExitDirs.keys()], { yPercent: (/** @type {number} */ _, /** @type {Element} */ el) => subExitDirs.get(el), duration: DUR.reveal, ease: EASE.enter, overwrite: true, force3D: false });   // 同上：不提升合成層＝收起不抖
     }
     const yTargets = /** @type {HTMLElement[]} */ ([...listView.querySelectorAll('.atlas-list-col-title')])
       .filter(el => !pairedTitleEls.has(el));

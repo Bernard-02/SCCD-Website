@@ -687,6 +687,42 @@ export function initBFADivisionToggle() {
   window.addEventListener('resize', onFitResize);
   registerPageCleanup(() => { window.removeEventListener('resize', onFitResize); cancelAnimationFrame(fitRaf); });
 
+  // 手機 Programs／Works：左右滑該段＝切 division tab（user 2026-11-04，取代「段尾往下滑換下一個 tab」的 data-snap-tabs）。
+  // 段＝[data-swipe-tabs]（值＝該段 tab 鈕 selector，DOM 順序＝tab 順序、目前那顆 .active）；左滑＝下一個、右滑＝上一個。
+  // 水平 > 50 且明顯大於垂直才算；從自己會吃橫向手勢的東西（圖片輪播 touch-action pan-y、橫向捲動列）起手＝交給它
+  if (SCCDHelpers.isMobileLayout()) {
+    let sx = 0, sy = 0;
+    /** @type {HTMLElement|null} */
+    let zone = null;
+    const ownsX = (/** @type {Element|null} */ el, /** @type {Element} */ stop) => {
+      for (; el && el !== stop; el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (cs.touchAction === 'pan-y' || (/auto|scroll/.test(cs.overflowX) && el.scrollWidth > el.clientWidth + 1)) return true;
+      }
+      return false;
+    };
+    const onStart = (/** @type {TouchEvent} */ e) => {
+      zone = null;
+      const t = e.touches[0];
+      if (!t || e.touches.length > 1) return;
+      const z = /** @type {HTMLElement|null} */ (/** @type {Element} */ (e.target).closest?.('[data-swipe-tabs]'));
+      if (!z || ownsX(/** @type {Element} */ (e.target), z)) return;
+      zone = z; sx = t.clientX; sy = t.clientY;
+    };
+    const onEnd = (/** @type {TouchEvent} */ e) => {
+      const z = zone, t = e.changedTouches[0];
+      zone = null;
+      if (!z || !t) return;
+      const dx = t.clientX - sx, dy = t.clientY - sy;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      const tabs = /** @type {HTMLElement[]} */ ([...document.querySelectorAll(z.dataset.swipeTabs || '')]);
+      tabs[tabs.findIndex(b => b.classList.contains('active')) + (dx < 0 ? 1 : -1)]?.click();
+    };
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    registerPageCleanup(() => { document.removeEventListener('touchstart', onStart); document.removeEventListener('touchend', onEnd); });
+  }
+
   // 離頁退場：works 區 active panel 的說明文字（含 playlist）clip-path 右→左收 + 影片往左滑出。
   // 沿用本模組 works 切換的同一組常數/方向（手感一致）。works layout 已 init、且區塊在視窗內才跑。
   // 手機也跑：grid-stack + clip 切換機制兩寬度共用（initWorksLayoutOnce 不分寬度），退場同理（2026-06-12 解除桌面限定）。

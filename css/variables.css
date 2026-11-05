@@ -111,6 +111,7 @@
   --space-en-zh-lg:   0.25rem;   /* text-lg 4px：faculty/alumni 卡片人名 h5／about BFA/MDES 切換 */
   --space-en-zh-xl:   0.5rem;    /* text-xl 8px：faculty/curriculum slide-in 名字/標題＋legal xl 標題（policy group/regulations/donate 條款標題） */
   --space-en-zh-body: 1.5rem;    /* 雙語「段落」prose 間距（獨立軸、非緊湊標籤）：about/admission，Tailwind mb-en-zh-body */
+  --zh-vert-tracking: 0.1em;     /* 直排中文字距（user 2026-11-04 加大）：about resources 直式標籤＋library 色塊直排字條共用 */
 
   /* ===== Spacing ===== */
   --spacing-xs: 0.5rem;   /* 8px */
@@ -685,15 +686,16 @@
   #mobile-anchor-strip {
     height: var(--about-bar-h);
     padding-top: 0;
-    padding-bottom: 0;
+    padding-bottom: 16px;   /* 同 lists.css .nav-bottom-bar：chip 中線對齊 footer 鈕中線（44 − 28），bar 高不動 */
   }
   #mobile-anchor-strip .anchor-nav-inner {
     flex-direction: row;
     align-items: baseline;
     gap: 0.3em;   /* ≈ 一個空白 */
   }
-  /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16） */
-  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 28px); }
+  /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋8 置中位移＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16）；
+     chip 對齊 footer 鈕中線後 tab 底離 footer 鈕頂 8（user 2026-11-04「跟 footer 鈕要有一點 gap」） */
+  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 36px); }
   /* 矮橫向（寬 ≥768）吃不到上方 <768 段的 fixed／顯隱／nav 捲動規則、又被 md:hidden 藏 → 這裡補一份（直向重複無害；landscape.css 5i+ 藏桌面 #class-buttons-sticky） */
   #class-works-area .mobile-division-wrap {
     display: block;
@@ -723,11 +725,11 @@
   .class-info-panel .division-images { height: var(--class-img-h, max(calc((100svh - 316px) / 2), 120px)) !important; }
   .class-info-panel [data-class-text] { height: var(--class-text-h, max(calc((100svh - 316px) / 2 - 1em), 120px)); }
   /* Works 說明卡：在「playlist 底 → 底部 division nav 頂」剩下的空間垂直置中（user 10-27）。
-     room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 87 playlist（88 − 1 疊縫）−（80 division nav − 8 下移）− bar；
+     room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 75 playlist（76 − 1 疊縫，lists.css .works-playlist-list）−（80 division nav − 8 下移）− bar；
      文字欄吃滿 room、拉回 grid row gap（gap 不算進置中空間）；上下至少留 md（文字長時不貼 playlist／division tab），
      文字盒放不下就內捲 */
   .class-works-panel {
-    --works-text-room: calc(100svh - 92px - var(--spacing-md) - (100vw - 2 * var(--container-padding)) * 9 / 16 - 87px - 80px + var(--spacing-xs) - var(--about-bar-h));
+    --works-text-room: calc(100svh - 92px - var(--spacing-md) - (100vw - 2 * var(--container-padding)) * 9 / 16 - 75px - 80px + var(--spacing-xs) - var(--about-bar-h));
   }
   .class-works-panel .grid-20 > :first-child {
     min-height: var(--works-text-room);

@@ -29,7 +29,7 @@ interface SCCDHelpersAPI {
 
   // 三原色 / 隨機樣式
   ACCENT_COLORS: readonly string[];
-  getRandomAccentColor(): string;
+  getRandomAccentColor(avoid?: string): string;
   getRandomRotation(): number;
   rerollAngle<T extends number | string>(gen: () => T, prev: number | string | undefined): T;
   headerGeom(): { logoTop: number; mid: number; btnTop: number; btnBottom: number };

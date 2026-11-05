@@ -44,7 +44,7 @@ function stopFacultyImgCycle(preserveVisual = false) {
 }
 
 import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.js';
-import { openSlideInBg, closeSlideInBg } from '../ui/slide-in-bg-sync.js';
+import { openSlideInBg, closeSlideInBg, SLIDE_IN_ARRIVE } from '../ui/slide-in-bg-sync.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { countryName } from '../../data/country-names.js';
@@ -58,7 +58,7 @@ import { loadUiLabels } from '../ui/ui-labels.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { bindNavBtnHover } from '../ui/section-switch-helpers.js';
 import { revealHidden } from '../ui/scroll-animate.js';
-import { createDeskCard } from '../ui/desk-card.js';
+import { createDeskCard, createSlideInEntrance } from '../ui/desk-card.js';
 
 // 系所全名（slide-in 名字上方 tag）＝Directus ui_labels，老師後台可改；載入後填入、開卡時讀。
 // key = `faculty.department.<department 欄值>`（dcd / bpaidc）；未載入 / 無此 row → 退下方 DEPT_FALLBACK。
@@ -121,7 +121,6 @@ export function initFacultySlideIn() {
   const slideInPanel = document.getElementById('faculty-panel');
   const slideInOverlay = document.getElementById('faculty-overlay');
   const closeBtn = document.getElementById('faculty-close-btn');
-  const backBtnMobile = document.getElementById('faculty-back-btn-mobile');
   // 真桌面＝固定色卡（desk-card.js；幾何 cards.css 真桌面段）；手機／矮橫向維持右側 slide-in。開卡時決定、關卡沿用。
   let deskCard = false;
   // 左欄：照片遮罩＋名字（titles 只有矮橫向才填，桌面恆空）
@@ -130,13 +129,13 @@ export function initFacultySlideIn() {
     return [img && img.parentElement, document.getElementById('faculty-detail-name-en'), document.getElementById('faculty-detail-name-zh')].filter(Boolean);
   }
   // 右欄拆區塊（lead、各 section），每塊再拆片（lead 每項／section 標題欄＋每一列）。
-  // 只拆捲動框內看得到的：框外的捲上來時已就位（同 library 只揭可視列）
-  function deskRightBlocks() {
+  // 只拆捲動框內看得到的：框外的捲上來時已就位（同 library 只揭可視列）。手機整個 panel 捲＝傳視窗底
+  function deskRightBlocks(bottomLimit) {
     const scroller = slideInPanel.querySelector('#faculty-detail-right .list-scroll');
     const sections = document.getElementById('faculty-detail-sections');
     const lead = document.getElementById('faculty-detail-lead');
     if (!scroller || !sections) return [];
-    const bottom = scroller.getBoundingClientRect().bottom;
+    const bottom = bottomLimit ?? scroller.getBoundingClientRect().bottom;
     const leadPieces = lead ? [...lead.children].flatMap(c => c.classList.contains('faculty-lead-rows') ? [...c.children] : [c]) : [];
     const secPieces = [...sections.children].map(sec => {
       const [title, body] = sec.children;
@@ -153,6 +152,16 @@ export function initFacultySlideIn() {
     getBlocks: () => [deskLeft(), ...deskRightBlocks()],   // 左欄 → lead → 各 section
     isFourWay: (el) => !!el.querySelector('#faculty-detail-image'),   // 照片遮罩四向；文字只上下
   });
+  // 手機／矮橫向 slide-in：同一套分類首開進場（user 2026-11-04）；左欄多了矮橫向塞在名字下的職級（titles），只取視窗內的片
+  const entrance = createSlideInEntrance();
+  function mobileBlocks() {
+    const titles = document.getElementById('faculty-detail-titles');
+    const left = [...deskLeft(), ...(titles ? titles.children : [])].filter(el => el.getBoundingClientRect().top < window.innerHeight);
+    // 片縮成字寬當遮罩（cards.css 同段）；section 標題欄的 sticky 底色要滿寬 → 改動裡面的 h3
+    const right = deskRightBlocks(window.innerHeight)
+      .map(b => b.map(el => (el.classList.contains('faculty-section-title-col') && el.querySelector('h3')) || el));
+    return [left, ...right];
+  }
 
   // hover/click 隨機角度（arrow-spin，同 library 排序箭頭；角度套外層遮罩、cards.css transition 補間；
   // guard 防同頁重綁，SPA 換頁元素隨 main 換掉免解綁）；每次開啟由 _arrowSpin.reroll 重抽微傾底角
@@ -160,12 +169,6 @@ export function initFacultySlideIn() {
     closeBtn.dataset.hoverRotBound = '1';
     bindArrowSpin(closeBtn, d => { closeBtn.style.transform = `rotate(${d}deg)`; });
     bindNavBtnHover(closeBtn);   // hover 隨機三原色（cards.css .slide-in-back-square 段；user 2026-09-28 全站黑方塊鈕）
-  }
-  // 手機／矮橫向返回鍵（.faculty-back-header 黑方塊）：每點一次換角（user 2026-10-27，同手機 header 鈕；沒 hover＝arrow-spin 點擊重抽）
-  if (backBtnMobile && !backBtnMobile.dataset.hoverRotBound) {
-    backBtnMobile.dataset.hoverRotBound = '1';
-    backBtnMobile.style.transition = 'transform var(--dur-base) ease';
-    bindArrowSpin(backBtnMobile, d => { backBtnMobile.style.transform = `rotate(${d}deg)`; }).reroll();
   }
   const facultyCards = document.querySelectorAll('.faculty-card');
 
@@ -577,9 +580,13 @@ export function initFacultySlideIn() {
             // freeze 底層捲動 + 凍結在原位（不跳頂部）+ header bars clip-path 收掉，全由 lightbox-shell 統一處理
             // （內含 save/restore scrollTop，對付本頁 html overflow-x:clip 被 overflow-y:hidden 重算成 hidden
             //   導致的 scroll reset；slide-in 與全螢幕 lightbox 共用同一套，不分流）
-            enterLightboxMode({ keepHeader: deskCard });   // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）
+            // 桌面色卡不 dim → mode／menu 鈕不收、點 logo 照常回首頁（user 2026-10-20）；手機 menu 鈕換成返回箭頭（user 2026-11-04）
+            enterLightboxMode({ keepHeader: deskCard, menuBack: deskCard ? null : closeSlideIn });
             if (deskCard) { deskClosing = false; desk.open({ id: facultyId }); }
-            else openSlideInBg({ overlay: slideInOverlay, panel: slideInPanel });
+            else {
+              openSlideInBg({ panel: slideInPanel });
+              entrance.play(facultyId, mobileBlocks(), SLIDE_IN_ARRIVE);
+            }
           }
         });
       }
@@ -626,13 +633,12 @@ export function initFacultySlideIn() {
       if (facultyReturnFocus) { facultyReturnFocus.focus({ preventScroll: true }); facultyReturnFocus = null; }
     };
     if (deskCard) { deskClosing = true; desk.close(onComplete); }
-    else closeSlideInBg({ overlay: slideInOverlay, panel: slideInPanel, onComplete });
+    else closeSlideInBg({ panel: slideInPanel, onComplete });
   }
 
   // Overlay click + close button click 都關閉 slide-in
   // overlay 的 left cursor 由 cursor.css 的 #faculty-slide-in-overlay 規則統一管
   if (closeBtn) closeBtn.addEventListener('click', closeSlideIn);
-  if (backBtnMobile) backBtnMobile.addEventListener('click', closeSlideIn);
   if (slideInOverlay) slideInOverlay.addEventListener('click', closeSlideIn);
 
   // 無障礙：Escape 關閉 slide-in（背板 overlay 不該變成可 Tab 元素，鍵盤關閉走 Escape；對齊 courses slide-in）。

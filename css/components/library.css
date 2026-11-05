@@ -1747,11 +1747,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-press-scroll,
   #library-files-scroll,
   #library-album-scroll { order: 1 !important; }
-  /* ticker 已搬進內容欄：左右對齊交給內容欄 padding。上補 sm＝下方年份鈕 44 觸控區裡字上面的空白（約 13＋字身留白），
-     上下看起來才等距（不補＝上 8、下約 24） */
+  /* ticker 已搬進內容欄：左右對齊交給內容欄 padding。上下等距 sm（user 2026-11-04）：工具列預設收起＝ticker 是最後一列、
+     下方＝卡底 sm；上方＝內容欄 gap xs＋這裡補的 xs */
   #library-awards-ticker {
     order: 2 !important;
-    padding: var(--spacing-sm) 0 0 !important;
+    padding: calc(var(--spacing-sm) - var(--spacing-xs)) 0 0 !important;
   }
   #lib-panel-awards > div[style*="grid"] > div:first-child,
   #lib-panel-press > div[style*="grid"] > div:first-child,
@@ -1788,6 +1788,68 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   [id^="library-"][id$="-year-picker"] button,
   #library-year-picker button { padding-top: 0 !important; padding-bottom: 0 !important; }
 
+}
+/* 手機灰卡右上角工具鈕（user 2026-11-04）：年份／分類選項／search 列預設收起，點鈕（.lib-tools-open）才展開、換分頁收起。
+   只給直向一疊的排法（直向＋iPad）；橫向手機年份是左欄、不收。鈕＝44 觸控區、icon 20 貼右＝跟清單 chevron 右緣同線，
+   垂直置中在 sticky 年份標題列（列右側本來就空）＝捲動時也不蓋到清單 */
+.lib-tools-btn { display: none; }
+@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  #library-card-main { position: relative !important; }   /* 鈕的定位框（手機段原本 static；卡內其他絕對定位都在各 panel 的 relative 裡，不受影響） */
+  /* top 3＝icon 中線對齊 sticky 年份字中線：卡上內距 sm 16 − sticky 1 ＋ 字級 s 行高半 10 − 鈕半高 22 */
+  .lib-tools-btn {
+    display: flex;
+    position: absolute;
+    top: 3px;
+    right: var(--spacing-sm);
+    z-index: 6;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--lib-fg);
+    cursor: var(--cursor-pointer);
+  }
+  .lib-tools-btn .icon { font-size: 20px; }
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child,
+  #library-card-main:not(.lib-tools-open) :is(#library-files-cat-filter, #library-album-cat-filter),
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+    display: none !important;
+  }
+  /* 收起時清單／ticker 變最後一列：補回卡底 sm（展開時 search 列 44 自帶上下空白，手機段把卡底 padding 拿掉了） */
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] {
+    padding-bottom: var(--spacing-sm) !important;
+  }
+  /* 展開＝整片蓋在清單之上（user 2026-11-04「覆蓋在原本的內容之上」，不擠清單＝不跳）：
+     年份欄負 margin 吃回工具列佔掉的高（--lib-tools-h，JS bindToolsToggle 量），三列不透明底疊在清單上（z 高過 sticky 年份 5）；
+     左右 box-shadow 補到卡緣（清單斑馬列出血到內容欄 padding）。內容欄 overflow-y clip＝整片從卡底滑上來的遮罩 */
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] { overflow-y: clip; }
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child {
+    margin-top: calc(-1 * var(--lib-tools-h, 0px)) !important;
+  }
+  /* awards 有 ticker：負 margin 改掛 ticker＝ticker 被工具列頂上去、留在工具列正上方（user 2026-11-04「頂上去，不是被操作區覆蓋」），
+     一起疊在清單上；滑動同工具列（library-panels.js bindToolsToggle） */
+  #library-card-main.lib-tools-open #library-card-content > #lib-panel-awards > div[style*="grid"] > div:first-child {
+    margin-top: 0 !important;
+  }
+  #library-card-main.lib-tools-open #library-awards-ticker {
+    margin-top: calc(-1 * var(--lib-tools-h, 0px)) !important;
+  }
+  #library-card-main.lib-tools-open #library-awards-ticker,
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child,
+  #library-card-main.lib-tools-open :is(#library-files-cat-filter, #library-album-cat-filter),
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+    position: relative;
+    z-index: 6;
+    background: var(--lib-bg);
+    /* 往下多 1px：滑動中位移是小數 px，列與列各自點陣化會留一條縫、透出後面清單 */
+    box-shadow: calc(-1 * var(--spacing-sm)) 0 var(--lib-bg), var(--spacing-sm) 0 var(--lib-bg),
+      0 1px var(--lib-bg), calc(-1 * var(--spacing-sm)) 1px var(--lib-bg), var(--spacing-sm) 1px var(--lib-bg);
+  }
+  /* ticker 跟年份欄之間是內容欄 gap xs（工具列幾列之間是負 margin 貼齊）→ 底色帶往下多蓋 xs，清單不從縫裡透出來 */
+  #library-card-main.lib-tools-open #library-awards-ticker {
+    box-shadow: calc(-1 * var(--spacing-sm)) 0 var(--lib-bg), var(--spacing-sm) 0 var(--lib-bg),
+      0 var(--spacing-xs) var(--lib-bg), calc(-1 * var(--spacing-sm)) var(--spacing-xs) var(--lib-bg), var(--spacing-sm) var(--spacing-xs) var(--lib-bg);
+  }
 }
 /* ↓ award 收合列第二段（同上：union ＋ 觸控桌面排版） */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {

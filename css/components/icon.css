@@ -133,6 +133,8 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 .icon-copy       { --icon: url('../website-icons/copy.svg'); }
 .icon-download   { --icon: url('../website-icons/download_share.svg'); }
 .icon-reset      { --icon: url('../website-icons/reset.svg'); }
+/* 真桌面右下 footer 開卡鈕（footer-scatter.js ensureFooterBtn）；後台 site_icons key: footer 換檔即生效 */
+.icon-footer     { --icon: url('../website-icons/footer.svg'); }
 
 /* mode toggle */
 .icon-mode-1 { --icon: url('../website-icons/mode_1.svg'); }

@@ -6,7 +6,7 @@
 import { openLightbox } from '../lightbox/activities-lightbox.js';
 import { isHlsUrl, isDirectVideoUrl, videoMediaFromUrl, hydrateHlsThumbs } from '../ui/video-player.js';
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { hideRows, revealRows, coverZebra, uncoverZebra } from '../ui/list-row-reveal.js';
+import { hideRows, flipTitleRows, revealRows, coverZebra, uncoverZebra } from '../ui/list-row-reveal.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
@@ -1341,6 +1341,11 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
 
   const items = setupClipReveal(allRows, { hide: false });  // Part 1：只 wrap 遮罩、CSS 藏（除 GSAP 冷觸 recalc storm）
   hideRows(items, false);
+  // 標題＋副標逐筆隨機上下；斑馬底色同向藏、跟文字同拍揭（alumni 清單走這條）。autoReveal:false＝caller 自己揭（setupAdmissionReveal 自己蓋底色）
+  if (!prefersReducedMotion()) container.querySelectorAll('.list-item').forEach(it => {
+    const fromTop = flipTitleRows(it);
+    if (autoReveal && it.classList.contains('list-item-zebra')) coverZebra(/** @type {HTMLElement} */ (it), fromTop);
+  });
   if (!autoReveal) return null;
   if (typeof ScrollTrigger !== 'undefined') {
     ScrollTrigger.batch(items, {
@@ -1353,6 +1358,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
         const owners = [...new Set(batch.map(r => /** @type {HTMLElement | null} */ (r.closest('.list-item'))).filter(Boolean))];
         owners.forEach(it => { it.style.contentVisibility = 'visible'; });
         if (owners[0]) void owners[0].offsetHeight;
+        owners.forEach(it => uncoverZebra(/** @type {HTMLElement} */ (it), DUR.reveal));
         revealRows(batch, {
           dur: DUR.reveal, stagger: 0.12,  // Part 1：CSS transition（同 playClipReveal 的 reveal 時長/跨列 stagger）
           onDone: () => owners.forEach(it => {
@@ -1363,6 +1369,7 @@ export function bindInteractions(container, { autoReveal = true, incremental = f
       },
     });
   } else {
+    container.querySelectorAll('.list-item').forEach(it => uncoverZebra(/** @type {HTMLElement} */ (it), DUR.reveal));
     revealRows(items, { dur: DUR.reveal, stagger: 0.12 });  // Part 1：同上（無 ScrollTrigger fallback 路徑）
   }
   return null;
@@ -1522,7 +1529,7 @@ export async function loadListInto(containerId, url, options = {}) {
     data: providedData   = null,
     lazy                 = false,   // 大清單只渲染視窗內第一批，捲到底 IO 才續建（activities 大 section 開）
     onLazyBatch          = null,    // 每批捲入後回呼（重跑 accordion / year-toggle init，idempotent）
-    buildItem            = null,    // 自訂 item HTML：年份組／斑馬／搜尋／進場照共用，只換 item 本體；須是帶 data-search 的 .list-item、末尾 .list-item-divider.list-reveal-row
+    buildItem            = null,    // 自訂 item HTML：年份組／斑馬／搜尋／進場照共用，只換 item 本體；須是帶 data-search 的 .list-item
     // 連結列變體（畢業展，user 2026-10-29「同一個 list component、針對 ds 做變體」）：列本體同一般列（標題／share／右側鈕），
     // 但整列連到 href、不展開（無 list-content、不放 chevron）。{ href(item), shareUrl?(item), top?(item)＝列上方額外內容（封面），
     // className?＝item 額外 class（hover 上色等由呼叫端綁）, accent?(item)＝hover／分享卡色 }
@@ -1621,12 +1628,6 @@ export async function loadListInto(containerId, url, options = {}) {
       const mediaJson    = JSON.stringify(media).replace(/"/g, '&quot;');
       // 向下相容：支援舊的 reference 單一物件 → 自動轉為 array
       const references = item.references || (item.reference ? [item.reference] : []);
-      const isLastItem   = itemIdx === total - 1;
-      // height:4px 必須顯式設置 — 空 div 的 height:auto = 0，yPercent:100 = translateY(0) 不移動，setupClipReveal 無法隱藏
-      // 桌面：最後一筆 divider 隱藏（年份組末端走 .activities-separator，避免兩條 4px 疊成 8px）
-      // 手機：.activities-separator 在 lists.css 已 display:none，最後一筆 divider 要顯示提供視覺收尾
-      //       → 用 .is-last class 而非 inline display:none，CSS 走 media query 分流（桌面隱、手機顯）
-      const dividerHtml  = `<div class="list-item-divider list-reveal-row border-b-4 border-black${isLastItem ? ' is-last' : ''}" style="height:4px;"></div>`;
 
       const { en: dateDisplay, zh: dateDisplayZh } = computeDateDisplay(item);
 
@@ -1862,7 +1863,7 @@ export async function loadListInto(containerId, url, options = {}) {
             </div>
             <!-- albums（年份/日期/地點 + 相簿）移出 9.5fr 文字欄、以 px-sm 對齊左緣的全寬 block：
                  常設展文字保持窄欄、下方相簿列滿版到容器右緣（user 2026-07-14）。只有 permanent-exhibitions 有 albums。
-                 pb-sm：底部留白讓 album 區塊（含內部 scroll list）不貼到 divider。
+                 pb-sm：底部留白讓 album 區塊（含內部 scroll list）不貼到下一筆。
                  有 albums 才渲染 wrapper：否則空 div 的 pb-sm 會在其他 list 的 grid↔gallery 間多塞空間。 -->
             ${(() => {
               const albumsHtml = buildAlbumsHtml(item, { unbounded: alwaysExpanded, defer: !alwaysExpanded });
@@ -1936,7 +1937,6 @@ export async function loadListInto(containerId, url, options = {}) {
               `).join('')}
             </div>` : ''}
           </div>`}
-          ${dividerHtml}
         </div>
       `;
   });
@@ -1946,7 +1946,7 @@ export async function loadListInto(containerId, url, options = {}) {
   // 結構：year col 是「組件」，存在才包 grid-12 + 套 col-2/pl-41 gap；不存在則 list 純 flex flush-left。
   // list-year-label：toggle／非 toggle 兩變體共用的 hook class；list-year-toggle 保留 toggle 專屬行為（收合/sticky/chevron）。
   // beforeEl（lazy 用）：把年份組插在該錨點之前（尾端 sentinel），讓 sentinel 恆在最底；不傳＝beforeend（原路徑）
-  const openYearGroup = (yearGroup, index, isLast, beforeEl = null) => {
+  const openYearGroup = (yearGroup, index, beforeEl = null) => {
     const yearColHtml = showYearToggle
       ? `<div class="col-span-12 md:col-span-1 md:col-start-1 list-year-toggle list-year-label cursor-pointer flex items-center gap-sm order-1 pt-sm pb-md pl-xs md:sticky md:self-start md:pb-sm">
           <div class="list-reveal-row flex justify-center items-center w-[1.5em] h-[1.5em] flex-shrink-0"><span class="icon icon-chevron-list icon-s rotate-90"></span></div>
@@ -1961,15 +1961,13 @@ export async function loadListInto(containerId, url, options = {}) {
           ${yearColHtml}
           <div class="col-span-12 md:col-span-11 md:col-start-2 list-year-items flex flex-col order-2 mt-md md:mt-0 md:pl-[41px]"></div>
         </div>`;
-    const sep = !isLast ? '<div class="activities-separator list-reveal-row border-b-4 border-black" style="height:4px"></div>' : '';
     let groupEl;
     if (beforeEl) {
-      beforeEl.insertAdjacentHTML('beforebegin', groupHtml + sep);
-      groupEl = /** @type {HTMLElement} */ (sep ? beforeEl.previousElementSibling.previousElementSibling : beforeEl.previousElementSibling);
+      beforeEl.insertAdjacentHTML('beforebegin', groupHtml);
+      groupEl = /** @type {HTMLElement} */ (beforeEl.previousElementSibling);
     } else {
-      container.insertAdjacentHTML('beforeend', groupHtml + sep);
-      // 剛插入的年份組＝有 sep 時倒數第 2、無 sep 時最後一個
-      groupEl = /** @type {HTMLElement} */ (sep ? container.children[container.children.length - 2] : container.children[container.children.length - 1]);
+      container.insertAdjacentHTML('beforeend', groupHtml);
+      groupEl = /** @type {HTMLElement} */ (container.lastElementChild);
     }
     return hideYearHeader ? groupEl : /** @type {HTMLElement} */ (groupEl.querySelector('.list-year-items'));
   };
@@ -2032,7 +2030,7 @@ export async function loadListInto(containerId, url, options = {}) {
     // 一次建完（原路徑：alumni/admission/小清單）→ ref 全部先解（清單小、無妨）
     await resolveRefsFor(allItemsFlat);
     filteredData.forEach((yearGroup, index) => {
-      const itemsEl = openYearGroup(yearGroup, index, index === filteredData.length - 1);
+      const itemsEl = openYearGroup(yearGroup, index);
       itemsEl.insertAdjacentHTML('beforeend',
         gateImgs(yearGroup.items.map((item, itemIdx) => buildItemHtml(item, itemIdx, yearGroup.items.length)).join('')));
     });
@@ -2046,7 +2044,7 @@ export async function loadListInto(containerId, url, options = {}) {
   // 每次切換/reveal/exit 的工作量恆定在「已渲染的那批」而非整份(exhibitions 535 row) → 切換不再正比 row 數。
   const scroller = /** @type {HTMLElement | null} */ (container.closest('.inner-scroll-scroll-col'));
   const flat = filteredData.flatMap((yg, index) =>
-    yg.items.map((item, itemIdx) => ({ item, itemIdx, total: yg.items.length, yg, index, isLast: index === filteredData.length - 1 })));
+    yg.items.map((item, itemIdx) => ({ item, itemIdx, total: yg.items.length, yg, index })));
   const openYears = new Map();
   container._zebraIdx = 0;
   const myGen = /** @type {any} */ (container)._listGen;   // 本輪 render 的世代（見 innerHTML='' 處註解）
@@ -2065,7 +2063,7 @@ export async function loadListInto(containerId, url, options = {}) {
     for (; cursor < end; cursor++) {
       const e = flat[cursor];
       let itemsEl = openYears.get(e.index);
-      if (!itemsEl) { itemsEl = openYearGroup(e.yg, e.index, e.isLast, sentinel); openYears.set(e.index, itemsEl); }
+      if (!itemsEl) { itemsEl = openYearGroup(e.yg, e.index, sentinel); openYears.set(e.index, itemsEl); }
       itemsEl.insertAdjacentHTML('beforeend', gateImgs(buildItemHtml(e.item, e.itemIdx, e.total)));
       const newItem = /** @type {HTMLElement | null} */ (itemsEl.lastElementChild);
       if (newItem) { setZebra(newItem); newItems.push(newItem); }
@@ -2128,8 +2126,10 @@ export async function loadListInto(containerId, url, options = {}) {
         const bRows = [...it.querySelectorAll('.list-reveal-row')];
         setupClipReveal(bRows, { hide: false });  // Part 1：只 wrap 遮罩
         hideRows(bRows, false);                    // CSS 藏（reveal-IO 進視窗才 revealRows）
+        const anim = revealIo && typeof gsap !== 'undefined' && !prefersReducedMotion();
+        const fromTop = anim && flipTitleRows(it);  // 標題＋副標逐筆隨機上下（同切換路徑 setupAdmissionReveal）
         // ⚠️斑馬底色也要一起藏：否則「文字藏起但底色塊還在」→ 退場/切換時殘留色塊(user 2026-08-31)
-        if (revealIo && it.classList.contains('list-item-zebra') && typeof gsap !== 'undefined' && !prefersReducedMotion()) coverZebra(it);
+        if (anim && it.classList.contains('list-item-zebra')) coverZebra(it, fromTop);
         if (revealIo) revealIo.observe(it); else it.removeAttribute('data-pre-reveal');
       });
       updateStickyTop();                                                        // 新年份組的 sticky top
@@ -2176,6 +2176,8 @@ export async function loadListInto(containerId, url, options = {}) {
     // deep-link（navigateToItem）需要目標 item 已在 DOM：暴露「立即全建剩餘」給它呼叫（否則只在首批的目標找不到）。
     // deep-link 是刻意的單一導航（首頁浮卡跳指定活動）→ 該次全建可接受；一般切換仍走 lazy。
     container.dataset.lazyList = '1';
+    // 還有沒建的批次＝還沒到真的底（捲完接下一段要等它，見 activities-section-switch goStep）；換代後舊 closure 一律 false
+    /** @type {any} */ (container)._lazyPending = () => /** @type {any} */ (container)._listGen === myGen && cursor < flat.length;
     // 八輪 Part 3：有 targetDomId（deep-link）走「分幀建到目標」＝不管目標多深都零大 task（每幀 ~8ms budget 建 1~2 批、
     //   rAF 續跑，建到目標或全建完 resolve）；無參數（search / ensureFullyRendered）維持同步全建＝語意不變。
     //   ⚠️ 沒建完就找到目標時 io/idle 不拆，餘量照常背景續建（只有 cursor>=flat.length 才 disconnect）。
@@ -2552,12 +2554,11 @@ const dsCoverHtml = (item) => `<div class="px-sm pt-sm"><div class="degree-show-
 export async function loadDegreeShowListInto(containerId, options = {}) {
   // Directus-only（degree-show-source：失敗 → last-known-good → throw）：往上拋給 activities 子清單切換的 catch 顯示錯誤態
   const data = await loadDegreeShow();
-  let k = 0;
   const yearGroups = Object.entries(data)
     .sort(([a], [b]) => Number(b) - Number(a))
     .map(([year, entries]) => ({
       year,
-      items: entries.map(e => ({ ...e, _year: year, searchExtra: year, _color: SCCDHelpers.ACCENT_COLORS[k++ % SCCDHelpers.ACCENT_COLORS.length] })),
+      items: entries.map(e => ({ ...e, _year: year, searchExtra: year, _color: SCCDHelpers.getRandomAccentColor() })),
     }));
   await loadListInto(containerId, null, {
     data: yearGroups, allowNoMedia: true,
@@ -2598,7 +2599,14 @@ export async function loadDegreeShowListInto(containerId, options = {}) {
   if (SCCDHelpers.isDesktopLayout()) {
     container.querySelectorAll('.degree-show-card-content').forEach(el => {
       const card = /** @type {HTMLElement} */ (el);
-      card.addEventListener('mouseenter', () => { card.style.backgroundColor = card.dataset.accentHex || ''; });
+      card.addEventListener('mouseenter', () => {
+        // 每次 hover 重抽（user 2026-11-04）；header 同步＝分享卡（讀 .list-header accentHex）跟 hover 同色
+        const c = SCCDHelpers.getRandomAccentColor(card.dataset.accentHex);
+        card.dataset.accentHex = c;
+        const h = /** @type {HTMLElement | null} */ (card.querySelector('.list-header'));
+        if (h) h.dataset.accentHex = c;
+        card.style.backgroundColor = c;
+      });
       card.addEventListener('mouseleave', () => { card.style.backgroundColor = ''; });
     });
   }

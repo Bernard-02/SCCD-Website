@@ -69,24 +69,6 @@ function handleInput(event) {
     // 同步更新兩個輸入框
     syncInputBoxes(validInput);
 
-    // 根據字數調整手機版輸入框的字體大小
-    let mobileInputBoxBottom = _p5.select("#mobile-input-box");
-    if (mobileInputBoxBottom) {
-        // 計算純字母數量（不含空格和換行）
-        let pureLetterCount = validInput.replace(/[\s\n]/g, "").length;
-        if (pureLetterCount > 6) {
-            mobileInputBoxBottom.addClass('small-text');
-        } else {
-            mobileInputBoxBottom.removeClass('small-text');
-        }
-
-        // 等待 CSS transition 完成後再調整垂直置中（font-size transition 是 0.2s = 200ms）
-        // 加上一點緩衝時間確保渲染完成，與桌面版一致
-        setTimeout(() => {
-            updateMobileInputBoxVerticalAlignment(mobileInputBoxBottom, validInput);
-        }, 220);
-    }
-
     // 彩蛋邏輯
     let previousEasterEggState = isEasterEggActive;
     let normalizedInput = validInput.toUpperCase().replace(/[\s\n]/g, "");
@@ -181,14 +163,8 @@ function handleInput(event) {
         fadeStartTime = _p5.millis();
     }
 
-    // 手機版：如果在 Wireframe + Custom 模式，檢查文字溢出狀態
-    if (isMobileMode && mode === 'Wireframe' && typeof checkInputOverflow === 'function') {
-        // 如果 custom 區塊是打開的
-        const mobileInputBox = _p5.select('#mobile-input-box');
-        if (mobileInputBox && mobileInputBox.hasClass('custom-open')) {
-            setTimeout(() => checkInputOverflow(), 0); // 延遲執行以確保 DOM 更新
-        }
-    }
+    // 手機輸入框一行（全 mode）：字超過框寬改靠左
+    if (isMobileMode && typeof checkInputOverflow === 'function') checkInputOverflow();
 
     // 最終，移除所有空格和換行符，得到用於生成 Logo 的純字母陣列
     let previousLettersLength = letters.length;

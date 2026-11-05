@@ -176,7 +176,7 @@ ROTATE FOR BEST EXPERIENCE</div></div>
                 <!-- autocapitalize="characters"＝螢幕鍵盤預設大寫（產生器只吃 A–Z，user 10-28「應該是輸入大寫」）；不用 inputmode="email"：
                      iOS email 鍵盤會無視 autocapitalize、也擋不住中文選字。autocomplete／autocorrect／spellcheck 關＝盡量不出候選字列
                      （iOS QuickType 最終看使用者系統設定）。實體鍵盤走 input-handling.js 鍵位對映＝中文輸入法也直接打英文 -->
-                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="characters" autocomplete="off"></textarea>
+                <textarea id="mobile-input-box" placeholder="TYPE AND ENTER" enterkeyhint="done" maxlength="40" spellcheck="false" autocorrect="off" autocapitalize="characters" autocomplete="off"></textarea>
             </div>
 
             <!-- Custom 調整區 -->
@@ -213,7 +213,7 @@ ROTATE FOR BEST EXPERIENCE</div></div>
             <div class="mobile-colorpicker-bar hidden">
                 <div class="colorpicker-bar-inner">
                     <div id="mobile-colorpicker-container"></div>
-                    <button id="mobile-colorwheel-play-button" class="mobile-colorwheel-play-btn">
+                    <button id="mobile-colorwheel-play-button" class="mobile-colorwheel-play-btn is-play">
                         <img id="mobile-colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
                     </button>
                 </div>

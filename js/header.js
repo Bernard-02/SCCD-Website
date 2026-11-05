@@ -3,7 +3,7 @@
  * 處理導航列、手機選單、Logo 動畫與滾動隱藏
  */
 
-import { initMobileMenu, closeMobileMenu } from './mobile-menu.js';
+import { initMobileMenu, closeMobileMenu, isMenuBtnBack } from './mobile-menu.js';
 import { getHeaderTargets } from './modules/lightbox/lightbox-shell.js';
 import { DUR, EASE } from './modules/ui/motion.js';
 import { prefersReducedMotion } from './modules/ui/reduce-motion.js';
@@ -11,20 +11,13 @@ import { sitePath } from './modules/ui/site-base.js';
 import { bindArrowSpin, randomSpinAngle } from './modules/ui/arrow-spin.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 import { runLottieWhenVisible } from './modules/ui/lottie-visibility.js';
+import { revealHidden } from './modules/ui/scroll-animate.js';
 
-// Footer-near hide state（module-scope 讓 updateNavActive 能在 SPA 換頁時同步 reset）：
-// scroll listener 內 closure 變數會跨換頁存活，但 updateNavActive 拿不到 → 提升到 module scope
-let barsHidden = false;
-// 捲到 footer 時 header 整排 bars/logo 已滑走＝畫面上空的，但透明容器（fixed z-9999）仍在會攔截點擊、
-// 蓋住 footer 頂部 tab 的 SVG mark（文字在 header 下緣之下才點得到）。掛 body 旗標讓 CSS（footer.css ≥1200）
-// 此期間放行 header 點擊 → 整塊 tab（含 SVG）可點；其他捲動位置/頁面 header 照常互動。user 2026-08-10。
-function setBarsHidden(v) {
-  barsHidden = v;
-  if (typeof document !== 'undefined') document.body.classList.toggle('footer-bars-hidden', v);
-}
 function getFooterHideTargets() {
   // bars only：logo 改走 hero clip-reveal 滑動（見 footerHideLogo/footerShowLogo），不再跟 bars 一起 clip-path wipe
-  return [...getHeaderTargets()].filter(el => el && !(modeBtnCreateHidden && el.id === 'mode-btn'));
+  // 手機 slide-in 開著時 menu 鈕是返回鍵（mobile-menu.js 返回態）＝不收
+  return [...getHeaderTargets()].filter(el => el && !(modeBtnCreateHidden && el.id === 'mode-btn')
+    && !(isMenuBtnBack() && el.querySelector('.mobile-menu-btn')));
 }
 
 // footer-near hide 的 logo：桌面 id=header-logo / 手機 id=header-logo-mobile。
@@ -47,61 +40,52 @@ const LOGO_HIDE_COUNTER = 0.5;
 function footerHideLogo(opts = {}) {
   const t = getFooterHideLogo();
   if (!t) return;
-  gsap.killTweensOf(t.logo, 'yPercent');
+  gsap.killTweensOf(t.logo, 'xPercent,yPercent');
   // ?? 不用 ||：初次載入同步允許 duration:0 瞬間收起（|| 會把 0 當 falsy 打回 DUR.slow）
   const vars = { duration: opts.duration ?? DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
+  // 藏起方向：footer-near／待機固定由下；進站進場傳四向隨機（user 2026-11-04「首頁 logo 四周進場」）。110：貼遮罩邊的 100 會留 1px 殘線
+  const hid = opts.hid || revealHidden('bottom');
   if (t.mask) {
-    gsap.killTweensOf(t.mask, 'yPercent');
+    gsap.killTweensOf(t.mask, 'xPercent,yPercent');
     t.mask.style.overflow = 'hidden';
     // header 本體已放行（navigation.css），<a> 遮罩是自己吃事件的互動容器：logo 滑出後框還在原位，
     // 會搶走底下內容的點擊（手機 about 錨點列點 Vision 跳回首頁，2026-09-28 驗出）→ 收起起就不可點，展開起才還原
     t.mask.style.pointerEvents = 'none';
-    gsap.to(t.mask, { yPercent: -100 * LOGO_HIDE_COUNTER, ...vars });
+    gsap.to(t.mask, {
+      xPercent: -Math.sign(hid.xPercent) * 100 * LOGO_HIDE_COUNTER,
+      yPercent: -Math.sign(hid.yPercent) * 100 * LOGO_HIDE_COUNTER, ...vars,
+    });
   }
-  gsap.to(t.logo, { yPercent: 110, ...vars });   // 110：貼遮罩邊的 100 會留 1px 殘線
+  gsap.to(t.logo, { ...hid, ...vars });
 }
 function footerShowLogo(opts = {}) {
   const t = getFooterHideLogo();
   if (!t) return;
-  gsap.killTweensOf(t.logo, 'yPercent');
+  gsap.killTweensOf(t.logo, 'xPercent,yPercent');
   const vars = { duration: opts.duration || DUR.slow, ease: opts.ease || EASE.enterSoft, overwrite: 'auto' };
   if (t.mask) {
-    gsap.killTweensOf(t.mask, 'yPercent');
+    gsap.killTweensOf(t.mask, 'xPercent,yPercent');
     t.mask.style.overflow = 'hidden';
     // 展開起就還原可點（滑回視野中）：綁在 onComplete 會被 lightbox 存 cssText / 換頁 killTweensOf 跳過而卡 none
     t.mask.style.pointerEvents = '';
-    gsap.to(t.mask, { yPercent: 0, ...vars });
+    gsap.to(t.mask, { xPercent: 0, yPercent: 0, ...vars });
   }
   const settle = () => {
     if (t.mask) { t.mask.style.overflow = ''; gsap.set(t.mask, { clearProps: 'transform' }); }
     gsap.set(t.logo, { clearProps: 'transform' });
   };
   gsap.to(t.logo, {
-    yPercent: 0, ...vars,
+    xPercent: 0, yPercent: 0, ...vars,
     onComplete: settle,
     // snapOnInterrupt（進站進場用）：被外部砍中途就直接落定，別留一顆藏在遮罩裡的 logo；一般 footer-near 展開不設（收起會接手）
     onInterrupt: opts.snapOnInterrupt ? settle : undefined,
   });
 }
-// 即時復位（reset 路徑用，不跑動畫）
-function resetFooterLogoState() {
-  const t = getFooterHideLogo();
-  if (!t) return;
-  gsap.killTweensOf(t.logo, 'yPercent');
-  gsap.set(t.logo, { clearProps: 'transform' });
-  if (t.mask) {
-    gsap.killTweensOf(t.mask, 'yPercent');
-    gsap.set(t.mask, { clearProps: 'transform' });
-    t.mask.style.overflow = '';
-    t.mask.style.pointerEvents = '';
-  }
-}
-
 // ── 進站 header 進場（user 2026-10-26「每次進站 logo 跟兩顆鈕都 clip-reveal 進場」）：取代整個 header opacity 淡入 ──
 // prepare：header HTML 注入後同步呼叫（同一 task、首繪前）＝logo／鈕先藏進各自遮罩（沿用 footer-near 那套，duration 0）；
 // play：revealHeaderWhenReady／intro 到了「要顯示 header」的時點呼叫＝header opacity 直接開 1（內容都藏著、看不出）、
-//   等 logo Lottie DOMLoaded（封頂 800ms，不然 Lottie 晚到會先露空框）再 logo＋鈕一起滑入（logo 由下、鈕隨機四向／手機一致往上）。
-// 不走：/create（logo 由 typewriter 接管、mode 鈕收著）、reduced-motion；載入當下已被 footer-near 收著（頁底 deep-link）就交給它展開；
+//   等 logo Lottie DOMLoaded（封頂 800ms，不然 Lottie 晚到會先露空框）再 logo＋鈕一起滑入（logo 隨機四向、鈕隨機四向／手機一致往上）。
+// 不走：/create（logo 由 typewriter 接管、mode 鈕收著）、reduced-motion；
 // lightbox 開著（deep-link）只放 logo、鈕由 lightbox 關閉時展。SPA 換頁 header 不重載＝只有進站這一次。
 let _entrancePrepared = false;
 /** @type {(() => void) | null} */
@@ -111,7 +95,7 @@ let _logoReady = Promise.resolve();
 function prepareHeaderEntrance(currentPage) {
   if (typeof gsap === 'undefined' || prefersReducedMotion() || currentPage === 'create' || currentPage === 'generate') return;
   _logoReady = new Promise(r => { _logoReadyResolve = r; });
-  footerHideLogo({ duration: 0 });
+  footerHideLogo({ duration: 0, hid: revealHidden() });
   footerHideBars({ duration: 0 });
   _entrancePrepared = true;
 }
@@ -126,7 +110,6 @@ export function playHeaderEntrance() {
   if (!_entrancePrepared) return;
   _entrancePrepared = false;
   Promise.race([_logoReady, new Promise(r => setTimeout(r, 800))]).then(() => {
-    if (barsHidden) return;
     footerShowLogo({ snapOnInterrupt: true });
     if (!document.body.classList.contains('lightbox-open')) footerShowBars({ snapOnInterrupt: true });
   });
@@ -225,7 +208,9 @@ function footerHideBars(opts = {}) {
 }
 function footerShowBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
-  const bars = getFooterHideTargets();
+  // 換 icon 中的鈕本來就沒收著（cycleHeaderBtn 只對顯示中的鈕跑）：砍它的 tween＝換 icon 被截斷、鈕跳回原位
+  // （slide-in 關閉：menu 鈕正從返回箭頭換回漢堡，mode 鈕延後展開會撞上）
+  const bars = getFooterHideTargets().filter(b => !btnCycles.has(b));
   if (!bars.length) return;
   gsap.killTweensOf(bars);
   gsap.to(bars, {
@@ -315,15 +300,6 @@ export function cycleHeaderBtn(bar, swap) {
   });
 }
 
-// 即時復位（reset 路徑用，不跑動畫）
-function resetFooterBarsState() {
-  if (typeof gsap === 'undefined') return;
-  const bars = getFooterHideTargets();
-  bars.forEach(settleBtnCycle);
-  gsap.killTweensOf(bars);
-  bars.forEach(clearBarMask);
-}
-
 // 左下「當前頁」卡不收、跟著內容走＝原生 sticky（user 2026-09-27「不需要收起，跟畫面一起上去，像 nav btn」；
 // 前一版在 scroll 事件寫 translate，永遠比合成器的捲動慢一幀＝「往下會抖」，已棄）。
 // 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝hero 底 → main 底
@@ -378,28 +354,7 @@ export function showHeaderChromeForStandby() {
   const dir = IND_REVEAL_DIRS[Math.floor(Math.random() * IND_REVEAL_DIRS.length)];
   gsap.fromTo(indCard, dir, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
 }
-// 第一個可見的 footer（index 同時有 #site-footer-static 跟空的 #site-footer container → 取 offsetHeight>0 的）
-function getVisibleFooter() {
-  for (const f of document.querySelectorAll('footer')) {
-    if (f.offsetHeight > 0) return f;
-  }
-  return null;
-}
-
-// lightbox / PDF viewer 開啟時要把 footer-near hide state 清零，否則 bars 仍卡 clip-path
-// （body lock scroll 期間 scroll listener 不 fire → barsHidden 殘留 true）
-// activities 頁可 scroll 才會中招，library 是 h-screen overflow-hidden 不會
-// 暴露給 window 讓 lightbox-shell.enterLightboxMode 自動 call（解耦避免循環依賴）
-function resetFooterHide() {
-  if (!barsHidden) return;
-  if (typeof gsap !== 'undefined') {
-    resetFooterBarsState();
-    resetFooterLogoState();
-  }
-  setBarsHidden(false);
-}
 if (typeof window !== 'undefined') {
-  window.__sccdResetFooterHide = resetFooterHide;
   // slide-in/lightbox 開關時，header bars（桌面 [data-bar]/#mode-btn＋手機兩顆 .mobile-header-btn）皆改用
   // clip-reveal 收/展（比照 footer-near hide，user 2026-08-31）——lightbox-shell.animateHeaderHide/Show 經此
   // hook 委派（避免與 lightbox-shell 循環 import）；桌面隨機四方向、手機一致上滑由 footerHideBars 內部 gate 決定。
@@ -427,7 +382,13 @@ if (typeof window !== 'undefined') {
     _footerLogoTween = gsap.to(logo, { width: size, height: size, duration, ease });
   }
   document.addEventListener('footer:open', () => closeMobileMenu());
-  document.addEventListener('footer:progress', (e) => { const d = /** @type {CustomEvent} */ (e).detail; footerLogoSize(d.p, d.duration, d.ease); });
+  // 非桌面整屏 footer（z 在 header 下）＝同 slide-in：logo 浮在 footer 上換對比色（loadMobileLogo）、mode／menu 鈕收起（user 2026-11-04）
+  document.addEventListener('footer:progress', (e) => {
+    const d = /** @type {CustomEvent} */ (e).detail;
+    if (SCCDHelpers.isDesktopLayout()) { footerLogoSize(d.p, d.duration, d.ease); return; }
+    (d.p ? footerHideBars : footerShowBars)({ duration: DUR.fast });
+    window.__sccdReloadMobileLogo?.({ fade: true });
+  });
   const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
   // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
   // 事件同一個 task 內壓回當下比例＝不會閃（user 2026-10-26「開卡時切換視窗大小 logo 要保持小」）
@@ -658,7 +619,7 @@ export function triggerGenerateLogo() {
   // 殺掉 switchHeaderLogo runHeaderLogoReveal 留下的 yPercent tween（前一頁 reveal 還沒跑完就進 /create；
   // reveal 2026-07-15 起是 hero 滑動）。限定 property 避免誤殺 scroll-shrink ScrollTrigger（綁 width/height）
   if (typeof gsap !== 'undefined') {
-    gsap.killTweensOf(logo, 'yPercent');
+    gsap.killTweensOf(logo, 'xPercent,yPercent');
     gsap.set(logo, { clearProps: 'transform' });
   }
   if (logoContainer && /** @type {HTMLElement} */ (logoContainer).style) {
@@ -913,27 +874,10 @@ export function setNavActive(page) {
   applyNavLinkMarks(header, navActiveHref(page));
 }
 
-// fromFooter：router 點 footer 連結換頁（見 router loadPage）→ 保留 footer-near 收起態
-export function updateNavActive(page, { fromFooter = false } = {}) {
+export function updateNavActive(page) {
   const header = document.querySelector('#site-header header');
   if (!header) return;
 
-  // Footer-near hide 同步 reset：前頁 scroll 到 footer 時 bars/logo 已被 footerHideBars/footerHideLogo
-  // 平移收起；SPA 切到新頁後 scroll listener 是 async，等它偵測「離開 footer」再 show
-  // 期間 updateNavActive 的 logo/bar tween 已跑完 → user 看到「小 logo + ML=0」的中間態。
-  // 這裡同步清 transform/遮罩 + reset state，讓 tween 在 header 已 visible 的乾淨狀態下跑。
-  // 例外：router fromFooter 換頁（footer 釘原位、上方換新頁）→ 不復位，否則 bars 瞬間冒出 → scroll 又收 →
-  // 往上捲再展＝閃一次；留給往上捲時 syncFooterHide 展開。⚠️不能改用「footer 此刻在視窗內」判斷：router 是
-  // updateNavActive 之後才把 atlas/library 的 footer 設 display:none → 冷載入 atlas 會卡在收起態（實測）
-  if (barsHidden && !fromFooter && typeof gsap !== 'undefined') {
-    resetFooterBarsState();
-    resetFooterLogoState();
-    setBarsHidden(false);
-  }
-
-  // 手機 header 底色帶跨 SPA 換頁復位：元素持久（在 #site-header），前頁捲到 footer 加的 .is-hidden 會殘留 →
-  // 換頁後先清掉，新頁 landing 時帶顯示（bindFooterScroll 之後依新頁 footer 位置再決定）。
-  document.querySelector('.mobile-header-bg')?.classList.remove('is-hidden');
 
   // detail 頁對應到父層高亮（見 NAV_PAGE_MAPPINGS）
   const activePage = NAV_PAGE_MAPPINGS[page] || page;
@@ -1196,9 +1140,13 @@ export function initHeader() {
         const isFullLightbox = lightboxOpen && !slideInClass;   // 黑底全螢幕 lightbox（非 slide-in）
         const isInverseM  = document.body.classList.contains('mode-inverse');
         const isColorM    = document.body.classList.contains('mode-color');
+        // 整屏 footer 開著（非桌面；footer 在 header 下、沒有自己的 logo）：logo 換 footer 底的對比色＝原 footer logo 的挑法
+        //（mode1 黑底→白實心、mode2 白底→黑實心、mode3 互補 hue→線框＋--footer-invert-filter），user 2026-11-04
+        const isFooterOpen = document.body.classList.contains('footer-card-open') && !SCCDHelpers.isDesktopLayout();
         let logoFileM;
+        if (isFooterOpen) logoFileM = isColorM ? 'SCCDLogoWireframeStandard.json' : isInverseM ? 'SCCDLogoStandard.json' : 'SCCDLogoInverse.json';
         // 全螢幕黑底 lightbox（media/PDF/share）：一律白線框 wireframe（user 2026-09-07，對齊桌面 #header-logo 統一白 wireframe）
-        if (isFullLightbox) logoFileM = 'SCCDLogoWireframeStandard.json';
+        else if (isFullLightbox) logoFileM = 'SCCDLogoWireframeStandard.json';
         else if (isSlideIn || isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
         else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
         else logoFileM = 'SCCDLogoStandard.json';
@@ -1209,7 +1157,8 @@ export function initHeader() {
         // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
         // 黑線隱形，改走 full-lightbox 的白線邏輯（user 2026-07-04）。直向 slide-in 蓋滿含 logo 區（accent 底）→ 維持黑線。
         const slideInLeavesLogoOnDim = SCCDHelpers.isLandscapeGate();
-        if (isFullLightbox) { filterM = 'invert(1)'; contrastM = 'white'; }  // WireframeStandard 黑線 → invert 白
+        if (isFooterOpen) { filterM = isColorM ? 'var(--footer-invert-filter, invert(1))' : ''; contrastM = 'footer'; }   // var 由 applyColorVars 每幀翻
+        else if (isFullLightbox) { filterM = 'invert(1)'; contrastM = 'white'; }  // WireframeStandard 黑線 → invert 白
         else if (isSlideIn && slideInLeavesLogoOnDim) { filterM = 'invert(1)'; contrastM = 'white'; }
         else if (isSlideIn)  { filterM = 'none'; contrastM = isColorM ? 'auto' : 'black'; }
         else if (isColorM)   {
@@ -1302,61 +1251,6 @@ export function initHeader() {
     // 檢查 initMobileMenu 是否存在，避免因缺少該模組而報錯
     if (typeof initMobileMenu === 'function') {
       initMobileMenu();
-    }
-
-    // 6. Header Hide on Footer Reveal
-    // bars + logo 都走 hero 平移滑動（footerHideBars/footerHideLogo）：bars 每個隨機四方向、各自 overflow:clip
-    // 遮罩；logo <a> 遮罩 + 本體 yPercent。兩者同 duration/ease、無 stagger → 一起收起（user 2026-06-08「他們
-    // 不是一起收起的嗎」）。lightbox/slide-in 的 header 收起也走同一套 clip-reveal（lightbox-shell.animateHeaderHide
-    // 經 __sccdHideHeaderBars 委派回這裡，user 2026-08-31；bars 是同一組 getHeaderTargets）。
-    // instant=true：初次載入同步時瞬間收起（duration:0），不要 refresh 後看到 bars 閃現再滑走
-    function syncFooterHide(instant = false) {
-      // 真桌面 footer 是覆蓋卡（footer-scatter.js openFooter/closeFooter）、header 不收；
-      // 這裡只管線性版（手機／矮橫向／iPad）捲到頁尾 footer
-      if (SCCDHelpers.isDesktopLayout()) return;
-      // SPA 換頁後 footer DOM 會替換（static index footer / SPA 注入 footer 切換），closure 捕捉到的舊 ref
-      // offsetHeight 可能變 0 或 detached → 每次重抓最新的；多 footer 場景（index 同時有 #site-footer-static
-      // 跟空的 #site-footer container）取第一個可見的（offsetHeight>0）
-      const footerEl = getVisibleFooter();
-      if (!footerEl) return;
-      const footerTop = footerEl.getBoundingClientRect().top;
-      // 全站手機 header 底色帶（.mobile-header-bg，navigation.css）：捲到「帶底 92」才收（遮罩不能像
-      // logo/nav 用 footerTop<視窗50% 提早離開，那樣會露出 header 區還沒捲完的內容；user 2026-07-17）。
-      // 純 CSS transition transform、不需 gsap；app 頁 gate 成 display:none 時 toggle 也無害。
-      const mobileBar = document.querySelector('.mobile-header-bg');
-      if (mobileBar) mobileBar.classList.toggle('is-hidden', footerTop <= 92);
-      const isNearFooter = footerTop < window.innerHeight * 0.5;
-      if (typeof gsap === 'undefined') return;
-      if (isNearFooter && !barsHidden) {
-        setBarsHidden(true);
-        closeMobileMenu();      // 桌面 menu 開著可捲（不鎖）→ 捲到 footer 鈕要收了，menu 一起關（手機 menu 鎖捲動走不到這）
-        const opts = instant ? { duration: 0 } : {};
-        footerHideBars(opts);   // bars 平移滑出（每個隨機四方向）
-        footerHideLogo(opts);   // logo 走 hero 滑動（同步、同節奏）
-      } else if (!isNearFooter && barsHidden) {
-        setBarsHidden(false);
-        footerShowBars();
-        footerShowLogo();
-      }
-    }
-
-    function bindFooterScroll() {
-      // 確認首次能抓到 footer（任一）；listener 內每次 live query 避免 SPA 換頁後 stale ref
-      if (!document.querySelector('footer')) return false;
-      window.addEventListener('scroll', () => syncFooterHide(), { passive: true });
-      // 初次同步：refresh 後瀏覽器還原捲動位置是在 header async fetch 完成前發生，scroll 事件早於 listener
-      // 綁定 → 若停在 footer 不主動評估一次，barsHidden 會保持 false、header bar 蓋在 footer 上不消失。
-      syncFooterHide(true);
-      return true;
-    }
-
-    // 先嘗試直接綁定（index.html 靜態 footer）
-    if (!bindFooterScroll()) {
-      // footer 尚未載入，用 MutationObserver 等待
-      const observer = new MutationObserver(() => {
-        if (bindFooterScroll()) observer.disconnect();
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
     }
 
     // 左下當前頁卡的 sticky 軌道範圍：內容長高（async 資料 / lazy 清單 / 字型）或視窗變動時重算（捲動本身不需要）。

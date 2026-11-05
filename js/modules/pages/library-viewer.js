@@ -10,6 +10,7 @@ import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_FONTS, PDFJS_WASM } from '../ui/pdf-cover.js';
 import { DUR, EASE } from '../ui/motion.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { revealHidden, navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
@@ -129,7 +130,8 @@ function ensurePdfModal() {
           <span class="icon icon-share"></span>
         </span>
       </button>
-      <span id="pdf-page-info" class="text-s"></span>
+      <!-- 手機：翻頁 chevron 搬進來夾著頁碼（user 2026-11-04；initPdfViewer placePageNav），桌面這層只包頁碼 -->
+      <div class="pdf-page-nav flex items-center"><span id="pdf-page-info" class="text-s"></span></div>
       <!-- 頁碼 justify-center 置中；zoom controls 靠右 absolute，top:50%+translateY(-50%) 與頁碼同一水平線
            （user 2026-06-03 澄清：頁碼置中、controls 靠右、兩者對齊在同一水平線，不是整組置中）-->
       <div class="pdf-zoom-controls absolute text-white" style="right: var(--container-padding, 1.5rem); top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 12px;">
@@ -169,6 +171,17 @@ export function initPdfViewer() {
   const prevBtn   = document.getElementById('pdf-prev-btn');
   const nextBtn   = document.getElementById('pdf-next-btn');
   const pageInfo  = document.getElementById('pdf-page-info');
+  // 翻頁 chevron：桌面在 PDF 左右（.pdf-main-row 頭尾），手機搬到底部頁碼左右（同一組鈕＝點擊／到底停用／抽角／進場都沿用）。
+  // modal 全站只建一次、跨換頁存活 → 跟著斷點搬
+  const pageNavEl = /** @type {HTMLElement} */ (modal.querySelector('.pdf-page-nav'));
+  const navHomeEl = /** @type {HTMLElement} */ (modal.querySelector('.pdf-main-row'));
+  const mobileMq = window.matchMedia('(max-width: 767px)');
+  const placePageNav = () => {
+    if (mobileMq.matches) { pageNavEl.prepend(prevBtn); pageNavEl.append(nextBtn); }
+    else { navHomeEl.prepend(prevBtn); navHomeEl.append(nextBtn); }
+  };
+  placePageNav();
+  mobileMq.addEventListener('change', placePageNav);
   const backBtn   = modal.querySelector('.pdf-back-btn');
   const backPill  = modal.querySelector('.pdf-back-pill');
   const stageEl   = modal.querySelector('.pdf-zoom-stage');
@@ -234,6 +247,8 @@ export function initPdfViewer() {
     const off = () => navDisabled(btn);
     bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !off() });
   });
+  // 翻頁 chevron 每點一次就換角（user 2026-11-04；手機桌面都要）：bindArrowSpin 的點擊只「定案」hover 角＝桌面第一下看不出變化
+  [prevBtn, nextBtn].forEach(b => b.addEventListener('click', () => { if (!navDisabled(b)) b._arrowSpin?.reroll(); }));
 
   let pdfDoc   = null;
   let curPage  = 1;
@@ -1153,8 +1168,10 @@ export function initPdfViewer() {
     entranceTl?.kill();
     const entranceBars = [backPill, refUi.btnEl.querySelector('.lightbox-ref-btn-pill'), titleEl?.querySelector('.pdf-title-pill'),
       sharePillEl, pageInfo, zoomOutBtn, zoomPctEl, zoomInBtn, fitToggleBtn];
+    // chevron 不跟開場淡入：等頁碼（總頁數）出來才出現、只有一頁就不出現（user 2026-11-04；下方 getDocument 後）
     const entranceFades = [prevBtn, nextBtn].map(b => b.querySelector('.icon'));
     hideLightboxEntrance(entranceBars, entranceFades);
+    prevBtn.style.visibility = nextBtn.style.visibility = 'hidden';
     itemShown = false;
     openModal();
     if (wantWatermark) buildWatermark();   // 只有 document/files PDF 建浮水印（字體必載好 + 依當前 viewport 給手機較小較密版）
@@ -1179,7 +1196,7 @@ export function initPdfViewer() {
     // 由 cover onload（有封面，真封面 fit）／A4 猜測（無封面文件）／sizeLoaderToPage（render 真數字）定尺寸才顯示。
     startColorLoader();
     if (colorLoaderEl) colorLoaderEl.style.clipPath = 'inset(0% 0% 100% 0%)';   // 尺寸先定好顯示也看不到，等 onItem 進場
-    entranceTl = playLightboxEntrance({ bars: entranceBars, fades: entranceFades, onItem: () => { if (myToken === openToken) revealLoaderIn(); } });
+    entranceTl = playLightboxEntrance({ bars: entranceBars, onItem: () => { if (myToken === openToken) revealLoaderIn(); } });
     // 色塊 Fit Page 置中矩形（stage 絕對定位 overlay、render 不碰＝零跳）；pw/ph 只取比例
     const showLoaderFitRect = (pw, ph) => {
       const availH = stageEl.clientHeight || window.innerHeight * 0.8;
@@ -1243,6 +1260,11 @@ export function initPdfViewer() {
       if (myToken !== openToken) { doc.loadingTask?.destroy?.(); return; }   // 同上：6.x destroy 在 loadingTask
       pdfDoc = doc;
       pageInfo.textContent = `${curPage} / ${pdfDoc.numPages}`;   // 總頁數已確定，一次到位
+      if (pdfDoc.numPages > 1) {   // chevron 跟頁碼一起出現（開場同款淡入）
+        prevBtn.style.visibility = nextBtn.style.visibility = '';
+        if (typeof gsap !== 'undefined' && !prefersReducedMotion()) gsap.to(entranceFades, { opacity: 1, duration: DUR.medium, ease: EASE.enterSoft, clearProps: 'opacity' });
+        else entranceFades.forEach(el => { el.style.opacity = ''; });
+      }
       // 桌面/手機同走單頁引擎（手機多 touch 手勢層：swipe 換頁 / pinch 縮放）
       renderPage(curPage).then(ok => {
         if (myToken !== openToken) return;

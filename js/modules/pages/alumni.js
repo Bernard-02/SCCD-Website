@@ -14,7 +14,7 @@
 import { initAnchorNav } from '../navigation/anchor-nav.js';
 import { loadListInto } from './activities-data-loader.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
-import { setupClipReveal, playClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit, revealHidden, randomRevealDir } from '../ui/scroll-animate.js';
+import { setupClipReveal, animateCardsClipReveal, playRevealExit, playClipPathExit, revealHidden, randomRevealDir } from '../ui/scroll-animate.js';
 // library-viewer（45KB）改動態載入（見 initAlumni 內）：靜態 import 會讓全站每頁都揹它
 import { initSectionBannerReveal } from './about/section-banner-reveal.js';
 import { registerPageExit } from '../ui/page-exit.js';
@@ -32,21 +32,6 @@ const CARD_CLIP_DIRS = [
 ];
 function pickCardClipDir() { return CARD_CLIP_DIRS[Math.floor(Math.random() * CARD_CLIP_DIRS.length)]; }
 
-// 共用：對 container 內所有 .list-reveal-row 跑 ScrollTrigger 進場（admission/activities 用 setupClipReveal+playClipReveal 同 pattern）
-function setupListEntryReveal(container) {
-  if (!container || typeof gsap === 'undefined') return;
-  const rows = [...container.querySelectorAll('.list-reveal-row')];
-  if (!rows.length) return;
-  const wrapped = setupClipReveal(rows);
-  if (typeof ScrollTrigger !== 'undefined') {
-    ScrollTrigger.batch(wrapped, {
-      start: 'top 90%',
-      onEnter: batch => playClipReveal(batch),
-    });
-  } else {
-    playClipReveal(wrapped);
-  }
-}
 
 const DATA_URL = '/data/alumni.json';
 const ACTIVITIES_URL = '/data/alumni-activities.json';
@@ -83,7 +68,7 @@ function renderMembers(data) {
   const container = document.getElementById('alumni-members-list');
   if (!container) return;
   container.innerHTML = (data.members || []).map((m, i) => {
-    const color = SCCDHelpers.ACCENT_COLORS[i % SCCDHelpers.ACCENT_COLORS.length];
+    const color = SCCDHelpers.getRandomAccentColor();
     const initDeg = randDeg(1, 3);   // 同 faculty 卡 ±1–3°（大角度 hover 轉正途中圖角壓出粉框，見 faculty-filter.js facultyImgDeg）
     const imgDir = randomRevealDir();
     return `
@@ -108,10 +93,11 @@ function renderMembers(data) {
   }).join('');
 
   const cards = container.querySelectorAll('.faculty-card');
-  // hover 卡片圖轉正（cards.css :hover）、離開換新角（user 2026-10-19，同 faculty）
+  // hover 卡片圖轉正（cards.css :hover）、離開換新角（user 2026-10-19，同 faculty）；hover 底色每次重抽（user 2026-11-04）
   if (window.matchMedia('(hover: hover)').matches) {
     cards.forEach(el => {
       const card = /** @type {HTMLElement} */ (el);
+      card.addEventListener('mouseenter', () => card.style.setProperty('--card-color', SCCDHelpers.getRandomAccentColor(card.style.getPropertyValue('--card-color'))));
       card.addEventListener('mouseleave', () => card.style.setProperty('--init-deg', `${SCCDHelpers.rerollAngle(() => randDeg(1, 3), card.style.getPropertyValue('--init-deg'))}deg`));
     });
   }
@@ -305,11 +291,9 @@ async function showGatheringCity(cityId) {
     showShareBtn:     false,
     showPoster:       false,
     showAlumniIcon:   false,
-    autoReveal:       false,  // setupListEntryReveal 接管 ScrollTrigger reveal
   });
   initListAccordion();
   bindMeetingMinutesPdf();
-  setupListEntryReveal(container);
 }
 
 // 會議紀錄 ref：loadListInto 渲染的 <a href> 會被 SPA router document click 攔截走 404。
@@ -357,10 +341,8 @@ async function renderOrganization(terms) {
     hideYearHeader:  true,
     showShareBtn:    false,
     showAlumniIcon:  false,
-    autoReveal:      false,
   });
   initListAccordion();
-  setupListEntryReveal(container);
 
   // Charter 章程：永久 sticky 在 list 底部（黑底白字），點擊開 PDF lightbox
   // loadListInto 渲染後 append 到 container（loadListInto 內部清 innerHTML，所以必須 render 完才 append）
@@ -456,8 +438,6 @@ export async function initAlumni() {
     const orgRes = await fetch(sitePath(ORGANIZATION_URL));
     const orgData = await orgRes.json();
     renderOrganization(orgData);
-    // 進場 clip-reveal：同 admission/activities list
-    setupListEntryReveal(document.getElementById('alumni-org-list'));
   } catch (e) {
     console.error('[Alumni] failed to load organization', e);
   }

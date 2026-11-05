@@ -19,11 +19,6 @@ html.mode-color {
   background-color: var(--theme-bg) !important;
 }
 
-/* Footer logo：mode3 載 SCCDLogoWireframeStandard.json（黑 wireframe），theme-toggle.js 依 footer bg luminance 翻 invert(1)/none */
-body.mode-color .footer-logo-inner {
-  filter: var(--footer-invert-filter, invert(1));
-}
-
 /* Footer scatter 文字卡：JS inline 三原色底（footer-scatter.js）→ mode3 strict B/W（!important 蓋 inline）：
    底 fg-contrast、字 fg-inverse-contrast（對比互補 hue footer）。只限桌面 scatter；較窄版型無 scatter、維持透明底 + var(--footer-fg) */
 @media (min-width: 1024px) {
@@ -616,7 +611,8 @@ body.mode-color {
    ⚠️ 用 [style*="--lib-bg"]（setAsGray 的 inline 標記）抓當前灰卡，不能只綁 #library-card-main：switchTab 會把內容搬進被點的色塊成為新灰卡 */
 body.mode-color #library-card-main[style*="--lib-bg"],
 body.mode-color #library-card-stack > div[style*="--lib-bg"],
-body.mode-color #library-card-content {
+body.mode-color #library-card-content,
+body.mode-color #lib-tools-btn {   /* 手機工具鈕在 content 層外（卡上）：同吃反色，否則淺卡配白 icon */
   --lib-bg: var(--lib-bg-contrast);
   --lib-fg: var(--theme-fg-inverse);
   --lib-fg-rgb: var(--theme-fg-inverse-rgb);

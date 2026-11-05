@@ -310,6 +310,8 @@ function updateColorWheelIcon() {
   const mobileColorWheelPlayIcon = _p5.select('#mobile-colorwheel-play-icon');
   if (mobileColorWheelPlayIcon) {
     mobileColorWheelPlayIcon.attribute('src', iconSrc);
+    // ▶／❚❚ 圖形在 viewBox 裡位置不同（create.css .mobile-colorwheel-play-btn：▶ 靠左、❚❚ 置中）→ 對齊同一格
+    mobileColorWheelPlayIcon.elt.parentElement.classList.toggle('is-play', !isColorWheelRotating);
   }
 }
 
@@ -362,115 +364,8 @@ function updateElementsBorderColor(elements, borderColor) {
   }
 }
 
-// 更新手機版輸入框的垂直置中
-function updateMobileInputBoxVerticalAlignment(inputBox, text) {
-  if (!isMobileMode || !mobileHiddenMeasurer || !inputBox) {
-    return;
-  }
-
-  // 檢查是否有 custom-open class（Wireframe + Custom 最滿狀態）
-  if (inputBox.elt.classList.contains('custom-open')) {
-    inputBox.style('padding-top', '0');
-    inputBox.style('padding-bottom', '0');
-    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
-    return;
-  }
-
-  // 檢查是否處於鍵盤激活狀態（單行模式，高度受限）
-  const inputArea = document.querySelector('.mobile-input-area');
-  if (inputArea && inputArea.classList.contains('keyboard-active')) {
-    inputBox.style('padding-top', '0');
-    inputBox.style('padding-bottom', '0');
-    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
-    return;
-  }
-
-  // 彩蛋模式現在也使用相同的垂直置中邏輯（SCCD 單行、全稱兩行都在 3 行容器中垂直置中）
-  // 移除了彩蛋模式的特殊處理，讓它走正常的計算流程
-
-  // 如果沒有文字，設置 padding 讓 placeholder 垂直居中
-  if (!text || text.trim() === '') {
-    // Placeholder 是一行文字 "TYPE AND ENTER"，需要垂直居中
-    const containerHeight = inputBox.elt.offsetHeight;
-    const currentFontSize = parseFloat(window.getComputedStyle(inputBox.elt).fontSize);
-    const lineHeight = currentFontSize * 1.2; // line-height: 1.2
-
-    // Placeholder 只有一行，計算一行的總高度
-    const placeholderHeight = lineHeight * 1;
-    // 使用 Math.round 取整，避免 subpixel 差異導致模式切換時位置偏移
-    const paddingTop = Math.round(Math.max(0, (containerHeight - placeholderHeight) / 2));
-
-    inputBox.style('padding-top', `${paddingTop}px`);
-    inputBox.style('padding-bottom', '0');
-    if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
-    return;
-  }
-
-  // 檢查是否需要跳過重新計算（避免 Standard/Inverse 切換時文字跳動）
-  // 如果輸入框已經有 padding-top，且文字內容和字體大小都沒有改變，則跳過
-  const currentPaddingTop = parseFloat(inputBox.elt.style.paddingTop) || 0;
-  const currentFontSize = window.getComputedStyle(inputBox.elt).fontSize;
-
-  // 儲存上次的文字和字體大小
-  if (typeof updateMobileInputBoxVerticalAlignment.lastText === 'undefined') {
-    updateMobileInputBoxVerticalAlignment.lastText = '';
-    updateMobileInputBoxVerticalAlignment.lastFontSize = '';
-  }
-
-  const textChanged = text !== updateMobileInputBoxVerticalAlignment.lastText;
-  const fontSizeChanged = currentFontSize !== updateMobileInputBoxVerticalAlignment.lastFontSize;
-
-  // 如果文字和字體大小都沒變，且已經有 padding，則跳過重新計算
-  if (!textChanged && !fontSizeChanged && currentPaddingTop > 0) {
-    return;
-  }
-
-  // 等待兩幀確保字體大小已經更新（第一幀更新 class，第二幀計算）
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      // 同步 hidden measurer 的字體大小（因為 small-text class 可能剛被加上/移除）
-      const currentFontSize = window.getComputedStyle(inputBox.elt).fontSize;
-      mobileHiddenMeasurer.style('font-size', currentFontSize);
-      mobileHiddenMeasurer.style('line-height', '1.2');
-      mobileHiddenMeasurer.style('width', inputBox.style('width'));
-
-      // 設置 measurer 的內容（將換行轉為 <br>）
-      const htmlContent = text.replace(/\n/g, '<br>');
-      mobileHiddenMeasurer.html(htmlContent);
-
-      // 獲取輸入框的固定高度和實際文字高度
-      const containerHeight = inputBox.elt.offsetHeight;
-      const textHeight = mobileHiddenMeasurer.elt.scrollHeight;
-
-      // 規則：
-      // - 文字塞滿容器（容器高＝最壞情況預留，見 mobile.js reserveMobileInputHeight）：靠上對齊（padding-top: 0）
-      // - 其餘垂直居中
-      let paddingTop;
-      if (textHeight >= containerHeight - 1) {
-        // 塞滿：靠上對齊，避免最後一行被切到
-        paddingTop = 0;
-        // 同時將 mobile-input-area 的對齊方式改為靠上（覆蓋 CSS 的 align-items: center）
-        if (inputArea) {
-          inputArea.style.alignItems = 'flex-start';
-        }
-      } else {
-        // 一行或兩行：垂直居中
-        // 使用 Math.round 取整，避免 subpixel 差異導致模式切換時位置偏移
-        paddingTop = Math.round(Math.max(0, (containerHeight - textHeight) / 2));
-        // 恢復 mobile-input-area 的垂直居中對齊
-        if (inputArea) {
-          inputArea.style.alignItems = 'center';
-        }
-      }
-
-      // 應用 padding（只設置 top，讓文字自然從上往下排列）
-      inputBox.style('padding-top', `${paddingTop}px`);
-      inputBox.style('padding-bottom', '0');
-      if (typeof updateFakeCaret === 'function') updateFakeCaret();   // padding 變了＝假游標重對位
-
-      // 更新記錄
-      updateMobileInputBoxVerticalAlignment.lastText = text;
-      updateMobileInputBoxVerticalAlignment.lastFontSize = currentFontSize;
-    });
-  });
+// 手機輸入框一行、置中交給 CSS（.mobile-input-area flex 置中，user 2026-11-04 全 mode 一行）；
+// 原本量文字高推 padding-top 在三行框內置中。保留這個入口給各 caller（換 mode／開關 custom 後）：只剩假游標重對位
+function updateMobileInputBoxVerticalAlignment() {
+  if (typeof updateFakeCaret === 'function') updateFakeCaret();
 }

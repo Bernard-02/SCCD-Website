@@ -348,10 +348,7 @@ function updateColorFromMouse(e) {
     wireframeColor = _p5.color(selectedHue, 80, 100);
     _p5.colorMode(_p5.RGB, 255);
 
-    // 根據亮度決定描邊顏色
-    let newStrokeColor = getContrastColor(wireframeColor);
-    startStrokeColorTransition(newStrokeColor);
-
+    // 描邊黑白由 draw() 每幀跟 site --theme-fg（同一幀翻，不再另跑 lerp）
     // 更新背景顏色
     updateBackgroundColor(wireframeColor, true);
 
@@ -384,10 +381,7 @@ function updateColorFromMouse(e) {
     wireframeColor = _p5.color(selectedHue, 80, 100);
     _p5.colorMode(_p5.RGB, 255);
 
-    // 根據亮度決定描邊顏色（黑色或白色）- 啟動平滑過渡
-    let newStrokeColor = getContrastColor(wireframeColor);
-    startStrokeColorTransition(newStrokeColor);
-
+    // 描邊黑白由 draw() 每幀跟 site --theme-fg（同一幀翻，不再另跑 lerp）
     // 更新背景顏色（拖動時禁用 transition，實現即時更新）
     updateBackgroundColor(wireframeColor, true);
 
@@ -412,6 +406,11 @@ function getRelativeLuminance(col) {
 
 // 根據背景顏色亮度選擇黑色或白色作為對比色
 function getContrastColor(bgColor) {
+  // mode3 的底就是 site --theme-bg（呼叫端傳的都是 wireframeColor）：直接用 site 算好的 --theme-fg（theme-toggle.js applyColorVars
+  // 寫在 html inline、帶遲滯門檻）→ 描邊／icon 跟背景、header、文字同一個門檻同一幀翻（user 2026-11-04）；讀 inline 不觸發樣式重算
+  const siteFg = document.documentElement.style.getPropertyValue('--theme-fg').trim();
+  if (siteFg) return siteFg === '#000000' ? _p5.color(0, 0, 0) : _p5.color(255, 255, 255);
+
   let luminance = getRelativeLuminance(bgColor);
 
   // 如果亮度大於 0.5，使用黑色；否則使用白色
@@ -480,11 +479,11 @@ function updateBackgroundColor(bgColor, _disableTransition) {
   let borderR = _p5.red(contrastColor);
   let isDarkIcons = borderR === 0;
 
-  let body = _p5.select('#create-app');
-  if (!body) return;
-  const had = body.elt.classList.contains('dark-icons');
+  const app = document.getElementById('create-app');   // draw() 每幀叫：不走 p5.select（每次包新物件）
+  if (!app) return;
+  const had = app.classList.contains('dark-icons');
   if (isDarkIcons !== had) {
-    body.elt.classList.toggle('dark-icons', isDarkIcons);
+    app.classList.toggle('dark-icons', isDarkIcons);
     if (typeof updateIconsForMode === 'function') updateIconsForMode();
   }
 }

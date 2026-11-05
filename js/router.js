@@ -7,9 +7,9 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive, clearNavActive, setNavActive, playPageIndicatorExit } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
-import { playFooterExit, resetFooterAfterExit, closeFooter } from './modules/ui/footer-scatter.js';
+import { playFooterExit, closeFooter } from './modules/ui/footer-scatter.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
-import { releaseSnapHold, scrollWindowNoSnap } from './modules/ui/snap-scroll.js';
+import { releaseSnapHold } from './modules/ui/snap-scroll.js';
 import { lockForDeepLink, unlockDeepLink } from './modules/ui/deeplink-lock.js';
 import { CMS_API_BASE } from './config/api.js';
 
@@ -211,8 +211,7 @@ let navSeq = 0;
 
 // fromUserNav：true=使用者點連結的 SPA 導航（navigateTo）；false=初始載入 / refresh / popstate。
 // 往下傳到 initPageModules → curriculum deep-link 用它判斷要不要播「自動捲到 section + 開 slide-in」。
-// fromFooter：點 footer 站內連結換頁（見 click handler）——不捲頂，改「footer 不動、上方換成新頁、再往上捲進去」。
-async function loadPage(route, search = '', fromUserNav = false, fromFooter = false) {
+async function loadPage(route, search = '', fromUserNav = false) {
   const main = document.getElementById('page-content');
   if (!main) return;
   // 非使用者點連結的載入（popstate／轉向重載／404 fallback）不播 deep-link 呈現 → 進行中的操作鎖一律解
@@ -228,14 +227,10 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
 
     // 退場動畫（當前頁有 register 才會跑）跟 fetch 並行：anim ~0.7s + fetch 通常更快，
     // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換。
-    // playFooterExit：footer 在視窗內（點 footer 連結離頁）才跑，items 散出；不在畫面則 no-op（user 2026-06-07）。
-    // fromFooter：人在 footer、本頁退場動畫都在視窗上方看不到 → 照跑（runPageExit 順便清空 handler 註冊表）但不等，
-    // 只等 footer 退場（user 2026-09-27：faculty 點 logo 回 index 比同頁回頂慢＝多等卡片收場 ~0.4s）；
-    // 頁內殘留 tween 由 cleanupPageModules killTweensOf 收掉。⚠️alumni 退場收 header bar，user 說之後再處理
-    // fromFooter 連 footer 卡片也不退場：換頁後整頁往上捲、footer 自然捲出畫面（user 2026-10-01「已經往上了，不需要讓 item 退場」）
+    // playFooterExit：footer 卡開著就同拍沉下，沒開＝no-op。
     // playPageIndicatorExit：左下當前頁卡（header 內、不隨 main swap）在畫面內才跟頁面同拍沉出（user 2026-09-28）
     const pageExit = runPageExit(route);
-    const [_exit, _fexit, _iexit, res] = await Promise.all([fromFooter ? null : pageExit, fromFooter ? null : playFooterExit(), playPageIndicatorExit(), fetch(fetchUrl)]);
+    const [_exit, _fexit, _iexit, res] = await Promise.all([pageExit, playFooterExit(), playPageIndicatorExit(), fetch(fetchUrl)]);
     if (isStale()) return; // 中途有新 nav，放棄這次（不 cleanup 不 swap，讓新 nav 接手）
     void _exit; void _fexit; void _iexit;
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
@@ -261,16 +256,8 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
     // Cleanup 上一頁；帶 destPage 讓 cleanup 知道是否是 same-page reentry（決定要不要 restoreHeaderLogo）
     cleanupPageModules(route.page);
 
-    // fromFooter：記下 footer 目前在視窗的位置，swap 後捲回同位置＝footer 看起來沒動、新頁在它上方換好，
-    // 稍後再往上捲進新頁（user 2026-09-27「往上就是 index，不需要回到頂部又再切換」）
-    const footerEl0 = fromFooter ? (document.getElementById('site-footer') || document.getElementById('site-footer-static')) : null;
-    const footerTop0 = footerEl0 ? footerEl0.getBoundingClientRect().top : 0;
-    const pinFooter = () => {
-      if (footerEl0) window.scrollTo({ top: window.scrollY + footerEl0.getBoundingClientRect().top - footerTop0, behavior: 'instant' });
-    };
-
-    // 先捲到頂部，避免替換後舊 scrollY 超過新頁高度被鎖在 footer
-    if (!fromFooter) scrollToTop();
+    // 先捲到頂部，避免替換後舊 scrollY 超過新頁高度被鎖在頁底
+    scrollToTop();
 
     // 替換內容
     main.innerHTML = newMain.innerHTML;
@@ -281,20 +268,20 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
     }
 
     // 替換後再捲一次，保險覆蓋 reflow / scroll anchor 造成的位移
-    if (fromFooter) pinFooter();
-    else requestAnimationFrame(() => scrollToTop());
+    requestAnimationFrame(() => scrollToTop());
 
     // 移除舊頁專屬 CSS（新頁 CSS 已在 swap 前 ensurePageCSS 載好並保留）
     removeStalePageCSS(route.page);
 
-    // 更新 nav active state（fromFooter：header 保留 footer-near 收起態，往上捲時才展開）
-    updateNavActive(route.page, { fromFooter });
+    // 更新 nav active state
+    updateNavActive(route.page);
 
     // generate / library / atlas 頁不顯示 footer（404 顯示，使用者可 scroll 看到）
     const footerEl = document.getElementById('site-footer') || document.getElementById('site-footer-static');
     if (footerEl) {
       const shouldHide = route.page === 'generate' || route.page === 'library' || route.page === 'atlas';
       footerEl.style.display = shouldHide ? 'none' : '';
+      document.body.classList.toggle('no-footer', shouldHide);   // 沒 footer＝沒右下 footer 鈕 → mode3 鉛筆回角落（mode-color-panel.css）
       // footer 容器換頁不換（只 swap <main>）＝永遠是「硬載入那頁」的 DOM。library/atlas/create/404 的
       // #site-footer 沒寫 .snap-zone → 從那些頁進站後全 session footer 都不是 snap 點 → mandatory 在
       // content section 以下找不到落點、一律彈回上一個 snap 點（user 報「捲不到 footer」）。router 補掛
@@ -312,11 +299,6 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
         initFooter();
       }
     }
-
-    // footer 若在離頁時跑了退場（playFooterExit），此時已 scrollToTop、footer 捲離視窗 → 重新散佈進場復位
-    //（不被看到，純把 items 從隱藏狀態還原 + 重啟 shuffle）。沒退場 / footer 隱藏頁則 no-op。
-    // fromFooter 本身不退場（上方 Promise.all）；下方 rAF 捲完仍呼叫一次＝保險（no-op）
-    if (!fromFooter) resetFooterAfterExit();
 
     // 更新 body class（generate / atlas / library 鎖頁面 scroll，滿版單屏）
     // library 必須走 class 不能靠 HTML inline style="overflow:hidden"：
@@ -364,7 +346,7 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
     // 不能被這個保險 reset 拉回頂部。尤其 reduce 模式 hero 進場是瞬間 → deep-link 捲動在 ~tens ms 內跑完、
     // 早於 100ms reset → 會被蓋掉「停在頂部」（正常模式靠 hero ~1s 延遲剛好錯開、不中招）。
     const isDeepLinkNav = fromUserNav && (sp.has('item') || sp.has('section') || sp.has('program'));
-    if (!isDeepLinkNav && !fromFooter) {
+    if (!isDeepLinkNav) {
       setTimeout(() => scrollToTop(), 0);
       setTimeout(() => scrollToTop(), 100);
     }
@@ -381,12 +363,7 @@ async function loadPage(route, search = '', fromUserNav = false, fromFooter = fa
       // 會被 clamp 成貼近底部 → 一閃 footer 再被下面的保險 reset 拉回頂（user 2026-08-10：從 about 非 hero
       // section 回首頁會閃一下 footer）。refresh() 是同步的，在同一個 rAF frame 內立刻再 pin 回頂端 → 中間
       // 不 paint、消除閃現。deep-link 導航不 reset（由目標頁模組稍後自行捲到定點）。
-      // fromFooter：refresh 後同理再釘一次 footer，接著往上捲進新頁；footer 捲出視窗才復位
-      if (fromFooter) {
-        if (isStale()) return;
-        pinFooter();
-        scrollWindowNoSnap(0, { onComplete: resetFooterAfterExit });
-      } else if (!isDeepLinkNav) scrollToTop();
+      if (!isDeepLinkNav) scrollToTop();
       // deep-link 不 reset（目標頁自己捲），但 refresh 還原的舊頁位置要撤掉：從捲到一半的頁帶 ?section= 過來（DSD 返回鈕）
       // 會直接落在舊 scrollY（被新頁高夾住）、跳過「頂部→hero→往下捲」（user 2026-10-21：要跟瀏覽器上一頁一樣）
       else if (window.scrollY !== yBeforeRefresh) window.scrollTo(0, yBeforeRefresh);
@@ -442,7 +419,7 @@ function presentsDeepLink(page, search, hash) {
   return false;
 }
 
-export function navigateTo(url, { fromFooter = false } = {}) {
+export function navigateTo(url) {
   const { pathname, search, hash } = new URL(url, window.location.origin);
   const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
   // deep-link：點下去當下就擋使用者操作（本頁退場也蓋住），目標頁呈現完自己解鎖；一般換頁順手解掉殘留鎖
@@ -461,7 +438,7 @@ export function navigateTo(url, { fromFooter = false } = {}) {
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
   window.history.pushState({ page: route.page }, '', realPath + search + hash);
   // fromUserNav=true：使用者主動點連結才會走這（refresh / popstate / 初始載入不經此）→ 准許 deep-link 導航動畫
-  return loadPage(route, search, true, fromFooter);
+  return loadPage(route, search, true);
 }
 
 // 點下去的連結跟著退場（頁面退場／footer 卡沉下／menu 收）：途中保持點擊當下的 hover 樣子，換完頁才放（user 2026-10-21）。
@@ -522,15 +499,11 @@ export function initRouter() {
     // 建立完整 URL 來解析
     const url = new URL(href, window.location.origin);
 
-    // footer 站內連結：footer 卡片不退場、直接往上捲（user 2026-10-01「已經往上了，不需要讓 item 退場」，logo 同）——
-    // 目標是本頁（如首頁點 logo）就只捲頂不重載；別頁則 footer 不動、上方換成新頁再往上捲進去（loadPage fromFooter）
+    // footer 站內連結（footer 是蓋在頁面上的卡）：同頁＝收卡；別頁＝一般換頁（loadPage 的 playFooterExit 收卡、新頁從頂開始）
     if (link.closest('#site-footer, #site-footer-static')) {
       e.preventDefault();
       const samePage = resolveRoute(url.pathname)?.page === resolveRoute(window.location.pathname)?.page;
-      // 真桌面 footer 是覆蓋卡（footer-scatter.js）：同頁＝收卡；別頁＝一般換頁（loadPage 的 playFooterExit 收卡、新頁從頂開始）
-      if (SCCDHelpers.isDesktopLayout()) { holdLinkUntil(link, () => (samePage ? closeFooter() : navigateTo(url.href))); return; }
-      if (samePage) scrollWindowNoSnap(0);
-      else navigateTo(url.href, { fromFooter: true });
+      holdLinkUntil(link, () => (samePage ? closeFooter() : navigateTo(url.href)));
       return;
     }
     const handled = holdLinkUntil(link, () => navigateTo(url.href));

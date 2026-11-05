@@ -6,7 +6,7 @@
  */
 
 import { setupClipReveal } from '../ui/scroll-animate.js';
-import { hideRows, hideRow, revealRows, snapRowsShown, exitRows, coverZebra, uncoverZebra, clearZebraCover } from '../ui/list-row-reveal.js';
+import { hideRows, flipTitleRows, revealRows, snapRowsShown, exitRows, coverZebra, uncoverZebra, clearZebraCover } from '../ui/list-row-reveal.js';
 import { initListAccordion } from '../accordions/list-accordion.js';
 import { loadListInto } from './activities-data-loader.js';
 import { DUR, EASE } from '../ui/motion.js';
@@ -75,7 +75,7 @@ export async function loadAdmissionData() {
 // ── Reveal Helpers (給 admission-section-switch 用) ────────────────────────
 
 /**
- * 為 container 內所有 reveal-row（包括 list-item 外的年份/separator）套 clip-reveal init
+ * 為 container 內所有 reveal-row（包括 list-item 外的年份）套 clip-reveal init
  *
  * hide=true（預設）：wrap + 推 yPercent:100 隱藏準備 reveal
  * hide=false：只 wrap 不隱藏 — 初次載入時描述塊在 HTML 已可見，但需 clip-wrapper 讓首次 exit 能乾淨剪裁
@@ -124,14 +124,7 @@ export function setupAdmissionReveal(container, { hide = true, limit = 0 } = {})
   const canFlip = hide && !prefersReducedMotion();
   // limit 時 flip/zebra 也只掃被藏的那些 item（同上，沒藏的不動＝維持終態）
   (limitedItems ? [...limitedItems] : [...container.querySelectorAll('.list-item')]).forEach(item => {
-    const fromTop = canFlip && Math.random() < 0.5;
-    if (fromTop) {
-      item.querySelectorAll('.list-reveal-row').forEach(row => {
-        if (row.querySelector('.text-lg') || row.classList.contains('list-subtitles')) {
-          hideRow(row, true);   // 翻成從上 translateY(-110%)（結構列維持從下）
-        }
-      });
-    }
+    const fromTop = canFlip && flipTitleRows(item);
     // 底色遮罩（coverZebra：只蓋底色不裁文字）；fromTop＝由上往下揭、否則由下往上，跟文字同方向
     if (item.classList.contains('list-item-zebra')) coverZebra(item, fromTop);
   });
@@ -196,12 +189,13 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
     return;
   }
 
-  // 分組策略：以 list-item-divider 為「list-row 群組」終止符，每組 = 年份(若有) + title + 副標/icons + chevron + divider
+  // 分組策略：每組 = 年份(若有) + 同一筆 .list-item 的 rows（title + 副標/icons + chevron）；換到下一筆的 row 就收組
   // intro = list 結構之外的 rows（描述塊）；首個 list-item / yearGroup 之後皆視為 list phase
   const allRows = /** @type {HTMLElement[]} */ ([...panel.querySelectorAll('.list-reveal-row')]);
   const intro = /** @type {HTMLElement[]} */ ([]);
   const groups = /** @type {HTMLElement[][]} */ ([]);
   let current = /** @type {HTMLElement[]} */ ([]);
+  let curItem = /** @type {Element|null} */ (null);
   let inListPhase = false;
   for (const row of allRows) {
     if (!inListPhase) {
@@ -212,11 +206,10 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
         continue;
       }
     }
+    const item = row.closest('.list-item');
+    if (curItem && item !== curItem) { groups.push(current); current = []; curItem = null; }
     current.push(row);
-    if (row.classList.contains('list-item-divider')) {
-      groups.push(current);
-      current = [];
-    }
+    if (item) curItem = item;
   }
   if (current.length) groups.push(current);
 

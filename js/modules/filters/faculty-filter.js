@@ -1,15 +1,17 @@
 /**
  * Faculty Filter Module
- * 師資篩選功能（Fulltime / Parttime / Admin）
+ * 師資分類 nav（Fulltime / Parttime / Admin / Founder）：四面卡牆由上往下接著捲（user 2026-11-04「跟 about 一樣」；
+ * 原本 nav 切換一次只顯示一類），nav＝scroll-spy＋點擊捲到該牆
  */
 
 import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
+import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, bindLandscapeNavGate, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { waitForHeroAnimDone } from '../pages/hero-animation.js';
-import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
+import { scrollWindowNoSnap, initColSnap, whenScrollSettles } from '../ui/snap-scroll.js';
 
 // 卡片進場動畫（2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，user 指定全卡統一 clip-reveal 語彙）：
 //   圖片 → wrapper 整塊（灰底+照片+overlay）在 .faculty-card-image-mask（overflow:clip，template 內建
@@ -152,40 +154,40 @@ function playFacultyCardsSerial(cards) {
   });
 }
 
-// 用單一 ScrollTrigger 包整段序列（不是 batch）：
-//   - 卡片在 fold 下時（SPA 切到頁的初次載入）等使用者 scroll 才整段播
-//   - 卡片已在 viewport 內時（filter 切換 / 上方 fold 都已可見）ScrollTrigger 立即 fire → 立刻播
-//   - 之所以不用 batch：batch 每批 onEnter 啟動獨立 t=0 cursor，scroll 時第二批會跟第一批並行
-let lastFacultyTrigger = null;
+// 進場 trigger＝ScrollTrigger.batch（每張卡各自 trigger）：同一批（同時進視窗的幾列）照列序接力；
+// 之後捲進來的列自成一批、進視窗就播，不排在上面還沒播完的列後面——滾輪比逐列進場快，
+// 原本「整面牆一條序列」捲下去看到的列還在排隊＝空白（user 2026-11-04）
 
 // ±1–3°（同 library documents）：hover 粉底瞬間出現、圖 0.3s 才轉正——角度大於 ~3° 時斜角凸出超過卡片 6px padding、
 // 轉正途中圖角壓出粉框（原 ±3–6°，user 2026-10-19）。faculty-data-loader／alumni 初始角同範圍
 const facultyImgDeg = () => `${((Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2)).toFixed(2)}deg`;
 
-function animateFacultyCards(cards) {
-  if (typeof gsap === 'undefined') return;
+// 先藏好（同步、首繪前），回傳 arm()＝建 ScrollTrigger 捲到才播；scroller＝桌面右欄（frame 內捲）／省略＝window
+const NOOP = () => {};
+const NO_REVEAL = { arm: NOOP, finish: NOOP };
+// 卡片直接到終態（圖不裁、文字到位、解 hover 鎖）：減少動態、點 nav 跳過的牆共用
+function showCardsNow(items) {
+  items.forEach(card => {
+    const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
+    const name = card.querySelector('.faculty-card-name');
+    const title = card.querySelector('.faculty-card-title');
+    gsap.killTweensOf([imgWrapper, name, title].filter(Boolean));
+    if (imgWrapper) gsap.set(imgWrapper, { clearProps: 'transform' });
+    if (name) gsap.set(name, { clearProps: 'transform' });
+    if (title) gsap.set(title, { clearProps: 'transform' });
+    if (card._hoverUnlockTimer) { clearTimeout(card._hoverUnlockTimer); card._hoverUnlockTimer = null; }
+    card.classList.remove('pointer-events-none');
+    card.dataset.revealStarted = '1';
+  });
+}
+// 回傳 { arm＝建 ScrollTrigger 捲到才播, finish＝不播了、直接到終態 }
+function prepareFacultyCards(cards, scroller) {
+  if (typeof gsap === 'undefined') return NO_REVEAL;
   const items = Array.from(cards);
-  if (items.length === 0) return;
+  if (items.length === 0) return NO_REVEAL;
 
-  // 清掉上次的 trigger（filter 切換時避免累積）
-  if (lastFacultyTrigger) { lastFacultyTrigger.kill(); lastFacultyTrigger = null; }
-
-  // 減少動態：卡片直接全顯（圖不裁、文字到位），不排序列、不上 ScrollTrigger、不鎖 hover
-  if (prefersReducedMotion()) {
-    items.forEach(card => {
-      const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
-      const name = card.querySelector('.faculty-card-name');
-      const title = card.querySelector('.faculty-card-title');
-      gsap.killTweensOf([imgWrapper, name, title].filter(Boolean));
-      if (imgWrapper) gsap.set(imgWrapper, { clearProps: 'transform' });
-      if (name) gsap.set(name, { clearProps: 'transform' });
-      if (title) gsap.set(title, { clearProps: 'transform' });
-      if (card._hoverUnlockTimer) { clearTimeout(card._hoverUnlockTimer); card._hoverUnlockTimer = null; }
-      card.classList.remove('pointer-events-none');
-      card.dataset.revealStarted = '1';
-    });
-    return;
-  }
+  // 減少動態：卡片直接全顯，不排序列、不上 ScrollTrigger、不鎖 hover
+  if (prefersReducedMotion()) { showCardsNow(items); return NO_REVEAL; }
 
   items.forEach(card => {
     gsap.killTweensOf([
@@ -205,22 +207,25 @@ function animateFacultyCards(cards) {
     if (mask) { void mask.offsetWidth; mask.style.transition = ''; }
   });
 
-  if (typeof ScrollTrigger !== 'undefined') {
-    lastFacultyTrigger = ScrollTrigger.create({
-      trigger: items[0],
-      start: 'top 90%',
-      once: true,
-      onEnter: () => {
-        playFacultyCardsSerial(items);
-        lastFacultyTrigger = null;
-      },
-    });
-  } else {
-    playFacultyCardsSerial(items);
-  }
+  /** @type {any[]} */
+  let sts = [], done = false;
+  return {
+    arm: () => {
+      if (done) return;
+      if (typeof ScrollTrigger === 'undefined') { playFacultyCardsSerial(items); return; }
+      sts = ScrollTrigger.batch(items, { scroller, start: 'top 90%', once: true, onEnter: batch => playFacultyCardsSerial(batch) });
+    },
+    // 點 nav 跳去別類：還在跑／還沒輪到的進場直接到終態（user 2026-11-04「原本還在跑動畫的 section 就不需要跑了，
+    // 這樣往上才有內容」）——逐列進場一面牆要好幾秒，不收掉的話捲回去還是空的
+    finish: () => {
+      done = true;
+      sts.forEach(st => st.kill());
+      showCardsNow(items);
+    },
+  };
 }
 
-// 退場序（filter 切換時）：text 先收（title → name），image 最後收，方向與進場 imgDir 一致 = 從哪邊進就從哪邊退
+// 退場序（離頁）：text 先收（title → name），image 最後收，方向與進場 imgDir 一致 = 從哪邊進就從哪邊退
 const EXIT_DUR = 0.6;
 const EXIT_INTERNAL_STEP = 0.07;  // 同卡內 title → name → image 間距
 const EXIT_CARD_STEP = 0.04;      // 卡與卡之間 stagger
@@ -305,11 +310,14 @@ export function initFacultyFilter(initialSection = null, unlock) {
   // （手機 header 底色帶 .mobile-header-bg 已提升為全站元素：放 header.html、footer-near hide 在 header.js
   //   bindFooterScroll，2026-07-17。原 faculty 專屬 .faculty-header-bg + 此處 scroll listener 已移除。）
 
-  // 離頁退場：重用 filter 切換的 exitFacultyCards（已是正確 fromTo 寫法），對「當前可見」的老師卡片
-  // 做收場（text 收 → image 收）。router 換頁前 await 完才 swap DOM；registerPageExit 在 runPageExit 後自動清空。
+  // 離頁退場：對「畫面上」的老師卡片做收場（text 收 → image 收）。四面牆都在流裡＝只收視窗內的，
+  // 捲過的牆不排進 stagger（否則看得到的那幾張要等前面幾十張排完才收）。router 換頁前 await 完才 swap DOM。
   registerPageExit(() => new Promise(resolve => {
-    const visible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
-    exitFacultyCards(visible, resolve);
+    const onScreen = Array.from(facultyCards).filter(card => {
+      const r = card.getBoundingClientRect();
+      return r.bottom > 0 && r.top < window.innerHeight;
+    });
+    exitFacultyCards(onScreen, resolve);
   }));
 
   // ── 左側 filter nav 進場/退場（2026-07-16 改 hero 式 clip-reveal：translate＋同步 clip 滑動揭露）──
@@ -401,58 +409,117 @@ export function initFacultyFilter(initialSection = null, unlock) {
   bindNavBtnSpin(filterButtons);
   bindNavBtnFit(filterButtons);   // 左欄窄、長英文折行 → 色塊貼文字寬（四頁 nav 共用 helper；2026-09-29 分類鈕回左欄）
 
-  // Filter button click event
+  // ── 四面牆串接：捲動欄＝桌面 frame 右欄（自己捲）／手機・gate 拆 frame＝window ──
+  const section = document.getElementById('faculty-cards');
+  const scrollCol = /** @type {HTMLElement|null} */ (section && section.querySelector('.inner-scroll-scroll-col'));
+  const colScrolls = !!scrollCol && getComputedStyle(scrollCol).overflowY !== 'visible';
+  const navItems = [...filterButtons]
+    .map(btn => ({ btn, wall: document.getElementById(`faculty-${btn.getAttribute('data-filter')}-list`), reveal: NO_REVEAL }))
+    .filter(n => n.wall && n.wall.children.length);   // 空牆（該類沒老師）不參與 spy、點了不動
+  const firstWall = navItems[0]?.wall;
+  // 牆的位置看「第一張卡」不看牆框：桌面牆間距掛在後面牆首列卡片的 margin 上（cards.css），牆框頂比卡片高一截
+  const wallTop = (wall) => (wall.firstElementChild || wall).getBoundingClientRect().top;
+  // 牆的落點＝第一面牆「捲到段頂」時的位置：桌面＝右欄 scrollTop、手機＝相對段頂的 window 位移（兩者同一個差值）
+  const wallOffset = (wall) => wallTop(wall) - wallTop(firstWall);
+  const sectionY = () => section.getBoundingClientRect().top + window.scrollY;
+  // 每面牆＝一個吸附點（.snap-zone；user 2026-11-04「跟 about 一樣每個 section 都 snap」）：scroll-margin-top 讓吸附落點＝
+  // 點 nav 的落點（第一張卡停在第一面牆的首卡位置）；桌面牆框頂比首卡高一截（間距掛卡片）→ 後面幾面是負值。空牆不當吸附點
+  document.querySelectorAll('#faculty-cards .faculty-card-wall:empty').forEach(w => w.classList.remove('snap-zone'));
+  // 每面牆至少一屏（user 2026-11-04「每個 nav 的內容 min-height 100vh，不會看到下面 nav 的內容」）：落點在某一類時，
+  // 下一類第一張卡剛好在視窗底下 PEEK_GUARD（旋轉卡角凸出 box 的餘量）＝看不到；最後一面改扣「牆底到捲動終點」
+  //（桌面右欄 padding-bottom／手機 section 底 pad）＝捲到底它也在落點、上一類不露、footer 剛好在畫面外。
+  // 短的類別因此剛好一屏（相鄰落點距＝一屏）＝分段磁吸一格換段、沒有多出來的自由捲。牆框頂到第一張卡那截（桌面牆間距掛卡片）
+  // 要加回去；「牆底到下一類首卡」與牆自己多高無關＝不用先清再量
+  const PEEK_GUARD = 16;
+  const fitWalls = () => {
+    if (!firstWall) return;
+    const landing = colScrolls
+      ? wallTop(firstWall) - scrollCol.getBoundingClientRect().top + scrollCol.scrollTop
+      : wallTop(firstWall) - section.getBoundingClientRect().top;
+    const viewH = colScrolls ? scrollCol.clientHeight : window.innerHeight;
+    const last = navItems[navItems.length - 1].wall;
+    const lastBottom = last.getBoundingClientRect().bottom;
+    const after = colScrolls
+      ? scrollCol.scrollHeight - (lastBottom - scrollCol.getBoundingClientRect().top + scrollCol.scrollTop)
+      : section.getBoundingClientRect().bottom - lastBottom;
+    navItems.forEach(({ wall }, i) => {
+      const r = wall.getBoundingClientRect();
+      const cardOffset = wallTop(wall) - r.top;
+      const next = navItems[i + 1]?.wall;
+      const below = next ? wallTop(next) - r.bottom - PEEK_GUARD : after;   // 牆底到下一類首卡（最後一面＝到捲動終點）
+      wall.style.scrollMarginTop = `${Math.round(landing - cardOffset)}px`;
+      wall.style.minHeight = `${Math.max(0, Math.round(viewH - landing + cardOffset - below))}px`;
+    });
+  };
+  fitWalls();
+  window.addEventListener('resize', fitWalls);
+  registerPageCleanup(() => window.removeEventListener('resize', fitWalls));
+  if (colScrolls) initColSnap(scrollCol, section);   // 桌面右欄分段磁吸（直向手機走 window JS 磁吸，main-modular）
+
+  // 手機 nav bar 是水平 scroll strip：active 鈕捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
+  // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
+  const alignBar = (btn) => {
+    if (!SCCDHelpers.isMobileLayout()) return;
+    const bar = btn.parentElement;
+    if (!bar) return;
+    const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+    const delta = btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
+    bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
+  };
+  const activate = (btn, color) => {
+    setActiveStyle(btn, color);
+    SCCDHelpers.setActive(btn, filterButtons);
+    alignBar(btn);
+  };
+
+  // scroll spy（同 about：捲動欄中線落在哪面牆就亮哪顆）；捲到底＝最後一面（短牆頂到不了中線）。
+  // 點 nav 的捲動途中暫停（spyHoldUntil），免得經過的牆一路搶 active
+  let spyHoldUntil = 0;
+  let spyQueued = false;
+  const spy = () => {
+    spyQueued = false;
+    if (!navItems.length || performance.now() < spyHoldUntil) return;
+    const line = colScrolls ? scrollCol.getBoundingClientRect().top + scrollCol.clientHeight / 2 : window.innerHeight / 2;
+    const atEnd = colScrolls && scrollCol.scrollTop + scrollCol.clientHeight >= scrollCol.scrollHeight - 2;
+    let cur = navItems[0];
+    if (atEnd) cur = navItems[navItems.length - 1];
+    else navItems.forEach(n => { if (wallTop(n.wall) <= line) cur = n; });
+    if (cur.btn.classList.contains('active')) return;
+    // 捲動換段＝抽新角（同 about scroll-spy；桌面 setActiveStyle 沿用 inline 當前角＝點擊才沿用 hover 角）
+    cur.btn.querySelectorAll('.anchor-nav-inner').forEach(i => { /** @type {HTMLElement} */ (i).style.transform = `rotate(${SCCDHelpers.getRandomRotation()}deg)`; });
+    activate(cur.btn, SCCDHelpers.getRandomAccentColor());
+  };
+  const onSpyScroll = () => { if (!spyQueued) { spyQueued = true; requestAnimationFrame(spy); } };
+  if (colScrolls) scrollCol.addEventListener('scroll', onSpyScroll, { passive: true });   // 欄在 #page-content 內＝換頁隨 DOM 丟
+  else {
+    window.addEventListener('scroll', onSpyScroll, { passive: true });
+    registerPageCleanup(() => window.removeEventListener('scroll', onSpyScroll));
+  }
+
+  // 點 nav：當下就 active（feedback：不等捲動）、捲到該牆；已 active＝無效（同 about）
+  /** @type {(() => void) | null} */
+  let cancelSettle = null;
   filterButtons.forEach(button => {
     button.addEventListener('click', function(e) {
       e.preventDefault();
-
-      // 手機 filter bar 是水平 scroll strip：點到的 btn 捲回靠左對齊頁面內容左緣（同 curriculum program btn 做法）。
-      // 只動 bar 自己 scrollLeft（rect delta），不用 scrollIntoView 以免連帶動垂直；桌面是 md:flex-col 無水平 scroll。
-      // 矮橫向（landscape gate 拆 frame、nav 回水平 strip）同樣要對齊。
-      if (SCCDHelpers.isMobileLayout()) {
-        const bar = this.parentElement;
-        if (bar) {
-          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
-          const delta = this.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad);
-          bar.scrollTo({ left: bar.scrollLeft + delta, behavior: 'smooth' });
-        }
-      }
-
-      // 點同一個（已 active）→ 只 scroll 對齊 anchor，不跑 exit/enter 動畫
-      if (this.classList.contains('active')) {
-        const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('#faculty-cards .inner-scroll-scroll-col'));
-        if (scrollCol && window.innerWidth >= 768) scrollCol.scrollTop = 0;  // 桌面 inner-scroll：回頂
-        SCCDHelpers.scrollToElement('#faculty-cards');
-        this.blur();
-        return;
-      }
-
-      // Reset color on all buttons；active＝點下去時的 hover 色（user 2026-09-28），沒 hover（手機）才隨機
-      const color = navHoverColor(this) || SCCDHelpers.getRandomAccentColor();
-      setActiveStyle(this, color);
-
-      // Set active state using helper
-      SCCDHelpers.setActive(this, filterButtons);
-
-      // Get filter value
-      const filterValue = this.getAttribute('data-filter');
-
-      // 先 exit 當前 visible cards，等收場完才 swap + entrance
-      const currentlyVisible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
-      exitFacultyCards(currentlyVisible, () => {
-        SCCDHelpers.filterElements(facultyCards, filterValue, '');   // '' 非 'block'：桌面卡片是 CSS subgrid（cards.css），inline block 會蓋掉
-        // 桌面 inner-scroll：切分類後右欄 box 回頂，新卡片從頭顯示（手機走 window 捲、無 scroll-col）
-        const scrollCol = /** @type {HTMLElement | null} */ (document.querySelector('#faculty-cards .inner-scroll-scroll-col'));
-        if (scrollCol && window.innerWidth >= 768) scrollCol.scrollTop = 0;
-        const nextVisible = Array.from(facultyCards).filter(card => /** @type {HTMLElement} */ (card).style.display !== 'none');
-        animateFacultyCards(nextVisible);
-      });
-
-      // Scroll 跟 exit 同時開始，整體節奏比較緊湊
-      SCCDHelpers.scrollToElement('#faculty-cards');
-
-      // Blur the button to prevent focus scroll
       this.blur();
+      const item = navItems.find(n => n.btn === this);
+      if (this.classList.contains('active') || !item) return;
+      // 目標以上的牆、以及從目前這類往上跳時經過的牆：捲動途中進場照播，落地才收成終態（捲回去就有內容；目標自己照常播）
+      const ti = navItems.indexOf(item);
+      const ci = navItems.findIndex(n => n.btn.classList.contains('active'));
+      const skipped = navItems.filter((n, i) => i < ti || (i > ti && i <= ci));
+      cancelSettle?.();
+      cancelSettle = whenScrollSettles(colScrolls ? scrollCol : window, () => skipped.forEach(n => n.reveal.finish()));
+      // active＝點下去時的 hover 色（user 2026-09-28），沒 hover（手機）才隨機
+      activate(this, navHoverColor(this) || SCCDHelpers.getRandomAccentColor());
+      spyHoldUntil = performance.now() + 1200;
+      if (colScrolls) {
+        scrollCol.scrollTo({ top: wallOffset(item.wall), behavior: 'smooth' });
+        SCCDHelpers.scrollToElement('#faculty-cards');   // 人還在 hero／footer 時把 frame 帶進來
+      } else {
+        window.scrollTo({ top: sectionY() + wallOffset(item.wall), behavior: 'smooth' });
+      }
     });
   });
 
@@ -486,25 +553,27 @@ export function initFacultyFilter(initialSection = null, unlock) {
     setActiveStyle(initBtn, SCCDHelpers.getRandomAccentColor());
   }
 
-  // Initialize: 只顯示 initialFilter 分類的卡片
-  facultyCards.forEach(card => {
-    const el = /** @type {HTMLElement} */ (card);
-    el.style.display = el.getAttribute('data-category') === initialFilter ? '' : 'none';   // '' 理由同下方 filterElements
-  });
+  // 卡片進場：每面牆各自捲到才播。全部先藏（同步）；桌面右欄的 trigger 等整個 frame 進視窗才 arm——
+  // 右欄座標下第一面牆一開始就在「視窗內」，不等的話人還在 hero 就在畫外播完
+  navItems.forEach(n => { n.reveal = prepareFacultyCards(n.wall.querySelectorAll('.faculty-card'), colScrolls ? scrollCol : undefined); });
+  const armAll = () => navItems.forEach(n => n.reveal.arm());
+  if (!colScrolls || !section || typeof ScrollTrigger === 'undefined' || section.getBoundingClientRect().top < window.innerHeight * 0.9) armAll();
+  else ScrollTrigger.create({ trigger: section, start: 'top 90%', once: true, onEnter: armAll });
 
-  // Animate initial cards（全部一次性排好整段序列，無 ScrollTrigger）
-  const initialCards = Array.from(facultyCards).filter(c => c.getAttribute('data-category') === initialFilter);
-  animateFacultyCards(initialCards);
-
-  // site map ?section= deep-link：套好分類後等 hero 進場、平滑捲到卡片區——router 對 deep-link 導航
+  // site map ?section= deep-link：等 hero 進場、平滑捲到該分類的牆——router 對 deep-link 導航
   // 跳過 scrollToTop（由目標頁自行捲），faculty 原本只切 active 沒捲＝停在 hero（user 2026-09-15）。
-  // 作法對齊 activities/curriculum 的 section-only deep-link（waitForHeroAnimDone → 捲 section 頂）。
   // 捲到位＝呈現完成 → 解除 deep-link 操作鎖（router 對 ?section 導航已上鎖；空值／不合法的 ?section 不呈現、直接解）
   if (initialSection && VALID_SECTIONS.has(initialSection)) {
     waitForHeroAnimDone().then(() => {
-      const sec = document.getElementById('faculty-cards');
-      if (sec) scrollWindowNoSnap(sec.getBoundingClientRect().top + window.scrollY, { onComplete: unlock });
-      else unlock();
+      if (!section) { unlock(); return; }
+      const item = navItems.find(n => n.btn === initBtn);
+      let y = sectionY();
+      if (item && colScrolls) scrollCol.scrollTop = wallOffset(item.wall);
+      else if (item) y += wallOffset(item.wall);
+      spyHoldUntil = performance.now() + 1500;   // 捲過去途中別讓經過的牆搶 active（有限值：使用者中斷捲動時 onComplete 不發）
+      scrollWindowNoSnap(y, { onComplete: () => { spyHoldUntil = 0; unlock(); } });
+      // 跳過的上面幾類：落地才收成終態（同點 nav）
+      if (item) whenScrollSettles(window, () => navItems.slice(0, navItems.indexOf(item)).forEach(n => n.reveal.finish()));
     });
   } else if (initialSection != null) unlock();
 }

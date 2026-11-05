@@ -35,6 +35,16 @@ export function hideRows(rows, fromTop = false) {
   list.forEach(r => { r.style.transition = 'none'; r.style.transform = fromTop ? 'translateY(-110%)' : 'translateY(110%)'; });
 }
 
+// 一筆 item 的標題＋副標隨機改從上滑入（逐筆擲；user 2026-07-17 切換路徑、2026-11-04 捲入／搜尋也要）。
+// 呼叫前 rows 已 hideRows（從下）；結構列（meta／分享／chevron／分隔線）維持從下。回 fromTop＝coverZebra 同方向（一筆內不打架）
+export function flipTitleRows(item) {
+  const fromTop = Math.random() < 0.5;
+  if (fromTop) item.querySelectorAll('.list-reveal-row').forEach(row => {
+    if (row.querySelector('.text-lg') || row.classList.contains('list-subtitles')) hideRow(row, true);
+  });
+  return fromTop;
+}
+
 // 瞬間到終態（顯示、無動畫）：cull snap / reduced-motion / deep-link 直達。清 inline＝乾淨 rest。
 export function snapRowsShown(rows) {
   const list = Array.from(rows || []);

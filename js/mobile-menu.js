@@ -35,6 +35,13 @@ const randRot = () => `rotate(${SCCDHelpers.getRandomRotation()}deg)`;
 let closeIfOpen = null;
 export function closeMobileMenu() { closeIfOpen?.(); }
 
+// 手機 slide-in 開著＝menu 鈕不收、換成返回箭頭，點了關 slide-in（user 2026-11-04）。
+// lightbox-shell enter/exit 經 window hook 開關（避循環 import）；header.js 收 header 鈕時跳過返回態的它
+let backAction = null;
+let applyBack = null;
+export const isMenuBtnBack = () => !!backAction;
+if (typeof window !== 'undefined') window.__sccdMenuBtnBack = (onBack) => applyBack?.(onBack);
+
 export function initMobileMenu() {
   // 兩顆漢堡：手機 header 一顆＋桌面 #menu-btn 一顆（同時只顯示一顆），共用同一面板
   const btns = document.querySelectorAll('.mobile-menu-btn');
@@ -77,6 +84,24 @@ export function initMobileMenu() {
   // btn random rotation 目標：兩個 mobile-header-btn 外殼（menu btn + mode btn 都套），icon 本身不旋轉
   const menuBtnBox = document.querySelector('.mobile-header-btn .mobile-menu-btn')?.closest('.mobile-header-btn');
   const modeBtnBox = document.getElementById('mode-btn-mobile');
+
+  // 返回態切換＝整顆鈕出場→換 icon→進場（同 menu 開合）。swap 寫完整狀態（icon＋拿掉 .is-open）：
+  // 點卡片時 menu 正被「點外面」收合、那次 swap 會被這次蓋掉（cycleHeaderBtn 出場中只留最新 swap）
+  const mobileMenuBtn = menuBtnBox?.querySelector('.mobile-menu-btn');
+  applyBack = (onBack) => {
+    const was = !!backAction;
+    backAction = onBack || null;
+    const back = !!backAction;
+    if (was === back) return;
+    mobileMenuBtn?.setAttribute('aria-label', back ? '返回 Back' : 'Toggle menu');
+    const swap = () => {
+      iconOpen.forEach(i => { i.style.display = back ? 'none' : ''; });
+      iconClose.forEach(i => { i.style.display = back ? '' : 'none'; });
+      menuBtnBox?.classList.remove('is-open');
+      rerollMobileBtnRot(menuBtnBox);
+    };
+    if (menuBtnBox) cycleHeaderBtn(menuBtnBox, swap); else swap();
+  };
 
   if (!btn || !nav) return;
 
@@ -292,6 +317,7 @@ export function initMobileMenu() {
   //    不留殘態（user 2026-10-03「打開後第一次點不會關」＝原本整段 ~1.2s 鎖死）。收合中仍鎖：中途重開＝舊延遲滑出 tween 殘態來源。
   //    closeMenu 一進來就拿掉 .open → 「有 .open」＝開著或開啟中、「沒 .open＋busy」＝收合中
   btns.forEach(b => b.addEventListener('click', () => {
+    if (backAction) { backAction(); return; }   // slide-in 返回態：關 slide-in（exitLightboxMode 會換回漢堡）
     if (nav.classList.contains('open')) closeMenu();
     else if (!busy) openMenu();
   }));

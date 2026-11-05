@@ -209,13 +209,10 @@
   #courses-content-section .courses-program-btn .anchor-nav-inner > span:first-child br {
     display: none;
   }
-  /* 5d+) courses slide-in 滿版 100%（比照 faculty）→ 重顯 md:hidden 的 #courses-back-btn-mobile 返回鍵。
+  /* 5d+) courses slide-in 滿版 100%（比照 faculty；返回＝header menu 鈕返回態）。
      inner 整段自然捲（.no-scrollbar 藏條，不出 list-scroll 黑細條）；title sticky 黏頂、desc 左英右中兩欄；title pt 96 清 logo 列。 */
   body #courses-detail-panel {
     width: 100%;
-  }
-  #courses-detail-panel #courses-back-btn-mobile {
-    display: flex;       /* 蓋 md:hidden：滿版蓋掉 dim overlay → 需返回鍵（同 faculty）；flex＝icon 置中於 44 框 */
   }
   #courses-detail-panel .courses-detail-inner {
     overflow-y: auto;    /* 蓋 md:overflow-hidden：整段捲 */
@@ -310,11 +307,8 @@
     padding-bottom: var(--spacing-md);  /* 右欄捲到底的底部 padding */
     overflow: hidden;
   }
-  #faculty-panel #faculty-back-btn-mobile {
-    display: flex;                      /* 蓋 md:hidden：滿版 panel 蓋掉 dim overlay → 需返回鍵；flex＝icon 置中於 44 框 */
-  }
   #faculty-panel #faculty-close-btn {
-    display: none;                      /* 矮橫向走上面手機右側返回鍵；桌面左上角這顆隱藏（#id 蓋 md:flex）*/
+    display: none;                      /* 矮橫向走 header menu 鈕返回態；桌面這顆隱藏（#id 蓋 md:flex）*/
   }
   #faculty-panel .faculty-detail-layout {
     flex-direction: row;                /* 左右分欄：profile 左、awards 右 */
@@ -783,26 +777,21 @@
   }
 
   /* 7) footer 改手機版線性堆疊：footer-scatter usesMobileFooter() 矮橫向走手機 reveal 路徑（不 scatter、不設 accent bg），
-     這裡把 footer.css ≥768 的桌面 scatter 規則還原成手機 base 值。⚠️ footer.css 手機值改了這裡要同步。 */
-  body .footer-shell {
-    /* 手機 stack 總高 > 390px 視窗 → 固定 100svh 會裁內容；改下限制 */
-    height: auto;
-    min-height: 100svh;
-  }
+     這裡把 footer.css ≥768 的桌面 scatter 規則還原成手機 base 值。⚠️ footer.css 手機值改了這裡要同步。
+     外殼＝整屏 slide-in（footer.css 手機／iPad／矮橫向段，user 2026-11-04）：頂端浮 header logo（footer 沒有自己的 logo）、兩欄在 logo 下 */
   body .footer-inner {
     flex-direction: column;   /* 蓋 HTML md:flex-row */
-    gap: var(--spacing-2xl);
+    gap: var(--spacing-md);
   }
-  /* 反色 logo 拿掉（user 2026-10-30，同直向 10-27）：連 clip-reveal wrapper 一起收，空間讓給兩欄 */
-  body .footer-inner > :is(.footer-logo-area, :has(> .footer-logo-area)) {
-    display: none;
-  }
-  /* 兩欄：col1 手機式 tabs 橫排 + active 群組卡直排、col2 privacy links 在上 + copyright 貼底（原三欄含 logo，10-30 去 logo）。
+  /* 兩欄（header logo 之下）：col1 手機式 tabs 橫排 + active 群組卡直排、col2 privacy links 在上 + copyright 貼底。
      群組顯隱走 JS applyGroupVisibility、切 tab 走 switchFooterGroup 手機 clip-reveal。
      :is(區塊, :has(> 區塊)) 涵蓋 reveal wrapper 已包/未包兩態。shell 轉 flex 讓 inner 撐滿 100svh（copyright 貼底）。 */
   body .footer-shell {
     display: flex;
     flex-direction: column;
+    /* 內容從 header logo 底下 md 開始（logo 頂＝貼底界線鏡像 −6、56 方塊；footer.css 直向同式）。
+       下在不捲的卡上、不在 inner：捲動框（inner）的頂＝這條線，內容捲上去在這裡消失、不從 logo 底下穿過 */
+    padding-top: calc(var(--mobile-bottom-anchor) - 6px + 56px + var(--spacing-md));
   }
   body .footer-inner {
     flex: 1;
@@ -812,8 +801,13 @@
     grid-template-rows: 1fr;
     column-gap: var(--spacing-xl);
     align-items: start;
-    /* 蓋平板段 padding-top:104（header 捲到 footer 不藏的讓位；矮橫向 header 在 footer-near 會收起） */
-    padding-top: var(--container-padding);
+    /* 頂距在 .footer-shell；底多墊 lvh−svh＝工具列展開時 copyright 仍在可視區 */
+    padding-top: 0;
+    padding-bottom: calc(var(--container-padding) + 100lvh - 100svh);
+    /* 內容比框高＝inner 自己捲（卡本身不捲，footer.css 檔尾）：捲到底不帶動後面的頁 */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
   }
   body .footer-right {
     position: static;
@@ -832,13 +826,35 @@
     align-items: flex-start;
     gap: var(--spacing-md);
     padding-top: var(--spacing-sm);   /* 兩欄 pt 對齊 privacy 的 1rem */
+    align-self: stretch;   /* 撐滿整列＝Office Hours 能推到欄底 */
+    flex-wrap: nowrap;     /* 蓋 footer.css 768–1023 段的 wrap：撐滿列高後矮橫向會折成第二欄壓到 legal；放不下＝框內捲 */
   }
-  /* tabs 手機式 in-flow 橫排；mark 尺寸同手機 64；溢出靠 base overflow-x:auto 內捲。 */
+  /* Office Hours（後台 footer_tabs.note；user 2026-11-04 iPad／橫向也要）：同直向固定在欄底、切分頁位置不動；
+     排法同資訊卡（粗體標題＋mb-xs＋內文照後台換行）。橫向手機排法待 user 微調 */
+  body .footer-random .footer-note,
+  body .footer-random > .clip-reveal-wrapper:has(> .footer-note) {
+    display: block;
+  }
+  body .footer-random > :is(.footer-note, .clip-reveal-wrapper:has(> .footer-note)) {
+    margin-top: auto;
+  }
+  body .footer-random .footer-note-title {
+    margin-bottom: var(--spacing-xs);
+  }
+  body .footer-random .footer-note-body {
+    white-space: pre-line;
+  }
+  /* tabs 手機式 in-flow 橫排；mark 尺寸同手機 64；溢出靠 base overflow-x:auto 內捲。
+     捲動時釘在 inner 頂（同 footer.css 直向段；底色帶往下多蓋一個 gap，z 1 壓過帶 transform 的 item） */
   body .footer-random > .footer-tabs {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--footer-bg, var(--color-black));
+    box-shadow: 0 var(--spacing-md) 0 var(--footer-bg, var(--color-black));
     gap: var(--spacing-md);
     align-self: stretch;
     max-width: 100%;
@@ -874,12 +890,12 @@
      ⚠️ 釘位要下在可能是 reveal wrapper 那層（grid item 是 wrapper，對 privacy 本體設 grid-row 無效）。 */
   body .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) {
     grid-column: 2;
-    grid-row: 1 / -1;
+    grid-row: 1;
     align-self: stretch;
   }
   body .footer-privacy {
     position: static;
-    padding-top: var(--spacing-sm);   /* 三欄 pt 對齊 logo-area 的 1rem */
+    padding-top: var(--spacing-sm);   /* 兩欄 pt 對齊 */
     padding-left: 0;
     /* 蓋平板段 margin-top:lg：在 clip wrapper 內被推下 32px、height:100% 跟著溢出 → copyright 被 wrapper overflow:clip 切掉 */
     margin-top: 0;
@@ -1679,4 +1695,18 @@
     pointer-events: none;
   }
   }
+}
+
+/* iPad 底 bar 讓右下角鈕：同 portrait.css「右下角鈕讓位」段（列滿寬、鈕蓋在上面，尾端 padding 加長＝捲到底離鈕 sm；
+   第二層列只有 mode3＋footer 才加）；兩邊改一邊要同步。橫向手機（高 ≤500）nav 在 header 帶、沒有底 bar＝不用讓 */
+@media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  body:is(:not(.no-footer), .mode-color) { --br-btns: calc(44px + var(--spacing-sm)); }
+  body:is(:not(.no-footer), .mode-color) #page-content :is(.nav-bottom-bar:not(.courses-mobile-grade-bar), #mobile-anchor-strip),
+  body:is(:not(.no-footer), .mode-color) #courses-content-section .courses-program-bar,
+  body.mode-color:not(.no-footer) #page-content :is(.courses-mobile-grade-bar, #exhibitions-type-filter, #visits-type-filter, #mobile-division-nav, .dsd-event-tabs-scroller) {
+    padding-right: calc(var(--container-padding) + var(--br-btns));
+  }
+  body.mode-color .library-mobile-tabs { padding-right: calc(var(--container-padding) + var(--br-btns)) !important; }
+  /* about strip 在 iPad 沒有直向那套負 margin 出血（右緣停在 container 內）→ 右邊補出血，尾端 padding 才跟其他 bar 同一把尺 */
+  body:is(:not(.no-footer), .mode-color) #mobile-anchor-strip { margin-right: calc(-1 * var(--container-padding)); }
 }

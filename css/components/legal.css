@@ -160,9 +160,6 @@
   body.mode-color .legal-zebra .list-item.list-item-zebra > .list-header.active + .list-content {
     background: linear-gradient(var(--list-zebra-strip, rgba(255, 255, 255, 0.15)), var(--list-zebra-strip, rgba(255, 255, 255, 0.15))), var(--theme-bg);
   }
-  /* ⚠️ activities/admission 的 `.list-item{padding-bottom:4px}` 是給 4px divider 用；legal 用斑馬分列無 divider
-     → 那 4px 會露出斑馬底＝hover 時 header 下多一條灰 → 歸零。 */
-  .legal-zebra .list-item { padding-bottom: 0; }
 
   /* 真機 fractional DPR（Windows 125%/150%）header↔content 交界 1px 縫：兩層同色 accent 被 AA 混色成紅褐線（headless 重現不出）。
      lists.css 全站 −1px (0,2,1) 仍漏 → legal 加深到 −2px（同 curriculum/era 慣例），.legal-zebra 提特異度 (0,3,1) 壓過。 */
@@ -460,7 +457,7 @@
       justify-items: start;
     }
   }
-  /* 卡片＝首頁 news banner 同款：標題區黑底白字、編號 box 吃 --map-accent（JS 依分組輪粉/綠/藍）黑字；hover（JS .is-swap）兩區對調。
+  /* 卡片＝首頁 news banner 同款：標題區黑底白字、編號 box 吃 --map-accent（JS 每組隨機三原色）黑字；hover（JS .is-swap）兩區對調、標題區吃每次 hover 重抽的 --map-hover。
      不借 .courses-grid-card（它三 mode 都有強制灰底 !important）。6/8/5 padding＝全站 nav btn；transform 過渡給 hover 抽角（底/字色不過渡）。
      mode2/3 見 inverse.css / color.css。max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬 */
   .legal-map-card {
@@ -494,7 +491,7 @@
     z-index: -1;                 /* 卡片帶 transform＝自成 stacking context，-1 仍在卡內、墊在編號框底下 */
     background: var(--map-body-bg);
   }
-  .legal-map-card.is-swap { --map-num-bg: var(--color-black); --map-body-bg: var(--map-accent); color: var(--color-black); }
+  .legal-map-card.is-swap { --map-num-bg: var(--color-black); --map-body-bg: var(--map-hover, var(--map-accent)); color: var(--color-black); }
   /* 編號（1 / 1-1 / 1-1-1…）：width 由 JS equalizeMapNumWidth 量最寬者回寫（border-box 等寬含 padding、標題左緣對齊）。
      box 貼齊卡片左緣並 stretch 撐滿卡高（負 margin 吃掉卡 6/8/5 padding）、自帶同款 padding → 數字行與 EN 標題行同高對齊。 */
   .legal-map-num {

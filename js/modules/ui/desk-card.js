@@ -4,7 +4,7 @@
  *   進場＝色卡四向 clip-reveal → 內容逐類（blocks）同拍同方向進 → 返回鍵；同次造訪同一項目再開＝只做色卡揭露（內容跟著揭）
  *   退場＝返回鍵先收、色卡帶著內容再收
  * 不 dim：overlay 透明留著（點卡外關卡）、html.overlay-no-dim（theme-toggle 不換白線框 logo／navigation.css mode・menu 鈕放行／
- * cursor.css 卡外一般游標）。手機／矮橫向不走這裡（caller 判 SCCDHelpers.isDesktopLayout()）。
+ * cursor.css 卡外一般游標）。手機／矮橫向不走色卡（caller 判 SCCDHelpers.isDesktopLayout()），內容首開進場共用檔尾 createSlideInEntrance。
  */
 import { DUR, EASE } from './motion.js';
 import { prefersReducedMotion } from './reduce-motion.js';
@@ -221,4 +221,30 @@ export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => fa
   }
 
   return { open, close, kill };
+}
+
+/**
+ * 手機／矮橫向 slide-in 的內容首開進場（user 2026-11-04「跟 pc 一樣、四周進場、是內容本身的 box」）：
+ * 同色卡——同次造訪每個項目第一次開才跑、逐類錯開；差別＝每片各自四向隨機（手機捲動框 overflow-x hidden，左右位移不會撐出 scrollbar）。
+ * caller 每次進頁建一個（entered 隨之歸零）；play 要在 panel 剛顯示的同 tick 呼叫（paint 前藏好）。
+ */
+export function createSlideInEntrance() {
+  let tl = null;
+  const entered = new Set();
+  const kill = () => { if (tl) { tl.kill(); tl = null; } };
+  registerPageCleanup(kill);
+  /** @param {string} id @param {(Element|null)[][]} rawBlocks @param {number} at panel 滑到位的時間點（內容從這裡開始進） */
+  function play(id, rawBlocks, at) {
+    kill();
+    const blocks = rawBlocks.map(b => /** @type {HTMLElement[]} */ (b.filter(Boolean))).filter(b => b.length);
+    blocks.flat().forEach(clearClip);   // 上次進場中途被關留下的殘值
+    const firstOpen = !entered.has(id);
+    entered.add(id);
+    if (!firstOpen || typeof gsap === 'undefined' || prefersReducedMotion()) return;
+    blocks.flat().forEach(el => hideNow(el, randomRevealDir()));
+    const enter = { duration: DUR.medium, ease: EASE.enter };
+    tl = gsap.timeline({ onComplete: () => { blocks.flat().forEach(clearClip); tl = null; } });
+    blocks.forEach(b => { b.forEach(el => clipSlide(tl, el, true, enter, at)); at += BLOCK; });
+  }
+  return { play, kill };
 }

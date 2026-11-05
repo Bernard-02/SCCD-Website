@@ -14,6 +14,10 @@
      點 menu 海報在面板底下跑收合退場（index-marquee 聽 menu:open）、退場期間 z 延遲仍 10000 → menu 要在它上面（user 2026-10-29）。
      桌面 hover 到 menu 鈕時海報早收了、無差 */
   html.mobile-menu-open header { z-index: 10001 !important; }
+  /* 手機 slide-in：header 抬過 slide-in 容器（同 9999、DOM 在後）＝menu 鈕（返回態，mobile-menu.js）浮在 panel 上、
+     panel 從鈕下方滑入（user 2026-11-04）。mode 鈕照收；header 本體仍 pointer-events none、只有鈕吃點擊（下方 has-slide-in 例外）。
+     關閉滑出＋overlay 淡完才拿掉 class＝鈕全程在上。桌面色卡（desk-card.js）也掛 has-slide-in、另帶 overlay-no-dim＝排除 */
+  html.has-slide-in:not(.overlay-no-dim) header { z-index: 10000 !important; }
 
   /* header 不擋事件：本體與透明容器放行（中間空白 hover/click 直達底下內容，如 atlas 星雲頂端 item），
      只有 logo、右側 mode/漢堡鈕、選單面板吃事件。
@@ -36,8 +40,7 @@
 
   /* slide-in 場景例外（faculty / courses）：可互動的 header 元素（logo / mode / menu）開回 auto；
      html.has-slide-in 由 slide-in-bg-sync.openSlideInBg / courses-map openSlideIn 加、close 時移除。
-     ⚠️ 只開互動元素、不開 #site-header 父層：父層 auto 會讓透明容器（z 被 raiseHeaderZ 拉到 10000）攔截 hit-test——
-     faculty 手機返回鍵正好在 header 右側 menu 鈕位（panel 在 header 下層），點擊會被透明 div 吃掉、關不了 slide-in。
+     ⚠️ 只開互動元素、不開 #site-header 父層：父層 auto 會讓 header 透明容器（has-slide-in 時抬到 10000）攔截 hit-test、點不到下面的 panel。
      被 clip-path 收掉的鈕 clip 也移除 hit area，不會誤攔。 */
   html.has-slide-in body.lightbox-open #site-header a,
   html.has-slide-in body.lightbox-open #site-header button,

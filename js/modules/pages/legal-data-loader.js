@@ -339,8 +339,8 @@ function mapCardHtml(item, num, accent) {
 // 同一主頁自成一組（.legal-map-pgroup＝主卡＋.legal-map-subs 分頁卡；桌面主卡 col1、分頁卡 col2，見 legal.css）；
 // 編號遞迴支援任意深度（1-1-1…，全攤平進 subs）
 function mapGroupHtml(pg, n) {
-  // 以頁面分色：第 n 組依全站 rgb 順序（粉/綠/藍，同首頁 news）往下輪，分頁卡跟主卡同色
-  const accent = SCCDHelpers.ACCENT_COLORS[(n - 1) % SCCDHelpers.ACCENT_COLORS.length];
+  // 以頁面分色：每組隨機三原色（相鄰組不連抽同色），分頁卡跟主卡同色
+  const accent = SCCDHelpers.getRandomAccentColor();
   let subs = '';
   const walk = (list, prefix) => {
     // hidden＝這版還沒上線的分頁（coming soon）先不列卡；恢復＝拿掉 json 的 hidden
@@ -410,6 +410,7 @@ function layoutMapCards(root) {
 function bindMapCardHover(root) {
   root.querySelectorAll('.legal-map-card').forEach((card) => {
     card.addEventListener('mouseenter', () => {
+      card.style.setProperty('--map-hover', SCCDHelpers.getRandomAccentColor(card.style.getPropertyValue('--map-hover')));   // hover 色每次重抽（user 2026-11-04）；編號 box 平常仍是組色
       card.classList.add('is-swap');
       card.style.transform = `rotate(${pickCardRot()}deg)`;
     });

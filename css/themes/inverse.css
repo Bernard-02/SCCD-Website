@@ -231,7 +231,7 @@ body.mode-inverse .courses-grid-card[style*="background"] {
 }
 /* Sitemap 卡（同首頁 news banner inverse）：標題區白底黑字、編號 box 維持 rgb；hover 對調＝標題區吃 rgb、box 白底黑字 */
 body.mode-inverse .legal-map-card { --map-body-bg: var(--color-white); color: var(--color-black); }   /* 兩區底色走 --map-*-bg var（legal.css） */
-body.mode-inverse .legal-map-card.is-swap { --map-num-bg: var(--color-white); --map-body-bg: var(--map-accent); }
+body.mode-inverse .legal-map-card.is-swap { --map-num-bg: var(--color-white); --map-body-bg: var(--map-hover, var(--map-accent)); }
 body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: var(--color-black); }
 
 /* ===== About Anchor Nav ===== */

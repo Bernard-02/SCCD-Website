@@ -1463,7 +1463,8 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       if (SCCDHelpers.isDesktopLayout() && SCCDHelpers.canHover()) {   // 觸控的桌面排版（iPad 橫向）同手機不綁（user 2026-10-31）
         scope.querySelectorAll('.award-record-item').forEach(item => {
           item.addEventListener('mouseenter', () => {
-            if (item.dataset.refOpen) return;
+            // 進場還沒揭完（藏著等捲入／文字滑動中＝掛 .award-cell-clip）不上色：accent 底會比內容先冒出來（user 2026-11-04）
+            if (item.dataset.refOpen || item.classList.contains('award-cell-clip')) return;
             const color = SCCDHelpers.getRandomAccentColor();
             item.style.background = color;
             item.dataset.accentHex = color;
@@ -3314,7 +3315,7 @@ function revealFilesCards(cards) {
     ].filter(Boolean);
     if (hasGsap && groups.length) {
       groups.forEach(ensureGroupClip);       // 各組獨立遮罩（見 ensureGroupClip 註解）
-      gsap.set(groups, { yPercent: 110 });   // 隱藏準備
+      gsap.set(groups, { yPercent: Math.random() < 0.5 ? -110 : 110 });   // 隱藏準備：逐卡隨機從上／下（整卡三組同向；user 2026-11-04，同 award／album／press）
     }
     return groups;
   });
@@ -3924,6 +3925,28 @@ function chromePlay(/** @type {HTMLElement} */ el, /** @type {number} */ d) {
 // 分類選項逐顆進場間隔（同舊 filter 滑板 OPT_STAGGER）
 const CAT_OPT_STAGGER = 0.05;
 
+// 手機灰卡右上工具鈕 icon（卡層級、不在 panel 裡）：切分頁跟著舊內容出場（playPanelBodyExit）、新分頁揭時再進場（playPanelReveal）
+//   （user 2026-11-04「切換分頁時要一起出場再進場」）。進頁進場／離頁退場在 main-modular 手機分支（跟 tab 鈕一組）。
+//   桌面鈕 display:none＝跳過；toolsOut 旗標＝只有出場過才進場（進頁那次 playPanelReveal 不重複揭）
+const toolsIconEl = () => /** @type {HTMLElement|null} */ (document.querySelector('#lib-tools-btn > .icon'));
+function toolsIconExit(/** @type {number} */ dur) {
+  const ic = toolsIconEl();
+  if (!ic || !ic.getClientRects().length) return;
+  const h = navChipHidden(ic, chromeDir());
+  ic.style.transition = 'none'; ic.style.clipPath = NAV_CHIP_SHOWN.clipPath; ic.style.translate = NAV_CHIP_SHOWN.translate;
+  void ic.offsetWidth;
+  ic.style.transition = `clip-path ${dur}s ease-in, translate ${dur}s ease-in`;
+  ic.style.clipPath = h.clipPath; ic.style.translate = h.translate;
+  ic.dataset.toolsOut = '1';
+}
+function toolsIconReveal(/** @type {number} */ delay) {
+  const ic = toolsIconEl();
+  if (!ic || !ic.dataset.toolsOut) return;
+  delete ic.dataset.toolsOut;
+  chromeHide(ic, chromeDir());
+  requestAnimationFrame(() => requestAnimationFrame(() => chromePlay(ic, delay)));
+}
+
 function revealPanelChrome(panelEl, delaySec, animateTitle) {
   const DUR_C = DUR.medium;
   const q = /** @param {string} s */ s => /** @type {HTMLElement|null} */ (panelEl.querySelector(s));
@@ -4042,6 +4065,7 @@ export function playPanelReveal(panelEl, { instant = false } = {}) {
     others.forEach(el => { /** @type {HTMLElement} */ (el).style.transition = 'none'; /** @type {HTMLElement} */ (el).style.clipPath = 'inset(0 0 0 0)'; /** @type {HTMLElement} */ (el).style.translate = ''; });
     listStartDelay = revealPanelChrome(panelEl, instant ? VEIL_REVEAL_DELAY : 0.12, animateTitle);
   }
+  toolsIconReveal(listStartDelay);   // 切分頁出場過的工具鈕 icon：跟 list 同拍進場
 
   // ⭐user 2026-09-02（反轉 08-23）：切分頁 veil 掀開時視窗內 item 也要進場——skipInitial 一律 false（視窗內先藏＋播），
   //   startDelay 讓它們「等 veil 掀開（或 chrome 序列跑完）才逐列滑入」（藏在 veil 下不穿幫）。
@@ -4174,6 +4198,7 @@ export function playPanelBodyExit(panelEl, dur = 0.35) {
   });
   //   明確起點＋reflow 再設終點（none→inset() 不補間）；時長同 rows 收在 dur 窗內。
   //   clip-reveal 收（整顆在自己的框內滑出，user 2026-10-21「都用 clip reveal、不要擦除」）：同拍同一個上下方向；先量完再寫
+  toolsIconExit(Math.min(0.22, dur * 0.6));
   if (els.length) {
     const OPT_DUR = Math.min(0.22, dur * 0.6);
     const dir = chromeDir();
@@ -4272,6 +4297,7 @@ let _shownTab = '';
 function showLibPanel(tab, { reveal = true, instant = false } = {}) {
   const switched = tab !== _shownTab;   // 同分頁重顯示（hash deep-link 等）不歸零
   _shownTab = tab;
+  if (switched) closeToolsNow?.();      // 手機工具列：換分頁＝收起（user 2026-11-04）
   Object.entries(PANEL_MAP).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -4370,6 +4396,69 @@ function ensureSerifFonts() {
   document.head.appendChild(link);
 }
 
+// 手機灰卡右上角工具鈕（user 2026-11-04）：年份／分類選項／search 列預設收起（library.css .lib-tools-open），點鈕展開、再點收起；
+// 切分頁＝收起（showLibPanel 呼叫 closeToolsNow）。展開＝整片蓋在清單之上、不擠清單：年份欄負 margin（--lib-tools-h＝工具列
+// 佔掉的清單高，展開前後量清單捲動框高差）吃回去；三列同一個位移＝一整片從卡底往上 clip-reveal（遮罩＝內容欄 overflow-y clip）。
+// 收起＝同路滑回卡底才藏。連點以序號作廢上一輪的收尾
+/** @type {(() => void) | null} */
+let closeToolsNow = null;
+function bindToolsToggle() {
+  const card = document.getElementById('library-card-main');
+  const btn = document.getElementById('lib-tools-btn');
+  if (!card || !btn) return;
+  const T = `translate var(--dur-medium) var(--ease-wipe)`;
+  let seq = 0;
+  /** @type {HTMLElement[]} */
+  let parts = [];
+  // awards ticker：被工具列頂上去（library.css 負 margin 改掛它）＝從原位滑上 --lib-tools-h，跟工具列同拍
+  /** @type {HTMLElement|null} */
+  let ticker = null;
+  let tickerH = 0;
+  const slide = (/** @type {number} */ y, /** @type {boolean} */ anim) => {
+    parts.forEach(el => { el.style.transition = anim ? T : 'none'; el.style.translate = `0 ${y}px`; });
+    if (ticker) { ticker.style.transition = anim ? T : 'none'; ticker.style.translate = `0 ${y ? tickerH : 0}px`; }
+  };
+  const clear = () => [...parts, ticker].forEach(el => { if (el) { el.style.transition = ''; el.style.translate = ''; } });
+  const slabH = () => parts[parts.length - 1].getBoundingClientRect().bottom - parts[0].getBoundingClientRect().top;
+  closeToolsNow = () => {
+    seq++;
+    clear();
+    card.classList.remove('lib-tools-open');
+    card.style.removeProperty('--lib-tools-h');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  btn.addEventListener('click', () => {
+    const open = !card.classList.contains('lib-tools-open');
+    const my = ++seq;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      clear();
+      const panel = [...card.querySelectorAll('[id^="lib-panel-"]')].find(p => /** @type {HTMLElement} */ (p).style.display !== 'none');
+      const grid = panel?.querySelector(':scope > div[style*="grid"]');
+      parts = /** @type {HTMLElement[]} */ ([
+        grid?.firstElementChild,                                                           // 年份欄
+        panel?.querySelector('[id$="cat-filter"]'),                                        // 分類選項（files／album）
+        panel?.querySelector('[style*="align-items: flex-end"][style*="display: flex"]'),  // search＋date 列
+      ].filter(Boolean));
+      const scroller = /** @type {HTMLElement|null} */ (panel?.querySelector('[id$="-scroll"]') || null);
+      ticker = /** @type {HTMLElement|null} */ (panel?.querySelector('#library-awards-ticker') || null);
+      const h0 = scroller?.offsetHeight || 0;
+      card.style.setProperty('--lib-tools-h', '0px');
+      card.classList.add('lib-tools-open');
+      tickerH = h0 - (scroller?.offsetHeight || 0);
+      card.style.setProperty('--lib-tools-h', `${tickerH}px`);
+      if (!parts.length || prefersReducedMotion()) return;
+      slide(slabH(), false);
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (my === seq) slide(0, true); }));
+      setTimeout(() => { if (my === seq) clear(); }, DUR.medium * 1000 + 100);
+    } else {
+      if (!parts.length || prefersReducedMotion()) { closeToolsNow?.(); return; }
+      slide(slabH(), true);
+      setTimeout(() => { if (my === seq) closeToolsNow?.(); }, DUR.medium * 1000 + 60);
+    }
+  });
+}
+
 /**
  * 初始化所有 library panels
  * @returns {{
@@ -4379,6 +4468,7 @@ function ensureSerifFonts() {
  * }}
  */
 export function initLibraryPanels() {
+  bindToolsToggle();
   // 離頁放掉各面板掛的 re-init hook（舊閉包抓著整份 DOM／records）；下次進頁各 init 重掛
   registerPageCleanup(() => { _awardsMarqueeInit = _awardsResetAccordions = _awardsRerender = _awardsTickerStart = _pressMarqueeInit = _filesMarqueeInit = _albumMarqueeInit = null; });
   ensureSerifFonts();

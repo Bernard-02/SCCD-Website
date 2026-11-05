@@ -263,19 +263,10 @@ function getCurrentPage() {
 }
 
 let isSlideInOpen = false;
-// 手機 slide-in 開場 logo 延後切換 timer（見下方說明）
-let mobileSlideInLogoTimer = null;
 // overlay logo「該不該套白線框」的唯一旗標（取代直接讀 class）：mode3 filter 由 applyColorVars 依此翻，
 // 且 slide-in 關閉要延到 ~0.7s 才還原——class 的兩個時間點（lightbox-open t=0 消、has-slide-in t=0.8 消）都不合用。
 let overlayLogoActive = false;
 let overlayRestoreTimer = null;
-// 手機 slide-in 開場：panel 在 t=0.3 開始滑入、歷時 DUR.medium（power3.out）。延到 panel 蓋住「左上 logo
-// 左緣」才切手機 logo wireframe，否則 panel 還沒蓋到時 logo 在 dim 暗 overlay 上先變 wireframe 很怪（user 2026-06-10）。
-// 實測（faculty/courses 同 timeline）：power3.out 前段快，panel.left 在 ~570ms（≈ 0.3 + DUR.medium×0.55，slide 約 55%）
-// 就降到 logo 左緣(24px) 以下＝已蓋住。用此值不用 nominal 末端 0.8s（user 2026-06-10「再快點」），仍不露暗底線條 logo。
-// 2026-09-10 user「可以快一點」：crossfade 先 fade-out（DUR.micro/2）＋Lottie 重載後 wireframe 才真正現身，
-// fire 提前這段 lead——新 logo 實際出現時間點不變早於「panel 已蓋住」，只是少等一拍。
-const MOBILE_SLIDEIN_LOGO_DELAY_MS = Math.round((0.3 + DUR.medium * 0.55 - DUR.micro / 2) * 1000);
 // slide-in 關閉：面板滑出(0~0.5s)+overlay 淡出(0.5~0.8s)。logo 延到 ~0.7s（overlay 快淡完、底變亮）才 crossfade
 // 回原本 logo，隨 overlay 變亮浮現（user 2026-09-08：白 logo 不停到最後才換、又不會黑 logo 硬疊在還暗的 overlay 上）。可調。
 const SLIDEIN_LOGO_RESTORE_MS = 550;
@@ -314,7 +305,7 @@ function checkSlideInState() {
   }
 }
 
-// 套用 overlay logo 狀態（開啟/還原共用）。open＝overlay 覆蓋中；isSlideInPanel 供手機延遲；fade＝桌面 logo 換檔是否 crossfade。
+// 套用 overlay logo 狀態（開啟/還原共用）。open＝overlay 覆蓋中；isSlideInPanel＝手機 logo 交給 slide-in 自己換；fade＝桌面 logo 換檔是否 crossfade。
 // overlay 開啟：mode3 恆 wireframe（白由 applyColorVars 依 overlayLogoActive 強制 invert）；mode1/2 換白 wireframe-inverse。
 // 還原：依 mode 回 color=wireframe / inverse=inverse / standard=standard。
 function applyOverlayLogo(open, isSlideInPanel, fade) {
@@ -336,16 +327,10 @@ function applyOverlayLogo(open, isSlideInPanel, fade) {
   if (mode === 'color') applyColorVars();
 
   // 手機 logo（mode1/2 才 reload；mode3 手機恆 wireframe-standard + contrast='auto'、開關不 reload，白由 applyColorVars pin）
-  if (mode !== 'color' && typeof window.__sccdReloadMobileLogo === 'function') {
-    clearTimeout(mobileSlideInLogoTimer);
-    if (open && isSlideInPanel && window.innerWidth < 768) {
-      // 手機 slide-in 開啟：延到 panel 蓋滿 logo 區才切（見 MOBILE_SLIDEIN_LOGO_DELAY_MS）；fire 時再確認仍 slide-in
-      mobileSlideInLogoTimer = setTimeout(() => {
-        if (document.documentElement.classList.contains('has-slide-in')) window.__sccdReloadMobileLogo({ fade });
-      }, MOBILE_SLIDEIN_LOGO_DELAY_MS);
-    } else {
-      window.__sccdReloadMobileLogo({ fade });   // full lightbox 開／任何關閉 → 不延遲（crossfade 比照桌面）
-    }
+  // slide-in（手機／矮橫向 panel 滿版）不在這換：卡片碰到／離開 logo 那幀才換（slide-in-bg-sync.js syncLogo，user 2026-11-04；
+  //   取代 06-10 起的固定延遲）。full lightbox 開／關 → 立即 crossfade（比照桌面）
+  if (mode !== 'color' && !isSlideInPanel && typeof window.__sccdReloadMobileLogo === 'function') {
+    window.__sccdReloadMobileLogo({ fade });
   }
 }
 
@@ -667,6 +652,13 @@ function nameModeVtElements() {
     const mask = el.closest('#mode-btn, #mode-btn-mobile')?.parentElement;
     name(/** @type {HTMLElement} */ (mask?.classList.contains('header-bar-clip') ? mask : el), `mode-icon-${i}`);
   });
+  // footer 鈕顏色直接切不淡（user 2026-11-04）；也是全站最高（z 10002），具名才壓得過首頁漂浮卡層
+  name(document.querySelector('.footer-btn-mask'), 'footer-btn');
+  // 只有 mode3 才讓鉛筆的 tab 列（library 分頁 tab、第二層列；portrait.css／landscape.css 檔尾）：切出 mode3 尾端 padding 縮回，
+  // 捲到底的列整排往右挪 → 每顆 chip 具名＝VT 位移過去、不是淡過去（user 2026-11-04）
+  let chip = 0;
+  document.querySelectorAll('.library-mobile-tabs > button, :is(.courses-mobile-grade-bar, #exhibitions-type-filter, #visits-type-filter, #mobile-division-nav, .dsd-event-tabs-scroller) button')
+    .forEach(el => { if (el.getClientRects().length) name(/** @type {HTMLElement} */ (el), `vt-chip-${++chip}`); });
   // 只命名看得到的（隱藏 panel 的標題盒不必）；名稱各自唯一、樣式靠共用的 view-transition-class 套
   let live = 0;
   document.querySelectorAll(MODE_VT_LIVE_LAYERS).forEach(el => {

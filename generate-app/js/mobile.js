@@ -177,23 +177,6 @@ function initMobileUI() {
     logoResizeObserver.observe(logoEl);
   }
 
-  // 創建隱藏的 div 用於測量文字高度（用於垂直置中）
-  if (mobileElements.inputBox) {
-    mobileHiddenMeasurer = _p5.createDiv('');
-    mobileHiddenMeasurer.style('visibility', 'hidden');
-    mobileHiddenMeasurer.style('position', 'absolute');
-    mobileHiddenMeasurer.style('top', '-9999px');
-    mobileHiddenMeasurer.style('left', '-9999px');
-    mobileHiddenMeasurer.style('width', mobileElements.inputBox.style('width'));
-    mobileHiddenMeasurer.style('font-family', mobileElements.inputBox.style('font-family'));
-    mobileHiddenMeasurer.style('font-weight', mobileElements.inputBox.style('font-weight'));
-    mobileHiddenMeasurer.style('font-size', mobileElements.inputBox.style('font-size'));
-    mobileHiddenMeasurer.style('line-height', mobileElements.inputBox.style('line-height'));
-    mobileHiddenMeasurer.style('white-space', 'pre-wrap');
-    mobileHiddenMeasurer.style('word-wrap', 'break-word');
-    mobileHiddenMeasurer.style('box-sizing', 'border-box');
-  }
-
   mobileElements.bentoCustomIcon = _p5.select('#mobile-custom-icon');
   mobileElements.bentoPlayIcon = _p5.select('#mobile-rotate-icon');
 
@@ -234,32 +217,11 @@ function initMobileUI() {
 
   // 綁定事件
   bindMobileEvents();
+  updateMobileKbBase();
 
   // 進頁時同步 Color Picker Bar 顯隱：若是在別頁切成 mode3 再進 create，targetMode 已是 Wireframe
   // → bar 要預設出現（對齊桌面色環邏輯）；cycleModeButton 只在點 mode 鈕時跑、進頁時不會跑（user 2026-06-11）
   applyMobileColorpickerVisibility();
-
-  // 初始化 placeholder 的垂直置中（等字型：預留高度要用真字寬量）
-  if (mobileElements.inputBox) {
-    document.fonts.ready.then(() => {
-      reserveMobileInputHeight();
-      updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, '');
-    });
-  }
-}
-
-// 輸入框高＝最壞情況（maxlength 個最寬字 W、小字級）實際要的行高 → 怎麼打都放得下、不溢出；
-// canvas（logo 容器 flex 1）吃剩下的（user 2026-10-27「保證輸入不破版，畫布盡量縮」）。寬度變了（resize／轉向）要重量
-function reserveMobileInputHeight() {
-  const ta = mobileElements.inputBox && mobileElements.inputBox.elt;
-  if (!ta || !mobileHiddenMeasurer) return;
-  const m = mobileHiddenMeasurer.elt;
-  m.style.width = `${ta.clientWidth}px`;
-  m.style.fontSize = '2rem';   // = #mobile-input-box.small-text（>6 字一律小字；≤6 字大字也放得下）
-  m.style.lineHeight = '1.2';
-  m.textContent = 'W'.repeat(ta.maxLength > 0 ? ta.maxLength : 40);
-  ta.parentElement.style.setProperty('--mobile-input-h', `${Math.ceil(m.scrollHeight)}px`);
-  m.textContent = '';
 }
 
 // 綁定手機版事件
@@ -274,9 +236,11 @@ function bindMobileEvents() {
       if (e.key === ' ' || e.keyCode === 32) {
         e.preventDefault();
       }
-      // 阻擋 Enter 換行
-      if (e.key === 'Enter' || e.keyCode === 13) {
+      // Enter＝收鍵盤＋開轉（user 2026-11-04；同 ▶ 鈕，已在轉就不暫停）。選字中的 Enter 是確認候選字、不算
+      if ((e.key === 'Enter' || e.keyCode === 13) && !e.isComposing) {
         e.preventDefault();
+        if (!(isAutoRotateMode && autoRotate)) toggleAutoRotate();
+        this.blur();
       }
     });
 
@@ -536,36 +500,12 @@ function applyMobileColorpickerVisibility() {
   requestCanvasResize();
 }
 
-// 檢查輸入框文字是否溢出（用於最滿狀態：Wireframe + Custom + Color Picker）
+// 輸入框一行（全 mode，create.css）：字超過框寬＝靠左（置中的超寬一行左半截捲不到）；先拿掉再量＝置中時的寬
 function checkInputOverflow() {
   if (!mobileElements.inputBox) return;
-
   const inputElement = mobileElements.inputBox.elt;
-  const logoContainer = document.querySelector('.mobile-logo-container');
-
-  // 檢查是否為最滿狀態（同時有 has-custom 和 has-colorpicker）
-  const isFullState = logoContainer &&
-                      logoContainer.classList.contains('has-custom') &&
-                      logoContainer.classList.contains('has-colorpicker');
-
-  if (isFullState) {
-    // 最滿狀態：移除任何 inline padding-top
-    inputElement.style.paddingTop = '';
-
-    // 檢查文字寬度是否超過容器寬度
-    const isOverflowing = inputElement.scrollWidth > inputElement.clientWidth;
-
-    if (isOverflowing) {
-      // 文字溢出：左對齊，可滾動
-      inputElement.classList.add('overflowing');
-    } else {
-      // 文字未溢出：置中顯示
-      inputElement.classList.remove('overflowing');
-    }
-  } else {
-    // 非最滿狀態：移除 overflowing class
-    inputElement.classList.remove('overflowing');
-  }
+  inputElement.classList.remove('overflowing');
+  inputElement.classList.toggle('overflowing', inputElement.scrollWidth > inputElement.clientWidth);
 }
 
 // 手機版：Toggle Custom 調整區
@@ -1026,176 +966,87 @@ function updateMobileModeIcon() {
 }
 
 // ====================================
-// Visual Viewport API：處理鍵盤覆蓋行為
+// 手機鍵盤模式（user 2026-11-04 重寫）
 // ====================================
-// 使用 Visual Viewport API 來偵測虛擬鍵盤的出現並動態調整佈局
-// 策略：鍵盤出現時，只顯示 logo + 輸入框（單行），隱藏其他元素
+// 鍵盤開著＝只留 logo＋輸入框、整個 app 縮成鍵盤上方的可視高（create.css #create-app.create-kb-mobile）；
+// canvas 由 logo 容器 ResizeObserver 依新高度重算一次。舊版每個 visualViewport resize 都重寫一整套 inline 排版＋重畫 canvas：
+//   鍵盤滑動中 resize 連發＝打字卡、畫面一直抖（Chrome 開鍵盤連 innerHeight 都縮，觸發更多）；收鍵盤途中 vv 漸高、
+//   logo 高＝可視高 75% 跟著長＝先變大、收完回正常排版又變小；logo 高沒扣 header＝小手機頂部被切。
+// ① 開：等 vv 高停住（MOBILE_KB_SETTLE）才套一次 ② 收：失焦立刻收（不等 vv 長回來）
+// ③ 基準高＝同寬度下沒開鍵盤時看過的最大 vv 高（舊版 script 載入時抓一次，轉向／工具列伸縮後就不準）
+const MOBILE_KB_SETTLE = 150;   // ms：vv resize 停這麼久＝鍵盤動完
+let mobileKbOpen = false, mobileKbBaseH = 0, mobileKbBaseW = 0, mobileKbTimer = 0;
+
+function setMobileKeyboard(open) {
+  const app = document.getElementById('create-app');
+  if (open && app) app.style.setProperty('--create-vv-h', `${Math.round(window.visualViewport.height)}px`);
+  if (open === mobileKbOpen) return;
+  mobileKbOpen = open;
+  if (app) {
+    // 輸入區高度平常有過渡（開關 custom 用）；這次一步到位：過渡中 logo 容器連續變高、canvas 跟著縮了又長
+    const area = app.querySelector('.mobile-input-area');
+    if (area) area.style.transition = 'none';
+    app.classList.toggle('create-kb-mobile', open);
+    if (area) { void area.offsetHeight; area.style.transition = ''; }
+  }
+  // 鎖 body：Safari 會把整頁往上推去露出輸入框（下方露空白）
+  const s = document.body.style;
+  s.position = open ? 'fixed' : '';
+  s.width = open ? '100%' : '';
+  s.height = open ? `${mobileKbBaseH}px` : '';
+}
+
+// 進頁、點輸入框（鍵盤還沒升起）、每次 vv resize 都更新；寬變＝轉向重抓。
+// app 高吃這個值（create.css --create-base-h）不吃 100dvh：Chrome 開鍵盤連 dvh 都縮 → 鍵盤升降途中整組排版跟著擠（logo 先縮成一小塊再長回來）。
+// 沒在打字＝跟著可視高走（工具列伸縮）；打字中＝鍵盤可能正在升起，只升不降
+function updateMobileKbBase() {
+  if (!window.visualViewport) return;
+  const vvH = window.visualViewport.height;
+  const focused = !!mobileElements.inputBox && document.activeElement === mobileElements.inputBox.elt;
+  if (window.innerWidth !== mobileKbBaseW) { mobileKbBaseW = window.innerWidth; mobileKbBaseH = 0; }
+  if (!focused) mobileKbBaseH = vvH;
+  else if (!mobileKbOpen) mobileKbBaseH = Math.max(mobileKbBaseH, vvH);
+  document.getElementById('create-app')?.style.setProperty('--create-base-h', `${Math.round(mobileKbBaseH)}px`);
+}
+
+function syncMobileKeyboard() {
+  if (!isMobileMode || !_p5 || !window.visualViewport) return;
+  updateMobileKbBase();
+  const focused = !!mobileElements.inputBox && document.activeElement === mobileElements.inputBox.elt;
+  setMobileKeyboard(focused && mobileKbBaseH - window.visualViewport.height > 100);
+}
+
+// _p5 為 null＝已離開 /create（cleanupCreateApp 跑過）：top-level listener 移不掉（script 載入時就綁）、靠 guard 不動其他頁
 if (window.visualViewport) {
-  let initialHeight = window.visualViewport.height;
-
   window.visualViewport.addEventListener('resize', () => {
-    if (!isMobileMode) return;
-    // _p5 為 null = user 已離開 /create（cleanupCreateApp 跑過）。top-level listener 無法 remove
-    // （script 載入時就綁），加 guard 避免 callback 對其他頁的 DOM 跑（querySelector .main-container
-    // 等回 null 雖有 if 守衛 silent skip，但 scroll handler 那條會主動 scrollTo(0,0) 阻擋其他頁 scroll）
-    if (typeof _p5 === 'undefined' || _p5 === null) return;
-
-    const currentHeight = window.visualViewport.height;
-    const keyboardHeight = initialHeight - currentHeight;
-
-    const mainContainer = document.querySelector('.main-container');
-    const mobileContentSection = document.querySelector('.mobile-content-section');
-    const logoContainer = document.querySelector('.mobile-logo-container');
-    const inputArea = document.querySelector('.mobile-input-area');
-    const customControls = document.querySelector('.mobile-custom-angle-controls');
-    const colorPickerBar = document.querySelector('.mobile-colorpicker-bar');
-    const bottomBar = document.querySelector('.mobile-bottom-bar');
-
-    // 鍵盤彈出時（viewport 高度減少超過 100px，避免誤判）
-    if (keyboardHeight > 100) {
-      // 1. 添加鍵盤激活狀態的 class
-      if (mainContainer) mainContainer.classList.add('keyboard-active');
-      if (inputArea) inputArea.classList.add('keyboard-active');
-
-      // 2. 完全阻止滑動（防止用戶看到下方的空白區域）
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      document.body.style.height = `${initialHeight}px`; // 用固定值，不讓 body 跟著 viewport 縮小
-
-      // 3. 隱藏所有額外元素
-      if (customControls) customControls.style.setProperty('display', 'none', 'important');
-      if (colorPickerBar) colorPickerBar.style.setProperty('display', 'none', 'important');
-      if (bottomBar) bottomBar.style.setProperty('display', 'none', 'important');
-
-      // 4. 鍵盤專屬 layout：使用原本的邏輯（paddingBottom 推上去）
-      const topPadding = 20; // main-container 的 padding-top（減少讓 logo 往上）
-      const logoInputGap = 6; // Logo 和輸入框之間的 gap（增加來保持輸入框位置）
-      const availableHeight = currentHeight - topPadding;
-
-      const inputHeight = 40; // 輸入框固定高度（單行）
-      const idealLogoHeight = availableHeight * 0.75; // Logo 佔可視區域的 75%
-      const totalContentHeight = idealLogoHeight + inputHeight;
-
-      // 使用 paddingBottom 推內容上去，並額外增加一些 padding
-      const inputBottomPadding = 10; // 輸入框下方額外的 padding
-      const neededPaddingBottom = keyboardHeight + inputBottomPadding;
-
-      // 5. 設定 main-container 的 padding-top
-      if (mainContainer) {
-        mainContainer.style.setProperty('padding-top', `${topPadding}px`, 'important');
-      }
-
-      // 6. 設定 mobile-content-section 的佈局
-      if (mobileContentSection) {
-        mobileContentSection.style.setProperty('flex', 'none', 'important');
-        mobileContentSection.style.setProperty('padding-top', '0', 'important');
-        mobileContentSection.style.setProperty('padding-bottom', `${neededPaddingBottom}px`, 'important');
-        mobileContentSection.style.setProperty('gap', `${logoInputGap}px`, 'important');
-        mobileContentSection.style.setProperty('justify-content', 'center', 'important');
-      }
-
-      // 7. 設定 Logo 容器（用 !important 確保覆蓋 CSS）
-      if (logoContainer) {
-        logoContainer.style.setProperty('flex', 'none', 'important');
-        logoContainer.style.setProperty('width', '65%', 'important');
-        logoContainer.style.setProperty('height', `${idealLogoHeight}px`, 'important');
-      }
-
-      // 8. 設定輸入框為單行（用 !important 確保覆蓋 CSS）
-      if (inputArea) {
-        inputArea.style.setProperty('flex', 'none', 'important');
-        inputArea.style.setProperty('height', `${inputHeight}px`, 'important');
-        inputArea.style.setProperty('min-height', 'auto', 'important');
-        inputArea.style.setProperty('margin-bottom', '0', 'important');
-      }
-
-      // 10. 重新計算 canvas 尺寸
-      requestAnimationFrame(() => {
-        if (typeof resizeMobileCanvas === 'function') {
-          resizeMobileCanvas();
-        }
-      });
-
-      // 11. 調整輸入框的 padding（單行居中）
-      if (mobileElements.inputBox) {
-        setTimeout(() => {
-          const currentText = mobileElements.inputBox.value();
-          updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, currentText);
-        }, 50);
-      }
-
-    } else {
-      // 鍵盤收起時，恢復原本設定
-      if (mainContainer) mainContainer.classList.remove('keyboard-active');
-      if (inputArea) inputArea.classList.remove('keyboard-active');
-
-      // 恢復滑動功能
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.height = '';
-
-      // 恢復所有元素的顯示
-      if (customControls) customControls.style.display = '';
-      if (colorPickerBar) colorPickerBar.style.display = '';
-      if (bottomBar) bottomBar.style.display = '';
-
-      // 恢復佈局設定
-      if (mainContainer) {
-        mainContainer.style.paddingTop = ''; // 恢復 main-container 的 padding-top
-      }
-
-      if (mobileContentSection) {
-        mobileContentSection.style.flex = '';
-        mobileContentSection.style.height = ''; // 恢復高度
-        mobileContentSection.style.paddingTop = '';
-        mobileContentSection.style.paddingBottom = '';
-        mobileContentSection.style.gap = '';
-        mobileContentSection.style.justifyContent = '';
-        mobileContentSection.style.backgroundColor = ''; // 移除測試背景色
-      }
-
-      if (logoContainer) {
-        logoContainer.style.flex = '';
-        logoContainer.style.width = '';  // 恢復寬度
-        logoContainer.style.height = '';
-      }
-
-      if (inputArea) {
-        inputArea.style.flex = '';
-        inputArea.style.height = '';
-        inputArea.style.minHeight = '';
-        inputArea.style.marginBottom = '';
-        inputArea.style.border = ''; // 移除測試用紅框
-      }
-
-      // 重新計算 canvas 尺寸（恢復正常大小）
-      // Keyboard 使用 inline style（無 CSS transition），直接執行 resize
-      // 使用 requestAnimationFrame 確保 DOM 已更新
-      requestAnimationFrame(() => {
-        if (typeof resizeMobileCanvas === 'function') {
-          resizeMobileCanvas();
-        }
-      });
-
-      // 調整輸入框的 padding（恢復正常狀態）
-      // 等待 CSS transition 完成後再計算（font-size transition 是 0.2s）
-      if (mobileElements.inputBox) {
-        setTimeout(() => {
-          const currentText = mobileElements.inputBox.value();
-          updateMobileInputBoxVerticalAlignment(mobileElements.inputBox, currentText);
-        }, 250); // 增加等待時間
-      }
-    }
+    if (!isMobileMode || !_p5) return;
+    clearTimeout(mobileKbTimer);
+    mobileKbTimer = setTimeout(syncMobileKeyboard, MOBILE_KB_SETTLE);
   });
 
-  // 偵測 scroll 事件，防止頁面被鍵盤推上去
+  // 鍵盤把頁面往上推＝捲回頂（已經在頂就不動，免得跟 Safari 搶捲動位置一直抖）
   window.visualViewport.addEventListener('scroll', () => {
-    if (!isMobileMode) return;
-    // _p5 guard：離開 /create 後 scrollTo(0,0) 會阻擋其他頁 scroll（高 severity bug，比 resize 那條重要）
-    if (typeof _p5 === 'undefined' || _p5 === null) return;
-    // 強制回到原位
-    window.scrollTo(0, 0);
+    if (!isMobileMode || !_p5) return;
+    if (window.scrollY !== 0 || window.visualViewport.offsetTop !== 0) window.scrollTo(0, 0);
   });
 }
+
+// 寬沒變、只是變矮且正在打字＝鍵盤，不是轉向（Chrome 開鍵盤連 innerHeight 都縮，直向手機會變成「寬＞高」）。
+// sketch.js handleOrientationChange 用；CSS 矮橫向 gate 看 .create-typing
+function isMobileTypingResize() {
+  return !!mobileElements.inputBox && document.activeElement === mobileElements.inputBox.elt && window.innerWidth === mobileKbBaseW;
+}
+
+document.addEventListener('focusin', (e) => {
+  if (!isMobileMode || !_p5 || !mobileElements.inputBox || e.target !== mobileElements.inputBox.elt) return;
+  updateMobileKbBase();
+  document.getElementById('create-app')?.classList.add('create-typing');
+});
+document.addEventListener('focusout', (e) => {
+  if (!mobileElements.inputBox || e.target !== mobileElements.inputBox.elt) return;
+  document.getElementById('create-app')?.classList.remove('create-typing');
+  if (mobileKbOpen) {
+    clearTimeout(mobileKbTimer);
+    setMobileKeyboard(false);
+  }
+});

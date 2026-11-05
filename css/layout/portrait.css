@@ -25,3 +25,20 @@
     bottom: calc(100lvh - 100svh) !important;
   }
 }
+
+/* 右下角鈕讓位（user 2026-11-04 第三版「nav／tab 可以被鉛筆、footer 鈕蓋過，但滑到最後一個要離鈕有 gap」）：
+   捲動列一律滿寬（捲動中 chip 從鈕底下滑過），只把尾端 padding 加長＝捲到底最後一顆停在鈕左邊、離鈕 sm。
+   --br-btns＝鈕寬 44＋sm（同鉛筆↔footer 鈕、header mode↔menu，user 同日統一）——footer 鈕（有 footer 的頁）或 mode3 鉛筆（收起的圓鈕；展開成 capsule 是暫時浮層、不算）。
+   鈕位置見 footer.css 直向段（角落）、mode-color-panel.css（有 footer 時鉛筆疊在 footer 鈕正上方）；router 掛 body.no-footer 的頁沒 footer 鈕。
+   第二層列（about division／activities 子分頁／curriculum 年級／DSD tab）在 footer 鈕上方、碰不到它 → 只有 mode3＋footer（鉛筆落在這列高度）才加；
+   首頁 news 另算（對齊 header mode 鈕，index-marquee.js BTN_COL） */
+@media (max-width: 767px) and (orientation: portrait) {
+  body:is(:not(.no-footer), .mode-color) { --br-btns: calc(44px + var(--spacing-sm)); }
+  body:is(:not(.no-footer), .mode-color) #page-content :is(.nav-bottom-bar:not(.courses-mobile-grade-bar), #mobile-anchor-strip),
+  body:is(:not(.no-footer), .mode-color) #courses-content-section .courses-program-bar,
+  body.mode-color:not(.no-footer) #page-content :is(.courses-mobile-grade-bar, #exhibitions-type-filter, #visits-type-filter, #mobile-division-nav, .dsd-event-tabs-scroller) {
+    padding-right: calc(var(--container-padding) + var(--br-btns));
+  }
+  /* library（沒 footer＝只有 mode3 鉛筆）：!important 蓋 library.css 的左右 padding */
+  body.mode-color .library-mobile-tabs { padding-right: calc(var(--container-padding) + var(--br-btns)) !important; }
+}
