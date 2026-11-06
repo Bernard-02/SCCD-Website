@@ -111,7 +111,7 @@
   --space-en-zh-lg:   0.25rem;   /* text-lg 4px：faculty/alumni 卡片人名 h5／about BFA/MDES 切換 */
   --space-en-zh-xl:   0.5rem;    /* text-xl 8px：faculty/curriculum slide-in 名字/標題＋legal xl 標題（policy group/regulations/donate 條款標題） */
   --space-en-zh-body: 1.5rem;    /* 雙語「段落」prose 間距（獨立軸、非緊湊標籤）：about/admission，Tailwind mb-en-zh-body */
-  --zh-vert-tracking: 0.1em;     /* 直排中文字距（user 2026-11-04 加大）：about resources 直式標籤＋library 色塊直排字條共用 */
+  --zh-vert-tracking: 0.05em;    /* 直排中文字距（11-04 加大到 0.1、11-05 嫌寬收回 0.05）：about resources 直式標籤＋library 色塊直排字條共用 */
 
   /* ===== Spacing ===== */
   --spacing-xs: 0.5rem;   /* 8px */
@@ -138,6 +138,9 @@
   /* 直向手機貼底元素的底邊界線（user 2026-10-30 統一）：底 bar 的 chip／角落鈕（DSD 返回、atlas 切換）／mode3 鉛筆／lightbox・PDF 底列
      底邊一律離視窗底這個值＝鏡像 header 鈕離頂（header.html pt-lg 32）→ 上下對齊。真桌面各自 48（頁卡底）不吃 */
   --mobile-bottom-anchor: 32px;
+  /* 直向手機／iPad 內容初始頂（user 2026-11-05「每頁內容初始對齊點一樣」）＝header 帶 92＋sm＝faculty 第一張卡（section pt 92＋牆 mt sm）
+     ＝activities search 頂。legal／admission 吃它；展開標題釘點仍是 header 帶下 92。寫死 px：JS 會 parseFloat 讀它（legal regulations 釘點） */
+  --mobile-content-top: 108px;
   /* 全站 nav line：頁內 nav btn 釘住的頂線（about #anchor-nav／四頁 inner-scroll nav＋內容頂／atlas filter＋list／
      DSD 年份 chip／桌面 menu 第一顆／library 色卡上界）。真桌面見下方 184 */
   --nav-line: 160px;
@@ -694,8 +697,10 @@
     gap: 0.3em;   /* ≈ 一個空白 */
   }
   /* tab 列不跟底 bar 高走（user 2026-10-30：tab↔nav 距離不必隨貼底界線變）：底＝chip 頂（界線＋8 置中位移＋28），外框 16 內距＝tab 可見底到 chip 可見頂 sm 16（user 選 16）；
-     chip 對齊 footer 鈕中線後 tab 底離 footer 鈕頂 8（user 2026-11-04「跟 footer 鈕要有一點 gap」） */
-  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 36px); }
+     chip 對齊 footer 鈕中線後 tab 底離 footer 鈕頂 8（user 2026-11-04「跟 footer 鈕要有一點 gap」）。
+     11-05 +5（36→41）：tab↔nav chip 可見距＝鉛筆↔footer 鈕 gap sm 16（user「follow padding 就好、不用對齊鉛筆中線」）；
+     原 +36 把 nav chip 當 28 高、實高 34 → 只剩 11 */
+  .mobile-division-wrap { bottom: calc(var(--mobile-bottom-anchor) + 41px); }
   /* 矮橫向（寬 ≥768）吃不到上方 <768 段的 fixed／顯隱／nav 捲動規則、又被 md:hidden 藏 → 這裡補一份（直向重複無害；landscape.css 5i+ 藏桌面 #class-buttons-sticky） */
   #class-works-area .mobile-division-wrap {
     display: block;
@@ -720,29 +725,47 @@
 @media (max-width: 767px) and (orientation: portrait) {
   /* 112 = (92 落點 + 24 section pt + 20 row gap + 24 底呼吸 + 64 bar) / 2 */
   #overview [data-overview-text] { max-height: calc(50svh - 112px - 1em); }
-  /* 316 = 556 預算（92 落點 + 80 底部 division nav + 24 pt + 240 圖 + 20 + 24 + 12 + 64 bar）扣圖 240 */
-  /* 圖高／說明盒高變數：DSD 子展覽換自己的預算（同上方 .class-info-panel 段） */
-  .class-info-panel .division-images { height: var(--class-img-h, max(calc((100svh - 316px) / 2), 120px)) !important; }
-  .class-info-panel [data-class-text] { height: var(--class-text-h, max(calc((100svh - 316px) / 2 - 1em), 120px)); }
-  /* Works 說明卡：在「playlist 底 → 底部 division nav 頂」剩下的空間垂直置中（user 10-27）。
-     room＝100svh − 92 落點 − 24 pt − 16:9 影片 − 75 playlist（76 − 1 疊縫，lists.css .works-playlist-list）−（80 division nav − 8 下移）− bar；
-     文字欄吃滿 room、拉回 grid row gap（gap 不算進置中空間）；上下至少留 md（文字長時不貼 playlist／division tab），
-     文字盒放不下就內捲 */
-  .class-works-panel {
-    --works-text-room: calc(100svh - 92px - var(--spacing-md) - (100vw - 2 * var(--container-padding)) * 9 / 16 - 75px - 80px + var(--spacing-xs) - var(--about-bar-h));
+  /* Programs／Works 圖文 6：4（user 2026-11-05）：header 帶 92 以下、底部 division tab 可見頂以上＝--about-room；
+     圖（Works＝影片＋playlist）佔 6、說明文字佔 4，各自在自己那格垂直置中。
+     文字格上下留 md（不貼圖、不貼 tab）＝說明卡最高＝格高 − 2md − 10（card-pad-s 上下 5×2），放不下內捲。
+     tab 可見頂＝界線＋105（.mobile-division-wrap 底 界線＋41、py-sm 16、兩行 chip 48）。
+     #class-info-area 前綴＝不動 DSD 子展覽（同 .class-info-panel、吃自己的 --class-img-h／--class-text-h） */
+  #about-content-wrapper {
+    --about-room: calc(100svh - 92px - var(--mobile-bottom-anchor) - 105px);
   }
+  #class-works-panels { padding-top: 0; }
+  #class-info-area .class-info-panel .grid-20,
+  .class-works-panel .grid-20 { row-gap: 0; }
+  #class-info-area .class-info-panel .division-images { height: calc(var(--about-room) * 0.6) !important; }
+  /* 圖格變 6 成後照片放大（user 2026-11-05「圖片高度再大一點」）：上方 170／200 是對半分時代的寬上限；
+     高度仍由 class-images-slideshow.js 依格高（橫圖 ×0.8）等比 cap＝不裁切。橫圖越寬、左右疊放露越少 */
+  #class-info-area .class-info-panel .class-img { max-width: 220px; }
+  #class-info-area .class-info-panel .class-img.class-img--landscape { max-width: 260px; }
+  #class-info-area .class-info-panel .grid-20 > :first-child,
   .class-works-panel .grid-20 > :first-child {
-    min-height: var(--works-text-room);
-    margin-top: calc(-1 * var(--spacing-gutter));
+    height: calc(var(--about-room) * 0.4);
     padding-block: var(--spacing-md);
     display: flex;
     align-items: center;
   }
+  #class-info-area .class-info-panel [data-class-text],
   .class-works-panel [data-works-text] {
-    max-height: max(calc(var(--works-text-room) - 2 * var(--spacing-md) - 1em), 4em);
+    height: auto;
+    max-height: max(calc(var(--about-room) * 0.4 - 2 * var(--spacing-md) - 10px), 4em);
   }
-  /* 481 = 舊 505 −88 +64（resources 落點 178→90） */
-  .colored-accordion .accordion-text-wrap { height: max(calc(100svh - 481px), 150px); }
+  /* Works 影片格：影片＋playlist（75＝76 − 1 疊縫，lists.css .works-playlist-list）垂直置中；
+     格放不下（矮機）影片等比縮＝寬度上限由格高反推（同桌面 .works-player-box 做法，鎖在 row 上＝playlist 跟著同寬） */
+  .class-works-panel .grid-20 > :last-child {
+    height: calc(var(--about-room) * 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .class-works-panel .works-video-row {
+    width: 100%;
+    max-width: calc((var(--about-room) * 0.6 - 75px) * 16 / 9);
+    margin-inline: auto;
+  }
   /* history 末屏：area 已讓出 bar（timeline.js），section 底再補 bar 高＝照樣填到畫面底、footer 不露頭
      （露一截會被手機 footer 磁吸整張吸上來）。#id 前綴蓋 lists.css 直向段的 padding-bottom:0 */
   #about-content-wrapper #history { padding-bottom: var(--about-bar-h); }

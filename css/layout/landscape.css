@@ -228,8 +228,10 @@
     padding-bottom: var(--spacing-md);
   }
   /* 滿版 panel 上的 logo 落在 accent 底（非 dim overlay）→ 要黑線。header.js slideInLeavesLogoOnDim 每幀寫 inline filter
-     （為舊 60% 寬設計）→ !important 蓋掉（mode3 亦然）；:has 只在 courses slide-in 開啟時生效。 */
-  body:has(#courses-slide-in:not(.invisible)) #header-logo-mobile {
+     （為舊 60% 寬設計）→ !important 蓋掉（mode3 亦然）；只在 slide-in 開著時生效（faculty／curriculum 共用這一條）。
+     用 html.has-slide-in（slide-in-bg-sync.js 開卡掛、收完才摘；只有這兩個 slide-in 會掛）、不用 body:has(#x-slide-in:not(.invisible))：
+     :has 沒命中的頁（其餘每一頁）每次樣式重算都要掃整份文件找那個 id——library 四萬個節點、mode3 每次變色都掃一次（2026-11-06 實測） */
+  html.has-slide-in #site-header #header-logo-mobile {
     filter: none !important;
   }
   /* desc 兩欄（同 about vision）：DOM 序 EN→ZH 天然落左右欄，與 sticky title 一起捲。 */
@@ -296,10 +298,7 @@
     width: 100%;                        /* 蓋 md:w-[79.1666%]：滿版 */
     right: 0;                           /* 蓋 cards.css min-width:768 的 right:-10（scrollbar gutter 補償）→ 滿版貼左緣不露縫 */
   }
-  /* 滿版 panel 上 logo 要黑線：!important 蓋 header.js slideInLeavesLogoOnDim 每幀寫的 inline filter（同 courses slide-in）。 */
-  body:has(#faculty-slide-in:not(.invisible)) #header-logo-mobile {
-    filter: none !important;
-  }
+  /* 滿版 panel 上 logo 要黑線：規則在上面 courses slide-in 段（html.has-slide-in，兩個 slide-in 共用） */
   /* 滿版 → 左右分欄（profile 左、sections 右）。overflow hidden＝panel 不整段捲，右欄 list-scroll 才是 section title sticky 的捲動容器。 */
   #faculty-panel > div {
     /* 內容頂 = logo 頂（~24）；左欄另以 padding-left 讓開 logo（見 profile-block） */
@@ -605,23 +604,21 @@
     align-items: center;
     justify-content: center;
   }
+  /* lightbox／DSD 影片的自製 UI（lightbox-video.js；<768 寬走原生 controls、這裡只吃到 ≥768 的 iPad）同 WATCH：
+     bar 高＋全螢幕方塊 44（手機鈕以 44 為主，user 2026-11-05）；inline 3rem 要 !important 蓋 */
+  body .lb-video-block { height: 44px !important; }
+  body .lb-video-fs-block { width: 44px !important; }
 
   /* 5h) library：矮橫向整套走 library.css 手機段（該檔手機 media 已 union gate、桌面段改真桌面 query；user 2026-10-30「用手機的去調整」：
      工具列收卡底、award 收合列、手機字級；JS 分支 main-modular／library-panels 用 isMobileLayout）。
-     橫向手機（高 ≤500）另在 library.css 檔尾：tab 鈕回 header 帶、卡內左右兩欄（user 同日「header 位置用作 nav btn 區」「參考桌面左右」）；iPad 維持底 bar＋直向一疊。
+     橫向手機（高 ≤500）另在 library.css 檔尾：tab 鈕回 header 帶、年份在列左、filter 浮層（user 同日「header 位置用作 nav btn 區」；2026-11-05 改版）；iPad 維持底 bar＋直向一疊。
      本段只剩卡頂：header 帶只有 logo／鈕 → 卡從鈕列底（~68）下開始。!important 蓋 HTML inline margin-top/height 的 var(--header-height)；
      :has 只中 library section，不誤傷同樣 body.overflow-hidden 的 atlas/create。 */
   body.overflow-hidden main#page-content > section:has(> #library-card-main) {
     margin-top: 72px !important;
     height: calc(100svh - 72px) !important;
   }
-  /* 橫向手機（高 ≤500）：awards logo ticker 收掉——卡高 ~210 扣年份／search 兩列 44 後，list 只剩一列（實測 375 高 45px、再給 ticker 46 就沒了）。
-     JS startTicker 量到寬 0 自動 bail、不會空轉。iPad（768–1023、高 >500）照出 */
-  @media (max-height: 500px) {
-    #library-awards-ticker {
-      display: none !important;
-    }
-  }
+  /* 橫向手機（高 ≤500）的 awards logo ticker 照出（user 2026-11-05；10-30 曾收掉）：年份／search 已收進 filter 浮層、清單下只剩它一列（library.css 檔尾） */
 
   /* 5i) about：① 桌面 #anchor-nav 藏，section nav＝直向同款畫面底 bar（variables.css union 段 .mobile-anchor-strip-wrap；user 2026-10-30）。
      ② vision 文字對齊手機版：h5→p1、[data-overview-hl] 內捲；兩欄文字重分全寬。 */
@@ -952,6 +949,71 @@
   body .footer-random > .clip-reveal-wrapper:has(> .footer-unit) + .clip-reveal-wrapper:has(> .footer-unit) {
     margin-top: 0;
   }
+  /* 7b) 橫向手機（高 ≤500）footer（user 2026-11-05）：字級同直向手機（xs，footer.css 直向段）；tab 列移到 header logo 右邊、
+     logo 下那欄留空（inner 左 padding 讓出 logo 欄）＝內容頂從 logo 頂開始；legal 英中上下兩行、copyright 接在下面。
+     捲動同直向手機：資訊區（tab＋各 item＋Office Hours）自己捲、tab 釘頂、Office Hours 釘底；legal 在捲動框外不動、整塊靠右（塊內靠左）。iPad 不吃 */
+  @media (max-height: 500px) {
+    body .footer-shell {
+      padding-top: calc(var(--mobile-bottom-anchor) - 6px);   /* ＝header logo 頂 */
+    }
+    body .footer-inner {
+      padding-left: calc(var(--container-padding) + 56px + var(--spacing-md));   /* logo 56 方塊＋md */
+      min-height: 0;
+      grid-template-rows: minmax(0, 1fr);
+      overflow: visible;   /* 不再整塊捲：捲動框改資訊區 */
+    }
+    body .footer-random {
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    body .footer-random > * { flex-shrink: 0; }   /* 同直向：放不下就捲、不壓扁（tab 列會被壓到 0 高） */
+    body .footer-random > :is(.footer-social, :has(> .footer-social)) {
+      order: 0;   /* 蓋 footer.css 768–1023 的 order:99（排到 Office Hours 後面＝被釘底的 note 擋住）；回 DOM 順序同直向 */
+    }
+    /* Office Hours 釘在資訊區底：同 footer.css 直向段（底色帶往左右鋪、往上多蓋一個 gap） */
+    body .footer-random > :is(.footer-note, .clip-reveal-wrapper:has(> .footer-note)) {
+      position: sticky;
+      bottom: 0;
+      background-color: var(--footer-bg, var(--color-black));
+      box-shadow: 0 0 0 100vmax var(--footer-bg, var(--color-black));
+      clip-path: inset(calc(-1 * var(--spacing-md)) -100vmax 0);
+    }
+    body .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) {
+      justify-self: end;
+    }
+    body .footer-random,
+    body .footer-privacy {
+      padding-top: 0;   /* tab 列／legal 頂＝logo 頂 */
+    }
+    body .footer-random :is(h6, p, a),
+    body .footer-privacy :is(p, a),
+    body .footer-tab :is(.footer-tab-en, .footer-tab-zh),
+    body .footer-legal-en,
+    body .footer-legal-zh {
+      font-size: var(--font-size-xs);
+      line-height: var(--line-height-xs);
+    }
+    body .footer-tab .footer-tab-zh {
+      margin-top: var(--space-en-zh-xs);
+    }
+    body .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
+    body .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
+    body .footer-legal-en,
+    body .footer-legal-zh {
+      display: block;
+    }
+    body .footer-legal-en {
+      margin-bottom: var(--space-en-zh-xs);   /* 蓋 mb-en-zh-s（s 級） */
+    }
+    /* copyright 貼底（上方 gate 段 margin-top:auto）、底邊在 footer 鈕上方 sm（同鉛筆疊 footer 鈕）：
+       欄底＝inner 底 padding（container-padding）、鈕頂＝貼底界線＋44 */
+    body .footer-privacy {
+      padding-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) - var(--container-padding));
+    }
+  }
 
   /* 5j) degree-show-detail：body 內容全走手機版做法。DSD 手機規則在 variables.css @media(max-width:767) 內、
      寬 ≥768 吃不到 → 這裡複製一份（值一對一，改一處要同步兩處）。JS degree-show-data-loader.js isMobileView()
@@ -1187,6 +1249,19 @@
      本段＝10-30 上午砍掉的 header 帶規則原樣放回（值一對一），只多包一層 max-height；後出＝蓋過上方 gate 共用規則。
      JS 分流：SCCDHelpers.isLandscapePhone()（helpers.js）。 */
   @media (max-height: 500px) {
+  /* 橫向手機共用版面線（user 2026-11-05）：nav 列／底部 tab 列／內容左緣＝logo 右＋sm（--lp-start）；
+     內容右緣＝header mode 鈕右緣＝最右的鈕欄（menu／footer 鈕 44＋sm，--lp-btn-col）留空；nav 列尾端＝兩顆鈕各＋sm（--lp-nav-end）。
+     ponytail: curriculum program 列／faculty 還是同值的字面 calc，動到那幾條時改吃這三個 token */
+  :root {
+    --lp-start: calc(var(--container-padding) + 56px + var(--spacing-sm));
+    --lp-btn-col: calc(44px + var(--spacing-sm));
+    --lp-nav-end: calc(var(--container-padding) + 2 * var(--lp-btn-col));
+  }
+  /* header 帶 nav chip 出生藏：首次進站 main-modular 下載完前 HTML 已畫出、chip 露在 hero 上（user 2026-11-05）。
+     main-modular 同步藏好 chip 才掛 html.lnav-armed；selector 同 main-modular LANDSCAPE_NAV_CHIPS，兩邊同步 */
+  html:not(.lnav-armed) #page-content :is(#anchor-nav .anchor-nav-inner, .faculty-filter-btn .anchor-nav-inner,
+    .courses-program-bar .courses-bfa-label, .courses-program-bar .courses-program-btn .anchor-nav-inner,
+    .activities-section-btn .anchor-nav-inner) { visibility: hidden; }
   /* about 桌面 #anchor-nav：上方 gate 段藏（iPad 用底 bar）→ 這裡翻回顯示、進 header 帶 */
   body:has(#about-content-wrapper) #anchor-nav { display: flex; }
   /* <768 窄橫向（667×375）：#anchor-nav 的 track 是 hidden md:block、strip 是 md:hidden sticky（top 88 掛在 header 帶下）
@@ -1207,7 +1282,9 @@
   body #alumni-content-section { z-index: auto !important; }
   /* 四頁 content section 抬到 .mobile-header-bg（z-40）之上：hero-animation 給 hero 後 section inline
      position:relative; z-index:1（防 hero 殘影）＝stacking context，section 內 z-55 的 fixed nav 被整包壓到帶底下。
-     這四頁自帶 header 帶 blocker（z-40 在 section 內）→ 抬高後遮擋照常、nav 浮出。帶本身保留：about/alumni/index 靠它遮捲過透明 header 的內容。
+     activities／admission 自帶 header 帶 blocker（z-40 在 section 內）→ 抬高後遮擋照常、nav 浮出。
+     2026-11-05 起橫向手機全站不顯示 .mobile-header-bg（navigation.css；user「除了 activities 及 admission，header 都不用白底擋」）
+     ＝這條現在只剩「nav 高過 hero 殘影層」的作用，帶若放回來仍需要它。
      !important 蓋 inline z:1；45 = 帶 40 之上、header 50/nav 55 之下。 */
   body :is(#faculty-cards, #courses-content-section, #admission-content-section, #activities-content-section) {
     z-index: 45 !important;
@@ -1224,22 +1301,23 @@
   }
 
 
+  /* curriculum 橫向手機（user 2026-11-05）：手機 grid（courses.css union 段）＋program 列在 header 帶、年級 bar 在底、課程 chip 兩欄。
+     卡片頂／必修選修 sticky＝--mobile-content-top（logo 下）；底＝年級 chip 頂（界線＋36，同直向算式、只有一條 bar）＋2xl */
   body #courses-content-section {
     height: auto;               /* 蓋 HTML md:h-screen */
     overflow-x: clip;
     overflow-y: clip;           /* 蓋 md:overflow-hidden，回到 courses.css base 的 clip（不成為捲動容器） */
-    /* nav fixed 進 header 帶後卡片上移 → padding-top 讓卡片從 nav 下開始（= grade cover sticky top，見下） */
-    padding-top: 116px;
-    padding-bottom: var(--spacing-2xl);
+    --courses-m-bottom-pad: calc(var(--mobile-bottom-anchor) + 36px + var(--spacing-2xl));
   }
 
-  /* nav（program 分頁）fixed 進 header 帶：logo 右～mode/menu 左、z:55。脫離 flow → section padding-top 讓卡片從 nav 下開始。
-     hero 時 JS clip-path 收、進 content section 才 clip-reveal（courses-section-switch.js IO），pointer-events 一併 JS 切；不用 opacity、不加白底。 */
+  /* nav（program 分頁）fixed 進 header 帶、滿寬（同直向底 bar 邏輯）：捲動列在 logo／mode・menu 鈕底下滑過、被它們蓋住
+     （section z45 < header）；起點 padding＝logo 右＋sm（初始在 logo 右邊、可往左滑進 logo 下），終點 padding＝鈕區（44＋sm＋44）＋sm
+     ＝捲到底最後一顆停在 mode 鈕左 sm。hero 時 JS clip-path 收、進 content section 才 clip-reveal（bindLandscapeNavGate） */
   #courses-content-section .inner-scroll-nav-col {
     position: fixed;
     top: 0;
-    left: 128px;                /* 離 logo */
-    right: 140px;               /* 避開右上 mode/menu 鈕 */
+    left: 0;
+    right: 0;
     height: 92px;               /* 垂直置中 92 header 帶（同 5f） */
     display: flex;
     align-items: center;
@@ -1254,12 +1332,12 @@
     overflow-y: clip;
     scrollbar-width: none;
     flex: none;
-    width: auto;
-    max-width: 100%;            /* col 改 flex 後 width:auto 的 flex item 會撐到 max-content 溢出 mode 鈕下 → 夾回 col 寬、bar 內捲 */
+    width: 100%;
+    max-width: 100%;
     align-self: center;         /* 蓋 courses.css md: 的 align-self:flex-start → 垂直置中 92 帶 */
-    /* 四邊只剩旋轉 clearance（±2° × btn 寬 ~240 ≈ 5px 凸出，12px 給足）；凸出 padding 外會被 overflow-y:clip 切頂。 */
     margin: 0;
-    padding: 0.75rem;
+    /* 上下只剩旋轉 clearance（±2° × btn 寬 ~240 ≈ 5px 凸出，12px 給足）；凸出 padding 外會被 overflow-y:clip 切頂 */
+    padding: 0.75rem calc(var(--container-padding) + 44px * 2 + var(--spacing-sm) * 2) 0.75rem calc(var(--container-padding) + 56px + var(--spacing-sm));
   }
   /* BFA 學士班 label 放 btn 左側 static 併排（比照 about .mobile-division-group）：省 header 帶高、不切頂。
      EN/ZH 各一行 nowrap、無 max-width：min-content+keep-all 在後台文字加長後會逐空格折成三行。 */
@@ -1269,7 +1347,6 @@
     gap: var(--spacing-xs);
   }
   #courses-content-section .courses-bfa-label {
-    position: static;
     width: auto;
     max-width: none;
     line-height: 1.2;
@@ -1278,36 +1355,45 @@
     display: block;
     white-space: nowrap;
   }
-
-  /* sticky 表頭 window-relative、接在 fixed program nav 下：cover 釘 116（= section padding-top，跟卡片起點齊 → 捲動無跳動），
-     ::before 向上補上方破口背景。padding-top 4：讓年級字落在 ::before 底疊 2px 縫補丁之下（貼頂會被咬掉 cap）。
-     type-label top = 116 + cover 實高 56（pt 4 + 兩行 44 + pb 8）+ row-gap 16 = 188（再高會落進 ::after 縫補丁帶被咬）。 */
-  #courses-content-section .courses-grid-row-cover {
-    top: 116px;
-    padding-top: 4px;
+  /* 年級 bar＝畫面底固定列（同直向 .nav-bottom-bar，lists.css 那段只給直向＋iPad → 這裡複製一份，值一對一）：
+     chip 中線對齊 footer 鈕中線、滿寬讓鈕蓋過、尾端 padding 留鈕位 sm（同 portrait.css「右下角鈕讓位」） */
+  #page-content #courses-content-section .courses-mobile-grade-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    height: calc(var(--mobile-bottom-anchor) * 2 + 28px);
+    margin: 0;
+    padding: 0 var(--container-padding) 16px var(--lp-start);   /* 起點＝nav 列起點（user 2026-11-05「tab btn 起始位置跟 nav btn 一樣」；alignGradeBar 讀這個 paddingLeft） */
+    align-items: center;
+    transition: transform var(--dur-base) var(--ease-wipe);
   }
-  #courses-content-section .courses-grid-type-label {
-    top: 188px;
+  #page-content #courses-content-section .courses-mobile-grade-bar.is-bar-hidden { transform: translateY(110%); }
+  #courses-content-section .courses-mobile-grade-bar .anchor-nav-inner {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.3em;
+    white-space: nowrap;
   }
-  /* 消 sticky 1px sub-pixel 接縫（見 memory reference_sticky_blocker_before_seam_1px_line）：
-     cover ::before(上補丁) / ::after(下補 row-gap) 各多疊 2px 進本體，蓋掉捲過卡片在交界露的灰線。 */
-  #courses-content-section .courses-grid-row-cover::before {
-    height: 202px;                 /* 200 + 底邊多疊 2px 進 cover 本體 */
+  body:is(:not(.no-footer), .mode-color) #page-content #courses-content-section .courses-mobile-grade-bar {
+    padding-right: calc(var(--container-padding) + 44px + var(--spacing-sm));
   }
-  /* 上補丁只在過 hero 後渲染：cover 未 pinned（hero 還在畫面）時 202px 白補丁會浮在 hero 圖上；
-     class 由 courses-section-switch.js 嚴格 hero gate 切（同 nav btn 時機）。 */
-  #courses-content-section:not(.courses-nav-revealed) .courses-grid-row-cover::before {
-    content: none;
-  }
-  #courses-content-section .courses-grid-row-cover::after {
-    top: calc(100% - 2px);         /* 上疊 2px 進本體 */
-    height: calc(var(--spacing-sm) + 2px);
+  /* 課程 chip 兩欄（user 2026-11-05）：各卡仍貼文字寬、放不下照 marquee */
+  #courses-content-section .courses-mobile-cells {
+    /* 卡片範圍到 header mode 鈕右緣為止：最右的鈕欄（menu／footer 鈕 44＋sm）留空，卡片不鑽到鈕底下（user 2026-11-05） */
+    margin-right: var(--lp-btn-col);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-items: start;
+    align-items: start;
   }
 
   body #faculty-cards {
     height: auto;                       /* 蓋 md:h-screen */
     overflow: visible;                  /* 蓋 md:overflow-hidden */
-    padding-top: 104px;                 /* 蓋 md:pt-0：手機式 header 讓位 */
+    /* 蓋 md:pt-0：第一張卡頂＝--mobile-content-top（同 curriculum 卡片頂；首牆自帶 margin-top sm） */
+    padding-top: calc(var(--mobile-content-top) - var(--spacing-sm));
     padding-bottom: var(--spacing-2xl); /* 蓋 md:pb-0 */
   }
   #faculty-cards .inner-scroll-frame-grid {
@@ -1316,13 +1402,37 @@
     height: auto;                       /* 蓋 lists.css 100vh */
     gap: var(--spacing-md);
   }
-  /* nav（DCD 系所鈕）fixed 進 header 帶、垂直置中 92 帶（同 admission/courses）；left 扣 > div 的 0.5rem 旋轉 clearance
-     → chip 左緣對齊 128。脫離 flow 後 section pt 104 讓卡片從 header 下開始、不被 nav 蓋。 */
+  /* 卡片牆範圍同 curriculum（user 2026-11-05）：左緣＝第一顆 nav btn 左緣（logo 欄留空）、右緣＝mode 鈕右緣（鈕欄留空） */
+  #faculty-cards .inner-scroll-scroll-col {
+    padding-left: calc(56px + var(--spacing-sm));
+    padding-right: calc(44px + var(--spacing-sm));
+  }
+  /* 圖片高不小於螢幕高 1/3（user 2026-11-05；原 <768 寬吃直向 2 欄×200＝螢幕越小圖越大，改固定 4 欄又在 667 寬縮到 96）：
+     欄寬下限＝1/3 螢幕高＋卡片左右 padding 12，放得下幾欄就幾欄、剩餘寬均分。lvh＝工具列收起的大視口＝工具列收不收都不低於 1/3。
+     欄數不固定 → ≥768 寬那半的 subgrid 卡（首列判斷寫死 :nth-child(-n+4)、行距掛卡片 margin，cards.css）退回 <768 的一般卡＋牆 row-gap。
+     #page-content 前綴：cards.css 那幾條同特異度、在 output.css 後出 */
+  #page-content #faculty-cards .faculty-card-wall {
+    grid-template-columns: repeat(auto-fill, minmax(calc(100lvh / 3 + 12px), 1fr));
+    column-gap: var(--spacing-md);
+    row-gap: var(--spacing-xl);
+  }
+  #page-content #faculty-cards .faculty-card {
+    display: block;
+    grid-row: auto;
+    margin-top: 0;
+  }
+  #page-content #faculty-cards .faculty-card > .text-left { display: block; }
+  /* 牆間距＝落點（第一張卡頂）＋旋轉角餘量 sm：header 帶不遮，點 nav 落在某類時上一類要整個出畫面（同直向 lists.css 那條） */
+  #page-content #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall:not(:empty) {
+    margin-top: calc(var(--mobile-content-top) + var(--spacing-sm));
+  }
+  /* nav（分類鈕）fixed 進 header 帶、滿寬（同 curriculum program 列）：捲動列在 logo／mode・menu 鈕底下滑過、被它們蓋住
+     （section z45 < header）；脫離 flow 後卡片從 header 帶下開始 */
   #faculty-cards .inner-scroll-nav-col {
     position: fixed;
     top: 0;
-    left: calc(128px - 0.5rem);        /* 128 = 全站 header 帶 nav 對齊點；離 logo */
-    right: 140px;                      /* 避開右上 mode/menu 鈕 */
+    left: 0;
+    right: 0;
     height: 92px;
     display: flex;
     align-items: center;
@@ -1330,108 +1440,133 @@
     padding-top: 0;
     /* hero 屏藏、捲到 cards 才現＝JS clip-path（faculty-filter.js 嚴格 hero gate），CSS 不設 opacity；pointer-events 也由 JS 切。 */
   }
-  /* header 帶遮擋：section 的 fixed ::before 全寬 96px theme-bg 帶（卡片捲過透明 header 會疊在 nav 後）。
-     z-40＝卡片之上、header(50)/nav col(55) 之下——不能掛 nav col 內（z:-1 仍困在 z-55 context、會蓋過 logo）。
-     綁嚴格 hero gate class（faculty-filter.js setNav 切）→ hero 屏不蓋圖。96 同 admission blocker。 */
-  #faculty-cards.faculty-nav-revealed::before {
+  /* header 帶不遮（user 2026-11-05「除了 activities 及 admission，剩下的 header 都不需要用白底擋」）：
+     卡片不進 logo／鈕欄、只從 nav chip 後面滑過（chip 自帶底色，同 curriculum）。原 96px 的 .faculty-nav-revealed::before 已刪 */
+  #faculty-cards .inner-scroll-nav-col > div {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: clip;
+    gap: var(--spacing-md);
+    margin: 0;                         /* fixed 定位不需負 margin bleed */
+    /* 上下 0.75rem＝active chip 旋轉角 clearance；起點＝logo 右＋sm（可往左滑進 logo 下），
+       終點＝鈕區（44＋sm＋44）＋sm＝捲到底最後一顆停在 mode 鈕左 sm（值同 curriculum .courses-program-bar） */
+    padding: 0.75rem calc(var(--container-padding) + 44px * 2 + var(--spacing-sm) * 2) 0.75rem calc(var(--container-padding) + 56px + var(--spacing-sm));
+    width: 100%;                       /* col 改 flex 置中後 flex item 縮到內容寬 → 撐滿供 overflow-x 內捲（同 admission） */
+  }
+
+  /* faculty slide-in 橫向手機（user 2026-11-05）：比照桌面色卡的左右兩欄，logo 欄／返回鈕欄留空、內容集中中間；
+     左＝照片在上、名字在下（不捲）；右＝其餘資訊（職級＋各段），間距／字級同直向，整欄從畫面頂捲到底（header 區不擋）。
+     職級進右欄 lead＝faculty-slide-in.js（iPad 那半仍在左欄名字下）。上方 gate 共用段（iPad 版）的值在這裡逐條蓋 */
+  #faculty-panel > .faculty-header-band { display: none; }   /* <768 寬才出現的直向遮擋帶：內容不進 logo／鈕欄＝不用擋 */
+  #faculty-panel > .faculty-panel-body {
+    padding: 0 calc(var(--container-padding) + 44px + var(--spacing-sm)) 0 calc(var(--container-padding) + 56px + var(--spacing-sm));
+  }
+  /* 多一層 selector：<768 寬時 cards.css 直向那條（flex:none／gap 0，同特異度、output.css 後出）會贏 → 版面不限高、右欄捲不了 */
+  #faculty-panel .faculty-panel-body > .faculty-detail-layout {
+    flex: 1;
+    min-height: 0;
+    gap: var(--spacing-xl);
+  }
+  #faculty-panel .faculty-detail-layout > #faculty-profile-block {
+    flex: 0 0 32%;
+    align-items: flex-start;
+    overflow: visible;                  /* 不捲＝不裁照片旋轉角，gate 版的四邊 padding／負 margin 一併還原 */
+    padding: var(--spacing-md) 0 0;     /* 照片頂＝返回鈕頂 */
+    margin: 0;
+    /* <768 寬會吃到 cards.css 直向 sticky profile 的橫排 gap／底色／layer（底色會蓋住右欄左半）→ 還原 */
+    gap: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+    z-index: auto;
+  }
+  #faculty-panel #faculty-profile-block > div:last-child { flex: none; }
+  #faculty-panel #faculty-detail-titles:empty { display: none; }
+  /* 右欄自己捲（lead＋各段一起）、字能一路走到畫面頂。開場頂距＝照片頂，用 ::before 墊（flex 子項、跟著捲走）：
+     寫成捲動框 padding 的話 sticky 標題會釘在 padding 下緣、上面那條露出捲過的字 */
+  #faculty-panel #faculty-detail-right {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    /* 段落標題的釘點：＋標題欄上內距 0.75rem＝md；再 +2＝h3 leading-none 字框上溢 → 釘住時「看得到的字頂」＝md＝開場第一行字頂／照片頂 */
+    --fac-pin: calc(var(--spacing-md) - 0.75rem + 2px);
+  }
+  /* 頂距 md 拆兩段：上段（--fac-pin）是 sticky 的同色蓋條、一直釘在右欄頂，下段是 margin 跟著捲走。
+     蓋條底＝段落標題的釘點（user 2026-11-06「title 對齊的點太高、比照頂部 padding」；原本釘在 0）；
+     蓋條擋住標題盒上方那一截，捲過的字不會從標題上面露出一條 */
+  #faculty-panel #faculty-detail-right::before {
     content: '';
+    flex: none;
+    position: sticky;
+    top: 0;
+    z-index: 3;                          /* 高過標題欄（2） */
+    height: var(--fac-pin);
+    margin-bottom: calc(var(--spacing-md) - var(--fac-pin));
+    background: var(--faculty-panel-bg, transparent);
+  }
+  #faculty-panel #faculty-detail-right::-webkit-scrollbar { display: none; }
+  #faculty-panel #faculty-detail-right .list-scroll {
+    flex: none;
+    overflow: visible;
+    min-height: auto;
+  }
+  /* 以下間距＝cards.css 直向那組的值（職稱→標題、標題→第一筆、筆與筆、分類之間，文字框都 ≈18） */
+  #faculty-panel #faculty-detail-lead {
+    position: static;
+    margin-bottom: 0;
+    padding-bottom: calc(var(--spacing-sm) - 10px);
+    background: none;
+    box-shadow: none;
+    transform: none;
+  }
+  #faculty-panel .faculty-lead-rows { gap: var(--spacing-sm); }
+  #faculty-panel .faculty-rows { gap: calc(var(--spacing-sm) + 2px); }
+  #faculty-panel #faculty-detail-sections {
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-md);  /* 捲到底：最後一筆→畫面底＝開場頂距 */
+  }
+  #faculty-panel #faculty-detail-sections > div { gap: 0; }
+  #faculty-panel #faculty-detail-sections .faculty-section-title-col {
+    margin-bottom: 0;
+    top: var(--fac-pin);                /* 釘在蓋條底 */
+    padding-top: 0.75rem;
+    padding-bottom: calc(var(--spacing-sm) + 3px);
+  }
+  #faculty-panel .faculty-section-title-col h3 { font-size: var(--font-size-s); }
+
+  /* ===== activities／admission 橫向手機（user 2026-11-05，比照 curriculum）=====
+     nav 列 fixed 進 header 帶、滿寬：捲動列在 logo／mode・menu 鈕底下滑過（section z45 < header），起點 --lp-start、尾端 --lp-nav-end；
+     內容範圍＝--lp-start ～ header mode 鈕右緣（左欄只放年份、最右鈕欄留空）；
+     內容頂／遮擋帶／年份 sticky／開啟的 title 釘點＝--mobile-content-top（同 curriculum 卡片頂；JS 同值：activities-data-loader
+     updateStickyTop 寫 --list-header-sticky-top、list-accordion getListStickyTop 讀它）；
+     activities 子分頁 tab 列＝畫面底固定列、英中一行（同直向 lists.css；幾何同 curriculum 年級 bar）。
+     hero 屏 nav 藏、進 content 才現＝JS clip-path（bindLandscapeNavGate；同 gate 掛 section .lnav-revealed 給底部 tab 列顯隱） */
+  body :is(#activities-content-section, #admission-content-section) {
+    height: auto;                       /* 蓋 md:h-screen（activities inline min-height:100vh 保留無害） */
+    overflow: visible;                  /* 蓋 md:overflow-hidden */
+    padding-top: var(--mobile-content-top);   /* 蓋 md:pt-0 */
+    padding-bottom: var(--spacing-2xl); /* 蓋 md:pb-0 */
+  }
+  /* activities 底有 tab 列：最後一列底到 tab chip 頂＝2xl（同 curriculum --courses-m-bottom-pad 算式） */
+  body #activities-content-section {
+    padding-bottom: calc(var(--mobile-bottom-anchor) + 36px + var(--spacing-2xl));
+  }
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 96px;
-    background: var(--theme-bg);
-    z-index: 40;
-    pointer-events: none;
-  }
-  #faculty-cards .inner-scroll-nav-col > div {
-    flex-direction: row;
-    overflow-x: auto;
-    gap: var(--spacing-md);
-    margin: 0;                         /* fixed 定位不需負 margin bleed */
-    /* 四邊 0.5rem 給 active chip 旋轉角 clearance（overflow-x:auto 連帶 y 也 auto、會裁旋轉角） */
-    padding: var(--spacing-xs);
-    width: 100%;                       /* col 改 flex 置中後 flex item 縮到內容寬 → 撐滿供 overflow-x 內捲（同 admission） */
-  }
-
-  body #admission-content-section {
-    --adm-ls-indent: 104px;
-    height: auto;                       /* 蓋 md:h-screen */
-    overflow: visible;                  /* 蓋 md:overflow-hidden */
-    padding-top: 104px;                 /* 蓋 md:pt-0：手機式 header 讓位（logo 下緣 ~92 + 12 呼吸） */
-    padding-bottom: var(--spacing-2xl); /* 蓋 md:pb-0 */
-  }
-
-  /* nav fixed 進 header 帶、垂直置中 92 帶（同 faculty / about 5i）。hero 屏藏、進 content 才現＝JS clip-path
-     （admission-section-switch.js IO -45%），CSS 不設 opacity；pointer-events 也由 JS 切。 */
-  #admission-content-section .inner-scroll-nav-col {
-    position: fixed;
-    top: 0;
-    /* 128/140 各外移 0.75rem 抵銷 > div 的旋轉 clearance padding → chip 左緣仍對齊 128、右仍避開鈕區 */
-    left: calc(128px - 0.75rem);        /* 128 = list 對齊點（container 24 + indent 104）；離 logo */
-    right: calc(140px - 0.75rem);       /* 避開右上 mode/menu 鈕 */
-    height: 92px;
-    display: flex;
-    align-items: center;
-    z-index: 55;
-    padding-top: 0;
-  }
-  #admission-content-section .inner-scroll-nav-col > div {
-    flex-direction: row;                /* 蓋 md:flex-col：nav btn 橫排 chips */
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: clip;
-    scrollbar-width: none;
-    gap: var(--spacing-md);
-    margin: 0;
-    /* 四邊 0.75rem：clip 容器內給 active chip 旋轉（±4~6°）上下/角落 clearance（0.25rem 會平切 chip 頂） */
-    padding: 0.75rem;
-    width: 100%;
-  }
-  #admission-content-section .inner-scroll-nav-col > div::-webkit-scrollbar { display: none; }
-
-  /* sticky title 手機式釘點＝logo 下緣；⚠️ 與 list-accordion getListStickyTop「拆 frame 分支」的 96 同步 */
-  #admission-content-section .list-header.active {
-    top: 96px;
-  }
-  /* 手機 header blocker（md:hidden 在 ≥768 被藏 → 強制顯示）：sticky top:0 的 96px theme-bg 帶，常駐——
-     nav 進 header 後，捲過的 description/list 會透過透明 header 疊到 nav 上；z-40 > 內容 z-20、< header 50 / nav 55。 */
-  body #admission-content-section .list-mobile-header-blocker {
-    display: block;
-    position: sticky;
-    top: 0;
-    height: 96px;
-    margin-top: -96px;
-    background: var(--theme-bg);
-    z-index: 40;
-  }
-
-
-  body #activities-content-section {
-    height: auto;                       /* 蓋 md:h-screen（inline min-height:100vh 保留無害） */
-    overflow: visible;                  /* 蓋 md:overflow-hidden */
-    /* 96＝blocker 高度下限（margin-top -96 的 blocker 自然位不可高出 section 頂、否則白帶戳進 hero）；
-       子分類 chip 旋轉 clearance 由 filter bar padding-top 給（見下） */
-    padding-top: 96px;                  /* 蓋 md:pt-0：手機式 header 讓位 */
-    padding-bottom: var(--spacing-2xl); /* 蓋 md:pb-0 */
-  }
-
-  /* nav fixed 進 header 帶（同 5e）：logo 右側、垂直置中 92 帶；超寬被右緣裁、bar 內 overflow-x 左右滑。
-     hero 屏藏、捲到 content 才現＝JS clip-path（activities-section-switch.js 嚴格 hero gate）；pointer-events 也由 JS 切。 */
-  #activities-content-section .inner-scroll-nav-col {
-    position: fixed;
-    top: 0;
-    /* 128/172 各外移 0.75rem 抵銷 bar 旋轉 clearance padding → chip 左緣對齊 128；右 172 = 鈕區 140 + 32 gap */
-    left: calc(128px - 0.75rem);
-    right: calc(172px - 0.75rem);
-    height: 92px;
+    height: 92px;                       /* 垂直置中 92 header 帶 */
     display: flex;
     align-items: center;
     z-index: 55;
     padding-top: 0;
     min-height: 0;                      /* 蓋 md:min-h */
   }
-  #activities-content-section .activities-section-bar {
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col > div {
     flex-direction: row;                /* 蓋 md:flex-col：nav 橫排 chips */
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1439,224 +1574,352 @@
     scrollbar-width: none;
     gap: var(--spacing-md);
     margin: 0;                          /* fixed 定位不需負 margin bleed */
-    /* 四邊 0.75rem：clip 容器內給 active chip 旋轉（±4~6°）clearance（同 5e/faculty） */
-    padding: 0.75rem;
+    /* 上下 0.75rem＝clip 容器內 active chip 旋轉（±4~6°）clearance；左右＝全站橫向手機 nav 列起訖（值同 curriculum .courses-program-bar） */
+    padding: 0.75rem var(--lp-nav-end) 0.75rem var(--lp-start);
     width: 100%;
   }
-  #activities-content-section .activities-section-bar::-webkit-scrollbar { display: none; }
-  #activities-content-section .activities-section-bar > * {
-    flex-shrink: 0;
-  }
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col > div::-webkit-scrollbar { display: none; }
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col > div > * { flex-shrink: 0; }
 
-  /* sticky title 釘 96（同 5e admission；96 與 JS 拆-frame 分支同步） */
-  #activities-content-section .list-header.active {
-    top: 96px;
+  /* 內容範圍：左＝nav 列起點（24～--lp-start 那欄只放年份）、右＝mode 鈕右緣（鈕欄留空） */
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-scroll-col {
+    padding-left: calc(var(--lp-start) - var(--container-padding));
+    padding-right: var(--lp-btn-col);
   }
-  /* 年份欄：①釘點對齊 96——updateStickyTop（activities-data-loader）用 filter bar computed top 算 inline top，
-     bar static → 算出 bar 高 ~139 對不上 list header 96；!important 蓋 JS inline（ResizeObserver 會反覆重設）。
-     ②chevron 靠左：拔 pl-xs。 */
-  #activities-content-section .list-year-toggle {
-    top: 96px !important;
+  /* ≥768 寬吃到的 md: 縮排（年份欄 80＋pl-41）收平：search／常設清單／admission 說明塊一律從內容左緣起 */
+  :is(#activities-content-section, #admission-content-section) :is(.activities-filter-bar > .grid-12 > div, .activities-panel > .grid-12 > div) {
+    grid-column: 1 / -1;
     padding-left: 0;
   }
-  /* blocker 常駐（同 5e）：遮住捲過透明 header、疊到 fixed nav 上的 filter bar / list（z-40 > 內容、< header 50 / nav 55）。 */
-  body #activities-content-section .list-mobile-header-blocker {
+  /* tab 列移到畫面底 → filter bar 只剩 search，不用再留 chip 旋轉 clearance（上方 gate 段的 12） */
+  #activities-content-section .activities-filter-bar {
+    padding-top: 0;
+  }
+
+  /* 年份＝左欄（logo 下，位置同 curriculum 必修／選修標籤）、釘在內容頂線：跟清單疊在同一格、負 margin 伸進左欄
+     ＝清單維持滿寬，sticky 的約束框＝自己那組（捲完被下一組推走）。字級同直向（s）；年份在左、chevron 在右。
+     上內距＝卡片內距 sm → 年份字跟第一筆（與釘住的開啟列）標題同一行。
+     :first-child 抬特異度：蓋上方 gate 段 admission 的 absolute 投影（1,2,1）與 lists.css ≥768 的 sticky 規則 */
+  :is(#activities-content-section, #admission-content-section) .list-year-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  :is(#activities-content-section, #admission-content-section) .list-year-group > .list-year-label:first-child {
+    grid-area: 1 / 1;
+    position: sticky;
+    top: var(--mobile-content-top) !important;   /* !important：蓋 JS inline（updateStickyTop 也寫同值） */
+    left: auto;
+    align-self: start;
+    justify-self: start;
+    width: calc(var(--lp-start) - var(--container-padding));
+    margin-left: calc(var(--container-padding) - var(--lp-start));
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) 0 !important;     /* !important：蓋 lists.css <768 的年份列內距（那邊帶 !important） */
+    font-size: var(--font-size-s);
+  }
+  :is(#activities-content-section, #admission-content-section) .list-year-label .text-lg {
+    font-size: var(--font-size-s);
+    line-height: var(--line-height-s);
+  }
+  :is(#activities-content-section, #admission-content-section) .list-year-group > .list-year-items {
+    grid-area: 1 / 1;
+    padding-left: 0;
+    margin-top: 0;
+  }
+
+  /* 開啟的 title 釘點（JS 也寫 --list-header-sticky-top 同值） */
+  :is(#activities-content-section, #admission-content-section) .list-header.active {
+    top: var(--mobile-content-top);
+  }
+  /* blocker 常駐：遮住捲過透明 header、疊到 fixed nav 後面的內容（z-40 > 內容、< header 50／nav 55）；
+     高＝section pt＝釘點；md:hidden 在 ≥768 被藏 → 強制顯示 */
+  body :is(#activities-content-section, #admission-content-section) .list-mobile-header-blocker {
     display: block;
     position: sticky;
     top: 0;
-    height: 96px;
-    margin-top: -96px;
+    height: var(--mobile-content-top);
+    margin-top: calc(-1 * var(--mobile-content-top));
     background: var(--theme-bg);
     z-index: 40;
   }
 
+  /* activities 子分頁 tab 列（展演／參訪）＝畫面底固定列、英中一行（user 2026-11-05「比照直式手機、跟 curriculum 一樣」）：
+     幾何同上面 curriculum 年級 bar（chip 中線對齊 footer 鈕中線）；起點＝nav 列起點、滿寬讓 footer 鈕蓋過、尾端留鈕位 sm。
+     只會顯示當前分頁那列（其他分頁 .hidden）；nav 藏著（hero／footer）＝跟著藏，延遲 --dur-slow＝chip 逐顆退場跑得完 */
+  #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter) {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    height: calc(var(--mobile-bottom-anchor) * 2 + 28px);
+    margin: 0;
+    padding: 0 calc(var(--container-padding) + var(--lp-btn-col)) 16px var(--lp-start);
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: clip;
+    scrollbar-width: none;
+  }
+  #activities-content-section:not(.lnav-revealed) :is(#exhibitions-type-filter, #visits-type-filter) {
+    visibility: hidden;
+    transition: visibility 0s var(--dur-slow);
+  }
+  #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter)::-webkit-scrollbar { display: none; }
+  #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter) > button { flex-shrink: 0; }
+  #activities-content-section :is(#exhibitions-type-filter, #visits-type-filter) .anchor-nav-inner {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.3em;   /* ≈ 一個空白（同直向 tab 列／curriculum 年級 chip） */
+    white-space: nowrap;
+  }
 
-  /* 5i) about：① #anchor-nav 移進 header 帶（同 5h library tabs）：fixed 在 logo 與 mode 鈕之間、z:40 低於 header；
-     點擊靠全站 header 放行規則（--header-pe）。左欄 track 本就 width:0，nav fixed 後零位移。
-     ② vision 文字對齊手機版：h5→p1、[data-overview-hl] 內捲；nav 退出左欄後兩欄文字重分全寬。 */
+  /* 5i) about 橫向手機（user 2026-11-06 改版，比照 curriculum／activities／faculty 的版面線）：
+     ① nav＝header 帶滿寬捲動列：起點 logo 右＋sm、尾端讓 mode／menu 鈕（從 logo／鈕底下滑過）；active 捲回起點（anchor-nav.js）。
+        顯隱＝anchor-nav.js 橫向手機分支（hero 藏、footer 前收，逐 chip clip-path）。
+     ② division tab＝畫面底固定列（幾何同 curriculum 年級 bar／activities 子分頁：chip 中線對齊 footer 鈕中線、英中一行、
+        起點＝內容左緣 container padding、滿寬讓 footer 鈕蓋過＋尾端留鈕位）；桌面左欄 #class-buttons-sticky 藏（上方 gate 段），
+        切換／範圍進退場走 .mobile-division-btn（bfa-division-toggle.js 手機分支）。
+     ③ 每屏：落點貼 section 頂（scroll-margin 0）、section 自己 padding-top＝內容頂 --about-lp-top、至少一屏；
+        內容左緣＝container padding（logo 下方也用，user 11-06 二修）、右緣＝mode 鈕右緣（鈕欄留空）；
+        底＝貼底界線（＝footer 鈕底），Programs／Works＝tab chip 頂再上 sm。 */
+  #about-content-wrapper {
+    /* 內容頂＝logo 底＋sm（logo 頂＝界線 −6、56 方塊；同 footer.css 直向算式）＝90：比其他橫向頁的 108 再往上（user 11-06「可以再往上」） */
+    --about-lp-top: calc(var(--mobile-bottom-anchor) - 6px + 56px + var(--spacing-sm));
+    --about-lp-r: calc(var(--container-padding) + var(--lp-btn-col));                       /* 右側鈕欄 */
+    --about-lp-bar: calc(var(--mobile-bottom-anchor) * 2 + 28px);                         /* division 列盒高（chip 中線＝footer 鈕中線用） */
+    /* tab 列佔掉的底：chip 中線（界線＋半顆 footer 鈕 22）＋半顆兩行 chip 24＋sm */
+    --about-lp-tab: calc(var(--mobile-bottom-anchor) + 22px + 24px + var(--spacing-sm));
+    --about-lp-room: calc(100svh - var(--about-lp-top) - var(--mobile-bottom-anchor));   /* 無 tab 的屏：內容可用高 */
+    --about-lp-tab-room: calc(100svh - var(--about-lp-top) - var(--about-lp-tab));       /* Programs／Works */
+  }
   body #anchor-nav {
     position: fixed;
-    top: 0 !important;          /* 蓋 inline top:200px */
-    left: 92px;                 /* 內容起點 104（logo 24+56+呼吸）；12px 挪進 padding 容 active chip 旋轉凸出 */
-    right: 136px;               /* mode + menu 鈕區 */
-    height: 92px;               /* = 手機 header 列高 */
+    top: 0 !important;          /* 蓋 inline top:var(--nav-line) */
+    left: 0;
+    right: 0;
+    height: 92px;               /* = 手機 header 列高，chip 垂直置中 */
     flex-direction: row;
     align-items: center;
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);     /* 同 activities／faculty 橫向手機 nav */
     margin-left: 0 !important;  /* 蓋 inline margin-left */
-    width: auto !important;     /* 蓋 inline width:max-content（left/right 拉伸需 auto） */
-    padding: 0 12px;
+    width: auto !important;     /* 蓋 inline width:max-content（left/right 拉伸） */
+    padding: 0 var(--lp-nav-end) 0 var(--lp-start);
     overflow-x: auto;
     overflow-y: clip;
     scrollbar-width: none;
     z-index: 40;
   }
-  body #anchor-nav::-webkit-scrollbar {
-    display: none;
-  }
-  body #anchor-nav .anchor-nav-btn {
-    flex: none;
-  }
+  body #anchor-nav::-webkit-scrollbar { display: none; }
+  body #anchor-nav .anchor-nav-btn { flex: none; }
 
-  /* 5i+) about Programs / class division：① division tabs 改左欄直排（桌面 chip 設計）；<768 橫向也用桌面 markup
-     （強制顯示 hidden md:block 本體、藏 portrait 水平 strip）→ 兩種寬度同一套。
-     ② 右側圖左文右：單圖置中輪播（class-images-slideshow.js slot gate 已含矮橫向）、文字盒內捲。③ works 見 5i+#。 */
-  #class-info-sticky-wrapper {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    column-gap: var(--spacing-lg);
-    /* padding 歸零＋#class scroll-margin 92（=header 帶高）→ tabs 直接貼 header 帶底、無殘留空白。 */
-    padding-top: 0;
-    position: relative;
-    z-index: 1;
-  }
-  /* #class 落點對齊 header 帶底：scroll-snap.css 桌面 100 比帶高 92 多 8 → 92 */
-  #class {
-    scroll-margin-top: 92px;
-  }
-  body #class-buttons-sticky {
-    display: block;             /* 蓋 <768 的 Tailwind hidden */
-    grid-column: 1;
-    grid-row: 1 / 3;            /* 跨到 works row：sticky containing block 含 works 視圖才黏得住 */
-    align-self: start;          /* 高度=內容，sticky 才有滑移空間（stretch 撐滿 row 高就黏不動） */
-    /* 12px 容 active chip 旋轉凸出（同 anchor-nav）：貼 0 時第一顆 chip 旋轉角會探進 header 帶被蓋 */
-    padding-top: 12px;          /* 蓋 pt-3xl（避讓已由 wrapper 承擔） */
-    padding-left: var(--container-padding);
-    /* sticky top 對齊 header 帶底：!important 蓋 HTML inline top:100（桌面值）→ tabs 與圖文同貼帶底 */
-    top: 92px !important;
-  }
+  /* ② division tab 列（HTML md:hidden／<768 段的 fixed bottom:bar 高 → 這裡寫死成畫面底一條） */
   #class-works-area .mobile-division-wrap {
-    display: none;              /* portrait 水平 division strip 藏 */
-  }
-  #class-buttons-sticky .site-container {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
     padding: 0;
-    width: auto;
   }
-  #class-buttons-sticky .grid-20 {
-    display: block;             /* 拆 20 欄，左欄寬交給 max-content */
-  }
-  #class-buttons-sticky .grid-20 > div {
-    flex-direction: column;     /* 蓋 HTML flex items-end：chips 直排 */
-    align-items: flex-start;
-    /* Programs/works 兩 context 統一 12；也是 works context 4 顆 chip 塞進 298px（100svh−92）的上限。bfa-wrap 負 margin 同步。 */
-    gap: 12px;
-  }
-  /* tab 字級收成 p1（同 portrait division btn）：HTML text-lg 偏大；縮字後左欄變窄、圖文佔比變大。 */
-  #class-buttons-sticky .class-division-btn div {
-    font-size: var(--font-size-s);
-  }
-  /* BFA 學士班 label 隱藏：直排 in-flow 後兩 division 各一個＝重複大框；左欄已是學制 context，division 名足夠。 */
-  #class-buttons-sticky .class-group-label {
-    display: none;
-  }
-  /* BFA/Design Fundamental wrap 收合改垂直：buttons.css 的 max-width:0 + 負 margin-right 配橫排，直排下寬 0 仍佔一行高 + gap
-     → 換 max-height + margin-bottom 負 gap。收合態藏法（visibility）與鈕的 clip-reveal、進同拍／先滑出後收的時序同 buttons.css。
-     展開 class 同桌面（#class-buttons-sticky.is-works-context）。⚠️ buttons.css 該段改動時同步。 */
-  #class-buttons-sticky .class-division-bfa-wrap {
-    max-width: none;
-    max-height: 0;
-    margin-right: 0;
-    margin-bottom: -12px;       /* = 直排 gap，收起時不佔 gap */
-    transition: max-height var(--dur-medium) var(--ease-standard) var(--dur-medium),
-                margin-bottom var(--dur-medium) var(--ease-standard) var(--dur-medium),
-                visibility 0s linear var(--dur-medium);
-  }
-  #class-buttons-sticky.is-works-context .class-division-bfa-wrap {
-    max-height: var(--bfa-chip-h, 8rem);
-    margin-bottom: 0;
-    transition-delay: 0s;
-  }
-  /* 右側內容欄：site-container 左 padding 讓給左欄 tabs（頂部避讓在 wrapper） */
-  body #class-info-area {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    padding: 0 var(--container-padding) 0 0;
-  }
-  /* 圖左文右（蓋 md:order-1/2 與 grid 欄位）：圖吃剩餘寬、文字固定 42% */
-  .class-info-panel .grid-20 {
-    display: flex;
-    gap: var(--spacing-xl);
-    align-items: flex-start;
-  }
-  .class-info-panel .grid-20 > div:first-child {
-    order: 2;                   /* 文字欄（HTML 第一個 child） */
-    flex: 0 0 42%;
-    min-width: 0;
-  }
-  .class-info-panel .division-images {
-    order: 1;
-    flex: 1 1 auto;
-    min-width: 0;
-    /* 116 = 內容頂 92（header 帶底）+ 24 底部呼吸 */
-    min-height: calc(100svh - 116px);  /* 蓋 base 440px */
-  }
-  /* 單圖置中 + 縮圖尺寸（比照 variables.css portrait block；!important 蓋 gsap inline top:70%）；
-     390 高預算 ~240px → 直圖 180 寬（3:4 ≈ 240 高）、橫圖 300 寬 */
-  .class-info-panel .class-img {
-    top: 50% !important;
-    max-width: 180px;
-  }
-  .class-info-panel .class-img.class-img--landscape {
-    max-width: 300px;
-  }
-  /* 文字盒內捲（同 portrait pattern；max-height 對齊圖欄高度 → 兩盒視覺同排） */
-  .class-info-panel [data-class-hl] {
-    max-height: calc(100svh - 116px);
-    overflow-y: auto;
+  .mobile-division-wrap.is-div-hidden { visibility: hidden; }
+  .mobile-division-wrap.is-off { pointer-events: none; }
+  #class-works-area #mobile-division-nav {
+    height: var(--about-lp-bar);
+    margin: 0;
+    padding: 0 var(--about-lp-r) 16px var(--container-padding);   /* 底 16＝chip 中線對齊 footer 鈕中線（同 .nav-bottom-bar）；起點＝內容左緣（about 用到 logo 下方，user 11-06）；centerMobilePill 讀 paddingLeft */
+    align-items: center;
+    gap: var(--spacing-md);
+    overflow-x: auto;
+    overflow-y: clip;
     scrollbar-width: none;
   }
-  .class-info-panel [data-class-hl]::-webkit-scrollbar {
-    display: none;
+  #mobile-division-nav::-webkit-scrollbar { display: none; }
+  /* chip 英上中下兩行（同直向；user 11-06 二修「一行太長」）；BFA 學士班小標在鈕左、頂對齊（HTML items-start） */
+  #mobile-division-nav .class-group-label {
+    position: static;
+    padding: var(--card-pad-s);
+  }
+  /* 以下三條＝<768 段（variables.css about 手機段）在 ≥768 寬吃不到的部分，值一對一 */
+  #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
+    background: var(--theme-fg) !important;
+    color: var(--theme-bg) !important;
+  }
+  #mobile-division-nav .mobile-division-btn--bfa {
+    max-width: 0;
+    pointer-events: none;
+    visibility: hidden;
+    margin-right: calc(-1 * var(--spacing-md));
+    transition: max-width var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                margin-right var(--dur-medium) var(--ease-standard) var(--dur-medium),
+                visibility 0s linear var(--dur-medium);
+  }
+  #mobile-division-nav.is-works-context .mobile-division-btn--bfa {
+    max-width: var(--bfa-chip-w, 320px);
+    pointer-events: auto;
+    visibility: visible;
+    margin-right: 0;
+    transition-delay: 0s;
   }
 
-  /* 5i+#) about works：落點對齊 header 帶底＋重排「tabs 左｜playlist 中｜說明文字右」
-     （scroll-snap.css 落點 100 + pt-8xl 會讓影片全在 fold 下）。 */
-  #works {
-    scroll-margin-top: 92px;    /* 同 #class：貼 header 帶底 */
+  /* ③ 每屏框：落點貼 section 頂、內容頂＝--about-lp-top；#about-content-wrapper 前綴蓋 accordion.css／scroll-snap.css 同 id 規則 */
+  #overview, #class, #class-info-anchor, #works, #resources, #history { scroll-margin-top: 0; }
+  #about-content-wrapper :is(#overview, #program-structure, #class-info-area, #works, #resources, #history) { min-height: 100lvh; }
+
+  /* Vision：英｜中兩欄、欄距 md（user 2026-11-06「小手機兩個 box 貼在一起」——<768 的 grid column-gap 0 帶進來了）；
+     盒寬吃滿自己那欄、高到貼底界線，多的字在盒內捲 */
+  #about-content-wrapper #overview { padding: var(--about-lp-top) 0 0; }
+  #about-content-wrapper #overview > .site-container { padding: 0 var(--about-lp-r) 0 var(--container-padding); }
+  #about-content-wrapper #overview .grid-20 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--spacing-md);
   }
-  /* 進 wrapper grid 第二欄：左欄 sticky tabs 於 works 視圖續黏。min-height ≥ tabs 展開高（含 Design Fundamental）：
-     works 內容只 ~200 高，row 太矮時 sticky 下界（grid area 底 − tabs 高）會把 tabs 推出 header 帶上緣。 */
-  #class-info-sticky-wrapper > #works {
-    grid-column: 2;
-    grid-row: 2;
-    min-height: 330px;  /* ponytail: tabs works-context 疊高（~314）的定值鏡像，chips 增減時要跟著調 */
+  #about-content-wrapper #overview .grid-20 > div { grid-column: auto; }
+  #about-content-wrapper #overview [data-overview-hl] { max-height: var(--about-lp-room); }
+
+  /* System 樹：手機緊湊樹（about-structure.css 手機段，media 含橫向手機）靠左、Term／Degree 說明卡在右、卡底貼底界線
+     （user 2026-11-06「terms 跟 degree 放在右邊」）。底 padding 多墊 lvh−svh＝工具列展開時卡也在可視區內（同直向） */
+  #about-content-wrapper #program-structure {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--spacing-md);
+    padding: var(--about-lp-top) var(--about-lp-r) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh) var(--container-padding);
   }
-  body #class-works-panels {
-    /* 頂 12 = tabs 的 padding-top（旋轉 clearance）→ playlist/文字與第一顆 chip 同水平線；左 padding 讓給 tabs 欄、蓋 pt-3xl/md:pt-8xl */
-    padding: 12px var(--container-padding) 0 0;
+  #program-structure > .grid-20 { display: block; flex: 1 1 auto; min-width: 0; align-self: flex-start; }
+  /* sticky 貼底界線：樹比一屏高（375 高）時落地就在右下角、捲到段尾回原位（同桌面右下角） */
+  #program-structure > .prog-legend-stack {
+    flex: none;
+    position: sticky;
+    top: auto;                  /* 基底 top:843（桌面 absolute 釘點）會蓋過 sticky 的 bottom */
+    bottom: var(--mobile-bottom-anchor);
+    transform: none;
+    margin: 0;
+    align-items: flex-end;
   }
-  /* class/works 封鎖線藏：落點貼 header 帶後 strip（top:15vh）會橫在內容正中；resources/history 的 strip 兼頂部 blocker、續留 */
-  .section-title-strip[data-anchor="class"],
-  .section-title-strip[data-anchor="works"] {
-    display: none;
-  }
-  /* playlist 中（縮小）、文字右（加寬內捲）：蓋 grid-20 桌面欄位（文字 4 欄 ~143px 太窄）與 md:ml-xl */
-  .class-works-panel .grid-20 {
+
+  #about-content-wrapper #class-works-area { padding-bottom: 0; }   /* 蓋 md:pb-6xl（≥768 寬會吃到） */
+
+  /* Programs：文字左、圖右（user 2026-11-06）；圖＝桌面三張疊放（class-images-slideshow 橫向手機走桌面 slot、步距收窄），
+     圖頂對齊說明 box 頂（同桌面 alignTop）；圖格高＝內容頂到 tab chip 頂上 sm，圖寬由 JS 依格高 cap */
+  #about-content-wrapper #class-info-area { padding: var(--about-lp-top) var(--about-lp-r) 0 var(--container-padding); }
+  #class-info-area .class-info-panel { padding-bottom: 0; }
+  #class-info-area .class-info-panel .grid-20 {
     display: flex;
     gap: var(--spacing-lg);
     align-items: flex-start;
+    height: var(--about-lp-tab-room);
   }
-  .class-works-panel .grid-20 > div:first-child {   /* 文字欄（HTML 第一個 child） */
-    order: 2;
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  .class-works-panel .grid-20 > div:last-child {    /* 影片欄 */
+  #class-info-area .class-info-panel .grid-20 > div:first-child {   /* 文字欄（HTML 第一個 child） */
     order: 1;
     flex: 0 0 46%;
     min-width: 0;
-    margin-left: 0;
   }
-  .class-works-panel [data-works-hl] {
-    max-height: calc(100svh - 128px);  /* 內容頂 104（92 帶底 + 12 對齊 chip）+ 底部呼吸 24 */
+  /* 高度 !important：蓋 variables.css <768 段的 height !important（圖／文對半分的 120 地板＝圖被壓小的元兇） */
+  #class-info-area .class-info-panel .division-images {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100% !important;
+    min-height: 0;              /* 蓋 base 440 */
+  }
+  /* 蓋 <768 段的單圖置中 top:50%!important 與 170／200 寬上限：回桌面上限，實際寬由 JS 依格高 cap */
+  #class-info-area .class-info-panel .class-img { top: 0 !important; max-width: 336px; }
+  #class-info-area .class-info-panel .class-img.class-img--landscape { max-width: 520px; }
+  #class-info-area .class-info-panel [data-class-hl] {
+    max-height: var(--about-lp-tab-room);
     overflow-y: auto;
     scrollbar-width: none;
   }
-  .class-works-panel [data-works-hl]::-webkit-scrollbar {
-    display: none;
-  }
+  #class-info-area .class-info-panel [data-class-hl]::-webkit-scrollbar { display: none; }
 
+  /* Works：文字左、影片＋playlist 右，playlist 直排在影片右邊（user 2026-11-06）；影片高 cap 在格高 */
+  #about-content-wrapper #works { padding-top: var(--about-lp-top); }
+  body #class-works-panels { padding: 0 var(--about-lp-r) 0 var(--container-padding); }
+  #class-works-panels .class-works-panel .grid-20 {
+    display: flex;
+    gap: var(--spacing-sm);     /* 文字 box↔影片（user 11-06 二修「gap 少一點」） */
+    align-items: center;
+    height: var(--about-lp-tab-room);
+  }
+  /* 文字欄至少 34%、不縮；影片欄理想寬＝格高×16/9（影片高剛好格高）＋playlist 欄，放不下時只縮影片 */
+  #class-works-panels .class-works-panel .grid-20 > div:first-child {   /* 文字欄 */
+    order: 1;
+    flex: 1 0 34%;
+    min-width: 0;
+  }
+  #class-works-panels .class-works-panel .grid-20 > div:last-child {    /* 影片欄 */
+    order: 2;
+    flex: 0 1 calc(var(--about-lp-tab-room) * 16 / 9 + 96px);
+    min-width: 0;
+    margin-left: 0;
+  }
+  #class-works-panels .works-video-row {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  /* playlist 直排（蓋 lists.css <768 的橫捲列＋chevron）：欄寬 96＝縮圖 64（16:9 → 高 36；user 11-06 二修「縮圖再小」）＋ inset 6×2 ＋ padding 10×2 */
+  #class-works-panels .works-playlist-list {
+    flex: 0 0 96px;
+    height: auto;
+    margin: 0 0 0 -1px;
+  }
+  #class-works-panels .works-playlist-inner {
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 10px;
+    scrollbar-width: none;
+  }
+  #class-works-panels .works-playlist-inner::-webkit-scrollbar { display: none; }
+  @supports (animation-timeline: scroll()) {
+    #class-works-panels .works-playlist-inner {
+      clip-path: inset(var(--pl-clip-t) 0 var(--pl-clip-b) 0);
+      animation-timeline: scroll(self), scroll(self);
+    }
+  }
+  #class-works-panels .works-playlist-item { width: 100%; height: auto; }
+  #class-works-panels .works-playlist-scroll.has-chev .works-playlist-inner { left: 6px; right: 6px; }
+  #class-works-panels .works-playlist-scroll .works-playlist-chev { display: none; }
+  #class-works-panels [data-works-hl] {
+    max-height: var(--about-lp-tab-room);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #class-works-panels [data-works-hl]::-webkit-scrollbar { display: none; }
+
+  /* Resources：卡片頂＝內容頂（磁吸／卡距在 accordion.css 橫向手機段） */
+  #about-content-wrapper #resources { padding-top: var(--about-lp-top); }
+  #about-content-wrapper #resources > .site-container { padding-top: 0; padding-bottom: 0; }
+
+  /* History：area＝內容頂到貼底界線（timeline.js 設高）；清單鈕在左下、底邊＝footer 鈕底（user 2026-11-06「btn 對齊 footer btn」），
+     清單卡從內容頂到同一條底線；左＝logo 右＋sm（讓出左下清單鈕）、右＝mode 鈕左＋sm（user 二修「不需要到 mode btn」） */
+  #about-content-wrapper #history {
+    display: block;
+    padding-top: var(--about-lp-top) !important;   /* 蓋 inline padding-top:100 */
+    padding-bottom: 0;
+  }
+  #history #timeline-area { flex: none; }
+  #history .tl-list-btn-grid {
+    display: block;
+    left: 0;
+    right: auto;
+    bottom: 0;
+    padding: 0 0 0 var(--container-padding);
+  }
+  #history .tl-list-grid {
+    display: block;
+    top: 0;
+    bottom: 0;
+    left: var(--lp-start);
+    right: var(--lp-nav-end);
+    padding: 0;
+  }
 
   /* 5j #5) event tab 進 header 帶（同 5f nav）：fixed 在 logo 右～mode/menu 左、z-55、垂直置中 92 帶、可左右滑。
      hero gate（setupStripHeaderGate）用 clip-path 藏/現。 */

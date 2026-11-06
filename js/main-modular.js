@@ -19,7 +19,7 @@ import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
 import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
-import { loadHero } from './modules/pages/hero-source.js';
+import { loadHero, prefetchHeroes } from './modules/pages/hero-source.js';
 import { probeCms, cmsDown } from './config/api.js';
 import { initShareModal } from './modules/ui/share-modal.js';
 import { setActiveNavBtn, bindNavBtnSpin } from './modules/ui/section-switch-helpers.js';
@@ -147,6 +147,7 @@ const COMING_SOON_HTML = `
       </div>
     </section>`;
 let cmsGate = null;   // 首次進站的可達性判定（見 initPageModules）
+let heroPrefetched = false;
 function renderComingSoon() {
   const main = document.getElementById('page-content');
   if (!main) return;
@@ -193,6 +194,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     document.querySelectorAll(`#page-content :is(${LANDSCAPE_NAV_CHIPS[page]})`)
       .forEach(el => { /** @type {HTMLElement} */ (el).style.clipPath = 'inset(0% 0% 100% 0%)'; });
   }
+  // 首次進站更早：main-modular 下載完之前 HTML 已畫出、chip 露在 hero 上（user 2026-11-05「hero 有時出現 nav btn」）
+  // → landscape.css 用 html:not(.lnav-armed) 出生藏同一組 chip，這裡藏好才放行（之後換頁走上面同步藏）
+  document.documentElement.classList.add('lnav-armed');
 
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
@@ -204,6 +208,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // 憑證／DNS 錯誤毫秒內回，上限 1.5s＝弱機 hang 時照常進頁（走各 loader 原本的 LKG／空資料降級）。
   // ponytail: 進站後才掛掉的 CMS 不中途換畫面，下一次換頁才變 COMING SOON
   // /create 例外：p5、字型、彩蛋、icon 全是本地檔、不接後台 → 後台掛著照常可用（user 2026-11-03）
+  // hero 文案進站就預抓（user 2026-11-05「更快看到文案」）：本頁那筆跟下面 ui_labels 閘門並行、不等它，其他 3 頁閒下來抓存 LKG
+  if (!heroPrefetched) { heroPrefetched = true; prefetchHeroes(page); }
+
   if (page !== 'generate') {
     if (cmsDown) { renderComingSoon(); probeCms(); return; }
     if (!cmsGate) {
@@ -243,19 +250,22 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
     // 在本函式稍後同步跑 → 若不先清，會讀到上一頁的 _heroDone=true 立刻 resolve＝沒等 hero 就 scroll/slide
     // （user 2026-06-28 bug 1/4）。在這同步清 → 消費者一定讀到 false、改等 hero:animation-done。
     resetHeroDone();
-    // hero 標題/副標/banner：Directus <page>_hero 為主、LKG/本地 json fallback（見 hero-source.js）。
+    // hero 標題/副標/banner：Directus <page>_hero 為主、localStorage LKG fallback（見 hero-source.js）。
     // ⚠️ 必須在 initHeroAnimation 之前呼叫：loadHero 同步 prefix 會在 banner img 標 data-hero-wait
     //（banner「以後台為主、單次揭露」，user 2026-09-11），timeline build 讀旗標才不把 img 排進進場。
-    loadHero(page);
     // hero-mobile-sync：4 頁共用 hero (faculty/courses/activities/admission) 手機 DOM 從桌面 clone 文案+banner src
     // 必須在 initHeroAnimation 之前跑：hero-animation.js 對 [data-hero-hl] 套色時手機 chip 要已注入內容
     // 其他頁無 .hero-mobile / .hero-rand-grid 結構 → sync 函式自身 early return 不影響
-    initHeroMobileSync();
-    if (document.querySelector('#site-header header')) {
-      initHeroAnimation();
-    } else {
-      document.addEventListener('header:ready', initHeroAnimation, { once: true });
-    }
+    const startHero = () => {
+      initHeroMobileSync();
+      if (document.querySelector('#site-header header')) initHeroAnimation();
+      else document.addEventListener('header:ready', initHeroAnimation, { once: true });
+    };
+    // 4 頁 hero 字只來自後台（HTML 不放佔位字，user 2026-11-05）：首訪沒 LKG＝等後台字套上才排版進場（隨機版面量字卡大小）；
+    // 後台出錯＝hero 不出現、頁面其他照常（deep-link 的 waitForHeroAnimDone 有 4s 兜底）；等的期間換頁＝放棄
+    const heroText = loadHero(page);
+    if (heroText) heroText.then(() => { if (alive()) startHero(); });
+    else startHero();
   }
 
   // --- Index Page ---
@@ -316,7 +326,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sticky.initClassButtonsSticky();
       classImgs.initClassImagesSlideshow();
       structure.initProgramStructure();
-      snap.initAboutMobileSnap();   // 直向手機方向磁吸（桌面走原生 CSS snap）
+      snap.initAboutMobileSnap({ landscapePhone: 'all' });   // 直向＋橫向手機方向磁吸、每一區一個落點（桌面走原生 CSS snap；user 2026-11-06 橫向也要）
       // works 影片離開視窗/換學制隱藏時自動暫停（YouTube iframe，src 已由 fillWorks 設定）
       pauseVid.pauseVideosOffscreen(document.querySelectorAll('.works-video-iframe'));
     });
@@ -340,8 +350,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sw.initAdmissionSectionSwitch(fromUserNav, unlock);
       search.initActivitiesSearch();  // camp panel 共用 activities 的 search（input[data-panel="panel-summer-camp"]）
     });
-    // 直向手機方向磁吸＋nav 段（#admission-content-section data-snap-tabs：清單捲完往下＝下一個 nav，user 2026-11-04）
-    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
+    // 直向手機方向磁吸（hero ↔ 清單；清單捲完不接下一個 nav，user 2026-11-05）；橫向手機只吸 hero ↔ 主段（landscapePhone）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap({ landscapePhone: true }); });
   }
 
   // --- Faculty Pages ---
@@ -365,7 +375,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'curriculum') {
     import('./modules/pages/courses-section-switch.js').then(m => { if (alive()) m.initCoursesSectionSwitch(fromUserNav, unlock); });
     // 直向手機方向磁吸（hero ↔ 課程段＋每個年級一段，年級 block 的 .snap-zone 由 courses-section-switch 掛；不再段尾換年級 tab）
-    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
+    // 橫向手機（高 ≤500）只吸 hero ↔ 課程段、段內不分年級（landscapePhone，user 2026-11-05）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap({ landscapePhone: true }); });
   }
 
   // --- Activities Page ---
@@ -378,8 +389,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       sw.initActivitiesSectionSwitch('exhibitions', fromUserNav, unlock);
       search.initActivitiesSearch();
     });
-    // 直向手機方向磁吸＋步驟段（section-switch 建的 data-snap-tabs：清單捲完往下＝下一個子分頁／nav，user 2026-11-04）
-    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap(); });
+    // 直向手機方向磁吸（hero ↔ 清單；清單捲完不接下一個子分頁／nav，user 2026-11-05）；橫向手機只吸 hero ↔ 主段（landscapePhone）
+    import('./modules/ui/snap-scroll.js').then(m => { if (alive()) m.initAboutMobileSnap({ landscapePhone: true }); });
     // ref 內 pdfUrl 觸發共用 PDF viewer（與 library / alumni 共用 sccd:open-pdf）
     // viewer：modal 單例 guard、重複 init 安全 → 不需 seq guard
     import('./modules/pages/library-viewer.js').then((m) => m.initPdfViewer());
@@ -559,6 +570,29 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       const awardsGrid = document.querySelector('#lib-panel-awards > div[style*="grid"]');
       const ticker = document.getElementById('library-awards-ticker');
       if (awardsGrid && ticker) awardsGrid.append(ticker);
+      // 橫向手機（user 2026-11-05）：分類選項／年份收進灰卡左下 filter 鈕的浮層（library.css 檔尾 .lib-filter-pop；
+      // 開關 library-panels.js bindToolsToggle）。遮罩掛內容欄、不掛 panel：panel 直接子層會被進場的整塊 clip 掃到。
+      // search／date sort 不進浮層（user 2026-11-06「應該要放在外面」）：整列搬到內容欄尾、掛 .lib-land-tools＝疊在 filter 鈕上方的常駐 icon
+      if (SCCDHelpers.isLandscapePhone()) {
+        document.querySelectorAll('[id^="lib-panel-"]').forEach(panel => {
+          const grid = panel.querySelector(':scope > div[style*="grid"]');
+          if (!grid) return;
+          const mask = document.createElement('div');
+          mask.className = 'lib-filter-mask';
+          const pop = document.createElement('div');
+          pop.className = 'lib-filter-pop';
+          pop.append(...[panel.querySelector('[id$="cat-filter"]'), panel.querySelector('[id$="year-picker-wrap"]')].filter(Boolean));
+          mask.append(pop);
+          grid.append(mask);
+          const row = panel.querySelector('[style*="align-items: flex-end"][style*="display: flex"]');
+          if (!row) return;
+          row.classList.add('lib-land-tools');
+          grid.append(row);
+          // 有字＝輸入框維持展開（同桌面工具列的 .has-value）
+          const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
+          if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
+        });
+      }
 
       const tabBtns = tabsRoot?.querySelectorAll('.activities-section-btn') ?? [];
       bindNavBtnSpin(tabBtns);   // 初始隨機角（此路徑只在手機/矮橫向：無 hover、click 由 setActiveNavBtn 現抽）

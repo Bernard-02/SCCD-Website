@@ -997,9 +997,20 @@ function tweenReveal(shell, p, onComplete) {
   const h = shell.offsetHeight * (Number(gsap.getProperty(shell, 'scaleY')) || 1);
   gsap.to(_reveal, {
     p, duration: prefersReducedMotion() ? 0 : CARD_DUR, ease: EASE.enter, overwrite: true,
-    onUpdate: () => drawReveal(shell, h),
-    onComplete,
+    onUpdate: () => { drawReveal(shell, h); syncFooterLogo(shell); },
+    onComplete: () => { onComplete(); syncFooterLogo(shell); },
   });
+}
+// 非桌面整屏 footer：升起的框碰到 header logo 那幀才 fade 成 footer 對比版、離開才換回（同 slide-in-bg-sync.js syncLogo，user 2026-11-05）。
+// 整屏版不轉、clip 收底邊＋往下推同量 → 框頂＝看得到的 footer 頂；header.js loadMobileLogo 看 body.footer-over-logo 挑檔
+function syncFooterLogo(shell) {
+  if (SCCDHelpers.isDesktopLayout()) return;
+  const logo = document.getElementById('header-logo-mobile');
+  if (!logo) return;
+  const touching = shell.getBoundingClientRect().top < logo.getBoundingClientRect().bottom;
+  if (touching === document.body.classList.contains('footer-over-logo')) return;
+  document.body.classList.toggle('footer-over-logo', touching);
+  /** @type {any} */ (window).__sccdReloadMobileLogo?.({ fade: true });
 }
 const clearReveal = (shell) => { shell.style.translate = ''; shell.style.clipPath = ''; };
 

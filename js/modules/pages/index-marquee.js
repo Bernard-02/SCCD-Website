@@ -18,6 +18,7 @@ import { makeActivatable } from '../ui/a11y.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { navigateTo } from '../../router.js';
 import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 import { revealHidden } from '../ui/scroll-animate.js';
@@ -55,7 +56,7 @@ const PUSH_EASE = EASE.enterSoft;
 const POSTER_TOP_GAP = 48;
 const MIN_BANNER_W = 200;
 // 矮橫向（gate）：bar 上方沒高度放海報 → 海報改出現在畫面右半（user 2026-10-27）。畫面扣三道 padding 對分兩欄：
-// 左欄 banner（寬封頂欄寬）、右欄海報（貼右 padding、底對齊最底 slot）。海報掛 stack 不掛 banner（banner 有 transform＝定位基準會跟著跑）
+// 左欄 banner（寬封頂欄寬）、右欄海報（貼右 padding、底在 footer 鈕上方 sm＝BTN_COL，同鉛筆↔footer 鈕；user 2026-11-05）。海報掛 stack 不掛 banner（banner 有 transform＝定位基準會跟著跑）
 const sideColW = () => (window.innerWidth - MOBILE_PADDING_X * 3) / 2;
 let closeOpenPoster = null;   // 全站一次只開一張海報：桌面 hover 天生如此，手機點開要同步（user 2026-10-29）；側邊海報同位置本來就得先收
 
@@ -70,13 +71,13 @@ const SLOT_X_MOBILE = MOBILE_PADDING_X;
 // slot y 差 = 實高 + SLOT_GAP 視覺 gap；最底 slot 底邊維持原 -70（單行時代 bar 40 + 底邊距 30）
 const SLOT_GAP = 20;          // 10 → 20（user 2026-09-28「gap 再大一點」）；順帶給 ±1° rotation 右緣 ~8px 位移更多餘裕
 let measuredBarH = BAR_HEIGHT;
-// 直向手機底邊距＝header 列 pt-lg（32）＝上下同距（user 2026-10-27，hero 改 100svh 後底部不再被工具列吃掉）；矮橫向／桌面維持 70
-// 直向手機最底一條 bar 的底邊＝全站貼底界線 --mobile-bottom-anchor（variables.css，32；user 2026-10-30 統一），JS 讀 token 不寫死
-const BOTTOM_PORTRAIT = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-bottom-anchor')) || 32;
+// 手機最底一條 bar 的底邊＝全站貼底界線 --mobile-bottom-anchor（variables.css，直向 32／gate 24；user 2026-10-30 統一）＝底對齊 footer 鈕，
+// JS 讀 token 不寫死；矮橫向 11-05 起同直向（原 70）；桌面維持 70
+const BOTTOM_MOBILE = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-bottom-anchor')) || 32;
 function slotConfigs() {
   const mobile = SCCDHelpers.isMobileLayout();
   const x = mobile ? SLOT_X_MOBILE : SLOT_X_DESKTOP;
-  const bottom = mobile && !SCCDHelpers.isLandscapeGate() ? BOTTOM_PORTRAIT() : 70;
+  const bottom = mobile ? BOTTOM_MOBILE() : 70;
   const step = measuredBarH + SLOT_GAP;
   return [
     { x, y: -bottom - step * 2 },
@@ -189,11 +190,17 @@ function createBanner(item, squareColor) {
   const hasLink = !!item.url && item.url !== '#';
   // url 是影片＝開播放器的鈕（不給 href、Tab＋Enter 可開）；點擊在 bindBannerInteraction 綁（要暫停 cycle）
   const isVideo = isVideoUrl(item.url);
-  const hasShare = !!item.poster && hasLink && !isVideo;   // 手機開著時右邊多一顆 ↗（下方 mkBtn）
-  // 直向手機：收著的右緣對齊 header mode 鈕（BTN_COL）、有 ↗ 的再多一格（寬視窗 banner 封頂 480 本來就碰不到＝min 不動它）
+  const internal = hasLink && !isVideo ? sitePath(item.url) : null;   // 本站網址＝SPA 換頁、不開新分頁
+  const external = hasLink && !isVideo && !internal;   // ↗ 鈕只給外部連結（影片／站內不給，user 2026-11-05）
+  const hasShare = !!item.poster && external;   // 手機開著時右邊多一顆 ↗（下方 mkBtn）
+  const hasBtn = SCCDHelpers.isMobileLayout() && (external || !!item.poster);
+  // 直向手機：收著的右緣對齊 header mode 鈕（BTN_COL）、有 ↗ 的再多一格（寬視窗 banner 封頂 480 本來就碰不到＝min 不動它）；
+  // 手機沒鈕的那則扣掉一顆鈕寬＝右緣停在別則 ↑ 鈕的左緣（user 2026-11-05）。
+  // 矮橫向：↗ 的空位收在左欄內（伸出去會壓右欄海報）＝沒 ↗ 的卡先扣一格，看得到的黑條才跟直向一樣（有鈕的齊、沒鈕的短一格）
   const totalWidth = SCCDHelpers.isMobileLayout()
-    ? (side ? Math.min(WIDTH_MOBILE(), sideColW())
+    ? (side ? Math.min(WIDTH_MOBILE(), sideColW()) - (hasShare ? 0 : SHARE_W)
       : Math.min(WIDTH_MOBILE(), window.innerWidth - MOBILE_PADDING_X * 2 - BTN_COL + (hasShare ? SHARE_W : 0)))
+      - (hasBtn ? 0 : SHARE_W)
     : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
   // rotation 樞紐＝中心（同全站 nav btn；user 2026-09-28，原 left center 是錯的錨點）：兩端各擺 (w/2)·sinθ、
   // 左緣在 1° 內只飄 ~4px。手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
@@ -208,9 +215,10 @@ function createBanner(item, squareColor) {
     pointer-events: none;
     will-change: transform;
   `;
-  // 沒海報＝寬度沒東西要配（固定寬是給海報的）→ 貼字寬、上限照原寬（放不下照跑馬燈；user 2026-10-26 WATCH 那則）。
+  // 桌面沒海報＝寬度沒東西要配（固定寬是給海報的）→ 貼字寬、上限照原寬（放不下照跑馬燈；user 2026-10-26 WATCH 那則）。
+  // 手機一律固定寬（user 2026-11-05）＝不貼字寬；沒鈕的那則見 totalWidth。
   // gateMarqueeScroll 量的時候 clone 還在＝兩份字撐到上限才量，不會有 max-content 小數寬 vs clientWidth 整數的誤判
-  if (!item.poster) { wrap.style.width = 'max-content'; wrap.style.maxWidth = `${totalWidth}px`; }
+  if (!item.poster && !SCCDHelpers.isMobileLayout()) { wrap.style.width = 'max-content'; wrap.style.maxWidth = `${totalWidth}px`; }
 
   // Clip wrapper 包覆 row → 提供 entry/exit 動畫的 overflow:clip
   const clipWrap = document.createElement('div');
@@ -234,7 +242,9 @@ function createBanner(item, squareColor) {
 
   const link = document.createElement('a');
   link.className = 'homepage-marquee-link';
-  if (hasLink && !isVideo) {
+  if (internal) {
+    link.href = internal;   // 相對路徑＝router 攔截換頁（絕對網址 router 會當外部放行）
+  } else if (hasLink && !isVideo) {
     link.href = item.url;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -286,10 +296,10 @@ function createBanner(item, squareColor) {
   wrap.appendChild(clipWrap);
   // 手機：bar 右邊正方形鈕（user 2026-10-29）——有海報＝↑ 點開海報、開著 ↓ 收合；沒海報＝↗ 跳連結（不開 share 卡）。
   // 有海報又有連結：開著時右邊再長一顆 ↗（user 2026-11-04）；位置一開始就留著（收著＝透明空位、inert 不擋點擊），
-  // 點開時 marquee 不用變窄。影片／既無連結也無海報＝不給鈕。
+  // 點開時 marquee 不用變窄。影片也一樣：有海報＝↑；↗ 只給外部連結——影片／站內連結沒海報＝不給鈕（點 bar 照常播放／換頁；user 2026-11-05）。
   // 寬＝icon＋左右 padding（lists.css），從 marquee 扣、banner 總寬不變
   let btn = null, shareBtn = null;
-  if (SCCDHelpers.isMobileLayout() && !isVideo && (hasLink || item.poster)) {
+  if (hasBtn) {
     const mkBtn = () => {
       const el = document.createElement('button');
       el.className = 'hm-banner-btn';
@@ -319,7 +329,7 @@ function createBanner(item, squareColor) {
     posterEl.style.cssText = `
       position: absolute;
       ${side
-        ? `right: ${MOBILE_PADDING_X}px; bottom: ${-slotConfigs()[SLOT_COUNT - 1].y}px; width: ${sideColW()}px; z-index: 10000; transform: rotate(${rotation}deg);`
+        ? `right: ${MOBILE_PADDING_X}px; bottom: ${-slotConfigs()[SLOT_COUNT - 1].y + BTN_COL}px; width: ${sideColW()}px; z-index: 10000; transform: rotate(${rotation}deg);`
         : 'left: 0; bottom: 100%; width: 100%;'}
       overflow: hidden;
       max-height: 0;
@@ -332,15 +342,28 @@ function createBanner(item, squareColor) {
     img.style.cssText = 'display: block; width: 100%; height: auto;';
     posterEl.appendChild(img);
     (side ? document.getElementById('homepage-marquee-stack') : wrap).appendChild(posterEl);
-    if (hasLink && !isVideo) posterEl.addEventListener('click', () => window.open(item.url, '_blank'));
   }
 
-  const b = { el: wrap, row, link, btn, shareBtn, lines, posterEl, item, isVideo, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
+  const b = { el: wrap, row, link, btn, shareBtn, lines, posterEl, item, isVideo, internal, rotation, side, width: totalWidth, color: squareColor, _posterH: 0 };
+  if (hasLink && !isVideo) posterEl?.addEventListener('click', () => openLink(b));
   setBtnState(b, false);
   return b;
 }
 
-// 手機右邊鈕三態（點擊在 bindBannerInteraction）：open ↑ 開海報／close ↓ 收合／link ↗ 跳連結（沒海報的卡）
+// 連結分三種（user 2026-11-05「要判斷內部／外部」）：影片＝站內播放器、本站網址＝SPA 換頁、其他＝新分頁（只有這種有 ↗ 鈕）
+const SITE_HOSTS = ['sccd.usc.edu.tw'];   // 正式網域（在 GitHub Pages 預覽時貼正式站網址也算站內）
+function sitePath(url) {
+  try {
+    const u = new URL(url, location.href);
+    return u.host === location.host || SITE_HOSTS.includes(u.host) ? u.pathname + u.search + u.hash : null;
+  } catch { return null; }
+}
+function openLink(b) {
+  if (b.internal) navigateTo(b.internal);
+  else window.open(b.item.url, '_blank', 'noopener');
+}
+
+// 手機右邊鈕三態（點擊在 bindBannerInteraction）：open ↑ 開海報／close ↓ 收合／link ↗ 跳外部連結（沒海報的卡）
 const BTN_STATES = {
   open:  ['icon-arrow-up',   '展開海報 Show poster'],
   link:  ['icon-share',      '前往連結 Open link'],
@@ -533,11 +556,12 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     if (!b.posterEl || !SCCDHelpers.isMobileLayout()) b.link.addEventListener('click', play);
   }
 
-  // 手機右邊鈕（createBanner 只在手機建）：↑ 開海報、↗ 跳連結、↓ 收合（setBtnState 三態）
+  // 手機右邊鈕（createBanner 只在手機建）：↑ 開海報、↗ 跳外部連結、↓ 收合（setBtnState 三態）；海報開著才現的 ↗ 同一支
+  b.shareBtn?.addEventListener('click', (e) => { e.stopPropagation(); openLink(b); });
   b.btn?.addEventListener('click', (e) => {
     e.stopPropagation();
     const s = b.btn.dataset.state;
-    if (s === 'link') window.open(b.item.url, '_blank');
+    if (s === 'link') openLink(b);
     else if (s === 'close') closePoster();
     else openPoster();
   });

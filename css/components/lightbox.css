@@ -340,7 +340,9 @@
   #activities-lightbox .lightbox-ref-card { width: 100%; }
 
   /* ── PDF viewer 手機版：一次一頁 + 上下滑換頁 + 雙指 pinch ──
-     翻頁/縮放/平移全在 library-viewer.js touch handler，CSS 不碰渲染 */
+     翻頁/縮放/平移全在 library-viewer.js touch handler，CSS 不碰渲染。
+     斷點維持 <768（user 2026-11-06「不要換斷點」）：寬 ≥768 的橫向手機／iPad 出桌面版底列，
+     互疊交給桌面版自己防（library-viewer.js positionTitle 的 title 最大寬度） */
 
   /* 拿掉縮放控制（!important 蓋 JS inline）；翻頁 chevron 在頁碼那列的最左／最右（見下 .pdf-page-nav） */
   #pdf-viewer-modal .pdf-zoom-controls {
@@ -415,6 +417,18 @@
   }
   #pdf-viewer-modal .lightbox-ref-stack { align-items: stretch; }
   #pdf-viewer-modal .lightbox-ref-card { width: 100%; }
+}
+
+/* 橫向手機（高 ≤500）：圖到縮圖列、縮圖列到底列都收成 sm，讓給大圖（user 2026-11-06「渲染的圖片太小」；
+   上緣／左右讓 logo 由 JS positionUIRelativeToLogo 設）。gap 只在 <768 直排時有作用（≥768 底列 absolute） */
+@media (orientation: landscape) and (max-height: 500px) {
+  #activities-lightbox .alb-main-container { padding-bottom: 0; }
+  #activities-lightbox .alb-thumbs-wrap {
+    padding-top: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+  /* PDF viewer 同款：頁面區底距歸零（頁碼列自己有上距）；上緣／左右由 library-viewer.js positionPdfStageRelativeToLogo 設 */
+  #pdf-viewer-modal .pdf-main-row { padding-bottom: 0; }
 }
 
 /* 真桌面底部控制列（user 2026-10-21）：方塊底＝左下當前頁卡底（48，navigation.css #page-indicator bottom）；

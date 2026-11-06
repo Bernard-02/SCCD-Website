@@ -771,6 +771,19 @@ function positionUIRelativeToLogo() {
   // 手機（iPhone Photos 風格）：topbar（返回+ref+標題）改放畫面最底（縮圖列下方，見 lightbox.css @media）。
   // 大圖區只需讓開頂部 header logo（不再為頂部 topbar 預留空間）；量手機 logo 底邊當 padding-top。
   if (mainContainerEl) { mainContainerEl.style.removeProperty('padding-left'); mainContainerEl.style.removeProperty('padding-right'); }   // 先清（見下左右界；縮成手機也不殘留）
+  const SHELL_PT = 24;
+  // 橫向手機（高 ≤500）：高度最缺 → 上緣同桌面對齊 logo 中線，左右對稱讓開 logo（logo 右＋sm）＝圖不會疊到 logo
+  //（user 2026-11-06「渲染的圖片太小」；原本 <768 走 logo 底＋16、≥768 量到藏起的桌面 logo）
+  if (SCCDHelpers.isLandscapePhone()) {
+    const r = document.querySelector('#header-logo-mobile')?.getBoundingClientRect();
+    if (r && r.height && mainContainerEl) {
+      mainContainerEl.style.paddingTop = `${Math.max(0, r.top + r.height / 2 - SHELL_PT)}px`;
+      const side = `${r.right + 16}px`;
+      mainContainerEl.style.setProperty('padding-left', side, 'important');
+      mainContainerEl.style.setProperty('padding-right', side, 'important');
+      return;
+    }
+  }
   if (window.innerWidth < 768) {
     const mlogo = document.querySelector('#header-logo-mobile');
     const mrect = mlogo ? mlogo.getBoundingClientRect() : null;
@@ -783,7 +796,6 @@ function positionUIRelativeToLogo() {
   const rect = logo.getBoundingClientRect();
   // 上緣＝logo 中線（user 2026-10-03「對齊 logo 的中間」，同 PDF viewer positionPdfStageRelativeToLogo；
   // 取代 08-24 的 logo 底＋36）。logo 沒顯示（rect 0）退回舊式 logo 底＋36。
-  const SHELL_PT = 24;
   const top = rect.height ? rect.top + rect.height / 2 : rect.bottom + 36;
   if (!mainContainerEl) return;
   mainContainerEl.style.paddingTop = `${Math.max(0, top - SHELL_PT)}px`;

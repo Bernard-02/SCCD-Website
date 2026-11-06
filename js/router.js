@@ -71,7 +71,10 @@ function ensurePageCSS(page) {
   if (!href) return Promise.resolve();
   // 使用站台根為基底的絕對路徑，避免 pushState 影響（子路徑部署時 origin 不等於站台根）
   const absHref = new URL(href, SITE_BASE).href;
-  const existing = /** @type {HTMLLinkElement | null} */ (document.querySelector(`link[href="${absHref}"]`));
+  // 比「解析後」的 link.href，不比屬性字串：內頁 HTML 自己寫的是相對路徑（../css/components/library.css），屬性選擇器比不到
+  // → 直接開內頁時同一份 CSS 被載兩次、每次樣式重算所有選擇器都比兩遍（library mode3 實測多 ~20%，user 2026-11-06「特別卡」）
+  const existing = /** @type {HTMLLinkElement | null} */ ([...document.querySelectorAll('link[rel="stylesheet"]')]
+    .find(l => /** @type {HTMLLinkElement} */ (l).href.split(/[?#]/)[0] === absHref) || null);
   if (existing) {
     // 已在 DOM：sheet 可存取 = 已 parse 完成，直接 resolve；還在載入則等它 load
     if (existing.sheet) return Promise.resolve();
@@ -111,8 +114,10 @@ function removeStalePageCSS(keepPage) {
       link.remove();
       return;
     }
-    // inline link：用 basename 比對避免 ../css/ vs /css/ 寫法差異
-    const linkBasename = link.href.split('/').pop();
+    // inline link：用 basename 比對避免 ../css/ vs /css/ 寫法差異。去掉 ?／#：開發時 Live Server 熱更新 CSS 會把 href 改成
+    // library.css?_cacheOverride=…（之後加版本參數也一樣）→ 比不到＝舊頁 CSS 永久殘留，library.css 的規則打到 atlas
+    // 把星雲區切短（user 2026-11-06「下面是空的、放大被切到、刷新就好」）
+    const linkBasename = link.href.split('/').pop().split(/[?#]/)[0];
     if (linkBasename && pageCssBasenames.includes(linkBasename)) {
       link.remove();
     }

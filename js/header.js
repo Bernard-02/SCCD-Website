@@ -302,8 +302,10 @@ export function cycleHeaderBtn(bar, swap) {
 
 // 左下「當前頁」卡不收、跟著內容走＝原生 sticky（user 2026-09-27「不需要收起，跟畫面一起上去，像 nav btn」；
 // 前一版在 scroll 事件寫 translate，永遠比合成器的捲動慢一幀＝「往下會抖」，已棄）。
-// 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝hero 底 → main 底
-// （沒 hero 從頁頂）→ hero 還在時卡被軌道頂擋在畫面下、進主內容跟著升上來，footer 來時停在軌道底被帶著往上走。
+// 卡在 #page-indicator-track 底端 sticky bottom 48（navigation.css）；這裡只給軌道範圍＝「main 第一屏的卡位」→ main 底：
+// 停在 main 時卡剛好在左下 48、往下捲釘住；往上捲第一下就跟著 main 往下走＝同 frame 裡的 nav btn（user 2026-11-05：
+// 原本軌道從 hero 底起算＝往上捲前 ~800px 卡釘著不動、nav 已經在往下走）。沒 hero 從頁頂（整頁釘住）。
+// hero 期間看不到卡靠的是遮罩：snap 到 main 才 clip-reveal（settleIndCard）。
 // 捲動零 JS；換頁 / resize / 內容長高（main ResizeObserver）才重算。
 // 底量 main 不量 footer（2026-10-01）：footer.html 是 async 載入，比這裡晚到時舊版退回視窗底＝跟 hero 底同點、
 // 軌道高 0 → 卡黏在 hero 底（矮視窗捲進 main 時卡在畫面頂），footer 晚到又不改 main 尺寸、RO 不補算。
@@ -313,9 +315,12 @@ export function cycleHeaderBtn(bar, swap) {
 function layoutPageIndicatorTrack() {
   const track = document.getElementById('page-indicator-track');
   const main = document.getElementById('page-content');
+  _indHero = null;
   if (!track || !main || getComputedStyle(track).display === 'none') return;   // <1200 / 矮橫向
-  const hero = main.querySelector('.hero-rand-grid, .hero-logo-wrapper')?.closest('section');
-  const top = hero ? hero.getBoundingClientRect().bottom + window.scrollY : 0;
+  _indHero = main.querySelector('.hero-rand-grid, .hero-logo-wrapper')?.closest('section') || null;
+  // 軌道內容頂＝hero 底＋一屏 − 48 − 卡高（軌道上 padding 48 另扣）＝卡在 main 第一屏的位置
+  const maskH = document.getElementById('page-indicator')?.offsetHeight || 0;
+  const top = _indHero ? _indHero.getBoundingClientRect().bottom + window.scrollY + window.innerHeight - 96 - maskH : 0;
   const mainRect = main.getBoundingClientRect();
   const bottom = (mainRect.height ? mainRect.bottom : window.innerHeight) + window.scrollY;
   track.style.top = `${Math.round(top)}px`;
@@ -337,6 +342,32 @@ export function playPageIndicatorExit() {
 }
 // 進場隨機四向（user 2026-09-29）；x/y 兩分量都寫＝蓋掉退場留下的 yPercent 110
 const IND_REVEAL_DIRS = [{ xPercent: 0, yPercent: 110 }, { xPercent: 0, yPercent: -110 }, { xPercent: 110, yPercent: 0 }, { xPercent: -110, yPercent: 0 }];
+const indRandomDir = () => IND_REVEAL_DIRS[Math.floor(Math.random() * IND_REVEAL_DIRS.length)];
+
+// 有 hero 的頁（user 2026-11-05「snap 到 main section 的時候這個卡片才 clip reveal 出場」）：卡在 hero 期間收在遮罩裡，
+// 捲動停在 main（磁吸落點＝hero 底已捲過半屏）才 clip-reveal——每次造訪這頁只出場一次；之後往回捲不做退場、
+// 跟 nav btn 一樣隨 main 往下走（user 同日「往上不需要退場、進場只要一次」；軌道起點見 layoutPageIndicatorTrack）。
+// 停手＝150ms 沒 scroll（同 snap-scroll whenScrollSettles；舊 Safari 沒 scrollend）。沒 hero 的頁不 gate（換頁就出場，updateNavActive）
+let _indHero = null;     // 目前頁的 hero section（layoutPageIndicatorTrack 順手記；非桌面＝null）
+let _indShown = true;    // 這頁的卡出場過了沒（updateNavActive 換頁時重置）
+let _indSettleTimer = 0;
+function settleIndCard() {
+  if (!_indHero || _indShown || !SCCDHelpers.isDesktopLayout()) return;
+  if (_indHero.getBoundingClientRect().bottom > window.innerHeight / 2) return;
+  const card = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
+  if (!card || !card.innerHTML) return;
+  _indShown = true;
+  if (typeof gsap === 'undefined') return;
+  if (prefersReducedMotion()) { gsap.set(card, { clearProps: 'transform' }); return; }
+  gsap.fromTo(card, indRandomDir(), { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('scroll', () => {
+    if (_indShown || !_indHero) return;
+    clearTimeout(_indSettleTimer);
+    _indSettleTimer = setTimeout(settleIndCard, 150);
+  }, { passive: true });
+}
 
 // atlas 頁待機（user 2026-10-01）：頁面本身當待機畫面，header logo＋鈕、左下頁卡跟 footer-near／離頁同一套 clip-reveal 收起，
 // 醒來展回（頁卡只在真的收了才揭回：畫面外／reduced-motion 時 playPageIndicatorExit 沒動它）
@@ -382,12 +413,12 @@ if (typeof window !== 'undefined') {
     _footerLogoTween = gsap.to(logo, { width: size, height: size, duration, ease });
   }
   document.addEventListener('footer:open', () => closeMobileMenu());
-  // 非桌面整屏 footer（z 在 header 下）＝同 slide-in：logo 浮在 footer 上換對比色（loadMobileLogo）、mode／menu 鈕收起（user 2026-11-04）
+  // 非桌面整屏 footer（z 在 header 下）＝同 slide-in：mode／menu 鈕收起（user 2026-11-04）；
+  // logo 換對比色在框碰到 logo 那幀才換（footer-scatter.js syncFooterLogo，user 2026-11-05）
   document.addEventListener('footer:progress', (e) => {
     const d = /** @type {CustomEvent} */ (e).detail;
     if (SCCDHelpers.isDesktopLayout()) { footerLogoSize(d.p, d.duration, d.ease); return; }
     (d.p ? footerHideBars : footerShowBars)({ duration: DUR.fast });
-    window.__sccdReloadMobileLogo?.({ fade: true });
   });
   const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
   // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
@@ -503,7 +534,9 @@ function applyMobileGenerateLogo() {
     sccdAnchor.dataset.logoType = 'mobile-generate-svg'; // 給 restore guard 用
   };
 
-  if (typeof gsap === 'undefined') { swap(); return; }
+  // 沒有 Lottie 可淡出（直接開／refresh /create：header init 就不載，見 genLogoNow）＝當場換、不淡：
+  // 淡入途中 /create 模組又叫一次會重跑淡入＝SCCD 閃一格（同頁 reentry skip 要等 swap 設好 dataset 才擋得住）
+  if (typeof gsap === 'undefined' || !mobileLogo.querySelector('svg')) { swap(); return; }
   if (lottieAnchor) {
     gsap.to(lottieAnchor, {
       opacity: 0,
@@ -925,6 +958,9 @@ export function updateNavActive(page) {
   requestAnimationFrame(() => {
     layoutPageIndicatorTrack();
     if (!revealCard || !indCard) return;
+    // 有 hero 的頁：先藏著（indDir），停在 main 才揭（settleIndCard；deep-link／還原捲動位置已在 main＝這裡就揭）
+    if (_indHero) { _indShown = false; settleIndCard(); return; }
+    _indShown = true;
     const r = /** @type {HTMLElement} */ (indCard.parentElement).getBoundingClientRect();   // 量遮罩：卡本身此刻帶 indDir 偏移
     if (r.bottom > 0 && r.top < window.innerHeight) {
       gsap.fromTo(indCard, indDir, { xPercent: 0, yPercent: 0, duration: DUR.reveal, ease: EASE.enter, overwrite: true, clearProps: 'transform' });
@@ -1070,9 +1106,17 @@ export function initHeader() {
       /** @type {HTMLElement} */ (e.currentTarget).style.setProperty('--mode-btn-accent', SCCDHelpers.getRandomAccentColor());
     });
 
+    // /create 直接開／refresh（檔名 create；SPA 進來走不到這）：最後一定是 SCCD 的情況就不先載 Lottie，免得閃一下原本的 logo
+    // （user 2026-11-05）——桌面 typewriter 已打完（GEN_DONE_KEY）、手機一律靜態 SCCD。這裡直接建 SCCD，
+    // 之後 main-modular fireGenLogo 再叫 triggerGenerateLogo＝偵測到完成態 noop。沒打完的桌面照舊：Lottie 先出現、被游標刪掉
+    let genLogoNow = false;
+    if (currentPage === 'create') {
+      try { genLogoNow = SCCDHelpers.isMobileLayout() || sessionStorage.getItem(GEN_DONE_KEY) === '1'; } catch (e) { /* ignore */ }
+    }
+
     // 4. Logo Lottie + Scale Animation (Responsive)
     const logo = document.getElementById('header-logo');
-    if (logo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
+    if (logo && typeof lottie !== 'undefined' && currentPage !== 'generate' && !genLogoNow) {
       const isInverse = document.body.classList.contains('mode-inverse');
       const isColor = document.body.classList.contains('mode-color');
       // mode-color 用 wireframe logo；filter:invert 由 theme-toggle applyColorVars 控制
@@ -1140,9 +1184,9 @@ export function initHeader() {
         const isFullLightbox = lightboxOpen && !slideInClass;   // 黑底全螢幕 lightbox（非 slide-in）
         const isInverseM  = document.body.classList.contains('mode-inverse');
         const isColorM    = document.body.classList.contains('mode-color');
-        // 整屏 footer 開著（非桌面；footer 在 header 下、沒有自己的 logo）：logo 換 footer 底的對比色＝原 footer logo 的挑法
+        // 整屏 footer 蓋到 logo（非桌面；footer 在 header 下、沒有自己的 logo；footer-scatter.js syncFooterLogo 掛 class）：logo 換 footer 底的對比色＝原 footer logo 的挑法
         //（mode1 黑底→白實心、mode2 白底→黑實心、mode3 互補 hue→線框＋--footer-invert-filter），user 2026-11-04
-        const isFooterOpen = document.body.classList.contains('footer-card-open') && !SCCDHelpers.isDesktopLayout();
+        const isFooterOpen = document.body.classList.contains('footer-over-logo') && !SCCDHelpers.isDesktopLayout();
         let logoFileM;
         if (isFooterOpen) logoFileM = isColorM ? 'SCCDLogoWireframeStandard.json' : isInverseM ? 'SCCDLogoStandard.json' : 'SCCDLogoInverse.json';
         // 全螢幕黑底 lightbox（media/PDF/share）：一律白線框 wireframe（user 2026-09-07，對齊桌面 #header-logo 統一白 wireframe）
@@ -1195,7 +1239,8 @@ export function initHeader() {
         });
         runLottieWhenVisible(mobileLogoAnim);   // 桌面版此容器 display:none → 停（只跑看得到的那份）
       }
-      loadMobileLogo();
+      // 手機開 /create＝一律 SCCD（genLogoNow）→ 不先載；離開 /create 由 restoreMobileGenerateLogo 自己載回。listener 照掛
+      if (!(genLogoNow && SCCDHelpers.isMobileLayout())) loadMobileLogo();
       // 暴露給 theme-toggle checkSlideInState 在 lightbox / slide-in 開關時重載手機 logo（白 wireframe ↔ 還原）；
       // 開關 lightbox 不改 mode、不會 dispatch theme:changed，故需這條獨立 hook（沿用 window.__sccd* 模式）。
       // fade（slide-in/lightbox 開關才傳）：比照桌面 crossfade——fade-out 舊 logo → 換檔 → fade-in，
@@ -1223,6 +1268,7 @@ export function initHeader() {
         loadMobileLogo();
       });
     }
+    if (genLogoNow) triggerGenerateLogo();   // 見上方 genLogoNow：header 一注入就是 SCCD，不等 /create 模組下載
 
     if (logo && typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
       const isDesktop = window.matchMedia('(min-width: 768px)');
