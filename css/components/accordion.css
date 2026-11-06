@@ -326,7 +326,7 @@
 
     /* Resources 卡片一屏預算：卡片上移到 anchor strip 正下方（封鎖線由 resources-cycling.js 依卡片列上緣重釘）；文字盒固定高、內捲
        505 = 186 resources 落點 + 24 容器 pt + 51 title 列（14+13 padding + p1 一行）+ 220 圖 + 24 底部呼吸
-       落點/anchor strip 配對組見 scroll-snap.css，改要同步 */
+       ＝窄橫向（<768 landscape）用；直向手機另算，見本段後面的 portrait 段。落點/anchor strip 配對組見 scroll-snap.css，改要同步 */
     #resources {
       padding-top: 0;
     }
@@ -407,6 +407,13 @@
     }
   }
 
+  /* 直向手機：卡片上下同 history list 卡（user 2026-11-05）：頂＝90 落點＋24、底＝讓出 about bar 再上 52
+     （history 是讓 toggle 鈕 44＋8，lists.css .tl-list-grid）。430 = 90 + 24 + 52 + 44 title 列（14+13 padding＋一行）+ 220 圖。
+     --about-bar-h 只在直向有定義（variables.css）→ 窄橫向維持上面 505 那條 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    .colored-accordion .accordion-text-wrap { height: max(calc(100svh - var(--about-bar-h) - 430px), 120px); }
+  }
+
   /* ===== 矮橫向 gate：resources 同款水平 carousel =====
      寬 ≥768 會吃桌面規則 → 把上方 portrait carousel 複刻進 gate；resources-cycling.js 同 gate 走手機分支（不跑 initRotatedAccordion）
      ⚠️ 必須留在本檔（@layer components 內）不能搬 landscape.css：unlayered !important 輸給 layer 內 !important，
@@ -482,6 +489,21 @@
     }
     .colored-accordion .accordion-text-wrap::-webkit-scrollbar {
       display: none;
+    }
+  }
+
+  /* 橫向手機（高 ≤500）：不磁吸、卡距同直向 sm（user 2026-11-06）；卡從 container padding 起（logo 下方也用）、尾端讓鈕欄。
+     文字盒預算＝視窗 − 卡頂（about 內容頂 --about-lp-top，landscape.css 5i）− title 列 51 − 圖 120 − 貼底界線 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .colored-accordion {
+      gap: var(--spacing-sm) !important;
+      scroll-snap-type: none;
+      padding-right: calc(var(--container-padding) + var(--lp-btn-col));
+      scroll-padding-inline: 0;
+    }
+    .colored-accordion .accordion-item { scroll-snap-align: none; }
+    .colored-accordion .accordion-text-wrap {
+      max-height: max(calc(100svh - var(--about-lp-top, var(--mobile-content-top)) - 171px - var(--mobile-bottom-anchor)), 80px);
     }
   }
 }

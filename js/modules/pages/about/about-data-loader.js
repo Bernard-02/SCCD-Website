@@ -227,12 +227,39 @@ function renderPlaylist(box, iframe, listId, vids) {
   // 出生就框住當前播放那支（user 2026-10-26）：watch URL 帶 v= 的那支，videoseries 沒初始影片＝第一支
   const curVid = iframe.src.match(/\/embed\/([^?]+)/)?.[1];
   (inner.querySelector(`[data-vid="${curVid}"]`) || inner.firstElementChild)?.classList.add('is-active');
+  // 換片＝播放器 clip-reveal 退場 → 換 src → iframe load 才進場（user 2026-11-05：直接換 src 會閃一下空白）。
+  // 遮罩＝.works-player-box overflow-hidden；進退方向各自重抽。plSeq 作廢連點：被取代的 src 不一定會發 load。
+  // 等載入那段播放框不留空（user 2026-11-05 晚「新的還沒出來」）：遮罩底墊該支的縮圖（退場露出、進場蓋回去，落定才撤；
+  //   切走 division 由 bfa-division-toggle 撤）；YouTube 遲遲不回＝PL_LOAD_WAIT 後照樣進場、它自己的轉圈接手（原本會永遠空著）
+  const PL_LOAD_WAIT = 3000;
+  const playerBox = /** @type {HTMLElement} */ (iframe.parentElement);
+  let plSeq = 0, plHidden = false;
   scroll.addEventListener('click', e => {
     const btn = e.target.closest('.works-playlist-item');
     if (!btn) return;
     // enablejsapi=1 必帶：換片重設 src 會丟掉 pauseVideosOffscreen 補的參數 → 之後捲走/換 tab 的 pauseVideo postMessage 全失效
-    iframe.src = `https://www.youtube.com/embed/${btn.dataset.vid}?list=${listId}&autoplay=1&enablejsapi=1`;
+    const src = `https://www.youtube.com/embed/${btn.dataset.vid}?list=${listId}&autoplay=1&enablejsapi=1`;
     scroll.querySelectorAll('.works-playlist-item').forEach(x => x.classList.toggle('is-active', x === btn));
+    if (typeof gsap === 'undefined' || prefersReducedMotion()) { iframe.src = src; return; }
+    const seq = ++plSeq;
+    // hqdefault 480×360＝4:3 帶上下黑邊，cover 進 16:9 框剛好裁掉黑邊（每支都有；maxres 不一定有）
+    playerBox.style.background = `url(https://i.ytimg.com/vi/${btn.dataset.vid}/hqdefault.jpg) center / cover no-repeat`;
+    const reveal = () => {
+      if (seq !== plSeq || !plHidden || !iframe.isConnected) return;   // 被新的點擊取代／load 與逾時只走先到的／已換頁
+      plHidden = false;
+      const settle = () => { if (seq === plSeq) playerBox.style.background = ''; };
+      // 載入中切走 tab＝panel 已藏：留在藏位，切回時 bfa-division-toggle 會定位
+      if (iframe.closest('.class-works-panel')?.style.pointerEvents === 'none') return settle();
+      gsap.fromTo(iframe, revealHidden(), { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: settle });
+    };
+    const swap = () => {
+      plHidden = true;
+      iframe.addEventListener('load', reveal, { once: true });
+      setTimeout(reveal, PL_LOAD_WAIT);
+      iframe.src = src;
+    };
+    if (plHidden) return swap();   // 上一支還在載（已藏著）＝直接換，不再退場
+    gsap.to(iframe, { ...revealHidden(), duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: swap });
   });
   if (typeof gsap !== 'undefined') {
     gsap.set(scroll, {

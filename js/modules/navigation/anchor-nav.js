@@ -277,6 +277,12 @@ export function initAnchorNav({ reveal = false } = {}) {
           const s = strip.getBoundingClientRect();
           strip.scrollTo({ left: strip.scrollLeft + (b.left + b.width / 2) - (s.left + s.width / 2), behavior: 'smooth' });
         }
+        // 橫向手機 header 帶的 #anchor-nav（橫向捲動列）：active 捲回列起點＝logo 右＋sm（同 curriculum／faculty alignBar；user 2026-11-06）
+        const bar = isLandscapeGate ? btn.closest('#anchor-nav') : null;
+        if (bar) {
+          const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
+          bar.scrollTo({ left: bar.scrollLeft + btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad), behavior: 'smooth' });
+        }
       } else {
         inner.style.background = '';
         // transform 不動：角度常駐 inline（hover 抽角後保持，寫 _baseRot 會回退 hover 留下的角）

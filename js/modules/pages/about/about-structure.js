@@ -95,7 +95,9 @@ export async function initProgramStructure() {
 
   const svg = root.querySelector('.prog-lines');
   const rootChildren = root.querySelector('.prog-children--root');
-  const desktop = window.innerWidth >= 768;
+  // 橫向手機（≥768 寬也算）走手機緊湊樹＋說明卡在右（user 2026-11-06；桌面 fan 在 390 高放不下、還會被 header 帶 nav 推出畫面）。
+  // CSS 同一條界線：about-structure.css 手機段 media 含橫向手機、桌面 absolute 子列段排除它
+  const desktop = window.innerWidth >= 768 && !SCCDHelpers.isLandscapePhone();
   const hasGsap = typeof gsap !== 'undefined';
   const reduce = prefersReducedMotion();
   const willAnimate = hasGsap && !reduce;
@@ -346,7 +348,7 @@ export async function initProgramStructure() {
   const nodesWithKids = [...root.querySelectorAll('.prog-node')].filter((n) => n.querySelector(':scope > .prog-children'));
   function reserveHeights() {
     nodesWithKids.forEach((n) => { n.style.marginBottom = ''; });
-    if (window.innerWidth < 768) return;
+    if (!desktop) return;
     nodesWithKids.forEach((n) => {
       const kids = n.querySelector(':scope > .prog-children');
       const gap = parseFloat(getComputedStyle(kids).marginTop) || 0;
@@ -367,7 +369,7 @@ export async function initProgramStructure() {
     if (progTree) progTree.style.transform = '';
     links.forEach((l) => { l.style.width = ''; });
     linkBaseW = links[0] ? links[0].offsetWidth : 0;
-    if (window.innerWidth < 768) return;   // 手機直向堆疊，不置中
+    if (!desktop) return;   // 手機緊湊樹靠左，不置中
     const dcd = tier0[0], bfa = tier1[0], mdes = tier1[1];
     if (!dcd || !bfa || !mdes) return;
     const cx = (el) => { const r = restRect(el); return r.left + r.width / 2; };
@@ -486,10 +488,11 @@ export async function initProgramStructure() {
 
   // 直向手機：樹＋說明卡扣掉層距的高 → --prog-fixed-h，CSS 拿可視區剩下的平分給層距（about-structure.css 直向段）。
   //   扣掉層距＝跟當下層距無關（冪等）；層距變了連綫端點由後面的 cacheEndpoints 重量。
+  //   兩塊高度相加、不量「樹頂→卡底」：中間是置中的彈性空白（scroll-snap.css 直向 grid），量進去會跟著層距變
   function fitMobileGap(levelBoxes) {
     if (!legendStack || !roots || !(window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches)) return;
     const gaps = levelBoxes.reduce((s, c) => s + (parseFloat(getComputedStyle(c).marginTop) || 0), 0);
-    const h = legendStack.getBoundingClientRect().bottom - roots.getBoundingClientRect().top;
+    const h = roots.getBoundingClientRect().height + legendStack.getBoundingClientRect().height;
     root.style.setProperty('--prog-fixed-h', `${Math.round(h - gaps)}px`);
   }
 

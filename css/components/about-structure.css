@@ -113,8 +113,8 @@
   .prog-children--root { align-self: flex-start; }
 
   /* 桌面：巢狀子列絕對掛在父 box 正下方置中、脫離流程 → 不佔父節點寬，叔叔節點（MDES）緊接 BFA 右側。
-     佔位高度由 about-structure.js reserveHeights 補 margin-bottom */
-  @media (min-width: 768px) {
+     佔位高度由 about-structure.js reserveHeights 補 margin-bottom。橫向手機（高 ≤500）走下方手機緊湊樹、不吃這段 */
+  @media (min-width: 768px) and (min-height: 501px) {
     .prog-node > .prog-children {
       position: absolute;
       top: 100%;
@@ -200,17 +200,17 @@
   .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }   /* 英中距＝s 字級 token（同 atlas name） */
 
   /* 直向手機：層距跟手機高度走（user 2026-10-27「適應每支手機」）——可視區（100svh − header 帶 92 − 底部 bar）扣掉
-     樹＋說明卡本身高（--prog-fixed-h，about-structure.js fitMobileGap 量）平分兩層，夾 xl～4xl（手機 32～80）；
+     樹＋說明卡本身高（--prog-fixed-h，about-structure.js fitMobileGap 量）和樹↔卡最小距 xl，平分兩層，夾 xl～4xl（手機 32～80）；
      放不下（矮機）就停在 xl、內容往下長。樹這屏的框（落點 0、100lvh、上下 padding、置中）在 scroll-snap.css 直向段 */
   @media (max-width: 767px) and (orientation: portrait) {
     #class-works-area #program-structure {   /* 兩個 id：蓋過下方手機段的 --prog-level-gap */
-      --prog-level-gap: clamp(var(--spacing-xl), calc((100svh - 92px - var(--about-bar-h) - var(--prog-fixed-h, 0px)) / 2), var(--spacing-4xl));
+      --prog-level-gap: clamp(var(--spacing-xl), calc((100svh - 92px - var(--about-bar-h) - var(--prog-fixed-h, 0px) - var(--spacing-xl)) / 2), var(--spacing-4xl));
     }
   }
 
-  /* ── 手機 <768：比照桌面 fan——BFA/MDES 一列、兩組一列，SVG 斜綫照畫；字級改 s；
-     SCAIDC 移到子樹之後（display:contents + order 重排）；說明卡 in-flow 在樹底 ── */
-  @media (max-width: 767px) {
+  /* ── 手機 <768＋橫向手機（≥768 寬也算，user 2026-11-06）：比照桌面 fan——BFA/MDES 一列、兩組一列，SVG 斜綫照畫；字級改 s；
+     SCAIDC 移到子樹之後（display:contents + order 重排）；說明卡 in-flow 在樹底（橫向手機在樹右，landscape.css 5i）── */
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
     #program-structure {
       --prog-gap: var(--spacing-md);
       --prog-chip-max: 10rem;                /* md 字級下兩顆並排：2×160 + gap 16 = 336 ≤ 342（390 − container padding） */
@@ -291,5 +291,14 @@
     .prog-legend { flex-direction: row; max-width: none; }
     .prog-legend-bar { flex-direction: row; gap: 0.4em; align-items: baseline; }
     .prog-legend-bar .prog-legend-en { margin-bottom: 0; }
+  }
+  /* 橫向手機：說明卡在樹右邊 → 回桌面窄卡（卡頭一行在上、bar 英上中下），手機橫排太寬塞不進樹旁 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    /* 層距收 xl：手機的 3xl 是給直向一屏鋪滿的，390 高三層＋兩個 96 會超出一屏 */
+    #class-works-area #program-structure { --prog-level-gap: var(--spacing-xl); }    #program-structure .prog-legend { flex-direction: column; max-width: 28rem; }
+    #program-structure .prog-legend-head { flex-direction: row; gap: 0.4em; align-items: baseline; }
+    #program-structure .prog-legend-head > span:first-child { margin-bottom: 0; }
+    #program-structure .prog-legend-bar { flex-direction: column; gap: 0; align-items: stretch; }
+    #program-structure .prog-legend-bar .prog-legend-en { margin-bottom: var(--space-en-zh-s); }
   }
 }

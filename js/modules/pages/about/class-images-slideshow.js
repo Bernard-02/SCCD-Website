@@ -83,7 +83,8 @@ function buildImg(src, fixedWidth, onSized) {
     // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
-    const phone = window.innerWidth < 768;
+    // about 橫向手機（≥768 寬也算，11-06）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
+    const phone = window.innerWidth < 768 || (SCCDHelpers.isLandscapePhone() && !!panel?.closest('#class-info-area'));
     const capByBox = phone || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
@@ -159,7 +160,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // → 每張再往右補「前一張比自己寬的差」，每張露出寬恆＝固定步距（24% 容器寬）；其他組合（直直/橫橫/直→橫）位置不變。
   // 寬度要等 img 載入（sizeWrapper）才知道 → 載入後重排；tick 推移也照同規則算新位置。
   const adaptive = !!opts.adaptiveSlots;
-  const stepRatio = parseFloat(SLOT_LEFTS[1]) / 100;
+  const stepRatio = parseFloat(slotLefts[1] ?? SLOT_LEFTS[1]) / 100;   // 步距跟自訂 slot 走（about 橫向手機 15%）
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -269,7 +270,8 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
         timer = setInterval(() => tick(), INTERVAL);
       }
     });
-    if (peekNav) return;
+    // 觸控不綁 hover：tap 會發 mouseenter 卻等不到 leave＝自動輪播一直暫停（同 peekNav 理由；about 橫向手機走桌面 slot 後補）
+    if (peekNav || !SCCDHelpers.canHover()) return;
 
     wrapper.addEventListener('mouseenter', () => {
       pauseAutoplay();
@@ -585,14 +587,17 @@ export async function initClassImagesSlideshow() {
     // 直向手機＝主圖置中、左右依實寬疊放接下去（user 2026-10-27→29：同桌面疊法、窄圖就多露幾張；7 張＝中心＋各 3 張，蓋到 767 寬），
     // 自動往左輪播、點哪張整列移到那張置中（peekNav）。
     // 矮橫向（landscape gate）維持單圖置中（user 2026-07-07 wireframe：圖左文右單圖輪播）；桌面 3-slot 左移輪播。
-    const isMobileSlots = SCCDHelpers.isMobileLayout();
+    // 橫向手機（高 ≤500）＝桌面三張疊放（user 2026-11-06「像 pc 那樣多點圖片、不要一次一張」），步距收窄（15%）塞進文字右邊那格
+    const landPhone = SCCDHelpers.isLandscapePhone();
+    const isMobileSlots = SCCDHelpers.isMobileLayout() && !landPhone;
     const isPeekSlots = isMobileSlots && !SCCDHelpers.isLandscapeGate();
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isPeekSlots
       ? { slotLefts: Array(7).fill('50%'), slotXPercent: -50, slotZ: [1, 2, 3, 4, 3, 2, 1], peekNav: true, textHlReveal: true }
       : isMobileSlots
       ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
-      : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true };   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
+      : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true,   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
+        ...(landPhone && { slotLefts: ['0%', '15%', '30%'] }) };
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;
@@ -621,8 +626,8 @@ export async function initClassImagesSlideshow() {
     revealed = false;
 
     // 手機版 reveal trigger：桌面的 reveal ScrollTrigger 在 class-buttons-sticky.js（手機直接 return），
-    // 手機沒人觸發 revealActive → 圖文永遠停在 HIDE。這裡自建同 start 點的 trigger。
-    if (window.innerWidth < 768 && activePanelEl && typeof ScrollTrigger !== 'undefined') {
+    // 手機沒人觸發 revealActive → 圖文永遠停在 HIDE。這裡自建同 start 點的 trigger（橫向手機 11-06 起也走手機 division 列）
+    if ((window.innerWidth < 768 || SCCDHelpers.isLandscapePhone()) && activePanelEl && typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.create({
         trigger: activePanelEl,
         start: 'top 88%',

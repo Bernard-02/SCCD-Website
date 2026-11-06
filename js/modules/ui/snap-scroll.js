@@ -141,8 +141,14 @@ export function lvhPx() {
   return h;
 }
 
-export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手機共用（名字沿用）
+// landscapePhone＝橫向手機（高 ≤500）也吸，但只吸頂層 section（hero ↔ 主段）、主段內整段自由捲不分年級
+// （curriculum，user 2026-11-05「從 hero 到 main section 要 snap，就改這個」；其他頁要跟進＝呼叫端帶同一個選項）；
+// 'all'＝橫向手機也跟直向一樣每個 .snap-zone 都吸（about 每區一屏，user 2026-11-06）
+/** @param {{ landscapePhone?: boolean | 'all' }} [opts] */
+export function initAboutMobileSnap({ landscapePhone = false } = {}) {   // about／DSD／curriculum 直向手機共用（名字沿用）
   const mq = window.matchMedia('(max-width: 767px) and (orientation: portrait)');
+  const mqLand = landscapePhone ? window.matchMedia(SCCDHelpers.LANDSCAPE_PHONE) : null;
+  const landSel = landscapePhone === 'all' ? '#page-content .snap-zone' : '#page-content > .snap-zone';
   let lastY = window.scrollY, dir = 0, timer = 0, touching = false;
   let startY = window.scrollY;   // 這次手勢的起點（touchstart／程式捲動的目的地）＝tab 規則看的「出發段」
   let enterFirst = false;        // 往下換屏進 tab 段：落地後點第一個 tab
@@ -153,22 +159,35 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
     const vh = window.innerHeight, sy = window.scrollY, fullH = lvhPx();
     const max = document.documentElement.scrollHeight - vh;
     const clamp = y => Math.round(Math.min(Math.max(y, 0), max));
-    const zones = [...document.querySelectorAll('#page-content .snap-zone')]
+    const zones = [...document.querySelectorAll(mqLand?.matches ? landSel : '#page-content .snap-zone')]
       .filter(el => el.getClientRects().length).map(el => /** @type {HTMLElement} */ (el));   // display:none 的段（DSD 沒影片時的影片屏）rect 0＝會把當下位置當落點
     const ys = zones.map(el => el.getBoundingClientRect().top + sy - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0));
     const tabsAt = new Map(zones.flatMap((el, i) => el.dataset.snapTabs ? [[clamp(ys[i]), el.dataset.snapTabs]] : []));
     const footer = Array.from(document.querySelectorAll('#site-footer-static, #site-footer')).find(f => f.getClientRects().length);
     if (footer) ys.push(footer.getBoundingClientRect().top + sy - fullH);   // 貼 lvh 底（見 lvhPx）
-    const pts = [...new Set(ys.map(clamp))].sort((a, b) => a - b);
+    const heads = ys.map(clamp), footerPt = footer ? heads[heads.length - 1] : null;
+    // 段有寫 scroll-margin-bottom（curriculum 年級 block＝底下兩條 bar＋間距，user 2026-11-05「每個年級最後一個 item 要離 tab／nav 一段」）：
+    // 段尾＝段底＋它貼視窗底；比可視區長＝補段尾落點、段頭～段尾自由捲，放得下＝沒有段尾。這種段不走下面「下一段頭 − 一屏」的推算
+    // （那條只保證內容底離視窗底「段距 − 落點」，被底 bar 蓋住）。最後一段照舊交給 footer 點（頁底 padding 已讓 bar）
+    const free = [], own = new Set(), ownTails = [];
+    zones.forEach((el, i) => {
+      const mb = i < zones.length - 1 ? parseFloat(getComputedStyle(el).scrollMarginBottom) || 0 : 0;
+      if (!mb) return;
+      own.add(heads[i]);
+      const tail = clamp(el.getBoundingClientRect().bottom + sy + mb - vh);
+      if (tail > heads[i]) { ownTails.push(tail); free.push([heads[i], tail]); }
+    });
+    const pts = [...new Set([...heads, ...ownTails])].sort((a, b) => a - b);
     // 長段門檻用 100lvh：各屏 min-height 100lvh（iOS 工具列展開時比 innerHeight 高幾十 px，多出的是刻意留白）不算長段；
     // 多出不到換屏門檻（矮機多半是 bar 後的底 padding）也不算——否則捲 20% 只停在段尾那幾十 px、換不了屏
     // footer 點本身已是「內容底貼視窗底」＝段尾，不再往上補一屏：補了會在最後一屏多一個假落點（清單捲到最後一屏，
-    // 每捲一點都被吸回去，user 2026-11-04 activities／admission「只滾一點都會自己滾」）→ 多出超過換屏門檻就整段自由捲
-    const heads = ys.map(clamp), footerPt = footer ? heads[heads.length - 1] : null;
-    const free = [];
+    // 每捲一點都被吸回去，user 2026-11-04 activities／admission「只滾一點都會自己滾」）→ 多出超過換屏門檻就整段自由捲。
+    // footer 點跟某段頂重合（最後一段剛好一屏：admission 公告只有一筆）＝它是段頂不是段尾，照一般落點吸（user 2026-11-05 hero 往下沒吸到主段）
+    const footerIsTail = footerPt !== null && heads.indexOf(footerPt) === heads.length - 1;
     for (let i = pts.length - 1; i > 0; i--) {
+      if (own.has(pts[i - 1])) continue;
       const gap = pts[i] - pts[i - 1];
-      if (pts[i] === footerPt) { if (gap > vh * SNAP_SWITCH) free.push([pts[i - 1], pts[i]]); }
+      if (pts[i] === footerPt && footerIsTail) { if (gap > vh * SNAP_SWITCH) free.push([pts[i - 1], pts[i]]); }
       else if (gap > fullH + vh * SNAP_SWITCH) { free.push([pts[i - 1], pts[i] - vh]); pts.splice(i, 0, pts[i] - vh); }
     }
     // tab 段的段尾落點（見檔頭）：下一段頭＝footer 點就是它；否則下一段頭之前最後一個落點（長段＝補的段尾點、一屏段＝段頂）
@@ -179,7 +198,7 @@ export function initAboutMobileSnap() {   // about／DSD／curriculum 直向手�
     return { pts, free, tabsAt, tailOf };
   };
   const settle = () => {
-    if (!mq.matches || touching || !dir || document.body.classList.contains('anchor-jumping')
+    if (!(mq.matches || mqLand?.matches) || touching || !dir || document.body.classList.contains('anchor-jumping')
       || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const y = window.scrollY;
     const pushed = pull; pull = 0;   // 這一手勢在頁底往下推的量（觸控／滾輪），讀一次就清

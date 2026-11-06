@@ -44,8 +44,8 @@ function renderResourcesAccordion(data, container) {
       ? `<span class="accordion-label-en">${titleEn}</span><span class="accordion-label-sep"> </span><span class="accordion-label-zh">${titleZh}</span>`
       : item.title;
 
-    // 圖片來源：多圖 images[]（後台可多張）優先，無則 fallback 單張 image
-    const imgs = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+    // 圖片來源：多圖 images[]（後台可多張）優先，無則 fallback 單張 image；每次進頁重洗順序（user 2026-11-05，同 Programs）
+    const imgs = SCCDHelpers.shuffle((item.images && item.images.length) ? [...item.images] : (item.image ? [item.image] : []));
     const slides = imgs.map((url, i) =>
       `<img src="${url}" alt="${item.title}" class="res-slide"${i === 0 ? '' : ' style="z-index:0"'} onerror="this.style.display='none'">`
     ).join('');

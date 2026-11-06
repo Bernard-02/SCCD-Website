@@ -87,12 +87,16 @@ html {
      #about-content-wrapper 前綴：蓋 accordion.css／lists.css（#history 帶 !important）／variables.css 手機段的同 id 規則 */
   #overview, #class, #class-info-anchor, #works, #resources, #history { scroll-margin-top: 0; }
   #about-content-wrapper :is(#overview, #class-info-area, #works, #resources, #history) { min-height: 100lvh; }
-  #about-content-wrapper :is(#overview, #class-info-area) { padding-top: calc(92px + var(--spacing-md)); }
-  #about-content-wrapper #works { padding-top: 92px; }
+  #about-content-wrapper #overview { padding-top: calc(92px + var(--spacing-md)); }
+  /* Programs／Works：92 以下就是圖文 6：4 的範圍（variables.css about 直向段 --about-room），不再多墊 pt */
+  #about-content-wrapper :is(#class-info-area, #works) { padding-top: 92px; }
   #about-content-wrapper #resources { padding-top: 90px; }
   #about-content-wrapper #history { padding-top: 90px !important; }
   /* 學制樹：同上規則，另加內容在 header 帶 92 與底部 bar 之間置中；底 padding 多墊 100lvh−100svh＝工具列展開時內容也在可視區內。
      層距跟手機高度走見 about-structure.css 直向段 */
+  /* 說明卡（Term／Degree）貼底＝pb 上緣（about-bar-h＝footer 鈕上緣再上 sm）；樹在 header 帶與說明卡之間置中
+     （上下 spacer 等分、樹↔卡至少 xl；user 2026-11-05，同桌面 spacer 寫法）。內容比框高（矮機）時上 spacer 歸零、往下長。
+     ⚠️ 不用 grid 1fr：框高不定時 minmax(xl,1fr) 會把另一列 1fr 一起撐成 xl＝矮機整屏多 32 */
   #program-structure {
     min-height: 100lvh;
     display: flex;
@@ -100,9 +104,10 @@ html {
     padding-top: 92px;
     padding-bottom: calc(var(--about-bar-h) + 100lvh - 100svh);
   }
-  /* 置中用上下 auto margin（非 justify-content:center）：內容比框高（矮機）時從 header 帶下緣往下長、不往上溢 */
-  #program-structure > :first-child { margin-top: auto; }
-  #program-structure > :last-child { margin-bottom: auto; }
+  #program-structure::before,
+  #program-structure::after { content: ''; flex: 1 1 0; }
+  #program-structure::after { order: 1; min-height: var(--spacing-xl); }
+  #program-structure > .prog-legend-stack { order: 2; margin-top: 0; }
 }
 
 @media (min-width: 768px) and (min-height: 900px) {

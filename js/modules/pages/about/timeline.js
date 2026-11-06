@@ -159,7 +159,7 @@ export function initTimeline() {
       if (items.length > 0 && images.length > 0) {
         // 全視口單一版本（2026-09-05：手機/矮橫向的 buildMobile 退役）：照片 marquee + list view
         // popup，手機開文字卡遮住 marquee、圖片照跑（buildStrip 本來就不暫停 marquee）。
-        buildStrip(items, images);
+        buildStrip(items, SCCDHelpers.shuffle([...images]));   // 照片順序每次進頁重洗（user 2026-11-05，同 Programs）；copy 免打亂快取來源
       }
     })
     .catch(err => console.error('Timeline error:', err));
@@ -174,9 +174,12 @@ export function initTimeline() {
     // 矮橫向此值只當 flex-basis（landscape.css #history/#timeline-area flex 撐滿覆寫）。
     // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
     // 直向手機（2026-10-27）：落點 90＋讓出底部 nav bar（--about-bar-h，variables.css 檔尾 about 直向段）
+    // 橫向手機（11-06）：about 內容頂（--about-lp-top，landscape.css 5i）到貼底界線＝清單鈕底對齊 footer 鈕底
+    const portraitPhone = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
+    const landPhone = SCCDHelpers.isLandscapePhone();
     if (SCCDHelpers.isMobileLayout()) {
-      const portraitPhone = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
-      area.style.height = portraitPhone ? 'calc(100svh - 90px - var(--about-bar-h))' : 'calc(100svh - 178px)';
+      area.style.height = portraitPhone ? 'calc(100svh - 90px - var(--about-bar-h))'
+        : landPhone ? 'calc(100svh - var(--about-lp-top) - var(--mobile-bottom-anchor))' : 'calc(100svh - 178px)';
     }
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;
@@ -184,13 +187,15 @@ export function initTimeline() {
     // 直向手機（<768）：照片放大近全幅（60~85vw、一屏至少一張）；垂直改「兩行」交替上下排（見下方
     // photoTopsVH），用滿高螢幕的上下空間（user 2026-09-06）。橫向鋪排「跨幅」SPAN 200vw（桌面 100）——
     // 兩行有垂直分離、可比一行密些而不疊成一坨。桌面（5-bar collage）原樣。
-    const bigPhoto = window.innerWidth < 768;
+    const bigPhoto = portraitPhone;
     const SPAN = bigPhoto ? 200 : 100;      // 每個 item 的橫向鋪排跨幅（vw 單位）
     const itemW = pageW * SPAN / 100;       // 每 item 佔 px 寬＝marquee 步距（桌面 = pageW）
     // 手機 64~84（user 10-27「再大一點」，原 55~72）：歷程 45~62 太小 → 60~85 疊成坨 → 55~72；
-    // 這次兩行中心同時上移（見 ROW_CENTER_VH）拉開上下空間
-    const PHOTO_MIN_VW = bigPhoto ? 64 : 30;
-    const PHOTO_MAX_VW = bigPhoto ? 84 : 50;
+    // 這次兩行中心同時上移（見 ROW_CENTER_VH）拉開上下空間。
+    // 橫向手機（user 11-06「圖片有點大」）：照片高跟 area 高走、比例同桌面（30~50vw 在 16:10 桌面≈area 高的 1/3～1/2），寬由高反推
+    const landVW = (/** @type {number} */ hFrac) => pageH * hFrac * 16 / 9 / vw;
+    const PHOTO_MIN_VW = bigPhoto ? 64 : landPhone ? landVW(0.33) : 30;
+    const PHOTO_MAX_VW = bigPhoto ? 84 : landPhone ? landVW(0.55) : 50;
     const totalW = items.length * itemW;
 
     // 自動捲動取代分頁導航：nav zones 停用
