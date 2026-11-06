@@ -281,6 +281,12 @@ body.mode-color .atlas-filter-btn.active .anchor-nav-inner {
   opacity: 1;
 }
 
+/* 轉向提示字卡（atlas 直式）：同 active chip 走 strict B/W（JS inline 三原色在 mode3 不用） */
+body.mode-color .rotate-hint-card {
+  background-color: var(--theme-fg) !important;
+  color: var(--theme-fg-inverse) !important;
+}
+
 /* Inactive：跟 body bg 同色 + 100% 對比文字 + transition 排除 bg */
 body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner,
 body.mode-color .section-nav-btn:not(.active) .anchor-nav-inner,

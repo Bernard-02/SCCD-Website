@@ -92,6 +92,7 @@
     { "key": "lib.doctype.books",         "en": "Books",               "zh": "書籍" },
     { "key": "lib.doctype.contributions", "en": "Contributions",       "zh": "收錄" },
     { "key": "lib.doctype.booklets",      "en": "Booklets & Leaflets", "zh": "冊頁" },
-    { "key": "lib.doctype.other",         "en": "Other",               "zh": "其他" }
+    { "key": "lib.doctype.other",         "en": "Other",               "zh": "其他" },
+    { "key": "common.rotate",             "en": "ROTATE FOR BEST EXPERIENCE", "zh": "旋轉設備以獲取最佳體驗" }
   ]
 }

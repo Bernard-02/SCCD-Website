@@ -181,9 +181,10 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 
 /* 手機／iPad／矮橫向：點開往上長（user 2026-11-04；鉛筆疊在 footer 鈕上方、左邊是 nav／tab 列）——capsule 高 --mcp-h→217+--mcp-h
    （mode-color-panel.js capDim／capLen），row 直排靠底：色條在上、play、chevron 格＝收起時的圓鈕在底；色條直立、hue 由上往下（barHue 同座標）。
-   間距：頂 20、色條→play 17（pause 墨跡上下滿版）、play→chevron 墨跡 ~17、chevron→底 ~16；朝下 chevron 墨跡本來就置中＝不用橫排那個左移 */
+   間距：頂 20、色條→play 17（pause 墨跡上下滿版）、play→chevron 墨跡 ~17、chevron→底 ~16；朝下 chevron 墨跡本來就置中＝不用橫排那個左移。
+   body.mcp-left＝這頁照桌面往左開（World 頁橫向手機：可視高只有三百多、往上長會頂到 menu 鈕；atlas.js 掛，mode-color-panel.js isHoriz 同判） */
 @media not all and (min-width: 1024px) and (min-height: 501px) {
-  .mcp-cap-row {
+  body:not(.mcp-left) .mcp-cap-row {
     top: auto;
     bottom: 0;
     width: var(--mcp-h);
@@ -192,10 +193,10 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
     padding-left: 0;
     padding-top: 20px;
   }
-  .mcp-bar-mask { width: 20px; }   /* flex-basis 160＝直排時的高 */
-  .mcp-bar { width: 20px; height: 160px; }
-  .mcp-bar-track { background: linear-gradient(to bottom, #f33, #ff3, #3f3, #3ff, #33f, #f3f, #f33); }
-  .mcp-bar-ind {
+  body:not(.mcp-left) .mcp-bar-mask { width: 20px; }   /* flex-basis 160＝直排時的高 */
+  body:not(.mcp-left) .mcp-bar { width: 20px; height: 160px; }
+  body:not(.mcp-left) .mcp-bar-track { background: linear-gradient(to bottom, #f33, #ff3, #3f3, #3ff, #33f, #f3f, #f33); }
+  body:not(.mcp-left) .mcp-bar-ind {
     top: auto;
     bottom: auto;
     left: -1px;
@@ -205,7 +206,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
     margin-left: 0;
     margin-top: -1px;
   }
-  .mcp-cap-play { width: var(--mcp-h); height: 20px; margin-left: 0; margin-top: 17px; }
-  .mcp-cap-toggle .icon-chevron-right { margin-right: 0; }
-  .mcp-cap-toggle .icon-chevron-right::before { transform: rotate(-90deg); }   /* 朝下＝往下收回 */
+  body:not(.mcp-left) .mcp-cap-play { width: var(--mcp-h); height: 20px; margin-left: 0; margin-top: 17px; }
+  body:not(.mcp-left) .mcp-cap-toggle .icon-chevron-right { margin-right: 0; }
+  body:not(.mcp-left) .mcp-cap-toggle .icon-chevron-right::before { transform: rotate(-90deg); }   /* 朝下＝往下收回 */
 }

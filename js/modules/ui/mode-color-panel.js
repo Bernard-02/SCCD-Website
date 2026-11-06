@@ -23,7 +23,9 @@ const isDesk = () => DESK_MQ.matches;
 //（css .mcp-cap-row 同步；四段間距推導見該處）。真桌面長在寬（往左）、其餘長在高（往上，css 直排段）
 const capH = () => parseFloat(getComputedStyle(cap).getPropertyValue('--mcp-h')) || 48;
 const capLen = () => capH() + 217;
-const capDim = () => (isDesk() ? 'width' : 'height');
+// 往左開（長在寬）：真桌面，或頁面掛 body.mcp-left（World 頁橫向手機，atlas.js；css 直排段同判）
+const isHoriz = () => isDesk() || document.body.classList.contains('mcp-left');
+const capDim = () => (isHoriz() ? 'width' : 'height');
 const capBottom = () => isDesk() ? 48 : 32;   // .mcp-cap-mask bottom（css 同步）
 const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/play 進退場也用同長度
 // 色條／play icon 各自四向隨機進退場（user 2026-10-01，同 clipRevealIconSwap 四向）；±110＝整條真的出遮罩
@@ -60,7 +62,7 @@ function markIntroSeen() {
 // ＝無縫接手，不再「到右邊直接跳回左邊」（user 2026-09-29）。.mcp-bar overflow:hidden 負責裁切出界部分。
 function drawBar() {
   const pct = (((getColorHue() % 360) + 360) % 360) / 3.6;
-  const [pos, off] = isDesk() ? ['left', 'top'] : ['top', 'left'];   // 直排色條（非桌面）走 top；另一軸清回 CSS
+  const [pos, off] = isHoriz() ? ['left', 'top'] : ['top', 'left'];   // 直排色條（往上開）走 top；另一軸清回 CSS
   barInd.style[pos] = `${pct}%`;
   barIndWrap.style[pos] = `${pct >= 50 ? pct - 100 : pct + 100}%`;
   barInd.style[off] = barIndWrap.style[off] = '';
@@ -84,7 +86,7 @@ function killHueTween() {
 // 色條：整條寬（track 滿版，圓角只裁形狀）＝0~360 線性映射，與 indicator 同一座標；點到條外 clamp 成 0/360
 function barHue(e) {
   const r = barTrack.getBoundingClientRect();
-  const t = isDesk() ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+  const t = isHoriz() ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
   return Math.min(1, Math.max(0, t)) * 360;
 }
 // 直線 indicator 跨 wrap 會兩端跳 → 線性直達不走最短弧（同 create 手機 bar）
@@ -118,10 +120,10 @@ function onWinUp() { dragging = false; }
 //（atlas.css / about-structure.css 讀 --mcp-footprint／--mcp-footprint-x）。
 function publishFootprint() {
   const len = isOpen ? capLen() : capH();
-  document.body.style.setProperty('--mcp-footprint', (capBottom() + (isDesk() ? capH() : len)) + 'px');
+  document.body.style.setProperty('--mcp-footprint', (capBottom() + (isHoriz() ? capH() : len)) + 'px');
   // 右 container padding + 寬（留 calc 給 CSS 解，免假設 1rem=16px）
   // --mcp-right：真桌面有 footer 鈕時鉛筆往左挪（mode-color-panel.css），CSS 解＝換頁切 no-footer 自動跟
-  document.body.style.setProperty('--mcp-footprint-x', `calc(var(--mcp-right, var(--container-padding)) + ${isDesk() ? len : capH()}px)`);
+  document.body.style.setProperty('--mcp-footprint-x', `calc(var(--mcp-right, var(--container-padding)) + ${isHoriz() ? len : capH()}px)`);
 }
 
 // running → 顯示 pause（點了會停）；paused → 顯示 play
@@ -352,11 +354,13 @@ export function initModeColorPanel() {
     updateVisibility();
   });
   // 跨 1024/501 gate（旋轉大平板、開關 DevTools）：開著就瞬收（width 回 CSS var＝44↔48 自己換），footprint 重發（atlas/about 讀的位置跟著換）
-  DESK_MQ.addEventListener('change', () => {
+  const onAxisChange = () => {
     if (isOpen) close(true);
     publishFootprint();
     drawBar();   // 橫↔直色條換軸
-  });
+  };
+  DESK_MQ.addEventListener('change', onAxisChange);
+  window.addEventListener('mcp:axis', onAxisChange);   // 頁面切 body.mcp-left 後發（atlas.js 進／離 World 頁）
   const mo = new MutationObserver(updateVisibility);
   mo.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
   mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });

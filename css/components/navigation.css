@@ -130,6 +130,40 @@
     color: black;
     /* background & rotation set via JS */
   }
+
+  /* 轉向提示字卡（atlas 直式 #atlas-rotate-hint／create 矮橫向 #landscape-overlay，user 2026-11-05 拿掉 icon、英中各一張）：
+     字級 xl（user 2026-11-05 由 nav btn 的 s 改；內距／行距跟著吃 xl 字卡 token）；xl＝大字：中文吃 88% Title 字型、純中文卡墨跡補償（typography.css「大字中文」）；配色同 active nav btn＝三原色隨機底（JS inline、兩張同色＝同 COMING SOON hero 字卡）＋黑字，mode3 黑白（color.css）。
+     傾角掛在外層遮罩（JS 抽角），卡在遮罩裡 clip-reveal */
+  /* 位置比照 COMING SOON（各自 2–5°、兩張各自落點，user 2026-11-05「不要靠在一起、不用靠左」）：
+     .rotate-hint-stack＝安全區（inset 吃提示層的 --hint-top／--hint-side／--hint-bottom，各頁自己寫；atlas 讓左下切換鈕），
+     每張卡的遮罩各自 --x／--y（0–1，JS 抽；一張 y 在上段、一張在下段＝不互疊，誰上誰下每次隨機）。
+     left/top x% 配 translate −x% 自寬＝字變長也不出界 */
+  .rotate-hint-stack {
+    position: absolute;
+    inset: var(--hint-top, 0px) var(--hint-side, 0px) var(--hint-bottom, 0px);
+  }
+  .rotate-hint-stack > * {
+    position: absolute;
+    left: calc(var(--x, 0.5) * 100%);
+    top: calc(var(--y, 0.5) * 100%);
+    translate: calc(var(--x, 0.5) * -100%) calc(var(--y, 0.5) * -100%);
+    width: max-content;   /* 寬＝字寬、最寬＝安全區：xl 英文在手機放不下一行就換行（同 COMING SOON 兩行） */
+    max-width: 100%;
+  }
+  .rotate-hint-card {
+    display: block;
+    color: var(--color-black);
+    padding: var(--card-pad-xl);
+    font-family: var(--font-en), 'Noto Sans TC Title', var(--font-zh);
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-xl);
+    font-weight: var(--font-weight-bold);
+  }
+  /* 純中文大字卡縮 88% 後墨跡偏下：上內距挪 --zh-ink-nudge 給下內距（card-pad-xl 上 5／下 4） */
+  .rotate-hint-card[lang="zh-Hant"] {
+    padding-top: calc(5px - var(--zh-ink-nudge));
+    padding-bottom: calc(4px + var(--zh-ink-nudge));
+  }
 }
 
 /* ===== nav btn hover＝隨機三原色（全站）=====
@@ -261,6 +295,13 @@
 /* 首頁不要底色帶（user 2026-10-27）：浮卡／news 透到 logo 與黑方塊鈕後方。:has(#id) 權重壓過上面的 display:block */
 body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
   display: none;
+}
+/* 橫向手機全站不要（user 2026-11-05「除了 activities 及 admission 以外，剩下的 header 都不需要用白底擋起來」；
+   原本只關四個隨機版 hero 頁＝帶會切掉 hero 圖頂）。activities／admission 的遮擋是 section 內自己的 .list-mobile-header-blocker、不靠這條帶 */
+@media (orientation: landscape) and (max-height: 500px) {
+  #site-header .mobile-header-bg {
+    display: none;
+  }
 }
 /* about／faculty／curriculum／activities／admission 直向手機也不要（user 2026-10-27／28）：nav 移到畫面底 bar 後頂上不用遮罩（about：variables.css 檔尾；faculty：lists.css .nav-bottom-bar；curriculum：courses.css 直向段）；
    畢業展詳情頁同（user 2026-10-29；每屏內容從 92 起、tab／返回列在底，variables.css 檔尾 DSD 直向段） */

@@ -13,7 +13,7 @@ const CHOICES = [
   'header', 'about', 'about programs tree', 'about programs detail', 'about works',
   'curriculum programs', 'faculty programs', 'faculty types',
   'activities', 'activities exhibitions', 'activities visits', 'admissions',
-  'library', 'atlas', 'atlas alumni', 'alumni', 'index',];
+  'library', 'atlas', 'atlas alumni', 'alumni', 'index', 'common',];
 
 // key → 資料夾
 function catOf(k) {
@@ -33,6 +33,7 @@ function catOf(k) {
   if (k === 'atlas.host' || k === 'atlas.employ') return 'atlas alumni';
   if (k.startsWith('atlas.')) return 'atlas';
   if (k.startsWith('alumni.')) return 'alumni';   // 系友會頁 nav（非 atlas 的 alumni chip）
+  if (k.startsWith('common.')) return 'common';   // 多頁共用（旋轉提示：atlas／create）
   return null;
 }
 
