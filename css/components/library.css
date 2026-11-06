@@ -636,6 +636,17 @@ body.mode-color #library-album-list .files-item.list-item-zebra {
   content-visibility: auto;
   contain-intrinsic-size: auto 42px;
 }
+/* press／album 的列、documents 的卡同樣「畫面外不渲染」（user 2026-11-06「library 開 mode3 特別卡，應該只渲染當前畫面看到的東西」）：
+   mode3 每次 hue 一變（:root 的自訂屬性改值）瀏覽器會重算所有有樣式的節點；這三頁每列 15～25 個節點 × 200～350 列
+   ＝每次 140～170ms（4× 降速實測、試過把變數釘在卡上／改寫到樣式表都擋不住）→ 加這條只剩畫面上那幾列。
+   估高照 awards 的規矩只能估小（content box 實測最小：press 80.6／album 72；documents 見下）；auto＝渲染過就記住真高 */
+#library-press-list .press-item { content-visibility: auto; contain-intrinsic-size: auto 80px; }
+#library-album-list .album-panel-item { content-visibility: auto; contain-intrinsic-size: auto 72px; }
+/* documents 不能掛在卡上：卡是 subgrid（同排的封面帶／資訊帶對齊），content-visibility 會讓卡有 layout containment → subgrid 失效
+   （grid-template-rows 算成 none）→ 資訊帶那列高 0、它又 overflow hidden＝書名整塊不見（user 2026-11-06「書本的 title 都不見了」，
+   桌面／手機都中）。改掛資訊帶本身：一張卡的節點大多在這裡（標題／副標／tag 的跑馬燈層），它本來就 overflow hidden＝
+   paint containment 不多裁東西；封面那幾個節點照常渲染。估高＝內容實測最小 69（桌面 74） */
+#library-files-list .files-card-info { content-visibility: auto; contain-intrinsic-size: auto 68px; }
 /* award ref 展開列（item 的滿寬 block child）：底色延伸到 item 邊；ref row 自己 padding:sm 對齊主表欄位 */
 #library-awards-list .award-ref-wrap {
   /* 塗開啟列色（同 list-accordion.js：content bg＝header 同 accent，非 deep）：主列與 ref 塊之間的縫＝.award-row padding-bottom，
@@ -1193,9 +1204,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 
   /* section：flex column 填滿 viewport（扣 header）
-     ⚠️須 scope body.overflow-hidden：router 先換 main.innerHTML 才移除 library.css，未 scope 會在 swap 瞬間
-     命中 index 的 section.h-screen 害其塌陷（floating-items 量到 clientHeight≈0） */
-  body.overflow-hidden main#page-content > section {
+     ⚠️須 scope 到 library 自己的 section（:has(> #library-card-main)；包 :where＝特異度不變，landscape.css 5h 同 selector 的卡頂 72 才蓋得過）：router 先換 main.innerHTML 才移除 library.css，未 scope 會在 swap 瞬間
+     命中 index 的 section.h-screen 害其塌陷（floating-items 量到 clientHeight≈0）。原本只用 body.overflow-hidden 當代理——
+     atlas／create 也是 overflow-hidden 頁：library.css 萬一沒被移除，#atlas-main 會被壓成「一屏扣 header」＋overflow hidden（2026-11-06） */
+  body.overflow-hidden main#page-content > section:where(:has(> #library-card-main)) {
     display: flex !important;
     flex-direction: column !important;
     /* svh：鎖捲動頁 iOS 工具列永不收，100vh＝大視口會把底部 tab bar 壓到工具列後面點不到 */
@@ -1926,27 +1938,32 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 }
 
-/* ── 橫向手機（landscape 且高 ≤500）：卡內改左右兩欄（user 2026-10-30「參考桌面的排版調整成左右的形式，不然主要內容區不夠位置」）──
-   上面手機段把卡內排成直向一疊（list → 年份 → 分類 → search），375 高時 list 只剩 ~100。這裡改桌面式：
-   左欄＝年份直排自己捲（跨滿三列）；右欄＝list（1fr）／分類列（files／album 才有）／search 列 44。
-   tab 鈕進 header 帶（user 2026-10-30「將 header 的位置用作 nav btn 區」）：fixed 在 logo 與 mode／menu 鈕之間、與鈕同中線，底部整個讓給卡；
-   字級、award 收合列維持手機段；awards logo ticker 已藏（landscape.css 5h）。iPad（768–1023、高 >500）不套、維持直向一疊＋底 bar。
+/* ── 橫向手機（landscape 且高 ≤500）：tab 進 header 帶、卡內年份在左（user 2026-10-30 起；2026-11-05 改版）──
+   上面手機段把卡內排成直向一疊（list → 年份 → 分類 → search），375 高時 list 只剩 ~100。這裡：
+   ① tab 鈕 fixed 進 header 帶、滿寬（同 curriculum／faculty，landscape.css）；② 灰卡右緣＝header mode 鈕右緣（鈕欄留空）；
+   ③ 清單的年份標題排到列的左邊、sticky（原左欄的年份 picker 收進浮層）；④ award 主列得獎人排到獎名右邊；
+   ⑤ 灰卡左下三顆工具鈕：search／date sort 常駐（11-06 移出浮層）、filter 鈕（#lib-tools-btn）→ 浮層從卡右緣滑進來、寬＝內容寬：
+      左分類（files／album）、右年份、各自捲（.lib-filter-pop，DOM 由 main-modular.js 搬、開關 library-panels.js bindToolsToggle）；
+      ⑥ awards logo ticker＝清單下一列、filter 鈕右邊。
+   字級、award 收合列模板維持手機段。iPad（768–1023、高 >500）不套、維持直向一疊＋底 bar。
    ⚠️ 本段必須在手機段之後：同 selector 同 !important 靠順序贏 */
+.lib-filter-mask { display: none; }
 @media (orientation: landscape) and (max-height: 500px) {
   /* header 帶：手機段給的白底拿掉（tab 在 header 下一層 z40，有底色會整排蓋掉——10-30 原 bug） */
   #site-header header {
     background: transparent;
   }
-  /* tab bar 脫離 flow 釘 header 帶：左＝logo 右緣 80＋md、右＝mode／menu 鈕區（24＋44＋16＋44）＋md；12px 挪進 padding 給 active chip 旋轉凸出不被 clip。
-     高 92＝header 帶、置中＝與鈕同中線（鈕 24–68）。超寬可橫滑（667 寬四顆一行放不下，centerTab 會把 active 捲到中間）。
-     z:40 低於 header（9999）：menu 面板開著照常蓋過；header 本身 pointer-events:none → 點得到 */
+  /* tab bar 脫離 flow 釘 header 帶、滿寬：捲動列在 logo／mode・menu 鈕底下滑過、被它們蓋住（z40 < header）。
+     起點 padding＝logo 右＋sm（可往左滑進 logo 下）、終點＝鈕區（44＋sm＋44）＋sm＝捲到底最後一顆停在 mode 鈕左 sm
+     （值同 landscape.css curriculum .courses-program-bar／faculty nav）；上下 0.75rem＝active chip 旋轉角 clearance。
+     高 92＝header 帶、置中＝與鈕同中線。header 本身 pointer-events:none → 點得到 */
   .library-mobile-tabs {
     position: fixed;
     top: 0;
-    left: 92px;
-    right: 140px;
+    left: 0;
+    right: 0;
     height: 92px;
-    padding: 0 12px;
+    padding: 0.75rem calc(var(--container-padding) + 44px * 2 + var(--spacing-sm) * 2) 0.75rem calc(var(--container-padding) + 56px + var(--spacing-sm));
     align-items: center;
     overflow-x: auto;
     overflow-y: clip;
@@ -1956,28 +1973,174 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   .library-mobile-tabs::-webkit-scrollbar { display: none; }
   .library-mobile-tabs .activities-section-btn { flex: none; white-space: nowrap; }
-  /* 卡吃到底：下方沒 bar 了，底留 md 同左右 */
+  /* 卡吃到底：下方沒 bar 了，底留 md 同左；右緣＝header mode 鈕右緣，最右的鈕欄（menu 鈕／mode3 鉛筆 44＋sm）留空
+     （同 curriculum／faculty 卡片範圍）。relative＝filter 鈕的定位框。--lib-year-col＝年份欄（filter 鈕 44＋sm） */
   #library-card-main {
+    position: relative !important;
     margin-bottom: var(--spacing-md) !important;
+    margin-right: calc(var(--container-padding) + 44px + var(--spacing-sm)) !important;
+    --lib-year-col: calc(44px + var(--spacing-sm));
+    /* 底列（三顆工具鈕／awards ticker）離卡底：ticker 下內距 sm（user 2026-11-06「下 padding 再多一點」；原 7），
+       鈕 44 跟 ticker 30 同中線 → 鈕抬 sm − 7 */
+    --lib-tool-lift: calc(var(--spacing-sm) - 7px);
   }
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] {
-    display: grid !important;
-    grid-template-columns: max-content minmax(0, 1fr) !important;
-    grid-template-rows: minmax(0, 1fr) auto auto !important;
-    gap: 0 var(--spacing-md) !important;
+  /* 清單頂到卡頂（user 2026-11-06「頂部不需要多一個 padding，直接讓第一個頂到頂部」：press、album 點名；awards 同款斑馬列一併）。
+     files 是卡片 grid（封面貼卡緣太擠）維持上內距 sm */
+  #library-card-content > :is(#lib-panel-awards, #lib-panel-press, #lib-panel-album) > div[style*="grid"] {
+    padding-top: 0 !important;
   }
-  /* 左欄：第 1 子（awards＝年份欄；press/files/album＝JS 把 picker 搬進去的 wrapper）跨滿、直排、自己捲 */
+  /* 原年份欄（awards）／年份 wrapper（其餘三頁）：內容已搬進浮層、只剩空殼 */
   #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child {
-    grid-column: 1 !important;
-    grid-row: 1 / -1 !important;
-    min-height: 0 !important;
+    display: none !important;
   }
-  [id^="library-"][id$="-year-picker-wrap"],
-  #library-year-picker-wrap {
-    flex: 1 1 0 !important;
-    min-height: 0 !important;
+  /* 清單滿寬（左邊是自己的年份欄）；手機段 -sm 出血只留右側 */
+  #library-awards-scroll,
+  #library-press-scroll,
+  #library-files-scroll,
+  #library-album-scroll {
+    margin-left: 0 !important;
+  }
+
+  /* ③ 年份標題在列的左邊、sticky：標題佔年份欄寬、負 margin 把列拉回同頂，列左讓出年份欄。
+     上內距＝列的上內距（--lib-year-pt）＝年份字跟第一列的字同頂。沒有東西從年份欄底下捲過 → 不用底色
+     （有底色的話下一組標題的框會蓋到還釘著的上一組）。組距都 ≥ 標題高＝兩組年份不會疊 */
+  #library-card-content [id$="-list"] [class$="year-block"] > .press-year-label {
+    box-sizing: border-box;
+    width: var(--lib-year-col);
+    height: calc(var(--lib-year-pt, var(--spacing-sm)) + 1em * var(--line-height-s));
+    margin-bottom: calc(-1 * (var(--lib-year-pt, var(--spacing-sm)) + 1em * var(--line-height-s)));
+    padding: var(--lib-year-pt, var(--spacing-sm)) 0 0 !important;
+    line-height: var(--line-height-s);   /* 同列內文字的行高＝兩邊第一行同線 */
+    background: none;
+  }
+  #library-files-list { --lib-year-pt: 0px; }   /* 卡片 grid 沒有列內距：年份字頂＝封面頂 */
+  #library-card-content [id$="-list"] [class$="year-block"] > :not(.press-year-label) {
+    margin-left: var(--lib-year-col);
+  }
+
+  /* ④ award 主列：得獎人排到獎名右邊（user 2026-11-05「每一行可以再 compact 一點」）；多位＝整排 marquee 照舊（手機段） */
+  #library-awards-list .award-mid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 0 var(--spacing-md) !important;
+    align-items: start;
+  }
+
+  /* ⑥ awards logo ticker：清單下一列、從年份欄右邊開始、filter 鈕同中線；下內距 sm（卡底 padding 手機段已拿掉） */
+  #library-awards-ticker {
+    width: auto !important;
+    margin-left: var(--lib-year-col);
+    padding: 7px 0 var(--spacing-sm) !important;
+  }
+
+  /* ⑤ 灰卡左下三顆工具鈕（由上而下 search／date sort／filter）：同一欄、44 觸控區、icon 20 貼左＝跟年份字同左緣；
+     底色＝其餘三頁清單吃到卡底、年份標題會從鈕底下捲過（filter 鈕下面那一截用 box-shadow 補） */
+  .lib-tools-btn {
+    display: flex;
+    position: absolute;
+    left: var(--spacing-sm);
+    bottom: var(--lib-tool-lift);
+    z-index: 7;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: flex-start;
+    background: var(--lib-bg);
+    box-shadow: 0 var(--lib-tool-lift) var(--lib-bg);
+    color: var(--lib-fg);
+    cursor: var(--cursor-pointer);
+  }
+  .lib-tools-btn .icon { font-size: 20px; }
+  /* search／date sort 常駐在外面、不進浮層（user 2026-11-06「應該要放在外面，不是在 filter 裏面」）：各 panel 的 search 列
+     （main-modular.js 掛 .lib-land-tools、搬到內容欄尾）疊在 filter 鈕正上方。search＝點 icon 才往右展開輸入框蓋在清單上
+     （同桌面工具列 .lib-toolbar）、有字維持展開（.has-value） */
+  #library-card-main #library-card-content .lib-land-tools {
+    position: absolute;
+    left: var(--spacing-sm);
+    bottom: calc(var(--lib-tool-lift) + 44px);
+    z-index: 7;
+    /* 列本身只佔鈕欄（不擋清單的點擊）；展開的輸入框溢出到右邊。雙 #id：手機段有一條 (1,3,0) 的 width:100% !important 要蓋 */
+    width: 44px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0 !important;
+    margin: 0 !important;
+  }
+  #library-card-main #library-card-content .lib-land-tools > div {
+    flex: none !important;
+    height: 44px;
+    gap: 0 !important;
+    padding: 0 !important;
+    background: var(--lib-bg);
+  }
+  /* label 本身就是 icon（mask）：盒撐到 44 當觸控區、圖維持 20 貼左 */
+  #library-card-main #library-card-content .lib-land-tools label.icon-search {
+    width: 44px;
+    height: 44px;
+    -webkit-mask-size: 20px 20px;
+            mask-size: 20px 20px;
+    -webkit-mask-position: left center;
+            mask-position: left center;
+    cursor: var(--cursor-pointer);
+  }
+  #library-card-main #library-card-content .lib-land-tools input {
+    flex: none !important;
+    width: 0;
+    padding: 0;
+    transition: width var(--dur-medium) ease;
+  }
+  #library-card-main #library-card-content .lib-land-tools > div:focus-within input,
+  #library-card-main #library-card-content .lib-land-tools > div.has-value input {
+    width: 12rem;
+    padding-right: var(--spacing-sm);
+  }
+  #library-card-main #library-card-content .lib-land-tools .library-sort-btn {
+    height: 44px;
+    justify-content: flex-start;
+    background: var(--lib-bg);
+  }
+
+  /* filter 浮層（user 2026-11-06）：從卡右緣滑進來、不滿版——寬＝內容寬（左分類｜右年份；沒分類的頁只有年份一欄）、高＝整張卡，
+     開著時左邊的清單照樣看得到篩選結果。遮罩＝浮層自己的框（bindToolsToggle 把浮層從右邊推進來）；z 高過 sticky 年份 5 */
+  #library-card-main.lib-tools-open .lib-filter-mask {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    overflow: clip;
+  }
+  /* 兩欄各自捲；上內距 xs＝第一列（高 36）的字跟清單第一列的字同線 */
+  .lib-filter-pop {
+    box-sizing: border-box;
+    height: 100%;
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-xs) var(--spacing-sm) 0;
+    background: var(--lib-bg);
+  }
+  #library-card-main .lib-filter-pop > :is([id$="cat-filter"], [id$="year-picker-wrap"]) {
+    flex: none !important;
+    width: auto !important;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 0;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  #library-card-main .lib-filter-pop > [id$="cat-filter"] {
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+  }
+  /* 每列高 36（user 2026-11-06「每行可以再 compact 一點」；原 44）：分類、年份兩欄逐列同線。英中一行 baseline 對齊不動，行高撐滿＝字垂直置中 */
+  #library-card-main .lib-filter-pop > [id$="cat-filter"] > button {
+    padding: 0;
+    line-height: 36px;
+    white-space: nowrap;
   }
   [id^="library-"][id$="-year-picker"],
   #library-year-picker {
@@ -1985,34 +2148,18 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     gap: 0 !important;
     width: auto !important;
   }
-  [id^="library-"][id$="-year-picker"] button,
-  #library-year-picker button {
+  #library-card-main .lib-filter-pop [id$="-year-picker"] button {
+    min-height: 36px !important;
+    height: 36px;
     text-align: left;
   }
-  /* 右欄：list 第 1 列；手機段 -sm 出血只留右側（左邊是年份欄） */
-  #library-awards-scroll,
-  #library-press-scroll,
-  #library-files-scroll,
-  #library-album-scroll {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    margin-left: 0 !important;
+  /* reset（選了年份才出現；JS inline sticky＋底色，手機橫排時釘右）：直排改釘在年份框底＝不用捲到最後一年才按得到 */
+  #library-card-main [id$="-year-picker"] button.year-reset-btn {
+    bottom: 0;
+    padding-left: 0 !important;   /* 手機橫排時用來跟年份拉開；直排＝跟年份同左緣 */
   }
-  #library-files-cat-filter,
-  #library-album-cat-filter {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    margin-top: 0 !important;
-  }
-  #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-press > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-files > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-album > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
-    grid-column: 2 !important;
-    grid-row: 3 !important;
-    margin: 0 !important;
-  }
-  /* Documents 卡片一列 4 本（同桌面）：list 高只剩 ~120、手機 2 欄的封面一本就撐滿；欄距 sm、列距 md */
+
+  /* Documents 卡片一列 4 本（同桌面）：list 高只剩 ~200、手機 2 欄的封面一本就撐滿；欄距 sm、列距 md */
   .files-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     gap: var(--spacing-md) var(--spacing-sm) !important;

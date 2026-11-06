@@ -124,6 +124,10 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 /* date sort 依方向二選一：desc＝新→舊（預設）、asc＝舊→新 */
 .icon-time-desc     { --icon: url('../website-icons/time_desc.svg'); }
 .icon-time-asc      { --icon: url('../website-icons/time_asc.svg'); }
+/* 手機灰卡右上工具鈕（#lib-tools-btn）：後台 key filter（原桌面工具列 filter，10-19 桌面撤掉後改給手機用） */
+.icon-filter        { --icon: url('../website-icons/filter.svg'); }
+/* 展開中＝實心版（後台 key filter_active；user 2026-11-05） */
+[aria-expanded="true"] > .icon-filter { --icon: url('../website-icons/filter_active.svg'); }
 
 /* misc */
 /* alumni（畢業帽）~1.45:1：viewBox 已 tighten，width 1.5em＝國旗 .fi 寬 → list 內與國旗同高、slot 較寬 */

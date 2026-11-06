@@ -175,6 +175,7 @@ export function initPdfViewer() {
   // modal 全站只建一次、跨換頁存活 → 跟著斷點搬
   const pageNavEl = /** @type {HTMLElement} */ (modal.querySelector('.pdf-page-nav'));
   const navHomeEl = /** @type {HTMLElement} */ (modal.querySelector('.pdf-main-row'));
+  // 手機模式的斷點維持 <768（user 2026-11-06「不要換斷點」）：寬 ≥768 的橫向手機／iPad 出桌面版底列，互疊交給 positionTitle 的最大寬度
   const mobileMq = window.matchMedia('(max-width: 767px)');
   const placePageNav = () => {
     if (mobileMq.matches) { pageNavEl.prepend(prevBtn); pageNavEl.append(nextBtn); }
@@ -241,14 +242,14 @@ export function initPdfViewer() {
   modal.appendChild(refUi.popoverEl);                 // popover 仍掛 modal（full overlay；positionPopover 用 viewport rect 算）
   // 鈕 hover 抽角（全站 arrow-spin：hover 抽新角、離開保持；user 2026-10-21）：角度寫在會轉的那層（pill 鈕＝內層 pill、
   // zoom／chevron＝鈕本身）；開檔時的初始角走 _arrowSpin.commit（renderBackPill）。aria-disabled 不轉
+  // 翻頁 chevron 點擊不重抽角（user 2026-11-05：連點翻頁不用每下都轉；11-04「每點換角」撤回），只剩桌面 hover 抽角
   [[backBtn, backPill], [shareBtnEl, sharePillEl], [refUi.btnEl, refUi.btnEl.querySelector('.lightbox-ref-btn-pill')],
     [zoomOutBtn], [zoomInBtn], [fitToggleBtn], [prevBtn], [nextBtn]].forEach(([btn, rot = btn]) => {
     if (!btn || !rot) return;
     const off = () => navDisabled(btn);
-    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !off() });
+    const pager = btn === prevBtn || btn === nextBtn;
+    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !pager && !off() });
   });
-  // 翻頁 chevron 每點一次就換角（user 2026-11-04；手機桌面都要）：bindArrowSpin 的點擊只「定案」hover 角＝桌面第一下看不出變化
-  [prevBtn, nextBtn].forEach(b => b.addEventListener('click', () => { if (!navDisabled(b)) b._arrowSpin?.reroll(); }));
 
   let pdfDoc   = null;
   let curPage  = 1;
@@ -387,7 +388,8 @@ export function initPdfViewer() {
     const sw = stageEl.clientWidth, sh = stageEl.clientHeight;
     const scaledW = fitDims.w * zoom.scale, scaledH = fitDims.h * zoom.scale;
     const cropped = scaledW > sw + 1 || scaledH > sh + 1;
-    const want = cropped && !loaderVeilUp;
+    // 手機排版不出 minimap（user 2026-11-06「手機上不需要那個放大的小視窗」）
+    const want = cropped && !loaderVeilUp && !SCCDHelpers.isMobileLayout();
     if (want) {
       // 幾何即時更新（顯示中 pan/zoom 暗框直接跟、不重播進場）
       // 頁面在 stage 座標的位置（rowEl 撐滿 stage、transform-origin center → 頁中心 = stage 中心 + (tx,ty)）
@@ -982,6 +984,18 @@ export function initPdfViewer() {
       ? refUi.btnEl.getBoundingClientRect()
       : backBtn.getBoundingClientRect();
     titleEl.style.left = (anchorRect.right + PILL_GAP) + 'px';
+    // 防堆疊（user 2026-11-06「pc 版本的 ui 本身要做防止堆疊的設定，有一個最大寬度」）：title 最寬只到
+    // 「置中的頁碼左緣 − gap −（分享鈕＋gap）」→ 視窗再窄也是 title 自己縮、超出的字走 marquee，不會壓到分享鈕／頁碼
+    //（原本固定 min(40vw, 360px)：1024 寬時分享鈕就疊到頁碼上）。頁碼半寬抓至少 44＝翻到多位數頁碼變寬也還有餘量。
+    // 手機排版不吃這個上限（lightbox.css 手機段 max-width:100% !important，title 佔滿返回鈕到分享鈕之間）
+    const pill = /** @type {HTMLElement|null} */ (titleEl.querySelector('.pdf-title-pill'));
+    if (pill) {
+      const nav = pageNavEl.getBoundingClientRect();
+      const navLeft = nav.left + nav.width / 2 - Math.max(nav.width / 2, 44);
+      const shareW = shareBtnEl && shareBtnEl.style.display !== 'none' ? shareBtnEl.getBoundingClientRect().width + PILL_GAP : 0;
+      const avail = navLeft - PILL_GAP - shareW - (anchorRect.right + PILL_GAP);
+      pill.style.maxWidth = `min(40vw, 360px, ${Math.max(96, Math.floor(avail))}px)`;
+    }
   }
 
   // share btn 緊接 title 右邊；title 隱藏時退而錨到 ref / back（保持與 back/ref/title 同 gap）
@@ -1002,6 +1016,18 @@ export function initPdfViewer() {
   // logo 沒顯示（rect 全 0）＝維持舊式 ZOOM_GAP−SHELL_PT 上緣、左右用 class 的 px-32。
   function positionPdfStageRelativeToLogo() {
     if (mainRowEl) { mainRowEl.style.removeProperty('padding-left'); mainRowEl.style.removeProperty('padding-right'); }   // 先清（見下左右界；縮成手機也不殘留）
+    // 橫向手機（高 ≤500）：高度最缺 → 上緣同桌面對齊 logo 中線、左右對稱讓開 logo（logo 右＋sm）＝頁面不疊到 logo。
+    // 同相簿 lightbox positionUIRelativeToLogo（user 2026-11-06「比照 media viewer」；原本走下面 logo 底＋12＝舞台只剩 ~100 高）
+    if (SCCDHelpers.isLandscapePhone()) {
+      const lr = document.querySelector('#header-logo-mobile')?.getBoundingClientRect();
+      if (lr && lr.height && mainRowEl) {
+        mainRowEl.style.paddingTop = `${Math.max(0, lr.top + lr.height / 2 - 24)}px`;   // 24＝lightbox-shell 給 modal root 的上內距
+        const side = `${lr.right + 16}px`;
+        mainRowEl.style.setProperty('padding-left', side, 'important');
+        mainRowEl.style.setProperty('padding-right', side, 'important');
+        return;
+      }
+    }
     // 手機：單頁置中，padding-top 推到手機 logo 底邊下方（避免頁面上緣被 logo 蓋；控制列在底部 bar 不在此處理）
     if (isMobile()) {
       const mlogo = document.querySelector('#header-logo-mobile');
@@ -1142,7 +1168,10 @@ export function initPdfViewer() {
     if (!pdfUrl) return;
     SCCDHelpers.releaseHover(heldBtn);   // 淡出中重開
     wantWatermark = !!watermark;
-    allowAutoRead = !!autoRead;   // 只有 press 帶 autoRead → 首開閱讀縮放；documents 等不帶 → 恆 Fit Page
+    // 只有 press 帶 autoRead → 首開閱讀縮放；documents 等不帶 → 恆 Fit Page。
+    // 手機排版（直向／橫向手機／iPad）一律 Fit Page（user 2026-11-06「比照 media viewer，進來顯示一個完整的 pdf，不是拉到左右寬度」）：
+    // 手機的閱讀縮放＝滿寬，長條報導在橫向手機只看得到最上面一條；要看細節自己 pinch
+    allowAutoRead = !!autoRead && !SCCDHelpers.isMobileLayout();
     // 右上角 minimap：所有開檔都有（press + documents，user 2026-08-23；detail.cornerThumb 旗標已退役）。
     // 先藏並重置進出場狀態機，等色塊揭露完＋頁被裁切才 clip-reveal 進場。
     if (cornerThumbEl) {
@@ -1407,6 +1436,8 @@ export function initPdfViewer() {
     if (!pdfDoc || modal.style.display === 'none') return;
     if (wantWatermark) buildWatermark();   // 寬度跨過手機斷點時重建浮水印（手機↔桌面尺寸不同）
     renderPage(curPage);
+    // 底部列跟著重排：title 的防堆疊上限是看視窗中線（頁碼）算的
+    positionRefBtn(); positionTitle(); positionSharePdf(); setupTitleMarquee();
   });
 }
 

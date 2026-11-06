@@ -2644,6 +2644,9 @@ async function initFilesPanel() {
     } else {
       clipWipeItems(visibleFilesCards(listEl));
     }
+    // 捲入才揭的 listener 只在 playPanelReveal 綁，而它看到「還沒有預藏卡」就不綁——資料比分頁進場晚到（手機直接開／重新整理在
+    // #files：showPanel 在 init 當下就跑）＝永遠沒綁，往下捲的卡整張藏著不出現（user 2026-11-06）。渲染完補綁（冪等：先拆舊的）
+    setupFilesScrollReveal(listEl);
 
     const filesEmptyState = ensureEmptyState(listEl);
 
@@ -2733,6 +2736,7 @@ async function initFilesPanel() {
         renderItems(getSorted());
         applyFilters();
         clipWipeItems(visibleFilesCards(listEl));
+        setupFilesScrollReveal(listEl);   // 重渲染＝又是整批預藏卡；先前全揭完時 listener 已自拆
       });
     }
 
@@ -4400,6 +4404,8 @@ function ensureSerifFonts() {
 // 切分頁＝收起（showLibPanel 呼叫 closeToolsNow）。展開＝整片蓋在清單之上、不擠清單：年份欄負 margin（--lib-tools-h＝工具列
 // 佔掉的清單高，展開前後量清單捲動框高差）吃回去；三列同一個位移＝一整片從卡底往上 clip-reveal（遮罩＝內容欄 overflow-y clip）。
 // 收起＝同路滑回卡底才藏。連點以序號作廢上一輪的收尾
+// 橫向手機（user 2026-11-05；11-06 改版）：鈕在灰卡左下角，分類／年份已搬進浮層 .lib-filter-pop（main-modular.js）＝一整塊從
+// 卡右緣滑進來、寬＝內容寬、不滿版（遮罩 .lib-filter-mask，library.css 檔尾）；search／sort 在浮層外常駐。同一套開關，只是位移改橫向、不用量清單高
 /** @type {(() => void) | null} */
 let closeToolsNow = null;
 function bindToolsToggle() {
@@ -4407,6 +4413,7 @@ function bindToolsToggle() {
   const btn = document.getElementById('lib-tools-btn');
   if (!card || !btn) return;
   const T = `translate var(--dur-medium) var(--ease-wipe)`;
+  const land = SCCDHelpers.isLandscapePhone();
   let seq = 0;
   /** @type {HTMLElement[]} */
   let parts = [];
@@ -4415,11 +4422,12 @@ function bindToolsToggle() {
   let ticker = null;
   let tickerH = 0;
   const slide = (/** @type {number} */ y, /** @type {boolean} */ anim) => {
-    parts.forEach(el => { el.style.transition = anim ? T : 'none'; el.style.translate = `0 ${y}px`; });
+    parts.forEach(el => { el.style.transition = anim ? T : 'none'; el.style.translate = land ? `${y}px 0` : `0 ${y}px`; });   // 橫向手機＝從卡右緣進（11-06）
     if (ticker) { ticker.style.transition = anim ? T : 'none'; ticker.style.translate = `0 ${y ? tickerH : 0}px`; }
   };
   const clear = () => [...parts, ticker].forEach(el => { if (el) { el.style.transition = ''; el.style.translate = ''; } });
-  const slabH = () => parts[parts.length - 1].getBoundingClientRect().bottom - parts[0].getBoundingClientRect().top;
+  const slabH = () => land ? parts[0].getBoundingClientRect().width
+    : parts[parts.length - 1].getBoundingClientRect().bottom - parts[0].getBoundingClientRect().top;
   closeToolsNow = () => {
     seq++;
     clear();
@@ -4435,13 +4443,13 @@ function bindToolsToggle() {
       clear();
       const panel = [...card.querySelectorAll('[id^="lib-panel-"]')].find(p => /** @type {HTMLElement} */ (p).style.display !== 'none');
       const grid = panel?.querySelector(':scope > div[style*="grid"]');
-      parts = /** @type {HTMLElement[]} */ ([
+      parts = /** @type {HTMLElement[]} */ (land ? [panel?.querySelector('.lib-filter-pop')].filter(Boolean) : [
         grid?.firstElementChild,                                                           // 年份欄
         panel?.querySelector('[id$="cat-filter"]'),                                        // 分類選項（files／album）
         panel?.querySelector('[style*="align-items: flex-end"][style*="display: flex"]'),  // search＋date 列
       ].filter(Boolean));
       const scroller = /** @type {HTMLElement|null} */ (panel?.querySelector('[id$="-scroll"]') || null);
-      ticker = /** @type {HTMLElement|null} */ (panel?.querySelector('#library-awards-ticker') || null);
+      ticker = /** @type {HTMLElement|null} */ (!land && panel?.querySelector('#library-awards-ticker') || null);
       const h0 = scroller?.offsetHeight || 0;
       card.style.setProperty('--lib-tools-h', '0px');
       card.classList.add('lib-tools-open');
@@ -4656,6 +4664,7 @@ function handleLibraryHash(unlock) {
       const scroller = /** @type {HTMLElement|null} */ (el.closest('[id$="-scroll"]'));
       if (scroller) {
         const computeMargin = () => {
+          if (SCCDHelpers.isLandscapePhone()) return 0;   // 年份標題在列的左邊（library.css 檔尾）＝不蓋列、不用讓
           const yb = /** @type {HTMLElement|null} */ (el.closest('.year-block, .press-year-block, .files-year-block, .album-year-block'));
           let margin = 32;
           if (yb) {
