@@ -16,25 +16,59 @@
 
 import { hugWidestLine } from './hero-animation.js';
 
+const SYNC_MAP = [
+  { from: '.hero-title', to: '.hero-mobile-title' },
+  { from: '.hero-title-cn', to: '.hero-mobile-title-cn' },
+  { from: '.hero-text-en', to: '.hero-mobile-text-en' },
+  { from: '.hero-text-cn', to: '.hero-mobile-text-cn' },
+];
+
+// 文案從桌面抄到手機卡；說明卡已包捲動 span（隨機版）＝寫進 span，不然整張卡的字被換掉、span 跟著消失
+function copyText(desktop, mobile) {
+  SYNC_MAP.forEach(({ from, to }) => {
+    const src = desktop.querySelector(from);
+    const dst = mobile.querySelector(to);
+    if (src && dst) (dst.querySelector('.hero-mobile-text-scroll') || dst).textContent = src.textContent;
+  });
+}
+
+// 3xl 大標放不下（375 寬 CURRICULUM／ADMISSIONS）→ 等比縮到剛好（user 2026-10-27 手機 3xl 放大）；只有隨機版
+function fitTitle(mobile) {
+  const t = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-rand .hero-mobile-title'));
+  if (!t) return;
+  t.style.fontSize = '';
+  t.style.width = '';   // 下方 hugCards 收過的寬會讓 clientWidth 變窄＝縮過頭
+  void t.offsetWidth;
+  const cs = getComputedStyle(t);
+  const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  if (t.scrollWidth > t.clientWidth) t.style.fontSize = `${Math.floor(parseFloat(cs.fontSize) * (t.clientWidth - pad) / (t.scrollWidth - pad) * 2) / 2}px`;
+}
+
+// 換行的字卡（COMING SOON 兩行標題、說明段落）＝框收到最寬那行（user 2026-11-04 標題、11-05 說明卡「box 寬沒跟字對齊」）：
+// fit-content 一換行就撐到可用寬，英文按字換行右側空一截。放在 fitTitle 之後＝量縮過的字
+function hugCards(mobile) {
+  SYNC_MAP.forEach(({ to }) => {
+    const t = /** @type {HTMLElement | null} */ (mobile.querySelector(to));
+    if (t) hugWidestLine(t, t.querySelector('.hero-mobile-text-scroll') || t);
+  });
+}
+const fitCards = (mobile) => { fitTitle(mobile); hugCards(mobile); };
+
+// 後台文案比 layout 晚到（hero-source：首訪沒 LKG，開頁時抄到的是 HTML 佔位字）→ 手機卡重抄＋重收寬（user 2026-11-05）
+export function refreshHeroMobileText() {
+  const desktop = document.querySelector('.hero-rand-grid');
+  const mobile = document.querySelector('.hero-mobile');
+  if (!desktop || !mobile) return;
+  copyText(desktop, mobile);
+  fitCards(mobile);
+}
+
 export function initHeroMobileSync() {
   const desktop = document.querySelector('.hero-rand-grid');
   const mobile = document.querySelector('.hero-mobile');
   if (!desktop || !mobile) return;
 
-  const SYNC_MAP = [
-    { from: '.hero-title', to: '.hero-mobile-title' },
-    { from: '.hero-title-cn', to: '.hero-mobile-title-cn' },
-    { from: '.hero-text-en', to: '.hero-mobile-text-en' },
-    { from: '.hero-text-cn', to: '.hero-mobile-text-cn' },
-  ];
-
-  SYNC_MAP.forEach(({ from, to }) => {
-    const src = desktop.querySelector(from);
-    const dst = mobile.querySelector(to);
-    if (src && dst) {
-      dst.textContent = src.textContent;
-    }
-  });
+  copyText(desktop, mobile);
 
   // Banner img src 同步（桌面 .hero-banner > img → 手機 .hero-mobile-bg > img）
   const srcImg = desktop.querySelector('.hero-banner img');
@@ -86,28 +120,11 @@ export function initHeroMobileSync() {
     const bg = /** @type {HTMLElement | null} */ (mobile.querySelector('.hero-mobile-bg'));
     bg?.style.setProperty('--hero-bg-rot', `${((2 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1)).toFixed(2)}deg`);
     bg?.style.setProperty('--hero-bg-w', Math.random().toFixed(3));
-    // 3xl 大標放不下（375 寬 CURRICULUM／ADMISSIONS）→ 等比縮到剛好（user 2026-10-27 手機 3xl 放大）
-    const fitTitle = () => {
-      const t = /** @type {HTMLElement | null} */ (stack.querySelector('.hero-mobile-title'));
-      if (!t) return;
-      t.style.fontSize = '';
-      t.style.width = '';   // 下方 hugTitles 收過的寬會讓 clientWidth 變窄＝縮過頭
-      void t.offsetWidth;
-      const cs = getComputedStyle(t);
-      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-      if (t.scrollWidth > t.clientWidth) t.style.fontSize = `${Math.floor(parseFloat(cs.fontSize) * (t.clientWidth - pad) / (t.scrollWidth - pad) * 2) / 2}px`;
-    };
-    fitTitle();
-    document.fonts?.ready.then(fitTitle);
   }
 
-  // 標題換行（COMING SOON 兩行）＝框收到最寬那行（user 2026-11-04）；字型到了字寬會變→再收一次。放在 fitTitle 之後＝量縮過的字
-  const hugTitles = () => ['.hero-mobile-title', '.hero-mobile-title-cn'].forEach(s => {
-    const t = /** @type {HTMLElement | null} */ (mobile.querySelector(s));
-    if (t) hugWidestLine(t);
-  });
-  hugTitles();
-  document.fonts?.ready.then(hugTitles);
+  // 字型到了字寬會變→再縮／收一次
+  fitCards(mobile);
+  document.fonts?.ready.then(() => fitCards(mobile));
 
   // Sync 完才 reveal，避免首屏空殼閃白（CSS 預設 visibility:hidden）
   mobile.style.visibility = 'visible';

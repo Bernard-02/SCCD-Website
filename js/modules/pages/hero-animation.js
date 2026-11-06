@@ -73,20 +73,34 @@ function getPoolKey(grid) {
 // 字卡另避 logo／header 鈕（randomizeHeroLayout chromeZones）。
 // 圖的上界另計＝48（與下 48 對稱；上界用 logo 中線時圖太小，user 2026-10-03）。
 const DESK_HERO_PAD = { get top() { const g = SCCDHelpers.headerGeom(); return g.logoTop + g.logoLg / 2; }, side: 60, bottom: 48, bannerTop: 48 };
+// 圖的邊界：桌面＝DESK_HERO_PAD；矮橫向／iPad 同一套 fit 算法（user 2026-11-05「比例跟 pc 一樣大、不超過下面的 padding」），
+// 邊界換手機 chrome：左右＝container padding 24、下＝貼底界線（＝footer 鈕底）、上同下（同桌面上下對稱）
+// ponytail: 24 寫死＝gate 的 --container-padding（1.5rem，同 index-marquee MOBILE_PADDING_X）
+function bannerPad() {
+  if (SCCDHelpers.isDesktopLayout()) return { side: DESK_HERO_PAD.side, top: DESK_HERO_PAD.bannerTop, bottom: DESK_HERO_PAD.bottom };
+  const anchor = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-bottom-anchor')) || 24;
+  return { side: 24, top: anchor, bottom: anchor };
+}
+// 字卡邊界：桌面＝DESK_HERO_PAD；矮橫向／iPad 同桌面邏輯（11-05）＝上界手機 logo 中線（logo 頂＝界線 −6、56 見方）、左右下同 bannerPad
+function textPad() {
+  if (SCCDHelpers.isDesktopLayout()) return { top: DESK_HERO_PAD.top, side: DESK_HERO_PAD.side, bottom: DESK_HERO_PAD.bottom };
+  const b = bannerPad();
+  return { top: b.bottom - 6 + 28, side: b.side, bottom: b.bottom };
+}
 function clampHeroItemsIntoSection(grid) {
   const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
   if (!section) return;
   const s = section.getBoundingClientRect();
   if (s.height === 0) return;
   const items = [];
-  // 桌面救援邊界＝randomizeHeroLayout 的桌面邊界（圖與字卡同一組 DESK_HERO_PAD）
-  const desk = SCCDHelpers.isDesktopLayout();
-  const P = DESK_HERO_PAD;
+  // 救援邊界＝randomizeHeroLayout 的邊界（圖 bannerPad、字卡 textPad）
   const banner = /** @type {HTMLElement|null} */ (grid.querySelector('.hero-banner'));
-  if (banner) items.push({ el: banner, topPad: desk ? P.bannerTop : 8, bottomPad: desk ? P.bottom : 30, sidePad: desk ? P.side : 8 });
+  const bp = bannerPad();
+  const tp = textPad();
+  if (banner) items.push({ el: banner, topPad: bp.top, bottomPad: bp.bottom, sidePad: bp.side });
   ['hero-title', 'hero-title-cn', 'hero-text-en', 'hero-text-cn'].forEach(cls => {
     const el = /** @type {HTMLElement|null} */ (grid.querySelector(`.${cls}-wrapper`) || grid.querySelector(`.${cls}`));
-    if (el) items.push({ el, topPad: desk ? P.top : 100, bottomPad: desk ? P.bottom : 30, sidePad: desk ? P.side : 8 });
+    if (el) items.push({ el, topPad: tp.top, bottomPad: tp.bottom, sidePad: tp.side });
   });
   items.forEach(({ el, topPad, bottomPad, sidePad: SIDE_PAD }) => {
     const r = el.getBoundingClientRect();
@@ -168,8 +182,10 @@ function tightenParagraphWidths(grid) {
 }
 
 // 字卡寬收到「換行後最寬一行＋左右 padding」：fit-content／inline-block 一換行，框就撐到可用寬（短行右側空一大塊底色）。
-// 也給直向手機 hero 標題用（hero-mobile-sync.js；COMING SOON 兩行，user 2026-11-04）。看不見（display:none）＝量不到、不動
-export function hugWidestLine(p) {
+// 也給直向手機 hero 標題＋說明卡用（hero-mobile-sync.js；user 2026-11-04／11-05）。看不見（display:none）＝量不到、不動。
+// textEl＝字實際所在的元素：手機說明卡的字包在 block 捲動 span 裡，量卡片本身會量到 span 的整塊寬（＝可用寬）
+/** @param {HTMLElement} p @param {Element} [textEl] */
+export function hugWidestLine(p, textEl = p) {
   // 先清掉上一輪 tighten 留下的 inline width，量測一律在「當前 maxWidth 的自然 wrap」下做（idempotent）。
   // 否則 cache buildNext 用較小 random maxWidth 把 width 收到較窄值後，applyLayoutSnapshot 還原較寬 maxWidth 時，
   // 殘留的窄 width 仍 cap 住 wrap（width < maxWidth → width 勝）→ tighten 在窄寬量、還原不回原組寬度
@@ -177,7 +193,7 @@ export function hugWidestLine(p) {
   p.style.width = '';
   void p.offsetWidth;  // 強制 reflow，下面 getClientRects 拿到 maxWidth 下的 wrap、不受殘留 width 影響
   const range = document.createRange();
-  range.selectNodeContents(p);
+  range.selectNodeContents(textEl);
   const rects = range.getClientRects();
   let maxLineW = 0;
   for (const r of rects) if (r.width > maxLineW) maxLineW = r.width;
@@ -194,7 +210,7 @@ export function hugWidestLine(p) {
 // 規則（填滿 viewport，不留完全空白角）：
 //   - 4 個文字（EN title / CN title / EN 段 / CN 段）各佔一個 viewport corner（shuffle 分配）
 //   - Banner 中央偏隨機（85vw），4 corner 都被文字佔時 banner fall back 偏向 corners[3] → 與文字重疊（z-index 文字在上）
-//   - 文字必須避開 header（TEXT_TOP_BOUND = 140）；banner 可貼近 header（BANNER_TOP_BOUND = 90）
+//   - 文字必須避開 header（TEXT_TOP_BOUND = 140）；banner 可疊到 logo 下（bannerPad）
 //   - 文字互相不重疊（corner 分散自然 separation；加 collision retry 兜底）
 //   - 文字可疊在 banner 上（z-index CSS 處理）
 // 旋轉：banner 額外給 ±3° 隨機（titles / EN / CN 用 CSS rotation）
@@ -205,32 +221,24 @@ function randomizeHeroLayout() {
 
   const W = window.innerWidth;
   const H = window.innerHeight;
-  // 矮橫向（≥768 寬、<500 高；2026-07-10 起也走桌面隨機排版）縮小常數組：段落收窄（兩寬 chip 在 844
-  // 寬才擺得開）、上下 bound / buffer 等比收緊；段落「高」不靠 placement 控——landscape.css 對
-  // .hero-text-en/cn 設 max-height 內捲，bbox 量到的就是 cap 後的高。
+  // 矮橫向縮小常數組：段落收窄（280–380）；段落「高」不靠 placement 控——landscape.css 對 .hero-text-en/cn 設 max-height 內捲，
+  // bbox 量到的就是 cap 後的高。
   const isShort = H < 500;
-  // 桌面（user 2026-10-03）：圖與字卡同在 DESK_HERO_PAD 內；圖可疊到 logo 下方，字卡另避 logo／header 鈕
-  // （下方 chromeZones 逐塊迴避，不再整條頂界 140）。矮橫向／768–1023 維持舊常數。
+  // 邊界（textPad）：桌面＝DESK_HERO_PAD；矮橫向／iPad 11-05 起同桌面邏輯（user「字卡不能疊在一起」：舊手機常數＝上界 110＋底緩衝 44，
+  // 667×375 只剩 221 高、三張寬卡任兩張並排都放不下＝根本沒有不重疊的解）——上界＝logo 中線、logo／鈕當禁區（chromeZones，
+  // logo 右～鈕左的頂帶用得到）、左右＝container padding、下＝底界。bbox 是旋轉後量的，不另加旋轉緩衝。
   const desk = SCCDHelpers.isDesktopLayout();
-  const TEXT_TOP_BOUND = desk ? DESK_HERO_PAD.top : isShort ? 110 : 140;
-  const BANNER_TOP_BOUND = 90;
-  // 文字 chip 距 viewport 左右邊界的最小留白：寬螢幕用比例(4%)、48px 下限（user 2026-06-07 反映 chip 太靠邊）。
-  // 下限 48 仍保證最寬段落(TEXT_MAX_W_PX 650)在 768px 放得下（650+48*2=746<768）；寬螢幕 4% 給更舒服的 gutter。
-  // 矮橫向下限 24：380×2+34×2=828 ≤ 844，兩段落才有機會同帶並排不互撞。
-  const SIDE_MARGIN = desk ? DESK_HERO_PAD.side : Math.max(isShort ? 24 : 48, Math.round(W * 0.04));
-  const BOTTOM_MARGIN = desk ? DESK_HERO_PAD.bottom : isShort ? 20 : 30;
-  // BR/BL chip 額外往上抬的 buffer：wrapper rotate ±3° + 寬到 TEXT_MAX_W_PX=550 時
-  // 旋轉後 visual 最低點比 getBoundingClientRect 量到的 bbox 底再低 ~sin(3°)×550 ≈ 29px。
-  // 不補 buffer，scroll 時長段落 chip 底部會穿出 `<section h-screen overflow-hidden>` 被切。
-  // 只影響下方 corner（上方 corner 撞 header / logo 另有 TEXT_TOP_BOUND 處理）。
-  const BOTTOM_ROTATION_BUFFER = desk ? 0 : isShort ? 24 : 60;
+  const tp = textPad();
+  const TEXT_TOP_BOUND = tp.top;
+  const SIDE_MARGIN = tp.side;
+  const BOTTOM_MARGIN = tp.bottom;
   // wrapper rotate ±3° + 長段落 chip 寬可達 TEXT_MAX_W_PX=650：bbox 雖以 visual rect 量但兩 chip 視覺
   // 邊緣仍可能因 rotation 投影貼很近；pad 32 ≈ sin(3°)×650 給足旋轉互不咬的視覺間距。
   // 之前 12 在 user 截圖出現英文 chip 底部「vision.」被中文 chip 頂部蓋住的情況。
-  const TEXT_COLLISION_PAD = isShort ? 20 : 32;
+  let TEXT_COLLISION_PAD = isShort ? 20 : 32;
   const CORNER_JITTER_FRAC = 0.18;  // 文字距 corner anchor 最多 18% 可用空間（保留邊緣感）
-  const TEXT_MIN_W_PX = isShort ? 280 : 500;  // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
-  const TEXT_MAX_W_PX = isShort ? 380 : 650;  // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
+  let TEXT_MIN_W_PX = isShort ? 280 : 500;  // EN / CN 段落最小 max-width（過窄會換太多行、bbox 變高觸發避碰失敗）
+  let TEXT_MAX_W_PX = isShort ? 380 : 650;  // EN / CN 段落最大 max-width（每次 refresh 兩段各自隨機）
 
   function randomizeParagraphWidths() {
     ['hero-text-en', 'hero-text-cn'].forEach(cls => {
@@ -238,6 +246,9 @@ function randomizeHeroLayout() {
       if (p) {
         const w = TEXT_MIN_W_PX + Math.random() * (TEXT_MAX_W_PX - TEXT_MIN_W_PX);
         p.style.maxWidth = `${Math.round(w)}px`;
+        // 清上一輪 tighten 的 inline width：殘留寬 < 新 maxWidth 時量到的 bbox 偏窄，排完 tighten 重量變寬＝壓到鄰卡、超出邊界
+        //（user 2026-11-05 字卡疊在一起的根因；重擲／pool 補建都踩）。tighten 只會收窄＝排版用的寬是上限
+        p.style.width = '';
       }
     });
   }
@@ -291,10 +302,11 @@ function randomizeHeroLayout() {
   // （left=--container-padding 60、top=--header-logo-top、大 logo 見方，headerGeom）。純靠量測有兩個洞會讓撞 logo 的版面
   // 進 layoutPool 快取整個 session：①首載 header.html async fetch 未完成 → 量不到＝整輪不迴避
   // ②SPA 換頁 logo shrink/grow 動畫中間態 → zone 比最終視覺小。固定值與量測值取聯集兩者都兜住。
-  // 矮橫向不套（該 gate 走手機式 header，桌面 logo display:none，固定 264 高會白吃掉半個矮視窗）。
+  // 矮橫向／iPad（手機式 header，桌面 logo display:none）＝手機 logo 56 見方（頂＝logo 中線 −28、左＝side）外推 sm。
   const hg = SCCDHelpers.headerGeom();
-  const FIXED_LOGO_ZONE = isShort ? null
-    : { left: 0, top: 0, right: 60 + hg.logoLg + LOGO_VISUAL_PAD, bottom: hg.logoTop + hg.logoLg + LOGO_VISUAL_PAD };
+  const FIXED_LOGO_ZONE = desk
+    ? { left: 0, top: 0, right: 60 + hg.logoLg + LOGO_VISUAL_PAD, bottom: hg.logoTop + hg.logoLg + LOGO_VISUAL_PAD }
+    : { left: 0, top: 0, right: tp.side + 56 + 16, bottom: tp.top + 28 + 16 };
   const logoEl = /** @type {HTMLElement|null} */ (document.querySelector('#header-logo'));
   let logoRect = FIXED_LOGO_ZONE;
   if (logoEl) {
@@ -321,6 +333,14 @@ function randomizeHeroLayout() {
       right: Math.max(W - 60, ...btns.map(r => r.right)) + BTN_PAD,
       bottom: Math.max(hg.btnBottom, ...btns.map(r => r.bottom)) + BTN_PAD,
     });
+  } else {
+    // 手機 mode＋menu 鈕：44＋sm＋44 貼右 side、跟 logo 同中線（header.html），外推 sm
+    chromeZones.push({ left: W - tp.side - 44 * 2 - 16 - 16, top: 0, right: W, bottom: tp.top + 22 + 16 });
+  }
+  // 右下 footer 鈕（11-04 起全站固定、蓋在字卡上）也是禁區，外推 sm（同鉛筆↔footer 鈕間距）；藏著（intro／no-footer 頁）＝量到 0 不列
+  const footerBtn = document.querySelector('.footer-btn-mask')?.getBoundingClientRect();
+  if (footerBtn && footerBtn.width > 0) {
+    chromeZones.push({ left: footerBtn.left - 16, top: footerBtn.top - 16, right: footerBtn.right + 16, bottom: footerBtn.bottom + 16 });
   }
 
   // 對特定 corner 嘗試放置；回傳最佳 (vx, vy, penalty)。不真的 apply。
@@ -332,12 +352,10 @@ function randomizeHeroLayout() {
     const isLeft = (corner === 'tl' || corner === 'bl');
     const isTop = (corner === 'tl' || corner === 'tr');
 
-    // 下方 corner 多扣 BOTTOM_ROTATION_BUFFER：留給 wrapper rotation 投影 + section overflow 邊界 buffer
-    const effectiveBottom = BOTTOM_MARGIN + (isTop ? 0 : BOTTOM_ROTATION_BUFFER);
     const xRange = Math.max(0, W - bbW - 2 * SIDE_MARGIN);
-    const yRange = Math.max(0, H - bbH - TEXT_TOP_BOUND - effectiveBottom);
+    const yRange = Math.max(0, H - bbH - TEXT_TOP_BOUND - BOTTOM_MARGIN);
     const maxVx = W - bbW - SIDE_MARGIN;
-    const maxVy = H - bbH - effectiveBottom;
+    const maxVy = H - bbH - BOTTOM_MARGIN;
 
     // 全撞禁區時的落點預設在所有禁區之下（桌面頂界 0，預設 0 會落在 logo 上）
     let bestVx = SIDE_MARGIN, bestVy = Math.max(TEXT_TOP_BOUND, ...chromeZones.map(z => z.bottom)), bestPenalty = Infinity;
@@ -350,7 +368,7 @@ function randomizeHeroLayout() {
       // 上方 corner 撞 logo／鈕 → 讓開：往下到禁區底；桌面一半機率改往內側讓（logo 右／鈕左的頂帶也用得到）
       const hit = isTop && chromeZones.find(z => rectsOverlap(z, { left: vx, top: vy, right: vx + bbW, bottom: vy + bbH }, 0));
       if (hit) {
-        if (desk && Math.random() < 0.5) vx = Math.max(SIDE_MARGIN, Math.min(maxVx, isLeft ? hit.right + jx : hit.left - bbW - jx));
+        if (Math.random() < 0.5) vx = Math.max(SIDE_MARGIN, Math.min(maxVx, isLeft ? hit.right + jx : hit.left - bbW - jx));
         else vy = Math.min(maxVy, hit.bottom + jy);
       }
 
@@ -360,12 +378,28 @@ function randomizeHeroLayout() {
       const collidesText = placedTextRects.some(r => rectsOverlap(r, candidate, TEXT_COLLISION_PAD));
       if (!collidesText) { return { vx, vy, penalty: 0, corner }; }
 
-      const penalty = placedTextRects.reduce((s, r) => s + overlapArea(r, candidate), 0);
+      // 連 pad 一起算：只算真重疊的話「貼在一起」＝0 分被收下（user 2026-11-05 字卡貼成一疊），掃描保底就不會跑
+      const penalty = placedTextRects.reduce((s, r) => s + overlapArea({ left: r.left - TEXT_COLLISION_PAD, top: r.top - TEXT_COLLISION_PAD,
+        right: r.right + TEXT_COLLISION_PAD, bottom: r.bottom + TEXT_COLLISION_PAD }, candidate), 0);
       if (penalty < bestPenalty) { bestPenalty = penalty; bestVx = vx; bestVy = vy; }
     }
     // 整輪都撞 logo（極小 viewport / 巨大文字 bbox）→ Infinity，逼 fallback 換 corner
     if (!anyLogoFree) return { vx: bestVx, vy: bestVy, penalty: Infinity, corner };
     return { vx: bestVx, vy: bestVy, penalty: bestPenalty, corner };
+  }
+
+  function scanFreeSpot(bbW, bbH, nearX, nearY) {
+    const maxVy = H - bbH - BOTTOM_MARGIN;
+    let found = null, bestD = Infinity;
+    for (let vy = TEXT_TOP_BOUND; vy <= maxVy; vy += 8) {
+      for (let vx = SIDE_MARGIN; vx <= W - bbW - SIDE_MARGIN; vx += 8) {
+        const c = { left: vx, top: vy, right: vx + bbW, bottom: vy + bbH };
+        if (chromeZones.some(z => rectsOverlap(z, c, 0)) || placedTextRects.some(r => rectsOverlap(r, c, TEXT_COLLISION_PAD))) continue;
+        const d = (vx - nearX) ** 2 + (vy - nearY) ** 2;
+        if (d < bestD) { bestD = d; found = { vx, vy }; }
+      }
+    }
+    return found;
   }
 
   // 試偏好 corner，失敗（仍有 overlap）則 fall back 試其他 corner，取 penalty 最低者
@@ -386,6 +420,12 @@ function randomizeHeroLayout() {
       const result = tryPlaceAtCorner(rect, c);
       if (!best || result.penalty < best.penalty) best = result;
       if (result.penalty === 0) break;  // 找到完全無重疊 → 收工
+    }
+    // 四角抖動都撞（矮橫向空間緊，舊版就接受最小重疊＝壓字）→ 全區每 8px 掃一遍，取離原落點最近的空位
+    //（user 2026-11-05「字卡不能有機會疊在一起」）；真的沒空位才留給外層整輪重派
+    if (best.penalty > 0) {
+      const spot = scanFreeSpot(bbW, bbH, best.vx, best.vy);
+      if (spot) best = { ...best, ...spot, penalty: 0 };
     }
 
     /** @type {HTMLElement} */ (el).style.left = `${(best.vx - rect.left).toFixed(1)}px`;
@@ -416,7 +456,10 @@ function randomizeHeroLayout() {
     void /** @type {HTMLElement} */ (grid).offsetHeight;  // 強制 reflow，下面 getBoundingClientRect 拿到新寬度
     const corners = SCCDHelpers.shuffle(['tl', 'tr', 'bl', 'br']);
     let totalPenalty = 0;
-    textItems.forEach((el, i) => { totalPenalty += placeTextWithFallback(el, corners[i]); });
+    // 非桌面先擺大的（空間緊時大卡最難找位子；桌面維持原順序）
+    const area = (/** @type {Element} */ el) => { const r = el.getBoundingClientRect(); return r.width * r.height; };
+    const order = desk ? textItems : [...textItems].sort((a, b) => area(b) - area(a));
+    order.forEach((el, i) => { totalPenalty += placeTextWithFallback(el, corners[i]); });
     const positions = textItems.map(el => ({
       el,
       left: /** @type {HTMLElement} */ (el).style.left,
@@ -426,14 +469,25 @@ function randomizeHeroLayout() {
     return { totalPenalty, positions, paragraphWidths, usedCornersSnapshot: [...usedCorners] };
   }
 
-  // 3 attempts 對寬段落 + 大 collision pad 不足夠常找到 penalty=0；提到 6 保證更多 viewport 條件下
-  // 都能挑到 0-overlap 版本。cache hit 後是 O(1)，build cost 只在第一次 + idle 後台補滿時付。
-  const MAX_LAYOUT_ATTEMPTS = 6;
-  let bestResult = null;
-  for (let attempt = 0; attempt < MAX_LAYOUT_ATTEMPTS; attempt++) {
-    const result = runPlacementPass();
-    if (!bestResult || result.totalPenalty < bestResult.totalPenalty) bestResult = result;
-    if (result.totalPenalty === 0) break;  // 完美無重疊 → 收工
+  // 整輪重派：桌面 6 輪就夠；矮橫向空間緊、貪婪擺放常卡死（667×375 實測 6 輪仍 ~18% 壓字）→ 30 輪（掃描很便宜、多半前幾輪就成）。
+  // cache hit 後是 O(1)，build cost 只在第一次 + idle 後台補滿時付。
+  const MAX_LAYOUT_ATTEMPTS = desk ? 6 : 30;
+  let bestResult = /** @type {ReturnType<typeof runPlacementPass>} */ (/** @type {any} */ (null));   // runAttempts 至少跑一輪＝必有值
+  const runAttempts = () => {
+    for (let attempt = 0; attempt < MAX_LAYOUT_ATTEMPTS; attempt++) {
+      const result = runPlacementPass();
+      if (!bestResult || result.totalPenalty < bestResult.totalPenalty) bestResult = result;
+      if (result.totalPenalty === 0) break;  // 完美無重疊 → 收工
+    }
+  };
+  runAttempts();
+  // 還是撞（568×320 這類極小橫向）→ 段落改窄再排一輪：高被 landscape.css max-height 封頂（多的字卡內捲），窄只會更好擺
+  if (bestResult.totalPenalty > 0 && isShort) {
+    TEXT_MIN_W_PX = 200;
+    TEXT_MAX_W_PX = 280;
+    runAttempts();
+    // 最後一輪：卡間距 20 → 8（仍不重疊、只是靠近）
+    if (bestResult.totalPenalty > 0) { TEXT_COLLISION_PAD = 8; runAttempts(); }
   }
   // 套用最佳結果（widths + positions 必須一起 restore，否則 size/pos 配不上重新引入重疊）
   bestResult.paragraphWidths.forEach((w, i) => { paragraphs[i].style.maxWidth = w; });
@@ -447,16 +501,14 @@ function randomizeHeroLayout() {
 
   // Banner：偏向「未被文字佔用」的第 4 個 corner，確保所有 corner 都有內容、無完全空白角
   if (banner) {
-    // 桌面：可用區＝DESK_HERO_PAD 內整塊（可疊到 logo 下方，user 2026-10-03）；寬＝該區最大（量 1000px 旋轉後
-    // bbox 等比換算）×0.9–1 隨機。非桌面維持 CSS 寬＋舊邊界。
-    const region = { left: SIDE_MARGIN, top: desk ? DESK_HERO_PAD.bannerTop : BANNER_TOP_BOUND, right: W - SIDE_MARGIN, bottom: H - BOTTOM_MARGIN };
-    banner.style.width = '';
-    if (desk) {
-      banner.style.width = '1000px';
-      const r0 = banner.getBoundingClientRect();
-      const fit = Math.min((region.right - region.left) / r0.width, (region.bottom - region.top) / r0.height);
-      banner.style.width = `${Math.floor(1000 * fit * (0.9 + Math.random() * 0.1))}px`;
-    }
+    // 可用區＝bannerPad 內整塊（可疊到 logo 下方，user 2026-10-03）；寬＝該區最大（量 1000px 旋轉後
+    // bbox 等比換算）×0.9–1 隨機。矮橫向／iPad 同算法（11-05 起，原本吃 CSS 寬＝比桌面小一截）
+    const bp = bannerPad();
+    const region = { left: bp.side, top: bp.top, right: W - bp.side, bottom: H - bp.bottom };
+    banner.style.width = '1000px';
+    const r0 = banner.getBoundingClientRect();
+    const fit = Math.min((region.right - region.left) / r0.width, (region.bottom - region.top) / r0.height);
+    banner.style.width = `${Math.floor(1000 * fit * (0.9 + Math.random() * 0.1))}px`;
     const rect = banner.getBoundingClientRect();
     const bbW = rect.width;
     const bbH = rect.height;

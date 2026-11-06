@@ -101,7 +101,7 @@
     max-width: clamp(220px, 28vw, 420px);
   }
 
-  /* Banner 寬：桌面 ≥1024 由 JS inline 覆寫（hero-animation.js randomizeHeroLayout）；旋轉角由 JS 隨機設。
+  /* Banner 寬：隨機版（桌面＋矮橫向／iPad）由 JS inline 覆寫（hero-animation.js randomizeHeroLayout bannerPad）；這裡只剩 JS 前的初值。旋轉角由 JS 隨機設。
      min() cap：1.6 ≈ 旋轉 ±3° 下 bbH/寬 反比近似，確保旋轉後 bbox 落在 [BANNER_TOP_BOUND=90, 100vh-BOTTOM_MARGIN=30] 內 */
   .hero-banner {
     width: min(88vw, calc((100svh - 120px) * 1.6));
@@ -218,6 +218,11 @@
       display: block;
       max-height: max(6rem, calc(50svh - 220px));
       overflow-y: auto;
+    }
+    /* 最底那張（中文說明；進場後是它的 clip-reveal wrapper）右側讓出右下角鈕欄（footer 鈕／mode3 鉛筆，--br-btns＝44＋sm；沒鈕的頁＝0）：
+       小螢幕＋長說明（faculty）會落到鈕的高度，限高已到 6rem 下限、只能水平讓（user 2026-11-05）；margin 讓 fit-content 少吃這段＝靠左／中／右都閃開 */
+    .hero-mobile-rand .hero-mobile-text > :last-child {
+      margin-right: var(--br-btns, 0px);
     }
     /* 圖（user 2026-10-29；取代 10-27 的「四邊 padding 內最大」）：一屏置中、2–5°（--hero-bg-rot）。
        高＝一屏扣上下 container padding（max height）；寬＝左右 padding 內（100vw − 2 pad）～螢幕 111% 之間隨機（--hero-bg-w 0–1）＝
