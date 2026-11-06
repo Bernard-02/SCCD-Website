@@ -312,15 +312,15 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   // 之前用 `stickyTop+filterBarH+16` 比釘點低 17px → title「稍微往下」、開啟時 header 不貼釘線（user 2026-06-25）。
   // 手機：8rem（= getListStickyTop 手機值 / lists.css `.list-header.active{top:6rem}`... 實為 8rem 清 logo）。
   const stickyContainer = /** @type {HTMLElement | null} */ (target.closest('[style*="--list-header-sticky-top"]'));
-  // ≥768 走到這裡＝矮橫向拆 frame（box 不可捲；有 frame 時上面 boxScroller 路徑已 return）→ 釘點 96
-  //   （= landscape.css `.list-header.active top:96` = list-accordion getListStickyTop 拆-frame 分支，三處同步）。
+  // ≥768 走到這裡＝橫向手機／iPad 拆 frame（box 不可捲；有 frame 時上面 boxScroller 路徑已 return）→ 釘點讀 --list-header-sticky-top
+  //   （= landscape.css `.list-header.active` 的 top = list-accordion getListStickyTop 拆-frame 分支，同一個來源；沒設才退 96）。
   // 手機直向（2026-07-13 sticky 疊層）：釘點改讀 --list-header-sticky-top（= filter bar 正下方，
   // updateStickyTop 設；量測前已收 bar + 等 RO 更新 → 值是收合態）；未設（矮橫向 <768）fallback 8rem。
   const compensate = window.innerWidth < 768
     ? ((stickyContainer ? parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) : NaN)
       || 8 * parseFloat(getComputedStyle(document.documentElement).fontSize))
     : (target.closest('.inner-scroll-scroll-col')
-      ? 96
+      ? ((stickyContainer ? parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) : NaN) || 96)
       : (stickyContainer ? (parseFloat(getComputedStyle(stickyContainer).getPropertyValue('--list-header-sticky-top')) || 200) : 200));
 
   // 文件相對 top 直接量 getBoundingClientRect().top + scrollY（scroll 無關）：比 offsetTop 沿 offsetParent
@@ -571,7 +571,11 @@ function setupSectionNavReveal() {
     return;
   }
   if (typeof gsap === 'undefined') return;
-  if (prefersReducedMotion()) return;  // 減少動態：nav chip 不隱藏/不進退場，維持靜態可見
+  if (prefersReducedMotion()) {  // 減少動態：nav chip 不隱藏/不進退場，維持靜態可見
+    // 橫向手機底部 tab 列的顯隱吃 nav gate 掛的 .lnav-revealed（landscape.css）→ 不綁 gate＝直接常駐顯示
+    if (SCCDHelpers.isLandscapePhone()) document.getElementById('activities-content-section')?.classList.add('lnav-revealed');
+    return;
+  }
   const inners = Array.from(document.querySelectorAll('.activities-section-bar .activities-section-btn .anchor-nav-inner'));
   if (!inners.length) return;
   let navRevealed = false;
@@ -586,7 +590,20 @@ function setupSectionNavReveal() {
   const sectionEl = document.getElementById('activities-content-section');
   const isLandscapeGate = SCCDHelpers.isLandscapePhone();
   if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
-    bindLandscapeNavGate(sectionEl, /** @type {HTMLElement[]} */ (inners), navDir, { onChange: (v) => { navRevealed = v; } });
+    // 子分頁 tab 列固定在畫面底（landscape.css；user 2026-11-05 比照直向）→ 範圍跟 nav gate 同拍：gate 掛 .lnav-revealed（CSS 顯隱），
+    // chip 逐顆進退沿用直向那套旗標（範圍外的 reveal 路徑先藏著、進範圍才補播）
+    chipsOutOfRange = true;
+    bindLandscapeNavGate(sectionEl, /** @type {HTMLElement[]} */ (inners), navDir, {
+      revealedClass: 'lnav-revealed',
+      onChange: (v) => {
+        navRevealed = v;
+        chipsOutOfRange = !v;
+        const panel = /** @type {HTMLElement | null} */ (document.querySelector('.activities-panel:not(.hidden)'));
+        if (!panel) return;
+        if (v) { if (chipsScrollHidden) playFilterChipsReveal(panel); }
+        else { playFilterChipsExit(panel); chipsScrollHidden = true; }
+      },
+    });
     // SPA 離頁退場（同下方非 gate 版）
     registerPageExit(() => new Promise(resolve => {
       if (typeof gsap === 'undefined' || !navRevealed) { resolve(); return; }
@@ -883,9 +900,8 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
 // ── 捲完接下一段（user 2026-11-04「跟 about 一樣：有 tab 先跑完 tab 的內容再到下一個 nav，也要 snap」）──
 // 一次仍只顯示一段（lazy render 不動）；步驟＝nav 順序、有子分頁的展開：展演（特設→畢業展→常設）→ 工作營 → … → 參訪（出訪→來訪）→ …
-// 真桌面：右欄捲到底／頂之後新的一下滾輪（bindFrameScrollSplit steps）；直向手機：snap-scroll 的 tab 段磁吸（清單捲完再往下滑過 15%）
-// 點 #activities-snap-steps 的隱藏步驟鈕——磁吸要「DOM 順序＝步驟順序、目前那顆 .active」，nav 鈕跟子分頁鈕不在同一串。
-// 往下進段＝第一個子分頁、往上進＝最後一個（同 about／curriculum），都落在新段頂
+// 只有真桌面：右欄捲到底／頂之後新的一下滾輪（bindFrameScrollSplit steps）。直向手機不做（user 2026-11-05：資料多、
+// 手機要接續得大改結構）＝清單照常捲、換段靠底 bar。往下進段＝第一個子分頁、往上進＝最後一個（同 about／curriculum），都落在新段頂
 function actSteps() {
   return [...document.querySelectorAll('.activities-section-btn')].flatMap(navEl => {
     const nav = /** @type {HTMLElement} */ (navEl);
@@ -921,27 +937,6 @@ function goStep(btns, k) {
 }
 /** @param {NodeListOf<Element>} btns */
 function bindSteps(btns) {
-  const section = document.getElementById('activities-content-section');
-  const count = actSteps().length;
-  if (section && count) {
-    const box = document.createElement('div');
-    box.id = 'activities-snap-steps';
-    box.hidden = true;
-    box.innerHTML = '<button type="button" tabindex="-1"></button>'.repeat(count);
-    section.appendChild(box);
-    section.dataset.snapTabs = '#activities-snap-steps > button';
-    const proxies = [...box.children];
-    proxies.forEach((p, k) => p.addEventListener('click', () => goStep(btns, k)));
-    // 磁吸在手勢結束時讀 .active → 每次手指一放上去就對一次（切換一律經點擊、手勢前早已定案）
-    // 清單沒建完＝往後的步驟 disabled（snap-scroll 跳過 disabled＝不會先捲回段頂再點空）
-    const sync = () => {
-      const i = stepIndex(actSteps()), pending = listPending();
-      proxies.forEach((p, k) => { p.classList.toggle('active', k === i); /** @type {HTMLButtonElement} */ (p).disabled = pending && k > i; });
-    };
-    window.addEventListener('touchstart', sync, { capture: true, passive: true });
-    registerPageCleanup(() => window.removeEventListener('touchstart', sync, { capture: true }));
-    sync();
-  }
   return {
     has: (/** @type {number} */ dir) => { const steps = actSteps(), i = stepIndex(steps); return i >= 0 && !!steps[i + dir]; },
     go: (/** @type {number} */ dir) => goStep(btns, stepIndex(actSteps()) + dir),

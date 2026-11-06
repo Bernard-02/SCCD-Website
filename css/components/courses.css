@@ -433,8 +433,9 @@
   .courses-grid-mobile {
     display: none;
   }
-  /* <768＋iPad 走手機 grid（年級底 bar＋列）；橫向手機 ≥768 寬維持桌面 grid（user 2026-10-30：橫向手機內容左右排、nav 回 header 帶） */
-  @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  /* 真桌面以外全走手機 grid（年級底 bar＋列）；橫向手機 ≥768 寬 11-05 起也是（user「年級 tab 放下面、必修選修 sticky、課程 chip 兩欄」，
+     原 10-30 維持桌面 grid） */
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     .courses-grid {
       display: none;
     }
@@ -520,23 +521,56 @@
      年級 bar（.nav-bottom-bar，lists.css；courses-map.js 綁 bindMobileBottomBar）疊在 program 列上方
      （courses-section-switch.js），出生 .is-div-hidden 藏、範圍外 .is-off 不擋點擊；必修／選修在卡片左欄 sticky。
      header 白底已拿掉（navigation.css）→ 頂上不再有 nav／年級／類型三層 sticky 白帶（類型標籤改左欄 sticky、不墊底色）。矮橫向 nav 進 header（landscape.css）不套。 */
-  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-    /* 卡片從 header 帶下（92，同 about／faculty）開始；底補兩條 bar（底 bar＋program 列 80 實測）＝捲到底最後一張不被蓋 */
+  /* 手機 grid 疊排共用（直向＋iPad＋橫向手機；橫向手機 program 列在 header 帶、年級 bar 直接在底，見 landscape.css 檔尾段）。
+     卡片從 --mobile-content-top（108＝faculty 第一張卡，user 2026-11-05）開始；底＝--courses-m-bottom-pad（各版型算到年級 chip 頂＋2xl） */
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
     #courses-content-section {
-      padding-top: 92px;
-      padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h) + 80px);
+      padding-top: var(--mobile-content-top);
+      padding-bottom: var(--courses-m-bottom-pad);
     }
     #courses-content-section .courses-content-row { gap: 0; }
     /* 三個 program 疊著捲（user 2026-11-04 手機也跟 pc 一樣往下排）：年級 bar 每個 panel 一條，只顯示目前 program 那條
        （courses-section-switch syncGradeSpy 掛 .is-current）。
-       年級／program 間距＝落點 92＋2×sm（同 faculty 牆距）：點年級落在 92 時上一個年級整段已捲出視窗頂（＋旋轉卡角餘量），
+       年級／program 間距＝落點＋2×sm（同 faculty 牆距）：點年級落在落點時上一個年級整段已捲出視窗頂（＋旋轉卡角餘量），
        header 帶後面不露別的年級（user 同日「定位時上面不要有其他年級的內容」「gap 拉大比較好分辨」） */
     #courses-content-section .courses-panel:not(.is-current) .courses-mobile-grade-bar { display: none; }
-    #courses-content-section .courses-grid-mobile { gap: calc(92px + 2 * var(--spacing-sm)); }
-    /* 年級＝磁吸段（JS 掛 .snap-zone）：落點＝年級頂貼 header 帶下 92（同點年級鈕） */
-    #courses-content-section .courses-mobile-grade-block { scroll-margin-top: 92px; }
-    #courses-content-section .courses-panel:not(.hidden) ~ .courses-panel:not(.hidden) { margin-top: calc(92px + 2 * var(--spacing-sm)); }
+    #courses-content-section .courses-grid-mobile { gap: calc(var(--mobile-content-top) + 2 * var(--spacing-sm)); }
+    /* 年級＝磁吸段（JS 掛 .snap-zone）：落點＝年級頂在 --mobile-content-top（＝section pt＝點年級鈕＝必修／選修 sticky 標籤）；
+       段尾（年級清單比可視區長時）＝最後一張卡底離視窗底同 MDES 捲到底（＝上面 section padding-bottom），不被年級／program 兩條 bar 蓋住（user 2026-11-05） */
+    #courses-content-section .courses-mobile-grade-block {
+      scroll-margin-top: var(--mobile-content-top);
+      scroll-margin-bottom: var(--courses-m-bottom-pad);
+    }
+    #courses-content-section .courses-panel:not(.hidden) ~ .courses-panel:not(.hidden) { margin-top: calc(var(--mobile-content-top) + 2 * var(--spacing-sm)); }
+    /* 浮在課程卡上 → inactive 要墊底（桌面透明是因為在 nav 欄白底上）；＝inactive 鈕底色（三 mode 都是 theme-bg），
+       active／hover 的 JS inline 與 color.css !important 照贏 */
+    #courses-content-section .courses-bfa-label { position: static; background: var(--theme-bg); }
+    /* 必修／選修（英上中下）在左欄、卡片在右欄（user 10-27）：卡片 max-width 100%＝右欄寬（跟手機寬走），
+       放不下的標題照舊 nowrap＋自動 marquee。每列各自一個 grid（subgrid 共用左欄寬＝兩列卡片左緣對齊）：
+       sticky 的約束框＝自己那列 → 標籤釘在 --mobile-content-top（108），捲到列尾被推走、換下一列接手。
+       :not(.hidden)：#id 權重會蓋掉 Tailwind .hidden、非當前年級的 block 跑出來 */
+    #courses-content-section .courses-mobile-grade-block:not(.hidden) {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      column-gap: var(--courses-grid-col-gap);
+    }
+    #courses-content-section .courses-mobile-row {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+      align-items: start;
+    }
+    #courses-content-section .courses-mobile-row-label {
+      position: sticky;
+      top: var(--mobile-content-top);   /* 同內容頂／年級落點（user 2026-11-05「全站對齊」） */
+    }
+  }
+
+  /* 直向＋iPad：program 列也在底（年級 bar 疊其上）。底＝兩條 bar 疊起來看得到的高＋2xl（user 2026-11-05）：
+     年級 chip 頂＝年級 bar 底＋界線＋8（.nav-bottom-bar 底 16 的置中位移）＋chip 28 → 最後一張卡底到年級 chip 頂＝2xl */
+  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
     #courses-content-section {
+      --courses-m-bottom-pad: calc(var(--courses-m-grade-bar-bottom) + var(--mobile-bottom-anchor) + 36px + var(--spacing-2xl));
       --courses-m-program-chip-h: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + 10px);   /* 英上中下兩行＋card-pad-s 上下 5 */
       /* 年級 bar 底：年級 chip 底到 program chip 頂可見距 sm。program chip 中線＝footer 鈕中線（界線＋22，下方 program 列底 padding）
          → chip 頂＝界線＋22＋半高；年級 bar 的 chip 底＝bar 底＋界線＋8（.nav-bottom-bar 底 16 的置中位移）→ 界線抵銷剩 14 */
@@ -577,32 +611,10 @@
       align-items: flex-start;
       gap: var(--spacing-xs);
     }
-    /* 浮在課程卡上 → inactive 要墊底（桌面透明是因為在 nav 欄白底上）；＝inactive 鈕底色（三 mode 都是 theme-bg），
-       active／hover 的 JS inline 與 color.css !important 照贏 */
-    #courses-content-section .courses-bfa-label { position: static; background: var(--theme-bg); }
-    /* 必修／選修（英上中下）在左欄、卡片在右欄（user 10-27）：卡片 max-width 100%＝右欄寬（跟手機寬走），
-       放不下的標題照舊 nowrap＋自動 marquee。每列各自一個 grid（subgrid 共用左欄寬＝兩列卡片左緣對齊）：
-       sticky 的約束框＝自己那列 → 標籤釘在 header 帶下（92），捲到列尾被推走、換下一列接手。
-       :not(.hidden)：#id 權重會蓋掉 Tailwind .hidden、非當前年級的 block 跑出來 */
-    #courses-content-section .courses-mobile-grade-block:not(.hidden) {
-      display: grid;
-      grid-template-columns: max-content minmax(0, 1fr);
-      column-gap: var(--courses-grid-col-gap);
-    }
-    #courses-content-section .courses-mobile-row {
-      display: grid;
-      grid-column: 1 / -1;
-      grid-template-columns: subgrid;
-      align-items: start;
-    }
-    #courses-content-section .courses-mobile-row-label {
-      position: sticky;
-      top: 92px;
-    }
   }
 
-  /* ===== Mobile（< 768px）通用尺寸覆寫 ===== */
-  @media (max-width: 767px) {
+  /* ===== Mobile（< 768px＋橫向手機）通用尺寸覆寫 ===== */
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
     #courses-content-section {
       --courses-grid-type-col: 3rem;
       --courses-grid-col-gap: var(--spacing-sm);

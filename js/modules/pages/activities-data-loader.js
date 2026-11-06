@@ -323,7 +323,7 @@ function buildAlbumsHtml(item, { unbounded = false, defer = false } = {}) {
   if (!item.albums?.length) return '';
   // images 內任何 null/空字串/whitespace 先剔除。無圖 album 仍渲染其 metadata（year/date/location）——
   //   場次是事實紀錄（如常設展每學期一場），「有什麼渲染什麼」；只是無圖時不出縮圖列、整列不可點（不開空 lightbox）。
-  //   完全沒 metadata 也沒圖的 album 才剔除（避免空白列）。
+  //   完全沒 metadata 也沒圖的 album 才剔除（避免空白列；user 2026-11-05 再確認「沒內容才不渲染、有 title 照渲染」）。
   const albums = item.albums
     .map(a => ({ ...a, images: (a.images || []).filter(isValidUrl).map(s => s.trim()) }))
     .filter(a => a.images.length > 0 || a.year || a.date || a.location || a.location_zh);
@@ -404,7 +404,7 @@ function buildAlbumsHtml(item, { unbounded = false, defer = false } = {}) {
 
   return unbounded
     ? `<div class="item-albums">${itemsHtml}</div>`
-    : `<div class="item-albums overflow-y-auto list-scroll pb-sm" style="max-height: 252px;">${itemsHtml}</div>`;
+    : `<div class="item-albums overflow-y-auto list-scroll" style="max-height: 252px;">${itemsHtml}</div>`;
 }
 
 // 海報區塊 HTML
@@ -1980,21 +1980,34 @@ export async function loadListInto(containerId, url, options = {}) {
     : container.closest('.activities-panel')?.querySelector('.activities-filter-bar'));
   const filterBarSticky = !!filterBar && getComputedStyle(filterBar).position === 'sticky';
   // activities／admission 直向手機（user 2026-10-28：nav／tab 移到畫面底、filter bar 回 flow、header 白底拿掉）：
-  // 開啟的 title 釘 header 帶下 92（同 curriculum 類型標籤）。alumni 等其他 loadListInto 頁不套
-  const portraitPin = !filterBarSticky && SCCDHelpers.isBottomBarLayout()
+  // 開啟的 title／年份釘 --mobile-content-top（108＝內容頂＝blocker，user 2026-11-05）。alumni 等其他 loadListInto 頁不套
+  const portraitPin = !filterBarSticky && SCCDHelpers.isMobileLayout()
     && !!container.closest('#activities-content-section, #admission-content-section');
+  // 橫向手機（user 2026-11-05）也釘同一條線，但年份在左欄（landscape.css）不佔 title 上方 → title 直接釘 token、不加年份高
+  const yearAbove = !SCCDHelpers.isLandscapePhone();
   const stickyActive = window.innerWidth >= 768 || filterBarSticky || portraitPin;
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝
   //   剛被批次弄髒的 DOM 上 forced recalc（profiler self 8s）。bar 高只在「bar 自己 resize」時變（bar-hidden/
   //   搜尋收合/viewport），由下方 ResizeObserver 專責失效重量；批次只改 list DOM、bar 高不變 → 用快取零讀取。
-  let _barH = -1, _barTop = 0, _refreshTid = 0;
+  let _barH = -1, _barTop = 0, _refreshTid = 0, _yearH = 0, _mobileTop = -1;
   const measureBar = () => { _barH = filterBar ? filterBar.offsetHeight : 0; _barTop = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0; };
   const updateStickyTop = () => {
     if (!stickyActive) return;
     if (_barH < 0) measureBar();
-    const top = portraitPin ? 92 : filterBar ? _barTop + _barH - 1 : _barTop;
-    container.style.setProperty('--list-header-sticky-top', top + 'px');
-    if (showYearToggle) container.querySelectorAll('.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = top + 'px'; });
+    let top, yearTop;
+    if (portraitPin) {
+      // 直向：年份釘 token、開啟的 title 釘年份正下方＝token＋年份高（user 2026-11-05「在年份之下打開、不要蓋到年份」）。
+      // title 寫 px（getListStickyTop parseFloat 要讀得到）；量一次（結構固定），首批還沒年份／無年份組＝0、下批補量
+      if (_mobileTop < 0) _mobileTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-content-top')) || 0;
+      if (yearAbove && !_yearH) _yearH = /** @type {HTMLElement | null} */ (container.querySelector('.list-year-label'))?.offsetHeight || 0;
+      yearTop = 'var(--mobile-content-top)';
+      top = `${_mobileTop + (yearAbove ? _yearH : 0)}px`;
+    } else {
+      top = yearTop = `${filterBar ? _barTop + _barH - 1 : _barTop}px`;
+    }
+    container.style.setProperty('--list-header-sticky-top', top);
+    // 直向連非 toggle 年份（summer-camp）一起寫 inline：它的 sticky 規則讀 --list-header-sticky-top、特異度又贏直向段
+    if (showYearToggle || portraitPin) container.querySelectorAll(portraitPin ? '.list-year-label' : '.list-year-toggle').forEach((/** @type {any} */ el) => { el.style.top = yearTop; });
     // 九輪 Part 4：pin-IO 重建改 trailing debounce——bar 收合 0.3s transition 讓 RO 每幀 fire，每次 refresh 都重建
     //   pin-IO（getListStickyTop 讀 computed）＝髒 DOM forced recalc（4x 實測 getPropertyValue self 1.5s）。var／
     //   year-toggle top 仍每幀純寫跟 bar 平滑走；pin-IO 等值穩定、DOM 乾淨才一次重建（08-16「保留 is-pinned」續章）。

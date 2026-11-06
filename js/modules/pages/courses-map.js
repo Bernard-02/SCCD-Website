@@ -359,11 +359,14 @@ function openCourseSlideIn(card, onOpened) {
     getDesk(panel).open({ id: card.dataset.slug || titleEn, onOpened });
     return;
   }
-  // 課名兩行、說明兩段＝兩類（每片自己的框四向進；只取視窗內的）
-  const inView = (els) => els.filter(el => el && el.getBoundingClientRect().top < window.innerHeight);
   // panel 進場同 faculty（slide-in-bg-sync：不 dim、四向進場、logo 碰到才換）
   const tl = openSlideInBg({ panel });
-  getEntrance(panel).play(card.dataset.slug || titleEn, [inView([enT, zhT]), inView([enD, zhD])], SLIDE_IN_ARRIVE);
+  // 課名兩行、說明兩段＝兩類；課名每片自己的框四向進、說明內文只上下（user 2026-11-05，同 faculty）。只取視窗內的——
+  // panel 已被擲到四向藏位 → 視窗底換算成 panel 座標再比（直接比 innerHeight＝藏在下方那次全被濾掉、整張不進場；同 faculty mobileBlocks）
+  const bottom = window.innerHeight + panel.getBoundingClientRect().top;
+  const inView = (els) => els.filter(el => el && el.getBoundingClientRect().top < bottom);
+  getEntrance(panel).play(card.dataset.slug || titleEn, [inView([enT, zhT]), inView([enD, zhD])], SLIDE_IN_ARRIVE,
+    el => el === enT || el === zhT);
   if (tl) tl.eventCallback('onComplete', onOpened || null);
   else onOpened?.();
 }
@@ -644,7 +647,7 @@ export async function renderCoursesGrid(program) {
   mobileGrid.innerHTML = buildMobileHTML(program, courses);
   // 直向手機：年級 bar＝畫面底 bar（lists.css .nav-bottom-bar；hero 上藏、footer 前收、離頁滑出；user 2026-10-27），11-01 起疊在 program 列上方（courses.css 直向段）
   const gradeBar = /** @type {HTMLElement|null} */ (mobileGrid.querySelector('.courses-mobile-grade-bar'));
-  if (gradeBar && SCCDHelpers.isBottomBarLayout()) bindMobileBottomBar(gradeBar);   // 直向＋iPad（橫向手機走桌面 grid）
+  if (gradeBar && SCCDHelpers.isMobileLayout()) bindMobileBottomBar(gradeBar);   // 直向＋iPad＋橫向手機（11-05 起橫向手機也走手機 grid、年級 bar 在底）
 
   // 年級 bar：初始 active＝第一個年級；之後的 spy／點擊捲到該年級在 courses-section-switch（initStacked）
   const gradeBtns = mobileGrid.querySelectorAll('.courses-mobile-grade-btn');

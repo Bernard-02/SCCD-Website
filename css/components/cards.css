@@ -466,6 +466,10 @@
        直向限定：矮橫向右欄另有 landscape.css 的 panel pb */
     @media (orientation: portrait) {
       #faculty-panel #faculty-detail-sections { padding-bottom: var(--spacing-lg); }
+      /* 內容離 header 減半（user 2026-11-05）：遮擋帶＋容器 pt 一起比 header 高少 sm → 照片頂角離 logo 底 ~12（原 ~28）；
+         遮擋帶底仍在 logo 底下，捲過的內容不露在 logo 後。#id 抬特異度蓋 HTML 的 h-／pt-[var(--header-height)] */
+      #faculty-panel > .faculty-header-band { height: calc(var(--header-height, 80px) - var(--spacing-sm)); }
+      #faculty-panel > .faculty-panel-body { padding-top: calc(var(--header-height, 80px) - var(--spacing-sm)); }
     }
     #faculty-detail-sections > div {
       gap: 0;   /* 蓋 buildSection 的 gap-xs：標題→第一筆全由 title col pb 給（有底色、釘住時一致） */
@@ -501,6 +505,7 @@
     /* 學歷 row 手機拿掉左欄浮動 pin：首格是長字（country 併入學校名），塞進 4rem 欄會擠成多行 → 單欄直向堆疊。
        疊兩個 class 抬 specificity 蓋過上面 :first-child / :not(:first-child) 規則。 */
     .faculty-grid-row.faculty-grid-row-education > span:first-child {
+      display: block;   /* 進場遮罩掛在格本身（clip-path＋translate）：inline span 的 translate 無效、clip 也裁不到裡面的 block 行＝整格直接 pop 出來 */
       float: none;
       clear: none;
       width: auto;
@@ -584,10 +589,13 @@
   }
 
   /* 手機／矮橫向 slide-in 分片進場（desk-card.js createSlideInEntrance）的遮罩＝片本身：滿寬的片左右向要滑整條寬＝像從遠處飛進來
-     → 片縮成字寬（user 2026-11-04「就跟 footer 一樣」）。section 標題欄的 sticky 底色要滿寬 → 進場改動 h3（faculty-slide-in.js mobileBlocks） */
+     → 片縮成字寬（user 2026-11-04「就跟 footer 一樣」）。section 標題欄的 sticky 底色要滿寬 → 進場改動 h3（faculty-slide-in.js mobileBlocks）。
+     學經歷列拆成格當片（11-05）：右欄各段文字縮字寬；左欄年份／國家維持 4rem 欄寬（sticky 底色要蓋住下面捲過的年份） */
   @media not all and (min-width: 1024px) and (min-height: 501px) {
     :is(#faculty-detail-name-en, #faculty-detail-name-zh, #faculty-detail-titles > *, #faculty-detail-lead > *, .faculty-lead-rows > *, .faculty-section-title-col h3),
-    #faculty-panel .faculty-grid-row {
+    #faculty-panel .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child),
+    #faculty-panel .faculty-grid-row-education > span:first-child,
+    #faculty-panel .faculty-grid-row-award > span:nth-child(n+3) {
       width: fit-content;
       max-width: 100%;
     }

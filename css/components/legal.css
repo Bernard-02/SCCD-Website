@@ -115,16 +115,14 @@
     overflow-x: visible;
   }
 
-  /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）。user 2026-11-01：
-     有說明段（donate／sitemap）＝同 admission：文字頂＝header 帶下 92、展開標題釘 92（loader 寫 inline var）、blocker 92；
-     沒說明段（regulations）＝清單直接開頭，維持手機通用 8rem（lists.css blocker 高＝釘點 fallback，開卡與初始同高）。
-     原 header 80＋3xl＝164 已退（太深、也跟釘點不齊）。768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
+  /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）。文字／清單頂＝展開標題釘點（loader 寫 inline var）＝blocker 高
+     ＝--mobile-content-top（同 faculty 第一張卡／activities／admission，user 2026-11-05「往下時卡片對齊位置也再往下」）。
+     768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
   @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-    .legal-content-col { padding-top: 92px; }
-    .legal-content-col:not(:has(.legal-page-desc, .legal-map-desc)) { padding-top: 8rem; }
-    .legal-content-col:has(.legal-page-desc) > .list-mobile-header-blocker {
-      height: 92px;
-      margin-top: -92px;
+    .legal-content-col { padding-top: var(--mobile-content-top); }
+    .legal-content-col > .list-mobile-header-blocker {
+      height: var(--mobile-content-top);
+      margin-top: calc(-1 * var(--mobile-content-top));
     }
   }
 
@@ -188,9 +186,9 @@
   }
   .legal-zebra-sub p:not(:last-child) { margin-bottom: var(--space-en-zh-s); }
 
-  /* 卡片外殼（list-content 內）：左右內距比照 admission bodyField，上距 0、底部多留 */
+  /* 卡片外殼（list-content 內）：左右底同 sm＝admission bodyField p-sm（user 2026-11-05）；上距 0＝標題列 py-sm 已給 */
   .legal-zebra-card {
-    padding: 0 var(--spacing-sm) var(--spacing-lg);
+    padding: 0 var(--spacing-sm) var(--spacing-sm);
   }
 
   /* ── 富文本卡片（文字列：Donate 捐贈項目／Regulations 政策列；小節＝.legal-zebra-section）── */
@@ -225,13 +223,13 @@
      桌面：每個 .legal-reg-group 一類，類別欄 grid-row 跨整組、sticky 釘在 accordion sticky header 正下方
      （top=--legal-reg-cat-top，loader 量 header 高寫入）。手機另走 ref 式直排（見下方 max-width 區塊；桌面手機刻意分開）。 */
   /* 分組間無空格＋整張表一塊 deep 底（含欄縫）。比照 .list-ref-btn：表自身零直向 padding（cell padding 就是呼吸，hover 黑帶頂到表緣、不露 deep 條）；
-     負 margin 左右吃掉 .legal-zebra-card 的 --spacing-sm、底部吃掉 --spacing-lg → 深色塊貼齊卡底。 */
+     負 margin 左右底吃掉 .legal-zebra-card 的 --spacing-sm → 深色塊貼齊卡底。 */
   .legal-reg-table {
     display: flex;
     flex-direction: column;
     gap: 0;
     background: var(--item-color-deep, transparent);
-    margin: 0 calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-lg));
+    margin: 0 calc(-1 * var(--spacing-sm)) calc(-1 * var(--spacing-sm));
     padding: 0 var(--spacing-sm);
   }
   .legal-reg-group {
@@ -258,7 +256,7 @@
     grid-row: 1 / -1;
     align-self: start;
     font-weight: var(--font-weight-bold);
-    padding-top: var(--spacing-sm);   /* 對齊首列文字（同 cell 上 padding） */
+    padding: var(--spacing-sm) 0;   /* 上＝對齊首列文字；下＝sticky 被組底推住時跟末列文字同底（同 cell 上下 padding，user 2026-11-05） */
   }
   /* sticky 只在 list-content overflow:visible（開合動畫完）時生效：動畫期間 content overflow:hidden＝變 scroll container
      → sticky 改對 content 定位、類別被推離原位。overflow:visible 由 list-accordion 展開 onComplete 設 inline。 */
@@ -368,31 +366,24 @@
     }
   }
   @media (max-width: 767px) {
-    /* 手機照 ref 區直排：規章名在上、承辦單位貼在下（pair 內 2px）。
-       類別副標貼近自己內容（下 0＋行上 8）、類別彼此拉開（上 md＋行下 8＝32）。色帶／:active 走 base。 */
-    .legal-reg-group {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: none;
-      row-gap: 0;
+    /* 手機比照桌面（user 2026-11-05）：類別左欄 sticky（走上方 base 規則）｜右欄＝一個規章一個 box（名上、承辦單位下）。
+       原單欄直排時桌面那條 sticky 特異度較高、手機 static 蓋不掉＝類別釘住疊在規章上。
+       subgrid 共用欄軌＝各組右欄左緣對齊；類別寬上限 8em（Academic Regulations 折兩行，右欄才不被擠扁） */
+    .legal-reg-table {
+      display: grid;
+      grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+      column-gap: var(--spacing-md);
     }
-    .legal-reg-cat { grid-column: 1; grid-row: auto; position: static; padding: var(--spacing-md) 0 0; }
-    /* 首組頂距 16＝activities ref 色帶 py-sm（否則 deep 色帶頂貼死類別文字）。桌面走 base padding-top:sm */
-    .legal-reg-group:first-child .legal-reg-cat { padding-top: var(--spacing-sm); }
-    /* name/unit 同寬直排、右緣一致延伸到卡片右緣（:active 黑帶兩行才不會右緣錯位）；
-       name 桌面的 gap 補滿負 margin 在單欄無 gap → 重設 */
+    .legal-reg-group { grid-column: 1 / -1; grid-template-columns: subgrid; }
+    .legal-reg-cat { max-width: 8em; }
+    /* item 成盒＝:active 黑帶就是這個 box（名＋單位兩行一起，右緣延伸到卡片右緣） */
+    .legal-reg-item { display: block; grid-column: 2; min-width: 0; }
     .legal-reg-name {
-      grid-column: 1;
       padding-right: var(--spacing-sm);
       margin-right: calc(-1 * var(--spacing-sm));
       padding-bottom: 0;
     }
-    .legal-reg-unit { grid-column: 1; padding-top: 2px; }
-    /* 左緣同樣延伸到卡片左緣（base 只伸 xs＝:active 黑帶左邊留 8px deep 條；user 2026-11-01 整條都變黑）。文字位置不變 */
-    .legal-reg-name,
-    .legal-reg-unit {
-      padding-left: var(--spacing-sm);
-      margin-left: calc(-1 * var(--spacing-sm));
-    }
+    .legal-reg-unit { padding-top: 2px; }
   }
 
   /* 手機 header blocker 左右外擴：blocker 在 .legal-content-col 內（margin-collapse 因素，見 donate.html）＝非滿版寬；

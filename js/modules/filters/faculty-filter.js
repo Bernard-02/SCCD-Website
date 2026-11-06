@@ -345,10 +345,9 @@ export function initFacultyFilter(initialSection = null, unlock) {
     const isLandscapeGate = SCCDHelpers.isLandscapePhone();   // 橫向手機才進 header 帶（iPad 走上面底 bar）
     if (isLandscapeGate && 'IntersectionObserver' in window && section) {
       // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate；2026-09-29 DCD 系所鈕撤掉後
-      // header 帶只剩分類鈕）。faculty-nav-revealed：header 帶遮擋跟 nav 同 gate（landscape.css 消費）——卡片捲過
-      // 透明 header 會疊在 nav btn 後（user 2026-07-10 統一各頁 nav 遮擋）；hero 時不掛、不蓋 hero 圖
+      // header 帶只剩分類鈕）。header 帶不遮（user 2026-11-05）：卡片從 nav chip 後面滑過，原 faculty-nav-revealed 白帶已撤
       bindLandscapeNavGate(section, /** @type {HTMLElement[]} */ (navInners), navDir,
-        { revealedClass: 'faculty-nav-revealed', onChange: (v) => { navRevealed = v; } });
+        { onChange: (v) => { navRevealed = v; } });
     } else {
       // 桌面/直向：進場 once、不 re-hide（維持原行為）
       const playNavReveal = () => {

@@ -722,11 +722,12 @@
    nav（section btn）＝畫面底 bar（.nav-bottom-bar，上方共用段；bindMobileBottomBar 顯隱）；子分頁 tab（#exhibitions/#visits-type-filter）
    ＝底 bar 上方固定列、英中一行，範圍內才逐 chip 進場（activities-section-switch.js setupSectionNavReveal 直向分支）。
    header 白底拿掉（navigation.css）→ 頂上不再有 sticky nav／filter bar 與往上補的白帶；filter bar（只剩 search）回 flow；
-   開啟的 title 釘 header 帶下 92（activities-data-loader updateStickyTop）。矮橫向不套（landscape.css 5f）。 */
+   內容頂／遮擋帶／年份 sticky／開啟的 title 釘點＝同一條 --mobile-content-top（108＝faculty 第一張卡，user 2026-11-05；
+   釘點由 activities-data-loader updateStickyTop 寫）。矮橫向不套（landscape.css 5f）。 */
 @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
-  /* 內容從 header 帶下（92，同 about／faculty／curriculum）開始；底補兩條 bar（底 bar＋tab 列 60）＝捲到底最後一列不被蓋 */
+  /* 內容從 --mobile-content-top 開始（search 頂）；底補兩條 bar（底 bar＋tab 列 60）＝捲到底最後一列不被蓋 */
   #activities-content-section {
-    padding-top: 92px;
+    padding-top: var(--mobile-content-top);
     padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h) + 60px);
   }
   /* nav col 只剩 fixed bar → 去掉它在 flex-col 裡的 box（同 faculty） */
@@ -766,21 +767,17 @@
     gap: 0.3em;   /* ≈ 一個空白（同底 bar chip） */
     white-space: nowrap;
   }
-  /* 直向 blocker 常駐 92（同矮橫向 5e/5f 的 96；user 2026-10-28 試過「只裁開啟列、不加帶」後定案要帶）：header 透明、nav 在底 bar
-     → section 內容捲過 92 被 theme-bg 帶遮住、不透到 logo／鈕後方（≈桌面 inner-scroll frame 從 nav line 切）；sticky 只活在
+  /* 直向 blocker 常駐（同矮橫向 5e/5f 的 96；user 2026-10-28 試過「只裁開啟列、不加帶」後定案要帶）：header 透明、nav 在底 bar
+     → section 內容捲過對齊線被 theme-bg 帶遮住、不透到 logo／鈕後方（≈桌面 inner-scroll frame 從 nav line 切）；sticky 只活在
      section 內＝hero 不蓋。不走 .list-has-pinned-header gate（頂上已無 nav／filter 會被切；gate 版＝title 釘住那刻帶才出現、上方內容瞬間被蓋）。
-     高／負 margin＝section 直向 pt 92（下方）＝釘點 --list-header-sticky-top，三處同步。 */
+     高／負 margin＝section 直向 pt＝釘點 --list-header-sticky-top＝--mobile-content-top（user 2026-11-05 由 92 改，「切線有點高」） */
   #activities-content-section .list-mobile-header-blocker {
     display: block;
-    height: 92px;
-    margin-top: -92px;
+    height: var(--mobile-content-top);
+    margin-top: calc(-1 * var(--mobile-content-top));
   }
   #activities-content-section .inner-scroll-frame-grid {
     gap: 0;
-  }
-  /* search 離 header 帶下緣 sm（user 2026-10-29 要往下移；底 pb 同時 lg→sm＝第一列位置不變） */
-  #activities-content-section .activities-filter-bar > .grid-12 {
-    padding-top: var(--spacing-sm);
   }
 }
 
@@ -798,18 +795,28 @@
 
 /* ===== admission 手機直向（user 2026-10-28，同 activities／faculty）=====
    nav＝畫面底 bar（HTML 掛 .nav-bottom-bar，上方共用段）；header 白底拿掉 → 頂上不再 sticky nav 與往上補的白帶；
-   開啟的 title 釘 header 帶下 92（admission-section-switch.js initAdmissionMobileSticky）。blocker 直向停用。矮橫向不套。 */
+   內容頂／遮擋帶／年份 sticky／開啟的 title 釘點＝--mobile-content-top（同 activities 直向段）。矮橫向不套。 */
 @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   #admission-content-section {
-    padding-top: 92px;
+    padding-top: var(--mobile-content-top);
     padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h));
   }
   #admission-content-section .inner-scroll-nav-col { display: contents; }
-  /* blocker 常駐 92：同 activities 直向段註解 */
+  /* blocker 常駐：同 activities 直向段註解 */
   #admission-content-section .list-mobile-header-blocker {
     display: block;
-    height: 92px;
-    margin-top: -92px;
+    height: var(--mobile-content-top);
+    margin-top: calc(-1 * var(--mobile-content-top));
+  }
+  /* 年份 sticky（user 2026-11-05）：釘在同一條線、捲過自己那組被下一組推走（containing block＝.list-year-group）；
+     開啟的 title 釘在年份正下方（--list-header-sticky-top＝108＋年份高，activities-data-loader updateStickyTop；同日 user
+     「在年份之下打開、不要蓋到年份」）。年份 z 4 壓過 item（item 不再浮上來）＝內容捲過 title 上緣後被年份 theme-bg 底蓋掉。
+     top 由 JS inline 寫（同值） */
+  :is(#activities-content-section, #admission-content-section) .list-year-group > .list-year-label {
+    position: sticky;
+    top: var(--mobile-content-top);
+    z-index: 4;
+    background: var(--theme-bg);
   }
 }
 
@@ -920,6 +927,11 @@
 body.mode-color .tl-icon-btn-inner {
   background: var(--theme-fg);
   color: var(--theme-fg-inverse);
+}
+/* 手機／iPad／矮橫向：同全站手機 icon 鈕 44／icon 28（footer 鈕、header 鈕、鉛筆；user 2026-11-05「history 鈕看起來比其他鈕大」）。
+   只掛 history 鈕：library next 鈕桌面限定 */
+@media not all and (min-width: 1024px) and (min-height: 501px) {
+  #timeline-list-btn > .tl-icon-btn-inner { width: 44px; height: 44px; font-size: 28px; }
 }
 
 /* 黑方塊 icon 鈕 hover／active 上色（同全站 nav btn；.tl-icon-btn-inner 家族＝about history 清單鈕、library 灰卡 next 鈕；
@@ -1115,12 +1127,13 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   }
   .tl-list-grid {
     top: 24px;
-    bottom: 88px;                 /* 讓出底部 toggle 鈕列（48 鈕 + 32 底距）*/
+    bottom: 52px;                 /* 讓出底部 toggle 鈕（手機 44 鈕 + 8）*/
     padding: 0 var(--container-padding);
     display: block;
   }
   .tl-list-btn-grid {
     display: block;               /* 中和 20-col grid → toggle 鈕落在 padding 左緣＝左下角 */
+    bottom: 0;                    /* 貼 area 底＝footer 鈕上緣再上 sm（area 已讓出 about-bar-h；同 Programs 說明卡，user 2026-11-05） */
   }
   /* 捲動內容內距收窄（桌面 lg 在窄屏偏肥） */
   .tl-list-content {
@@ -1164,6 +1177,13 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
   display: none !important;
   height: 0 !important;
   width: 0 !important;
+}
+
+/* 卡底只留外層 wrapper 的 pb-sm（四邊同 sm，user 2026-11-05）：最後一筆場次不再疊自己的 py-sm 底；
+   無圖場次的 metadata 列就是最後一列 → 它的 pb-xs（隔開縮圖列用）也拿掉。中間場次的間距不動 */
+.album-thumb-item:last-child,
+.album-thumb-item:last-child > .album-sticky-cell:last-child {
+  padding-bottom: 0;
 }
 
 /* item-albums 捲到底 thumb 不貼底：padding-bottom 推不動 webkit 軌道 → track margin-bottom（webkit only）。
@@ -1598,7 +1618,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
     flex: 0 0 auto;
     margin-left: 0;
     margin-top: -1px;                 /* 蓋 player 底緣 sub-pixel 縫 */
-    height: 76px;                     /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖 44；改了同步 variables.css --works-text-room 的 75 */
+    height: 76px;                     /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖 44；改了同步 variables.css about 直向段（--about-room）的 75 */
   }
   /* 四邊同桌面：inset 6 ＋ padding 10＝色塊邊→縮圖 16（user 10-27）；手機無 thumb → 右邊也 10 */
   .works-playlist-inner {

@@ -226,6 +226,7 @@ export function createDeskCard({ panel, backBtn, getBlocks, isFourWay = () => fa
 /**
  * 手機／矮橫向 slide-in 的內容首開進場（user 2026-11-04「跟 pc 一樣、四周進場、是內容本身的 box」）：
  * 同色卡——同次造訪每個項目第一次開才跑、逐類錯開；差別＝每片各自四向隨機（手機捲動框 overflow-x hidden，左右位移不會撐出 scrollbar）。
+ * faculty 例外（user 2026-11-05）：只有照片跟人名四向，其餘內容（職稱／標題／各列）只上下＝play 的 isFourWay。
  * caller 每次進頁建一個（entered 隨之歸零）；play 要在 panel 剛顯示的同 tick 呼叫（paint 前藏好）。
  */
 export function createSlideInEntrance() {
@@ -233,15 +234,16 @@ export function createSlideInEntrance() {
   const entered = new Set();
   const kill = () => { if (tl) { tl.kill(); tl = null; } };
   registerPageCleanup(kill);
-  /** @param {string} id @param {(Element|null)[][]} rawBlocks @param {number} at panel 滑到位的時間點（內容從這裡開始進） */
-  function play(id, rawBlocks, at) {
+  /** @param {string} id @param {(Element|null)[][]} rawBlocks @param {number} at panel 滑到位的時間點（內容從這裡開始進）
+   *  @param {(el: Element) => boolean} [isFourWay] 四向的片；其餘只上下、同一類共用一個方向（同色卡）。預設全部四向 */
+  function play(id, rawBlocks, at, isFourWay = () => true) {
     kill();
     const blocks = rawBlocks.map(b => /** @type {HTMLElement[]} */ (b.filter(Boolean))).filter(b => b.length);
     blocks.flat().forEach(clearClip);   // 上次進場中途被關留下的殘值
     const firstOpen = !entered.has(id);
     entered.add(id);
     if (!firstOpen || typeof gsap === 'undefined' || prefersReducedMotion()) return;
-    blocks.flat().forEach(el => hideNow(el, randomRevealDir()));
+    blocks.forEach(b => { const v = vDir(); b.forEach(el => hideNow(el, isFourWay(el) ? randomRevealDir() : v)); });
     const enter = { duration: DUR.medium, ease: EASE.enter };
     tl = gsap.timeline({ onComplete: () => { blocks.flat().forEach(clearClip); tl = null; } });
     blocks.forEach(b => { b.forEach(el => clipSlide(tl, el, true, enter, at)); at += BLOCK; });

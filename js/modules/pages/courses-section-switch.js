@@ -16,7 +16,7 @@
 
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate } from '../ui/section-switch-helpers.js';
+import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate, isNavSpinDesktop } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, cullByViewport, revealHidden } from '../ui/scroll-animate.js';
 
 // 卡片維持四方向隨機（要多樣性）；滿寬 row-label 抽到 left/right 會滑整個 box 寬
@@ -204,8 +204,9 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   const deepLinkAutoNav = hasQueryDeepLink && fromUserNav;
 
   // 三個 program 疊著捲（全版型；直向＋iPad 手機 grid 2026-11-04 起也是，user「跟 pc 類似、每個年級往下排到最後一個班級，
-  // 不要滾到下面又再切換」）。mobileGrid＝直向＋iPad：年級 block 全部往下排、年級 bar＝scroll-spy＋點擊捲到該年級。跨 gate 轉向靠整頁重載自癒
-  const mobileGrid = SCCDHelpers.isBottomBarLayout();
+  // 不要滾到下面又再切換」）。mobileGrid＝直向＋iPad＋橫向手機（11-05 起，user「年級 tab 放下面對齊 footer 鈕、必修選修 sticky」）：
+  // 年級 block 全部往下排、年級 bar＝scroll-spy＋點擊捲到該年級。跨 gate 轉向靠整頁重載自癒
+  const mobileGrid = SCCDHelpers.isMobileLayout();
   const scrollCol = /** @type {HTMLElement|null} */ (sectionEl ? sectionEl.querySelector('.inner-scroll-scroll-col') : null);
   const colScrolls = !!scrollCol && getComputedStyle(scrollCol).overflowY !== 'visible';   // 真桌面 frame 右欄自己捲；橫向手機拆 frame＝window
   const panelList = /** @type {HTMLElement[]} */ ([...panels]);
@@ -222,6 +223,55 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     spyHoldUntil = performance.now() + 1500;
     if (colScrolls && scrollCol) scrollCol.scrollTo({ top: panelOffset(p), behavior: 'smooth' });
     scrollWindowNoSnap(sectionScrollTop(sectionEl) + (colScrolls ? 0 : panelOffset(p)), { onComplete: onDone });   // 人在 hero／footer 時把 frame 帶進來
+  }
+
+  // 手機年級 bar：每個 panel 一條、只顯示目前 program 那條（.is-current，courses.css）。換 program＝舊條 chip 逐顆 clip-reveal 退場 →
+  // 換條 → 新條 chip 進場（同 nav 底 bar setShown 那套；user 2026-11-06「不是直接切換」）。途中又換＝不打斷、播完接最新的
+  //（免從半途反轉 translate）；bar 藏著（hero）／減少動態／兩個 program 的年級組合一模一樣＝直接換
+  /** @type {HTMLElement|null} */ let gradeBarShown = null;
+  /** @type {HTMLElement|null} */ let gradeBarTarget = null;
+  let gradeBarBusy = false;
+  const gradeInners = (/** @type {HTMLElement} */ p) => /** @type {HTMLElement[]} */ ([...p.querySelectorAll('.courses-mobile-grade-bar .anchor-nav-inner')]);
+  // 年級組合（哪幾個年級、順序）：兩個 program 一模一樣（BFA 兩組都是一～四年級）＝看起來是同一條 bar
+  const gradeSig = (/** @type {HTMLElement} */ p) => [...p.querySelectorAll('.courses-mobile-grade-btn')].map(b => b.getAttribute('data-grade')).join('|');
+  const gradeChipHidden = (/** @type {HTMLElement[]} */ els) => {
+    const hid = els.map(el => navChipHidden(el, pickNavDir(el)));   // 每次重抽方向
+    return { clipPath: (/** @type {number} */ i) => hid[i].clipPath, translate: (/** @type {number} */ i) => hid[i].translate };
+  };
+  /** @param {HTMLElement} p */
+  function showGradeBar(p) {
+    gradeBarTarget = p;
+    if (gradeBarBusy || p === gradeBarShown) return;
+    const prev = gradeBarShown;
+    const swap = () => {
+      gradeBarShown = gradeBarTarget;
+      panelList.forEach(x => x.classList.toggle('is-current', x === gradeBarShown));
+      const a = /** @type {HTMLElement|null} */ (gradeBarShown?.querySelector('.courses-mobile-grade-btn.active') || null);
+      if (a) alignGradeBar(a, 'instant');   // display:none 期間 spy 換的 active 沒捲到
+    };
+    const bar = prev?.querySelector('.courses-mobile-grade-bar');
+    // 年級組合一模一樣＝不做退場進場、直接換條（只有 active 那顆會變；user 2026-11-06「一模一樣的組合就不需要做出場動畫」）
+    const same = !!prev && gradeSig(prev) === gradeSig(p);
+    if (!prev || !bar || same || bar.classList.contains('is-bar-hidden') || typeof gsap === 'undefined' || prefersReducedMotion()) { swap(); return; }
+    gradeBarBusy = true;
+    const out = gradeInners(prev);
+    out.forEach(el => { el.style.transition = 'none'; });   // .anchor-nav-inner 的 transition:all 會追著 GSAP 跑
+    gsap.fromTo(out, { ...NAV_CHIP_SHOWN }, {
+      ...gradeChipHidden(out), duration: DUR.base, ease: EASE.wipe, stagger: { each: 0.04, from: 'end' }, overwrite: true,
+      onComplete: () => {
+        gsap.set(out, { clearProps: 'clipPath,translate,transition' });   // 這條接著 display:none，還原成顯示態
+        swap();
+        const inn = gradeInners(/** @type {HTMLElement} */ (gradeBarShown));
+        inn.forEach(el => { el.style.transition = 'none'; });
+        gsap.fromTo(inn, gradeChipHidden(inn), {
+          ...NAV_CHIP_SHOWN, duration: DUR.base, ease: EASE.wipe, stagger: 0.04, overwrite: true, clearProps: 'clipPath,translate,transition',
+          onComplete: () => {
+            gradeBarBusy = false;
+            if (gradeBarTarget && gradeBarTarget !== gradeBarShown) showGradeBar(gradeBarTarget);
+          },
+        });
+      },
+    });
   }
 
   const initSwitchPromise = initStacked();
@@ -243,7 +293,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       initColSnap(scrollCol, sectionEl);
     }
     // 手機 grid：每個年級一段磁吸（window JS 磁吸 initAboutMobileSnap，main-modular；user 2026-11-04「pc 有 snap、手機也加」）。
-    // 落點＝年級頂 − scroll-margin 92（courses.css）＝點年級鈕的落點；年級多半比一屏長＝段內自由捲、段尾往下過門檻才吸到下一個年級
+    // 落點＝年級頂 − scroll-margin（--mobile-content-top，courses.css）＝點年級鈕的落點；年級多半比一屏長＝段內自由捲、段尾往下過門檻才吸到下一個年級
     if (mobileGrid) panelList.forEach(p => p.querySelectorAll('.courses-mobile-grade-block').forEach(b => b.classList.add('snap-zone')));
 
     // 進場：每個 panel 捲到才播；桌面右欄的 trigger 等整個 frame 進視窗才 arm（右欄座標下第一個 panel 一開始就算「在視窗內」）。
@@ -286,7 +336,7 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     // 手機年級 bar：只顯示目前 program 那條（.is-current，courses.css）、亮目前年級（同一條中線）；捲動換年級＝setActiveNavBtn 現抽角
     /** @param {HTMLElement} cur @param {number} line @param {boolean} atEnd */
     const syncGradeSpy = (cur, line, atEnd) => {
-      panelList.forEach(p => p.classList.toggle('is-current', p === cur));
+      showGradeBar(cur);
       const blocks = [...cur.querySelectorAll('.courses-mobile-grade-block')];
       if (!blocks.length) return;
       let g = blocks[0];
@@ -450,12 +500,12 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   }
 
   // 年級 bar（水平 scroll strip）：該顆捲到左緣（同 alignProgramBar；只動 bar 自己的 scrollLeft）
-  /** @param {HTMLElement} btn */
-  function alignGradeBar(btn) {
+  /** @param {HTMLElement} btn @param {ScrollBehavior} [behavior] */
+  function alignGradeBar(btn, behavior = 'smooth') {
     const bar = /** @type {HTMLElement|null} */ (btn.closest('.courses-mobile-grade-bar'));
     if (!bar) return;
     const pad = parseFloat(getComputedStyle(bar).paddingLeft) || 0;
-    bar.scrollTo({ left: bar.scrollLeft + btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad), behavior: 'smooth' });
+    bar.scrollTo({ left: bar.scrollLeft + btn.getBoundingClientRect().left - (bar.getBoundingClientRect().left + pad), behavior });
   }
 
   // 手機 program bar 是水平 scroll strip：active 的 btn 可能被捲到部分出界 → 捲回讓它靠左對齊頁面內容左緣。
@@ -489,7 +539,15 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       cancelSettle = whenScrollSettles(colScrolls && scrollCol ? scrollCol : window, () => skipped.forEach(r => r.finish()));
       applyActiveProgram(program);
       alignProgramBar(el);
-      scrollToPanel(panelOf(program));
+      // 手機年級 bar 點下當下就換（捲動途中 spy 暫停、落地才換＝慢一拍）；落點＝panel 頂＝第一個年級
+      const target = panelOf(program);
+      if (mobileGrid && target) {
+        const gbs = target.querySelectorAll('.courses-mobile-grade-btn');
+        const first = gbs[0];
+        if (first && !first.classList.contains('active')) setActiveNavBtn(gbs, first.getAttribute('data-grade') || '', 'data-grade');
+        showGradeBar(target);
+      }
+      scrollToPanel(target);
     });
   });
 
@@ -571,11 +629,9 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     // （user 2026-07-12「手機版 nav btn 應該在 hero 之下就出現、不是等 main section 到視窗」）。
     const isLandscapeGate = SCCDHelpers.isLandscapePhone();
     if (isLandscapeGate && 'IntersectionObserver' in window && sectionEl) {
-      // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）。
-      // courses-nav-revealed：grade cover 的 ::before 上方白補丁跟 nav 同一顆 gate（landscape.css 消費）——
-      // 未 pinned 時補丁會浮在 hero 圖上＝奇怪白 bar（user 2026-07-10）
+      // 矮橫向：nav 進 header fixed、hero 也浮著 → 嚴格 hero gate（bindLandscapeNavGate）
       bindLandscapeNavGate(sectionEl, /** @type {HTMLElement[]} */ (navTargets), navDir,
-        { revealedClass: 'courses-nav-revealed', onChange: (v) => { navRevealed = v; } });
+        { onChange: (v) => { navRevealed = v; } });
     } else {
       // 桌面＋直向手機：nav 在 flow（桌面左側 sticky／手機頂部 strip），進場 once（stagger 0.04）、不 re-hide
       const playNavReveal = () => {
@@ -676,6 +732,9 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     const opts = {};
     if (fromScroll) opts.rotation = getRot();
     else if (incomingBtn?._pendingRot != null) opts.rotation = incomingBtn._pendingRot;
+    // 觸控沒有 hover 角可沿用 → 不給的話 setActiveNavBtn 會抽全站的 −4～6°：program 鈕很寬（橫向手機一行 ~390），
+    // 6° 的角凸出 ~20px、超過 program 列上下 12px 的旋轉餘量＝被 overflow-y:clip 切掉一角（user 2026-11-06）
+    else if (!isNavSpinDesktop()) opts.rotation = getRot();
     const pendingLabelRot = fromScroll ? null : incomingBtn?._pendingLabelRot;
 
     // active 立即切（user 2026-09-29，同 about anchor-nav：點下去 nav 就換色/轉角，不等右欄卡片退場動畫）。

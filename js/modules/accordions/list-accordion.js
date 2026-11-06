@@ -111,7 +111,9 @@ function initListYearToggle() {
           // item 開合序列進行中（listAnimating）也原地收合：跟捲的 overwrite 會殺掉它的對齊捲動 → alignDone 永不 resolve、
           //   doExpand 不跑、鎖不解＝之後 item 點擊全被吞
           const scroller = getScrollableBox(this);
-          const pinTop = getListStickyTop(this);
+          // 年份自己的釘點：直向手機年份釘 108、title 釘年份下（兩者不同，activities-data-loader updateStickyTop）；桌面同值
+          const ownTop = parseFloat(getComputedStyle(this).top);
+          const pinTop = Number.isNaN(ownTop) ? getListStickyTop(this) : ownTop;
           const groupRect = yearGrid.getBoundingClientRect();
           const follow = !listAnimating && groupRect.top - (scroller ? scroller.getBoundingClientRect().top : 0) < pinTop - 1;
           const collapse = follow ? groupRect.height - this.getBoundingClientRect().height : 0;
@@ -418,8 +420,9 @@ function getListStickyTop(header) {
   // window-path（alumni 等對齊 fixed header band）：var 未設或 0 都回退 200（沿用原行為，別動）。
   if (header.closest('.inner-scroll-scroll-col')) {
     if (getScrollableBox(header)) return Number.isNaN(v) ? 0 : v;
-    // 矮橫向拆 frame（box 不可捲、window 捲）：釘點 = landscape.css `.list-header.active { top: 96px }`（logo 下緣），兩處同步
-    return 96;
+    // 橫向手機／iPad 拆 frame（box 不可捲、window 捲）：釘點＝updateStickyTop 寫的 --list-header-sticky-top
+    // （＝CSS .list-header.active 的 top：橫向手機 --mobile-content-top、iPad 再加年份高）；沒寫的清單才退 96
+    return Number.isNaN(v) ? 96 : v;
   }
   return (Number.isNaN(v) || v === 0) ? 200 : v;
 }

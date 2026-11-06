@@ -135,13 +135,13 @@ function mountZebra(contentEl, html) {
   });
   if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
   // 展開標題列釘點＝inline var（getListStickyTop 只認 [style*=] 的 var＝開 item 捲動落點與 CSS 釘點同步；規章類別 sticky 也疊這值）：
-  // 桌面＝說明段高（說明 sticky 貼框頂，legal.css；沒說明段＝0）；<768 手機有說明段＝header 帶下 92＝文字頂（同 admission；
-  // legal.css 直向段把 col padding／blocker 一起設 92），沒說明段（regulations）＝移除、CSS／JS 各自 fallback 8rem＝清單初始頂
-  // （user 2026-11-01「有說明文字照 admission、沒有就原本高度」）；矮橫向 ≥768 走桌面 frame（CSS 0）、iPad 釘 96（legal.css 檔尾）→ 移除交回 CSS
+  // 桌面＝說明段高（說明 sticky 貼框頂，legal.css；沒說明段＝0）；<768 手機＝--mobile-content-top＝內容初始頂＝blocker 高
+  // （同 activities／admission；值是 px＝getListStickyTop 讀 computed 拿得到數字）
+  // 矮橫向 ≥768 走桌面 frame（CSS 0）、iPad 釘 96（legal.css 檔尾）→ 移除交回 CSS
   const pageDesc = /** @type {HTMLElement|null} */ (contentEl.querySelector('.legal-page-desc'));
   const setStickyTop = () => {
     if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc ? pageDesc.offsetHeight : 0}px`);
-    else if (window.innerWidth < 768 && pageDesc) contentEl.style.setProperty('--list-header-sticky-top', '92px');
+    else if (window.innerWidth < 768) contentEl.style.setProperty('--list-header-sticky-top', 'var(--mobile-content-top)');
     else contentEl.style.removeProperty('--list-header-sticky-top');
   };
   setStickyTop();
@@ -223,7 +223,7 @@ function autoOpenZebra(rows, firstDelay = 100) {
 
 // 規章卡類別欄 sticky offset ＝所屬 accordion header 高度（sticky header 釘捲動框 top:0，類別要釘它正下方）。
 // ⚠️ 別硬編 px（header 高隨字級/字型變，見 curriculum sticky memory）→ 量高寫 var。
-// ponytail: 量一次即可——desktop resize header 高幾乎不變；跨 768 斷點手機無 sticky（reg 表轉直排）故免 resize 監聽。
+// ponytail: 量一次即可——resize header 高幾乎不變（手機 11-05 起也左欄 sticky；跨斷點拖視窗才會差，真裝置不會）。
 function setRegCatStickyTop(root) {
   root.querySelectorAll('.legal-reg-table').forEach(tbl => {
     const header = tbl.closest('.list-item')?.querySelector(':scope > .list-header');
@@ -250,8 +250,8 @@ function textRowEntry(row) {
 
 // ── 規章表格（一個 accordion 內含全部規章）──────────────────────────────────
 // user 2026-09-09b/c：reg 頁只兩個 accordion（全部規章一個、隱私政策一個）。
-//   桌面＝3 欄（類別側欄 grid-row 跨組＋sticky ｜ 規章名 ｜ 承辦單位）；手機＝ref 式直排（類別整列小標、
-//   規章名上／承辦單位下；user 2026-09-11「桌面手機分開、手機看 ref 區的設定」）。排版全在 legal.css .legal-reg-*。
+//   桌面＝3 欄（類別側欄 grid-row 跨組＋sticky ｜ 規章名 ｜ 承辦單位）；手機＝2 欄（類別側欄 sticky 同桌面 ｜
+//   規章名上／承辦單位下一個 box；user 2026-11-05 比照桌面，撤 09-11 類別整列小標）。排版全在 legal.css .legal-reg-*。
 //   規章名有 url 時當連結；列＝ref 色帶（deep 底黑字、hover/:active 黑底白字）。
 function regSpans(en, zh) {
   return (en ? `<span>${esc(en)}</span>` : '')

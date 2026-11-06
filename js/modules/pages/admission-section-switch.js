@@ -189,8 +189,7 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
   bindNavBtnSpin(btns);
 
   // 滾輪分區：col 1-3 捲 window（去 footer/hero）、col 4 起內部捲（box 邊界不外溢），見 section-switch-helpers。
-  // 捲完接下一段（user 2026-11-04，同 activities）：右欄捲到底／頂再滾＝下一／上一個 nav；直向手機＝section 的 data-snap-tabs
-  // （HTML，snap-scroll 磁吸點同一排 nav 鈕）
+  // 捲完接下一段（user 2026-11-04，同 activities）：右欄捲到底／頂再滾＝下一／上一個 nav；只有真桌面（直向手機 11-05 撤）
   const neighbor = (/** @type {number} */ dir) => btns[[...btns].findIndex(b => b.classList.contains('active')) + dir];
   bindFrameScrollSplit(document.getElementById('admission-content-section'), {
     has: (dir) => !!neighbor(dir),

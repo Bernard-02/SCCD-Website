@@ -155,11 +155,16 @@ export function initFacultySlideIn() {
   // 手機／矮橫向 slide-in：同一套分類首開進場（user 2026-11-04）；左欄多了矮橫向塞在名字下的職級（titles），只取視窗內的片
   const entrance = createSlideInEntrance();
   function mobileBlocks() {
+    // openSlideInBg 已把 panel 擲到四向隨機藏位（上下向＝整張在視窗外）→ 視窗底換算成 panel 座標再比；
+    // 直接比 window.innerHeight＝藏在下方那次全被濾掉：整張沒進場、還被記成已進場（之後再開也不進）
+    const bottom = window.innerHeight + slideInPanel.getBoundingClientRect().top;
     const titles = document.getElementById('faculty-detail-titles');
-    const left = [...deskLeft(), ...(titles ? titles.children : [])].filter(el => el.getBoundingClientRect().top < window.innerHeight);
-    // 片縮成字寬當遮罩（cards.css 同段）；section 標題欄的 sticky 底色要滿寬 → 改動裡面的 h3
-    const right = deskRightBlocks(window.innerHeight)
-      .map(b => b.map(el => (el.classList.contains('faculty-section-title-col') && el.querySelector('h3')) || el));
+    const left = [...deskLeft(), ...(titles ? titles.children : [])].filter(el => el.getBoundingClientRect().top < bottom);
+    // 片縮成字寬當遮罩（cards.css 同段）；section 標題欄的 sticky 底色要滿寬 → 改動裡面的 h3；
+    // 列再拆成格（年份／各段文字）：整列一片＝左右向時年份從列右緣橫跨整列飛進來（user 2026-11-05「用 box 本身的寬度」）
+    const right = deskRightBlocks(bottom)
+      .map(b => b.flatMap(el => el.classList.contains('faculty-grid-row') ? [...el.children]
+        : [(el.classList.contains('faculty-section-title-col') && el.querySelector('h3')) || el]));
     return [left, ...right];
   }
 
@@ -298,7 +303,7 @@ export function initFacultySlideIn() {
     if (!contact) return '';
     return `
       <div class="flex flex-col gap-xs md:gap-sm">
-        <div class="w-full mb-xs md:mb-0">
+        <div class="faculty-section-title-col w-full mb-xs md:mb-0">
           <h3 class="text-s text-black">Contact 聯絡</h3>
         </div>
         <div class="flex-1">
@@ -316,9 +321,10 @@ export function initFacultySlideIn() {
 
       // 系所全名 + 職級/職稱的版位（user 2026-09-06 直向手機比照桌面）：
       //   桌機＋直向手機 → 進 #faculty-detail-lead（不旋轉、單獨一塊、sticky 釘在 Education 上方）。
-      //   只有矮橫向（landscape gate）沿用舊版 → 旋轉塞在 profile 左欄名字下方（右欄只留 sections）。
+      //   橫向手機（高 ≤500）也進 lead＝右欄最上、跟著右欄捲（user 2026-11-05；版面在 landscape.css 橫向手機段）。
+      //   只剩 iPad（gate 後半）沿用舊版 → 塞在 profile 左欄名字下方（右欄只留 sections）。
       // 每次開卡即時判斷（跨斷點靠 orientation-reload 自癒，比照本頁其他 isMobile 判斷）。
-      const isLandscapeGate = SCCDHelpers.isLandscapeGate();
+      const leftTitles = SCCDHelpers.isLandscapeGate() && !SCCDHelpers.isLandscapePhone();
 
       // 圖片：沒真實照片的 fulltime/parttime/admin → 用代用 logo。slide-in 底色一直是彩色 accent（panelBg），
       // 故「固定用黑線框 wireframe 版」而非依 site mode 挑彩色 glitch（user 2026-06-11）。
@@ -428,9 +434,9 @@ export function initFacultySlideIn() {
       // occupation 欄、顯示在右側（見下方 sections）。fulltime/admin 的 titles[] 維持學術職稱。
       const titlesContainer = document.getElementById('faculty-detail-titles');
       if (titlesContainer) {
-        // 矮橫向：職級/職稱塞在名字下方（左欄）——樣式同桌面 lead：bold、不旋轉（user 2026-09-19；
-        // 原 font-regular＋整塊隨機旋轉版退場）。桌機＋直向手機：留空（dept/rank 進 lead，見下方 leadContainer）
-        const pairs = isLandscapeGate ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
+        // iPad（leftTitles）：職級/職稱塞在名字下方（左欄）——樣式同桌面 lead：bold、不旋轉（user 2026-09-19；
+        // 原 font-regular＋整塊隨機旋轉版退場）。其餘版型：留空（dept/rank 進 lead，見下方 leadContainer）
+        const pairs = leftTitles ? (data.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' })) : [];
         let html = '';
         pairs.forEach((p, i) => {
           const isLast = i === pairs.length - 1;
@@ -439,7 +445,7 @@ export function initFacultySlideIn() {
             `<p class="text-s font-bold text-black">${p.zh}</p>` +
             `</div>`;
         });
-        titlesContainer.innerHTML = (isLandscapeGate ? deptHtml : '') + html;   // 矮橫向：系所全名墊在 titles 頂
+        titlesContainer.innerHTML = (leftTitles ? deptHtml : '') + html;   // 矮橫向：系所全名墊在 titles 頂
         titlesContainer.style.transform = '';
         titlesContainer.style.transformOrigin = '';
         titlesContainer.style.display = '';
@@ -450,10 +456,10 @@ export function initFacultySlideIn() {
       const leadContainer = document.getElementById('faculty-detail-lead');
       // 桌面：職級/職稱渲染進 #faculty-detail-lead（非捲動 header，在 sections scroll 區之上）→ 右側 scrollbar
       // 從 lead 下方才起、不含 lead（user 2026-08-16）；lead↔Education 1rem 由 lead 的 md:mb-sm 控。
-      // 手機/矮橫向：lead 在 profile 左欄 → 此 header 清空（empty:hidden 不佔位）；parttime 的 occupation 照舊排 sections 最上。
+      // iPad：lead 在 profile 左欄 → 此 header 清空（empty:hidden 不佔位）；parttime 的 occupation 照舊排 sections 最上。
       if (leadContainer) {
-        if (isLandscapeGate) {
-          leadContainer.innerHTML = '';   // 矮橫向：dept/rank 在 profile 左欄（旋轉），lead 留空
+        if (leftTitles) {
+          leadContainer.innerHTML = '';   // iPad：dept/rank 在 profile 左欄，lead 留空
         } else {
           // 桌機＋直向手機同款：系所全名 + 職級 + 職稱（occupation）進 lead，不旋轉。
           // 2026-09-15 user：occupation 只給 atlas 用，slide-in 只有 parttime 渲染
@@ -466,9 +472,9 @@ export function initFacultySlideIn() {
       }
       if (sectionsContainer) {
         let html = '';
-        // 矮橫向的 occupation 排 sections 最上（lead 在該版位留空）；桌機/直向手機已隨 lead 一起渲染
+        // iPad 的 occupation 排 sections 最上（lead 在該版位留空）；桌機/直向手機已隨 lead 一起渲染
         // 2026-09-15 user：同 lead——occupation 只給 atlas 用，slide-in 限 parttime
-        if (isLandscapeGate && data.type === 'parttime') html += buildOccupation(data.occupations);
+        if (leftTitles && data.type === 'parttime') html += buildOccupation(data.occupations);
 
         if (data.type === 'admin') {
           html += buildContactSection(data.contact);
@@ -533,9 +539,9 @@ export function initFacultySlideIn() {
       }
 
       // 每次開新老師都從頂部開始：歸零兩個可能的 scroll 容器 —
-      // 桌面 = 右欄 .list-scroll 獨立 scroll；手機 = 整個內容容器 .no-scrollbar。
+      // 桌面／iPad = 右欄 .list-scroll 獨立 scroll；直向手機 = 整個內容容器 .no-scrollbar；橫向手機 = 整個右欄 #faculty-detail-right。
       // 否則上一位老師若在捲到下方時關閉，scrollTop 殘留 → 下一位老師會從中間打開。
-      slideInPanel?.querySelectorAll('.list-scroll, .no-scrollbar').forEach(el => { el.scrollTop = 0; });
+      slideInPanel?.querySelectorAll('.list-scroll, .no-scrollbar, #faculty-detail-right').forEach(el => { el.scrollTop = 0; });
     }
 
     facultyCards.forEach(card => {
@@ -585,7 +591,9 @@ export function initFacultySlideIn() {
             if (deskCard) { deskClosing = false; desk.open({ id: facultyId }); }
             else {
               openSlideInBg({ panel: slideInPanel });
-              entrance.play(facultyId, mobileBlocks(), SLIDE_IN_ARRIVE);
+              // 照片跟人名維持四向，其餘內容（職稱／標題／各列）只上下（user 2026-11-05）
+              const fourWay = deskLeft();
+              entrance.play(facultyId, mobileBlocks(), SLIDE_IN_ARRIVE, el => fourWay.includes(el));
             }
           }
         });

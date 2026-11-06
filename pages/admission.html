@@ -47,17 +47,13 @@
       </div>
       <!-- 桌面版 -->
       <div class="hero-rand-grid">
-        <h1 class="hero-title text-black inline-block" data-hero-hl>ADMISSIONS</h1>
-        <h1 class="hero-title-cn text-black inline-block" data-hero-hl>入學</h1>
+        <h1 class="hero-title text-black inline-block" data-hero-hl></h1>
+        <h1 class="hero-title-cn text-black inline-block" data-hero-hl></h1>
         <div class="hero-banner">
           <img src="" alt="Admission">
         </div>
-        <p class="hero-text-en text-black text-s" data-hero-hl>
-          Welcome to SCCD. We invite passionate and creative individuals to join our program and explore the world of communications design.
-        </p>
-        <p class="hero-text-cn text-black text-s" data-hero-hl>
-          歡迎對媒體傳達設計充滿熱情的朋友們，報考實踐大學媒體傳達設計學系，一起探索設計的無限可能。
-        </p>
+        <p class="hero-text-en text-black text-s" data-hero-hl></p>
+        <p class="hero-text-cn text-black text-s" data-hero-hl></p>
       </div>
     </section>
 
@@ -67,7 +63,7 @@
          （pt-4xl + window 捲照舊；無 overflow:clip，比照 activities）。 -->
     <!-- min-h-screen：list 還在 fetch 後台資料（panel 空）時撐住整段高度，避免下方 footer 露出 -->
     <!-- 手機 pt-4xl(80)：四頁 nav btn section 統一（faculty/activities/admission/curriculum，user 2026-07-10 從 6xl 收上來） -->
-    <section class="snap-zone bg-white pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden min-h-screen" id="admission-content-section" data-snap-tabs="#admission-content-section .activities-section-btn">
+    <section class="snap-zone bg-white pt-4xl pb-2xl md:pt-0 md:pb-0 md:h-screen md:overflow-hidden min-h-screen" id="admission-content-section">
       <!-- 手機 header blocker（同 activities）：透明 fixed header 下 sticky title 上方透明帶用一條 sticky theme-bg 帶補實。
            桌面用 .admission-scroll-mask（hidden md:block）故此條 md:hidden。詳見 lists.css .list-mobile-header-blocker -->
       <div class="list-mobile-header-blocker md:hidden" aria-hidden="true"></div>
@@ -101,10 +97,10 @@
               <div class="grid-12 mb-xl relative z-20">
                 <div class="col-span-12 md:col-span-7 md:col-start-6 min-[1024px]:col-start-1 min-[1024px]:col-span-9">
                   <!-- list-reveal-row：panel 切換時與 items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場
-                       文字＝後台 admission_hero 的 data-hero-field 欄位（hero-source.js 覆寫）；此處為快照、免載入閃換 -->
+                       文字＝後台 admission_hero 的 data-hero-field 欄位（hero-source.js 填入；HTML 不放佔位字，user 2026-11-05） -->
                   <div class="list-reveal-row">
-                    <p class="text-s font-bold mb-en-zh-body" data-hero-field="announcementDescEn">Please refer to Shih Chien University's admissions system for admission pathways.</p>
-                    <p class="text-s font-bold" lang="zh-Hant" data-hero-field="announcementDescZh">入學管道見實踐大學招生系統。</p>
+                    <p class="text-s font-bold mb-en-zh-body" data-hero-field="announcementDescEn"></p>
+                    <p class="text-s font-bold" lang="zh-Hant" data-hero-field="announcementDescZh"></p>
                   </div>
                 </div>
               </div>
@@ -118,8 +114,8 @@
                 <div class="col-span-12 md:col-span-7 md:col-start-6 min-[1024px]:col-start-1 min-[1024px]:col-span-9">
                   <!-- list-reveal-row：panel 切換時與年份/items 一起參與 reveal/exit；DOM 順序在 list 前 → 先進場 -->
                   <div class="list-reveal-row">
-                    <p class="text-s font-bold mb-en-zh-body" data-hero-field="summerCampDescEn">SCCD Summer Camp offers high school students an immersive introduction to communications design, blending creative workshops, studio visits, and hands-on projects.</p>
-                    <p class="text-s font-bold" lang="zh-Hant" data-hero-field="summerCampDescZh">暑期設計體驗營為高中生提供沉浸式的媒體傳達設計入門體驗，結合創意工作坊、工作室參訪與實作專題，讓學生提前感受設計學習的樣貌。</p>
+                    <p class="text-s font-bold mb-en-zh-body" data-hero-field="summerCampDescEn"></p>
+                    <p class="text-s font-bold" lang="zh-Hant" data-hero-field="summerCampDescZh"></p>
                   </div>
                 </div>
               </div>
