@@ -25,10 +25,10 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  /* 字卡安全區（navigation.css .rotate-hint-stack）：上＝header 下 108、其餘 container padding */
+  --hint-top: var(--mobile-content-top);
+  --hint-side: var(--container-padding);
+  --hint-bottom: var(--container-padding);
   z-index: 99999;
   font-family: var(--font-family);
   background: var(--current-wireframe-bg);
@@ -36,23 +36,17 @@
   transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 
-#landscape-overlay-icon {
-  width: 60px;
-  height: 60px;
-  flex-shrink: 0;
+/* 字卡 wireframe mode（＝站上 mode3）走黑白：/create 不吃 body mode class，跟自己的 wireframe 底／字走；
+   其他 mode＝三原色隨機底（create-app.js inline） */
+#create-app.wireframe-mode #landscape-overlay .rotate-hint-card {
+  background: var(--current-wireframe-text) !important;
+  color: var(--current-wireframe-bg);
 }
 
-/* icon／文字各一個遮罩、出生藏在遮罩下（同 atlas .atlas-rotate-hint-clip）：矮橫向 CSS 首繪就 display:flex 也不先閃出再進場；
+/* 兩張字卡各一個遮罩（傾角掛遮罩、create-app.js 抽）、出生藏在遮罩下（同 atlas .atlas-rotate-hint-clip）：矮橫向 CSS 首繪就 display:flex 也不先閃出再進場；
    之後進退場由 GSAP inline transform 接手（create-app.js sccdPlayLandscapeHintEnter／playCreateExitAnimation） */
 .landscape-overlay-clip { display: flex; overflow: clip; }
 .landscape-overlay-clip > * { transform: translateY(110%); }
-
-#landscape-overlay-text {
-  font-size: 1.2rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  text-align: left;
-}
 
 /* 矮橫向硬 gate：只留 header＋旋轉提示。iOS 轉向時 JS inline display 時序不穩會漏 → CSS 釘死（!important 蓋 JS inline）。
    z-index 40 < header z-50＝header 照常可點；gate 外維持 JS 行為。
@@ -138,11 +132,6 @@
   color: inherit;
 }
 
-/* 旋轉提示 icon 跟「頁面底」對比：inverse 一律反白；mode3 看 .white-icons（JS toggle） */
-#create-app.inverse-mode #landscape-overlay-icon,
-#create-app.white-icons #landscape-overlay-icon {
-  filter: invert(1);
-}
 
 /* 按鈕 icon（單色黑版）跟盒底反色：黑底（standard／mode3 .dark-icons）→ invert 反白；白底 → 不反。
    桌面 .control-box、手機 bottom bar 盒近透明，下方各自再翻轉成對比頁面底。 */
@@ -839,6 +828,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   border-radius: 0;
   background: #e6e6e6;
   outline: none;
+  box-shadow: none;   /* iPad Safari 的 range 軌道／thumb 有 UA 陰影（appearance:none 也不會拿掉），全狀態一律清 */
   transition: none; /* 不過渡：免切換時顏色延遲 */
   margin: 0;
 }
@@ -852,8 +842,14 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   cursor: var(--cursor-pointer);
   border: none;
   background: #e6e6e6;
+  box-shadow: none;
   transition: none;
 }
+
+/* 手機按住／聚焦時 WebKit 另給 thumb 一層陰影與點擊灰框（user 2026-11-05 實機仍看到陰影；Playwright WebKit 模擬重現不了）→ 各狀態也清 */
+.custom-slider { -webkit-tap-highlight-color: transparent; }
+.custom-slider:is(:focus, :active, :focus-visible) { box-shadow: none; outline: none; }
+.custom-slider:is(:focus, :active, :focus-visible)::-webkit-slider-thumb { box-shadow: none; outline: none; }
 
 .custom-slider::-moz-range-thumb {
   width: var(--slider-thumb-width);
@@ -862,6 +858,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   cursor: var(--cursor-pointer);
   border: none;
   background: #e6e6e6;
+  box-shadow: none;
   transition: none;
 }
 
@@ -885,17 +882,14 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 #create-app.standard-mode .custom-slider:not(.enabled),
 #create-app.inverse-mode .custom-slider:not(.enabled) {
   background: var(--lib-fg);
-  box-shadow: none;
 }
 #create-app.standard-mode .custom-slider:not(.enabled)::-webkit-slider-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled)::-webkit-slider-thumb {
   background: var(--lib-fg);
-  box-shadow: none;
 }
 #create-app.standard-mode .custom-slider:not(.enabled)::-moz-range-thumb,
 #create-app.inverse-mode .custom-slider:not(.enabled)::-moz-range-thumb {
   background: var(--lib-fg);
-  box-shadow: none;
 }
 
 /* mode3 slider／thumb＝--lib-fg（active/inactive 同色，差別只在 opacity）。
@@ -1140,91 +1134,68 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     /* 不設 aspect-ratio：canvas 尺寸由 JS 依可用空間算 */
     display: flex;
     justify-content: center;
-    /* 靠上不置中：mode3 多一條色條、容器高不同，置中＝三個 mode 的 logo 高低不一（user 2026-11-04）；靠上＝離 header 固定距離 */
-    align-items: flex-start;
+    /* 容器＝剩餘空間，logo 在裡面置中、上下各留 10%（尺寸 getCanvasSize 算，user 2026-11-05；取代 11-04 靠上） */
+    align-items: center;
     padding: 0;
     box-sizing: border-box;
     transition: width var(--dur-fast) ease, opacity var(--dur-fast) ease;
   }
 
-  /* Logo 寬度等級（.has-custom 由 JS 切） */
-
-  #create-app.standard-mode .mobile-logo-container.has-custom,
-  #create-app.inverse-mode .mobile-logo-container.has-custom {
-    width: 70%;
-  }
-
-  /* mode3 無 custom：色條常駐但 logo 不縮 */
-  #create-app.wireframe-mode .mobile-logo-container {
-    width: 100%;
-  }
-
-  #create-app.wireframe-mode .mobile-logo-container.has-custom {
-    width: 65%;
-  }
-
   #canvas-container {
     width: auto;
     height: auto;
-    max-width: 100%;
-    max-height: 100%;
     display: flex;
     justify-content: center;
-    align-items: flex-start;   /* 同 logo 容器靠上：canvas 尺寸過渡中比容器高時不往上偏（鍵盤開關那一下） */
+    align-items: center;
     transition: background-color var(--dur-base) ease;
     box-sizing: border-box;
   }
 
   /* 顯示尺寸＝p5 依 logo 容器算好的 inline 寬高（getCanvasSize）。⚠️ 別再寫 width/height:100% !important：
      #canvas-container 是 auto 尺寸、% 無基準 → 退回 canvas 像素屬性（×devicePixelRatio），實機 2–3x 螢幕 canvas
-     放大到吃滿容器寬、往下壓到輸入字（user 10-28；headless 1x 量不到）。max-* 只在容器剛縮、resize 還沒跑時兜底 */
+     放大到吃滿容器寬、往下壓到輸入字（user 10-28；headless 1x 量不到）。
+     容器變化中＝mobile.js ResizeObserver 寫 CSS scale 等比跟、防抖到了才重建點陣圖（不用寬高 transition／max-* 夾：
+     點陣圖先換、顯示框才補間＝logo 先放大再縮回，user 2026-11-05）。比容器大的那一下置中溢出、透明不擋版面 */
   #canvas-container canvas {
-    max-width: 100%;
-    max-height: 100%;
     display: block;
-    object-fit: contain;
-    /* resizeCanvas 換的 inline 寬高用過渡接上、不直接跳（user 2026-10-29）；點陣圖已是新尺寸、只有顯示框在補間，
-       寬高同比例＝畫面等比縮放。時長／曲線同 .mobile-logo-container */
-    transition: width var(--dur-fast) ease, height var(--dur-fast) ease;
+    flex: none;
   }
 
   /* === 手機 Custom 展開區 === */
+  /* 開合同色條（下方 .mobile-colorpicker-bar）：常駐 render、列高 0fr↔1fr＋收起時上 margin 抵銷 flex gap，跟輸入區 height／margin
+     同一條 dur-fast ease（user 2026-11-05）。原本 .hidden 吃到通用 #create-app .hidden { display:none !important }＝max-height 過渡
+     從沒跑過：面板瞬間出現／消失、輸入區才 0.3s 縮放 → logo 容器先縮再放（開）／先放大再縮回（關），canvas 跟著跳 */
   .mobile-custom-angle-controls {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);   /* min 0：auto 下限＝內層 padding、收不到 0 */
     width: 100%;
     background: transparent;
     box-sizing: border-box;
     flex-shrink: 0;
-    max-height: 0;
     overflow: hidden;
-    opacity: 0;
-    transition: max-height var(--dur-base) var(--ease-standard),
-                opacity var(--dur-base) var(--ease-standard);
+    transition: grid-template-rows var(--dur-fast) ease, margin-top var(--dur-fast) ease;
   }
 
-  .mobile-custom-angle-controls.hidden {
-    max-height: 0 !important;
-    opacity: 0 !important;
+  #create-app .mobile-custom-angle-controls.hidden {
+    display: grid !important;   /* 蓋通用 #create-app .hidden 的 display:none !important（特異度高一階） */
+    grid-template-rows: minmax(0, 0fr);
+    margin-top: calc(-1 * var(--mobile-content-gap));
   }
 
-  .mobile-custom-angle-controls:not(.hidden) {
-    max-height: 120px;
-    opacity: 1;
-  }
-
-  /* 內層；盒底色統一在檔尾「手機盒底淡疊」區塊 */
+  /* 內層；盒底色統一在檔尾「手機盒底淡疊」區塊。
+     內距看得到的邊（user 2026-11-05）：左＝盒緣→slider、右＝icon 本身→盒緣、slider 欄→icon 欄，三段都 sm（同色條盒 --cp-pad）；
+     上下＝第一／三條 slider 的 thumb 外緣→盒緣也是 sm：列高比 thumb 高 → 上下 padding 扣掉半個差 */
   .mobile-custom-angle-controls .controls-inner {
+    --ca-row-h: calc(0.8rem * 1.5);   /* 角度數字列高（.angle-input 字級×行高，比 thumb 14 高） */
     display: flex;
     flex-direction: row;
     align-items: stretch;
     width: 100%;
-    padding: 1.2rem;
+    padding: calc(var(--spacing-sm) - (var(--ca-row-h) - var(--slider-thumb-size)) / 2) var(--spacing-sm);
     border: none;
     border-radius: 0;
     box-sizing: border-box;
-    gap: 0.8rem;
+    gap: var(--spacing-sm);
     overflow: hidden;
   }
 
@@ -1264,6 +1235,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   }
 
   .mobile-custom-angle-controls .angle-input {
+    height: var(--ca-row-h);   /* 列高定死＝上下內距算得出 thumb 外緣離盒緣多遠（.controls-inner） */
     width: 38px;
     flex-shrink: 0;
     text-align: center;
@@ -1271,33 +1243,46 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     user-select: none;
   }
 
+  /* icon 欄寬＝icon 本身（不含 44 觸控框，user 2026-11-05「以 icon 本身寬度為主」）；兩顆分別對齊第一／三條 slider 那列 */
   .mobile-custom-angle-controls .icon-buttons-wrapper {
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
+    justify-content: space-between;
     align-items: center;
-    gap: 0.8rem;
-    flex-shrink: 0;
-    flex-grow: 0;
-    width: calc(var(--mobile-btn-size) * 0.7); /* 容納 44×44 touch target */
+    gap: 0;
+    flex: none;
+    width: auto;
   }
 
-  /* 繼承桌面 .image-button base；button ≥44×44 觸控標準，icon 尺寸另走 var */
+  /* 鈕＝icon 大小（排版不被 44 框撐開）；觸控區 44×44 用 ::after 外擴 */
   .mobile-custom-angle-controls .icon-buttons-wrapper .image-button {
+    position: relative;
+    width: auto;
+    height: var(--ca-row-h);
+    align-items: center;
+  }
+  .mobile-custom-angle-controls .icon-buttons-wrapper .image-button::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
     width: 44px;
     height: 44px;
+    translate: -50% -50%;
   }
 
   .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-random-img {
     width: calc(var(--mobile-btn-size) * 0.5);
     height: calc(var(--mobile-btn-size) * 0.4);
     object-fit: contain;
+    flex: none;
   }
 
   .mobile-custom-angle-controls .icon-buttons-wrapper #mobile-reset-img {
     width: calc(var(--mobile-btn-size) * 0.44);
     height: calc(var(--mobile-btn-size) * 0.44);
     object-fit: contain;
+    flex: none;
   }
 
   .mobile-custom-angle-controls .icon-buttons-wrapper .image-button:active {

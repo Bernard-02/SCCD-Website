@@ -12,16 +12,10 @@ function getCurrentInputBox() {
 
 // --- 同步所有輸入框的內容 ---
 function syncInputBoxes(sourceValue) {
-    if (inputBox) {
-        inputBox.value(sourceValue);
-    }
-    if (inputBoxMobile) {
-        inputBoxMobile.value(sourceValue);
-    }
-    // 同步新的手機版底部輸入框
-    let mobileInputBoxBottom = _p5.select("#mobile-input-box");
-    if (mobileInputBoxBottom) {
-        mobileInputBoxBottom.value(sourceValue);
+    // 值沒變就不寫：正在打的那個框每鍵重設 value＝游標被丟到字尾、iOS 每鍵重新捲去露出游標（visualViewport 一直跳）、
+    // 輸入法候選也被打斷（手機打字卡，user 2026-11-05）
+    for (const box of [inputBox, inputBoxMobile, _p5.select("#mobile-input-box")]) {
+        if (box && box.elt.value !== sourceValue) box.elt.value = sourceValue;
     }
     updateFakeCaret();   // 程式改值（過濾／彩蛋清空）後假游標跟到字尾
 }

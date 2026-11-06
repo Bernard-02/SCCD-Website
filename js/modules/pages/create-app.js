@@ -27,11 +27,12 @@ import {
   getStoredMode,
 } from '../ui/theme-toggle.js';
 import { registerPageExit } from '../ui/page-exit.js';
-import { setupClipReveal, clipRevealIconSwap, randomCardTilt } from '../ui/scroll-animate.js';
+import { setupClipReveal, clipRevealIconSwap, randomCardTilt, revealHidden } from '../ui/scroll-animate.js';
 import { killGenerateLogoTimeline, GEN_LOGO_LAYOUT, animateHeaderModeBtnShow } from '../../header.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { sitePath } from '../ui/site-base.js';
+import { hugWidestLine } from './hero-animation.js';
 
 const ASSET_BASE = sitePath('generate-app');
 
@@ -47,7 +48,8 @@ window.sccdStartColorLoop = startSiteColorLoop;    // Play btn
 window.sccdStopColorLoop = stopSiteColorLoop;      // Pause btn
 window.sccdIsColorLoopRunning = isColorLoopRunning; // Play/Pause icon 切換判斷
 window.sccdClipRevealIconSwap = clipRevealIconSwap; // mode 鈕換 icon 的 clip-reveal（generate-app utils.js swapModeIcon）
-window.sccdPlayControlBarEntrance = (onDone) => playControlBarEntrance(onDone); // sketch.js setup 末尾
+window.sccdPlayControlBarEntrance = (onDone, mobile) => playControlBarEntrance(onDone, mobile); // sketch.js setup 末尾
+window.sccdPlayLogoEntrance = (mobile) => playLogoEntrance(mobile);                             // sketch.js setup 末尾
 // 矮橫向轉向提示（#landscape-overlay）：icon／文字塊各自 clip-reveal 進場（同 atlas playHintEnter）。
 // sketch.js handleOrientationChange 顯示 overlay 時叫；它掛在 resize 上每次都會再叫 → dataset 記「已進場」只播一次、轉回直向時清掉
 const landscapeHintParts = () => Array.from(document.querySelectorAll('#landscape-overlay .landscape-overlay-clip > *'));
@@ -55,7 +57,22 @@ window.sccdPlayLandscapeHintEnter = () => {
   const overlay = document.getElementById('landscape-overlay');
   if (!overlay || overlay.dataset.hintIn) return;
   overlay.dataset.hintIn = '1';
+  // 字卡（比照 COMING SOON hero，每次進場重抽，user 2026-11-05）：各自在安全區內隨機落點（--x／--y，navigation.css
+  // .rotate-hint-stack；一張 y 0–0.35、一張 0.65–1＝不互疊；誰上誰下每次隨機，user 2026-11-05）、各自 2–5°（傾角掛遮罩）、三原色隨機兩張同一色
+  const color = SCCDHelpers.getRandomAccentColor();
+  const topFirst = Math.random() < 0.5;   // 英文在上段或下段
+  overlay.querySelectorAll('.landscape-overlay-clip').forEach((c, i) => {
+    /** @type {HTMLElement} */ (c).style.setProperty('--x', Math.random().toFixed(3));
+    /** @type {HTMLElement} */ (c).style.setProperty('--y', (((i === 0) === topFirst ? 0 : 0.65) + Math.random() * 0.35).toFixed(3));
+    /** @type {HTMLElement} */ (c).style.rotate = `${((2 + Math.random() * 3) * (Math.random() < 0.5 ? -1 : 1)).toFixed(2)}deg`;   // 2–5°、正負隨機（user 2026-11-05 嫌 ±3 太小）
+    /** @type {HTMLElement} */ (c.firstElementChild).style.background = color;
+  });
   const parts = landscapeHintParts();
+  // 換行的卡框收到最寬那行（同 COMING SOON hugWidestLine）；後台字晚到重收（observer 每個 overlay 掛一次）
+  const hug = () => landscapeHintParts().forEach(el => hugWidestLine(el));
+  hug();
+  const ov = /** @type {any} */ (overlay);
+  if (!ov._hugMO) { ov._hugMO = new MutationObserver(hug); ov._hugMO.observe(overlay, { childList: true, characterData: true, subtree: true }); }
   if (typeof gsap === 'undefined' || prefersReducedMotion()) { parts.forEach(el => { el.style.transform = 'none'; }); return; }
   const dirs = alternatingYPercent(parts.length);
   // y:0 蓋掉 GSAP 從 CSS 出生藏態解析到的 px 位移（同 atlas）
@@ -65,6 +82,11 @@ window.sccdPlayLandscapeHintEnter = () => {
 // ── 桌面 control bar 進退場共用 ──
 const desktopControlBoxes = () => Array.from(document.querySelectorAll('.control-panel > .control-box'))
   .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);   // 非 mode3 的 colorpicker-box display:none
+// 手機：底部三顆（mode／custom＋旋轉／下載）＋mode3 色條膠囊（收起的色條＝列高 0，不算）
+const mobileControlBoxes = () => [
+  ...document.querySelectorAll('.mobile-bottom-bar > *'),
+  ...document.querySelectorAll('.mobile-colorpicker-bar:not(.hidden) > .colorpicker-bar-inner'),
+].filter(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
 
 // 每盒包一層自身形狀的遮罩（尺寸＋圓角；圓 mode 鈕圓遮罩、mode3 膠囊兩半拼回膠囊）：盒在自己的形狀裡滑出、
 // 不撞 panel 的直邊（user 2026-10-01）。先全部量完再包（讀寫分離）；marginLeft（mode3 colorpicker 的負 margin）
@@ -143,9 +165,9 @@ function controlBarMotion(boxes) {
 // mode3 進來＝色環跟膠囊同一 unit 進、不另播色環 reveal（onDone 前 ui-state.js 的 controlBarRevealed＝false 擋掉）。
 // 完成後拆遮罩（常駐會擋 mode3 膠囊長寬 transition）；離頁退場遇到進行中＝cancel 直接收尾再退
 let cancelControlBarEntrance = null;
-function playControlBarEntrance(onDone) {
-  tiltControlBoxes();
-  const boxes = desktopControlBoxes();
+function playControlBarEntrance(onDone, mobile = false) {
+  if (!mobile) tiltControlBoxes();
+  const boxes = mobile ? mobileControlBoxes() : desktopControlBoxes();
   if (typeof gsap === 'undefined' || prefersReducedMotion() || !boxes.length) { onDone?.(); return; }
   const masks = wrapInShapeMasks(boxes);
   const { yDirs, delay } = controlBarMotion(boxes);
@@ -162,6 +184,39 @@ function playControlBarEntrance(onDone) {
   };
   const tween = gsap.to(boxes, { yPercent: 0, duration: DUR.medium, ease: EASE.enter, stagger: delay, onComplete: finish });
   cancelControlBarEntrance = () => { tween.kill(); finish(); };
+}
+
+// 中央 logo（畫布）進場＝clip-reveal（user 2026-11-05，取代 opacity 淡入；手機同日比照）：遮罩＝logo 實際繪圖範圍
+// （同退場 measureLayoutItemBbox），畫布從四向隨機一邊滑進、位移＝遮罩邊長 110%。
+// draw() 第一幀就把容器 opacity 寫 1 → 先 inset(50%) 全裁掉；placeholder SVG 非同步載入＝等畫出東西才量，逾時就用整個容器當遮罩
+let cancelLogoEntrance = null;
+function playLogoEntrance(mobile = false) {
+  const box = document.getElementById(mobile ? 'canvas-container' : 'desktop-canvas-container');
+  if (!box || typeof gsap === 'undefined' || prefersReducedMotion()) return;
+  box.style.clipPath = 'inset(50%)';
+  let frames = 0, raf = 0, tween = null;
+  const finish = () => {
+    cancelAnimationFrame(raf);
+    tween?.kill();
+    const cv = box.querySelector('canvas');
+    if (cv) gsap.set(cv, { clearProps: 'transform' });
+    box.style.clipPath = '';
+    cancelLogoEntrance = null;
+  };
+  cancelLogoEntrance = finish;
+  const start = () => {
+    const cv = box.querySelector('canvas');
+    const bb = cv ? measureLayoutItemBbox(box) : null;
+    if (!bb && ++frames < 90) { raf = requestAnimationFrame(start); return; }
+    if (!cv) { finish(); return; }
+    const W = box.offsetWidth, H = box.offsetHeight, PAD = 8;   // PAD：三層 placeholder 一直在轉，bbox 外留點餘裕免切角
+    const r = bb || { top: 0, left: 0, width: W, height: H };
+    box.style.clipPath = `inset(${r.top - PAD}px ${W - r.left - r.width - PAD}px ${H - r.top - r.height - PAD}px ${r.left - PAD}px)`;
+    const { xPercent, yPercent } = revealHidden();
+    tween = gsap.fromTo(cv, { x: xPercent / 100 * (r.width + 2 * PAD), y: yPercent / 100 * (r.height + 2 * PAD) },
+      { x: 0, y: 0, duration: DUR.reveal, ease: EASE.enter, onComplete: finish });
+  };
+  raf = requestAnimationFrame(start);
 }
 
 // 載入順序不能改，後面檔案依賴前面定義的 global var/function
@@ -288,6 +343,9 @@ function playCreateExitAnimation(destinationRoute) {
   //   controlBarItems = control bar 拆成獨立元素，小幅 stagger 0.05s 視覺上接近同時收起
   //     mask 用 parent overflow-y:clip（control box 本身大小跟 parent 接近、items 多用 wrap 較囉嗦）
   let layoutItems, controlBarItems, controlBarParent;
+  // 進場還在跑（盒還包在進場遮罩裡、logo 還在滑）＝先收尾拆遮罩再量
+  cancelControlBarEntrance?.();
+  cancelLogoEntrance?.();
   if (isMobile) {
     layoutItems = [
       document.querySelector('.mobile-logo-container'),  // 繪製的 logo
@@ -303,9 +361,7 @@ function playCreateExitAnimation(destinationRoute) {
       document.querySelector('.input-container'),          // 輸入框
       document.querySelector('#desktop-canvas-container'), // 繪製的 logo
     ];
-    // control-panel 內 .control-box，filter 掉非 wireframe mode 隱藏的 #colorpicker-box；
-    // 進場還在跑（盒還包在進場遮罩裡）＝先收尾拆遮罩再量
-    cancelControlBarEntrance?.();
+    // control-panel 內 .control-box，filter 掉非 wireframe mode 隱藏的 #colorpicker-box
     controlBarParent = document.querySelector('.control-panel');
     controlBarItems = desktopControlBoxes();
   }
@@ -576,6 +632,7 @@ function runCreateApp() {
 
 export function cleanupCreatePage() {
   cancelControlBarEntrance = null;   // DOM 隨換頁整個換掉，不用收尾
+  cancelLogoEntrance?.();            // 停掉還在等第一幀的 rAF（tween 目標隨 DOM 換掉）
   if (typeof window.cleanupCreateApp === 'function') {
     window.cleanupCreateApp();
   }

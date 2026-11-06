@@ -108,6 +108,31 @@ function loadPlaceholderImages() {
 
 // --- p5.js 初始化設定 ---
 function setup() {
+  // p5 select()/selectAll() 每次包 p5.Element 都讀 offsetWidth/Height＝強制排版；updateUI（每打一字跑好幾次）、draw（每幀）
+  // 大量呼叫 → 手機打字卡（user 2026-11-05，headless 降速 profile 確認）。同 selector 找到同一個元素＝沿用上次的包裝
+  // （querySelector 本身不排版）；元素被換掉／增減才重包。帶 container 參數的照原本走
+  const _select = _p5.select.bind(_p5), _selectAll = _p5.selectAll.bind(_p5);
+  const selCache = new Map(), allCache = new Map();
+  _p5.select = (sel, ctx) => {
+    if (ctx || typeof sel !== 'string') return _select(sel, ctx);
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const hit = selCache.get(sel);
+    if (hit && hit.elt === el) return hit;
+    const w = _select(sel);
+    selCache.set(sel, w);
+    return w;
+  };
+  _p5.selectAll = (sel, ctx) => {
+    if (ctx || typeof sel !== 'string') return _selectAll(sel, ctx);
+    const els = document.querySelectorAll(sel);
+    const hit = allCache.get(sel);
+    if (hit && hit.length === els.length && hit.every((w, i) => w.elt === els[i])) return hit;
+    const ws = _selectAll(sel);
+    allCache.set(sel, ws);
+    return ws;
+  };
+
   // 初始檢測手機模式
   checkMobileMode();
   updateDesktopScale();   // 桌面整組縮放比例（getCanvasSize／字級都依它）
@@ -722,15 +747,15 @@ function setup() {
     }
   }, 100); // 稍微延遲以確保頁面完全載入
 
-  // 初始化頁面載入動畫
-  pageLoadStartTime = _p5.millis();
-  // 桌面 control bar 進場＝clip-reveal（create-app.js；取代原本跟 logo 一起的 opacity fade，user 2026-10-21）。
+  // control bar 進場＝clip-reveal（create-app.js；取代原本的 opacity fade，桌面 user 2026-10-21、手機比照 2026-11-05）。
   // 放 updateUI 之後＝各盒顯隱（mode3 色環盒）已定；第一幀 draw 才把 panel opacity 設 1＝盒已藏在遮罩外不閃
-  if (!isMobileMode && typeof window.sccdPlayControlBarEntrance === 'function') {
-    window.sccdPlayControlBarEntrance(() => { controlBarRevealed = true; });
+  if (typeof window.sccdPlayControlBarEntrance === 'function') {
+    window.sccdPlayControlBarEntrance(() => { controlBarRevealed = true; }, isMobileMode);
   } else {
     controlBarRevealed = true;
   }
+  // 中央 logo 同拍 clip-reveal（取代 opacity 淡入，user 2026-11-05）；要在第一幀 draw 寫 opacity 1 之前先裁掉
+  if (typeof window.sccdPlayLogoEntrance === 'function') window.sccdPlayLogoEntrance(isMobileMode);
   // CSS 已經將所有元素預設為 opacity: 0，這裡不需要重複設定
   // placeholder 的 opacity 由 logoOpacity 變數控制，在 draw() 中處理
 
@@ -902,105 +927,16 @@ function draw() {
     }
   }
 
-  // --- 頁面載入動畫 ---
-  let timeSinceLoad = _p5.millis() - pageLoadStartTime;
-
-  // === 桌面版動畫 ===
-  if (!isMobileMode) {
-    // 1. 輸入框 fade in (0ms - fadeInDuration)
-    if (timeSinceLoad < fadeInDuration) {
-      inputBoxOpacity = _p5.map(timeSinceLoad, 0, fadeInDuration, 0, 1);
-    } else {
-      inputBoxOpacity = 1;
-    }
-
-    // 2. Logo 和 Control panel 跟輸入框同時 fade in（2026-09-29 user：進頁直接 run，不等打字機）
-    let logoAndPanelStartTime = 0;
-
-    // Logo fade in
-    if (timeSinceLoad >= logoAndPanelStartTime && timeSinceLoad < logoAndPanelStartTime + fadeInDuration) {
-      logoOpacity = _p5.map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
-    } else if (timeSinceLoad >= logoAndPanelStartTime + fadeInDuration) {
-      logoOpacity = 1;
-    }
-
-    // Control panel fade in (與 Logo 同時開始)
-    if (timeSinceLoad >= logoAndPanelStartTime && timeSinceLoad < logoAndPanelStartTime + fadeInDuration) {
-      controlPanelOpacity = _p5.map(timeSinceLoad, logoAndPanelStartTime, logoAndPanelStartTime + fadeInDuration, 0, 1);
-    } else if (timeSinceLoad >= logoAndPanelStartTime + fadeInDuration) {
-      controlPanelOpacity = 1;
-    }
-  }
-  // === 手機版動畫：依序 Logo → 輸入框 → Btn Bar ===
-  else {
-    // 1. Logo fade in (0ms - fadeInDuration)
-    if (timeSinceLoad < fadeInDuration) {
-      logoOpacity = _p5.map(timeSinceLoad, 0, fadeInDuration, 0, 1);
-    } else {
-      logoOpacity = 1;
-    }
-
-    // 2. 輸入框在 Logo 完成後 + fadeInDelay 延遲後 fade in
-    let inputBoxStartTime = fadeInDuration + fadeInDelay;
-    if (timeSinceLoad >= inputBoxStartTime && timeSinceLoad < inputBoxStartTime + fadeInDuration) {
-      inputBoxOpacity = _p5.map(timeSinceLoad, inputBoxStartTime, inputBoxStartTime + fadeInDuration, 0, 1);
-    } else if (timeSinceLoad >= inputBoxStartTime + fadeInDuration) {
-      inputBoxOpacity = 1;
-    } else {
-      inputBoxOpacity = 0;
-    }
-
-    // 3. Btn Bar 在輸入框完成後 + fadeInDelay 延遲後 fade in
-    let btnBarStartTime = inputBoxStartTime + fadeInDuration + fadeInDelay;
-    if (timeSinceLoad >= btnBarStartTime && timeSinceLoad < btnBarStartTime + fadeInDuration) {
-      controlPanelOpacity = _p5.map(timeSinceLoad, btnBarStartTime, btnBarStartTime + fadeInDuration, 0, 1);
-    } else if (timeSinceLoad >= btnBarStartTime + fadeInDuration) {
-      controlPanelOpacity = 1;
-    } else {
-      controlPanelOpacity = 0;
-    }
-  }
-
-  // 應用透明度到 DOM 元素
-  if (inputBox) inputBox.style('opacity', inputBoxOpacity.toString());
-  if (inputBoxMobile) inputBoxMobile.style('opacity', inputBoxOpacity.toString());
-  // 新的手機版底部輸入框也套用透明度
-  let mobileInputBoxBottom = _p5.select("#mobile-input-box");
-  if (mobileInputBoxBottom) mobileInputBoxBottom.style('opacity', inputBoxOpacity.toString());
-  // 桌面版：輸入框容器跟隨輸入框透明度
-  let inputContainer = _p5.select('.input-container');
-  if (inputContainer && !isMobileMode) inputContainer.style('opacity', inputBoxOpacity.toString());
-  // Canvas 容器跟隨 logo 透明度
-  if (canvasContainer) canvasContainer.style('opacity', logoOpacity.toString());
-  // 控制面板：桌面不淡入、進場走 clip-reveal（setup 末尾 sccdPlayControlBarEntrance）；
-  // 仍每幀寫 1＝手機進頁後轉成桌面版也看得到（CSS 預設 opacity 0）
-  let controlPanel = _p5.select('.control-panel');
-  if (controlPanel && !isMobileMode) controlPanel.style('opacity', '1');
-
-  // 手機版：輸入框區域的滑入動畫
-  let mobileInputArea = _p5.select('.mobile-input-area');
-  if (mobileInputArea && isMobileMode) {
-    let inputBoxStartTime = fadeInDuration + fadeInDelay;
-    if (timeSinceLoad >= inputBoxStartTime && timeSinceLoad < inputBoxStartTime + fadeInDuration) {
-      let progress = (timeSinceLoad - inputBoxStartTime) / fadeInDuration;
-      // 使用 easeOutCubic 緩動函數讓動畫更自然
-      let easeProgress = 1 - Math.pow(1 - progress, 3);
-      let translateX = -100 + (easeProgress * 100); // 從 -100% 到 0%
-      mobileInputArea.style('transform', `translateX(${translateX}%)`);
-      mobileInputArea.style('opacity', progress.toString());
-    } else if (timeSinceLoad >= inputBoxStartTime + fadeInDuration) {
-      mobileInputArea.style('transform', 'translateX(0)');
-      mobileInputArea.style('opacity', '1');
-    } else {
-      mobileInputArea.style('transform', 'translateX(-100%)');
-      mobileInputArea.style('opacity', '0');
-    }
-  }
-
-  // 手機版：底部按鈕列
-  let mobileBottomBar = _p5.select('.mobile-bottom-bar');
-  if (mobileBottomBar && isMobileMode) {
-    mobileBottomBar.style('opacity', controlPanelOpacity.toString());
+  // --- 進場：不淡入（桌面 user 2026-11-05、手機同日比照）---
+  // logo／control bar 走 clip-reveal（setup 末尾先藏進遮罩）、輸入框直接現、placeholder 照打字。
+  // CSS 給這幾塊出生 opacity 0（防 swap 進來先閃一次完整 UI，見 create.css）→ 第一幀一次寫 1，兩種版型的都寫
+  // （手機進頁後拉成桌面版也看得到）。原本每幀 select＋寫 style＝每幀強制排版，手機打字卡。
+  // logoOpacity 同時乘進 logo 本身的 alpha（draw-logo.js）→ 一開始就 1、bbox 才量得到
+  if (!entranceShown) {
+    entranceShown = true;
+    inputBoxOpacity = logoOpacity = controlPanelOpacity = 1;
+    document.querySelectorAll('#input-box, #input-box-mobile, #mobile-input-box, .input-container, #canvas-container, #desktop-canvas-container, .control-panel, .mobile-input-area, .mobile-bottom-bar')
+      .forEach(el => { el.style.opacity = '1'; });
   }
 
   // --- 打字機動畫更新 ---
@@ -1629,13 +1565,18 @@ function animateSaveButton(button, iconElement) {
 
 // --- 重新調整 Canvas 尺寸（手機版專用）---
 function resizeMobileCanvas() {
-  if (!isMobileMode) return;
+  if (!isMobileMode || !_p5) return;   // 離頁後還在排的防抖計時器（mobile.js requestCanvasResize）會晚到
 
   // 重新計算 canvas 尺寸（會根據當前 logo-container 的大小）
   let canvasSize = getCanvasSize();
+  // 容器 ResizeObserver 在點陣圖重建前先用 CSS scale 跟尺寸（mobile.js）；到這裡點陣圖＝目標尺寸，scale 歸位
+  const cv = document.querySelector('#canvas-container canvas');
+  if (cv) cv.style.scale = '';
   // 尺寸沒變不重建（resizeCanvas 會重配整張點陣圖；resize／ResizeObserver／換 mode 常連發同尺寸）
   if (canvasSize.width === _p5.width && canvasSize.height === _p5.height) return;
-  _p5.resizeCanvas(canvasSize.width, canvasSize.height, true); // noRedraw=true，防止自動重繪
+  // 要重畫：重配點陣圖＝清空，等下一幀 draw 才補＝中間那次 paint 是空白 canvas（logo 閃一下）。
+  // setup 還沒跑完（initMobileUI 進頁那次）不重畫：draw 用到的東西還沒建；第一幀 draw 本來就在後面
+  _p5.resizeCanvas(canvasSize.width, canvasSize.height, !setupComplete);
 
   // 根據 canvas 尺寸動態調整 logo 文字大小
   let baseTextSize = (canvasSize.width / 432) * 367.5 * 1.1;
@@ -1780,6 +1721,7 @@ function resetCreateAppUserState() {
   inputBoxOpacity = 0;
   logoOpacity = 0;
   controlPanelOpacity = 0;
+  entranceShown = false;
   controlBarRevealed = false;   // 下次進頁 mode3 色環照樣跟膠囊一起進
   // Placeholder alpha：user 上次 session 打過字 → targetPlaceholderAlpha=0, placeholderAlpha lerp 到 0
   // 殘留下 session 重進 letters=[] 走 placeholder 分支，但 drawPlaceholder lerp(0, 0) 永遠 0 → 看不到

@@ -46,8 +46,6 @@ const _PANEL_ICON_MAP = {
   Reset_Inverse: 'reset',
   Download: 'download_create',
   Download_Inverse: 'download_create',
-  Rotate_Phone: 'rotate_phone',
-  Rotate_Phone_Inverse: 'rotate_phone',
   Generate: 'generate',
   Generate_Inverse: 'generate',
   Gift: 'Gift',
@@ -90,7 +88,9 @@ function getCanvasSize() {
     if (logoContainer) {
       const rect = logoContainer.getBoundingClientRect();
       const availableWidth = rect.width;
-      const availableHeight = rect.height;
+      // logo 容器＝扣掉輸入框／面板／底部鈕後的剩餘空間；上下各留 10%、logo 在裡面置中（user 2026-11-05）
+      // → 開的東西越多剩餘越矮、logo 越小
+      const availableHeight = rect.height * 0.8;
 
       // 根據可用空間和 logo 比例，計算最大可能的 canvas 尺寸
       // 情況1: 寬度是限制因素（容器較窄）
@@ -273,12 +273,6 @@ function updateIconsForMode() {
   // 更新手機版 Mode 按鈕圖標
   updateMobileModeIcon();
 
-  // 更新橫向提示的 Rotate Phone 圖標
-  const landscapeIcon = document.getElementById('landscape-overlay-icon');
-  if (landscapeIcon) {
-    landscapeIcon.src = panelIcon(`Rotate_Phone${suffix}`);
-  }
-
   // 同步 .white-icons class 給 CSS filter 用（取代舊 _Inverse 圖檔切換）
   updatePanelIconColorClass();
 
@@ -322,10 +316,19 @@ function updateColorWheelIcon() {
 function swapIconSrc(img, src, onSwap) {
   if (img.dataset.target === src) return;
   const first = !img.dataset.target;
+  // 後台 icon 覆蓋表（site-assets.js）晚到＝同一顆 icon 從本地路徑換成 CDN 網址，不算換圖：直接換、不播
+  // （mode3 每 ~200ms 同步黑白 icon 會撞上它＝refresh 後 icon 無故 reveal 一次，user 2026-11-05）
+  const same = !first && iconKey(img.dataset.target) === iconKey(src);
   img.dataset.target = src;
   const apply = () => { img.setAttribute('src', src); if (onSwap) onSwap(); };
-  if (first || typeof window.sccdClipRevealIconSwap !== 'function') { apply(); return; }
+  if (first || same || typeof window.sccdClipRevealIconSwap !== 'function') { apply(); return; }
   window.sccdClipRevealIconSwap(img, apply);
+}
+// icon 的身分＝本地檔名（CDN 網址反查覆蓋表回本地路徑）
+function iconKey(src) {
+  const ov = window.__SCCD_ASSET_OVERRIDES || {};
+  const local = Object.keys(ov).find(k => ov[k] === src);
+  return (local || src).split('/').pop();
 }
 
 // 獲取模式圖標路徑（mode_1 / mode_2 / mode_3 對應三種模式；

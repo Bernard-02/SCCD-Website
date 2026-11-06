@@ -19,7 +19,7 @@ let lastLogoObservedW = 0, lastLogoObservedH = 0; // RO bail 守衛：尺寸沒�
  * 使用 transitionend 事件確保在 CSS transition 結束後才執行
  */
 function requestCanvasResize(immediate = false) {
-  if (!isMobileMode || typeof resizeMobileCanvas !== 'function') return;
+  if (!isMobileMode || !_p5 || typeof resizeMobileCanvas !== 'function') return;
 
   const now = Date.now();
   const timeSinceLastResize = now - lastResizeTime;
@@ -172,6 +172,13 @@ function initMobileUI() {
       if (Math.abs(r.width - lastLogoObservedW) < 1 && Math.abs(r.height - lastLogoObservedH) < 1) return;
       lastLogoObservedW = r.width;
       lastLogoObservedH = r.height;
+      // 面板開合時容器每幀都在變：canvas 先用 CSS scale 等比跟到新尺寸（點陣圖不動＝不會先放大再縮回，user 2026-11-05），
+      // 點陣圖等防抖到了才重建一次（resizeMobileCanvas 會清掉 scale）
+      const cv = /** @type {HTMLCanvasElement | null} */ (document.querySelector('#canvas-container canvas'));
+      if (cv && _p5 && _p5.width) {
+        const s = getCanvasSize().width / _p5.width;
+        cv.style.scale = Math.abs(s - 1) < 0.001 ? '' : String(s);
+      }
       requestCanvasResize(true);
     });
     logoResizeObserver.observe(logoEl);
@@ -220,8 +227,14 @@ function initMobileUI() {
   updateMobileKbBase();
 
   // 進頁時同步 Color Picker Bar 顯隱：若是在別頁切成 mode3 再進 create，targetMode 已是 Wireframe
-  // → bar 要預設出現（對齊桌面色環邏輯）；cycleModeButton 只在點 mode 鈕時跑、進頁時不會跑（user 2026-06-11）
+  // → bar 要預設出現（對齊桌面色環邏輯）；cycleModeButton 只在點 mode 鈕時跑、進頁時不會跑（user 2026-06-11）。
+  // 進頁這次一步到位（關開合過渡）＋canvas 立刻照新容器重算：色條跟底部鈕同拍 clip-reveal（create-app.js），
+  // 不是晚 0.3s 才長出來；logo 進場量 bbox 時 canvas 也已是最終尺寸（user 2026-11-05）
+  const initBoxes = [mobileElements.mobileColorpickerBar?.elt, document.querySelector('.mobile-input-area')].filter(Boolean);
+  initBoxes.forEach(el => { el.style.transition = 'none'; });
   applyMobileColorpickerVisibility();
+  initBoxes.forEach(el => { void el.offsetHeight; el.style.transition = ''; });
+  if (typeof resizeMobileCanvas === 'function') resizeMobileCanvas();
 }
 
 // 綁定手機版事件

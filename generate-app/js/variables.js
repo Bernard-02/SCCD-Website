@@ -156,9 +156,7 @@ let placeholderAlpha = 255;
 let targetPlaceholderAlpha = 255;
 
 // --- 頁面載入動畫變數 ---
-let pageLoadStartTime = 0;
+let entranceShown = false;   // draw() 第一幀把進場元素 opacity 寫 1（只寫一次，見 sketch.js）
 let inputBoxOpacity = 0;
 let logoOpacity = 0;
 let controlPanelOpacity = 0;
-const fadeInDuration = 500; // ms
-const fadeInDelay = 300; // ms
