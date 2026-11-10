@@ -389,7 +389,7 @@
   /* 手機 header blocker 左右外擴：blocker 在 .legal-content-col 內（margin-collapse 因素，見 donate.html）＝非滿版寬；
      真機 fractional DPR 下展開 accent 層會在其左右緣漏細直線（headless 測不到）
      → box-shadow 左右各外擴一個 container padding 蓋到 viewport 緣（同 lists.css 的 blocker 做法）。 */
-  @media (max-width: 767px) {
+  @media (max-width: 767px), (orientation: portrait) and (min-width: 768px) {
     .legal-content-col > .list-mobile-header-blocker {
       box-shadow: calc(var(--container-padding) * -1) 0 var(--theme-bg), var(--container-padding) 0 var(--theme-bg);
     }
@@ -508,9 +508,9 @@
   .legal-map-card .courses-grid-card-en,
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
 
-  /* ── 直放 768–1023（矮橫向除外）：stack flow 專屬補丁 ──（grid 欄佔滿已併進檔頭「手機排版」規則）
-     ① 展開 list header 釘 96px＝list-accordion.js getListStickyTop 在 box 不可捲時回 96，兩處同步；0–92px 由 navigation.css .mobile-header-bg 白帶接住
-     （lists.css 桌面段 fallback 200px 太低故必須蓋）
+  /* ── iPad 直拿：stack flow 專屬補丁 ──（grid 欄佔滿已併進檔頭「手機排版」規則）
+     ① 展開 list header 釘點＝--mobile-content-top＝blocker 高（同手機；legal-data-loader 也寫同值給 getListStickyTop）。
+     11-10 前釘 96、上面只有 92 白帶＝92–96 露內容、跟手機 108 不一致（lists.css 桌面段 fallback 200px 太低故必須蓋）
      ② 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
   @media (orientation: portrait) and (min-width: 768px) {
     /* 中和 lists.css 通用 `.inner-scroll-scroll-col`（min-768 幀高+overflow:auto）：此區間無 frame、
@@ -522,7 +522,7 @@
       overflow: visible;
       padding-bottom: var(--spacing-3xl);
     }
-    .legal-zebra .list-header.active { top: 96px; }
+    .legal-zebra .list-header.active { top: var(--mobile-content-top); }
     .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat { position: static; }
   }
 }

@@ -137,11 +137,11 @@ function mountZebra(contentEl, html) {
   // 展開標題列釘點＝inline var（getListStickyTop 只認 [style*=] 的 var＝開 item 捲動落點與 CSS 釘點同步；規章類別 sticky 也疊這值）：
   // 桌面＝說明段高（說明 sticky 貼框頂，legal.css；沒說明段＝0）；<768 手機＝--mobile-content-top＝內容初始頂＝blocker 高
   // （同 activities／admission；值是 px＝getListStickyTop 讀 computed 拿得到數字）
-  // 矮橫向 ≥768 走桌面 frame（CSS 0）、iPad 釘 96（legal.css 檔尾）→ 移除交回 CSS
+  // iPad 直拿同手機（11-10 前釘 96）；矮橫向 ≥768 走桌面 frame（CSS 0）→ 移除交回 CSS
   const pageDesc = /** @type {HTMLElement|null} */ (contentEl.querySelector('.legal-page-desc'));
   const setStickyTop = () => {
     if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc ? pageDesc.offsetHeight : 0}px`);
-    else if (window.innerWidth < 768) contentEl.style.setProperty('--list-header-sticky-top', 'var(--mobile-content-top)');
+    else if (window.innerWidth < 768 || !SCCDHelpers.isLandscapePhone()) contentEl.style.setProperty('--list-header-sticky-top', 'var(--mobile-content-top)');
     else contentEl.style.removeProperty('--list-header-sticky-top');
   };
   setStickyTop();

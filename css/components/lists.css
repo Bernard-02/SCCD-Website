@@ -781,6 +781,18 @@
   }
 }
 
+/* iPad 直拿（11-10）：.list-mobile-header-blocker 本體（sticky／底色／z）在上面 <768 段，iPad 吃不到——各頁 union 段只給高度
+   ＝static 透明、捲過的內容從 logo／鈕後透出（activities／admission／legal）。值同 <768 段 */
+@media (orientation: portrait) and (min-width: 768px) {
+  .list-mobile-header-blocker {
+    position: sticky;
+    top: 0;
+    background: var(--theme-bg);
+    z-index: 40;
+  }
+  .list-has-pinned-header .list-mobile-header-blocker { display: block; }   /* 蓋 HTML md:hidden（legal 開列才顯示，同手機） */
+}
+
 /* ===== faculty 手機直向：nav strip 全程 sticky 釘 88（比照 activities）=====
    純卡片牆、無 filter bar → 只需 nav col theme-bg 遮捲過的卡片（已在 typography.css mode-switch whitelist）。
    0~92 header 遮擋由全站 .mobile-header-bg 負責（navigation.css + header.html）。矮橫向不套（faculty-filter.js IO reveal）。 */
