@@ -8,6 +8,11 @@
        當保險（漏網的 700／bolder 被夾到 600）；這行擋瀏覽器拿 600 去描粗（假粗體） */
     font-synthesis-weight: none;
   }
+  /* 大螢幕等比放大（user 2026-11-10 Apple 大螢幕「字和照片都很小、留白很大」）：設計基準 1920×1080，超過就讓整站 rem 跟著放大
+     （寬高取小＝超寬螢幕不撐爆一屏框）；基準以內維持 16。px 寫死的 chrome（鈕 48、header 錨定值、logo）不放大 */
+  @media (orientation: landscape) and (min-width: 1921px) and (min-height: 1081px) {
+    html { font-size: min(100vw / 120, 100svh / 67.5); }
+  }
 
   /* 後台富文本的 <b>/<strong>：preflight 的 bolder 是相對值，改吃 token 才跟全站一起調 */
   b, strong { font-weight: var(--font-weight-bold); }

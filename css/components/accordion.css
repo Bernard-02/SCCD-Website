@@ -23,7 +23,7 @@
 
   /* 桌面旋轉手風琴高度由 CSS 控（JS 不設 inline 高）：卡上緣對齊縮小態 logo 中線（--header-logo-mid 98）、下緣留同距離 → 區塊剛好一屏 100svh
      section / container 的 pt-3xl / pb-xl 在 utilities layer，components 內要 !important 才蓋得掉 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     #resources { padding-top: var(--header-logo-mid) !important; }
     #resources > .site-container { padding-top: 0 !important; padding-bottom: var(--header-logo-mid) !important; }
     .colored-accordion { height: calc(100svh - 2 * var(--header-logo-mid)); }
@@ -106,7 +106,7 @@
   /* Hover（非展開卡）翻 strict B/W：底＋字同一條 :hover 判定（user 2026-10-26：原本底靠 JS mouseenter inline、
      字靠這裡 :hover，兩邊脫鉤＝白字配原 accent 底）。item 母層一起翻＝旋轉 AA 縫 backstop（只翻子盒會漏 1px accent 縫）。
      只真桌面（旋轉手風琴；手機/矮橫向 carousel 沒 hover）。mode-color 在 themes/color.css */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active),
     body:not(.mode-color) .colored-accordion .accordion-item:hover:not(.active) :is(.accordion-label, .accordion-text-wrap, .accordion-img-wrap) {
       background-color: var(--theme-fg);
@@ -243,7 +243,7 @@
      右 padding（sm 16）——角度收在 ±0.5~1.5°（resources-cycling resImgRot）＝伸進去最多 ~10px、蓋不到標題字（上下靠 img-wrap 的 md padding）。
      只放開 .active：收合卡 body 寬 0、放開會讓斜角冒在別張標題上；右側溢出由 item 的 inline overflow:hidden 照裁（開合過場不外露）。
      ponytail: 10px 是 2560×1440（圖高 ~700）的量；更高的螢幕（4K 原生）大角度可能碰到字，真遇到再依圖高縮角度 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .colored-accordion .accordion-img-wrap,
     .colored-accordion .accordion-item.active .accordion-body { overflow: visible; }
     .colored-accordion .res-switcher {
@@ -256,7 +256,7 @@
   /* 桌面標籤直式：英在上、中在下各自成段（inner 不 rotate，改 column）
      EN vertical-rl + sideways＝字頭朝右由上往下讀；ZH upright＝直排字正；sep 隱藏、英中距吃 lg token
      span 帶 writing-mode 會 blockify、寬＝1 行＝原 inner 同寬 → horizontal-accordion.js getLabelWidth 量到的寬不變 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .colored-accordion .accordion-label-inner {
       writing-mode: horizontal-tb;
       transform: none;
@@ -418,7 +418,7 @@
      寬 ≥768 會吃桌面規則 → 把上方 portrait carousel 複刻進 gate；resources-cycling.js 同 gate 走手機分支（不跑 initRotatedAccordion）
      ⚠️ 必須留在本檔（@layer components 內）不能搬 landscape.css：unlayered !important 輸給 layer 內 !important，
      上方 overflow: visible !important 只能在同 layer 內後出覆蓋 */
-  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .colored-accordion {
       align-items: flex-start;
       gap: var(--spacing-md) !important;
@@ -494,7 +494,7 @@
 
   /* 橫向手機（高 ≤500）：不磁吸、卡距同直向 sm（user 2026-11-06）；卡從 container padding 起（logo 下方也用）、尾端讓鈕欄。
      文字盒預算＝視窗 − 卡頂（about 內容頂 --about-lp-top，landscape.css 5i）− title 列 51 − 圖 120 − 貼底界線 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
     .colored-accordion {
       gap: var(--spacing-sm) !important;
       scroll-snap-type: none;

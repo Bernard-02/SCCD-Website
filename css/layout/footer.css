@@ -154,7 +154,7 @@
 
   /* <1024 共用（手機＋768–1023）：右側都是線性堆疊（散佈只在 ≥1024），故這些非散佈樣式套到 1023。
      ⚠️ logo 貼頂 margin（上方 max-width:767 那條）不在此列——那是 logo 疊最上的全手機專屬。 */
-  @media (max-width: 1023px) {
+  @media (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .footer-random .icon {
       /* 線性版 icon 縮小（覆蓋上方散佈版的 1.5×） */
       font-size: calc(var(--icon-hero) * 0.975);
@@ -175,7 +175,7 @@
   }
   /* 散佈版（≥1024）中文地址 nowrap 一整行；卡寬由 applyOfficeSnugWidth 量最長行鎖定、不會切到。<1024 線性列表自然 wrap。
      特異度 (0,3,1) > 上面 .footer-info p normal 的 (0,2,1)（office 卡同掛 .footer-info） */
-  @media (min-width: 1024px) {
+  @media (orientation: landscape) and (min-width: 1024px) {
     .footer-random .footer-office p.footer-text-zh {
       white-space: nowrap;
     }
@@ -184,7 +184,7 @@
   /* ===== 768–1023：logo 靠左縮小＋右欄由上往下線性列表（無散佈）=====
      footer-inner 靠 HTML md:flex-row 左右分欄；JS usesMobileFooter() 走 initFooterMobileReveal（由上往下 clip-reveal、無 shuffle）。
      ⚠️ 此寬度也在矮橫向 gate 內，landscape.css（unlayered）會蓋掉多數規則。:is 涵蓋已包/未包 clip-reveal wrapper 兩態。 */
-  @media (min-width: 768px) and (max-width: 1023px) {
+  @media (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     /* 為 header 留空間：線性版 header 是漢堡列、捲到 footer 不隱藏 → 內容整體下移到 header 帶之下（104 同矮橫向 header 讓位）。 */
     .footer-inner {
       padding-top: 104px;
@@ -439,7 +439,7 @@
      開著時 mode／menu 鈕收起、logo 換 footer 對比色（header.js footer:progress）。
      框＝100lvh（Safari 底工具列後面也是 footer 自己的底）；內容超過一屏＝框內捲（檔尾 unlayered 段）。
      ⚠️ 要排在 768–1023 段（height 100svh）之後；矮橫向／iPad 的內容排法在 landscape.css 7) */
-  @media not all and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .footer-shell {
       position: fixed;
       left: 0;
@@ -451,7 +451,7 @@
   }
 
   /* ===== Desktop scatter (≥1024)：散佈區（tabs 左上、legal 右側、copyright 貼底）===== */
-  @media (min-width: 1024px) {
+  @media (orientation: landscape) and (min-width: 1024px) {
     /* 高度＝內容（散佈區 480 保證＋padding），不再一屏（user 2026-10-19 拿掉底部 logo 列）。 */
     .footer-shell {
       height: auto;
@@ -584,7 +584,7 @@
   }
 
   /* 真桌面（散佈版；排除矮橫向）才有的幾樣 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     /* 整張 footer＝蓋在頁面上的一張旋轉卡（user 2026-10-19）：不在捲動流裡、fixed、平常停在視窗下；
        點右下 footer 鈕 → footer-scatter.js openFooter 以每次新抽的 ±[1,2]° 從卡底 clip-reveal 升起（user 2026-11-04；散佈量測時暫時轉正見 unrotated）。
        0° 時的框＝左右 container padding、頂對齊第一顆 nav btn（--nav-line）、底在 footer 鈕上方（--footer-card-bottom）；
@@ -732,7 +732,7 @@
   }
   /* 手機／iPad／矮橫向鈕＝44／icon 28、底＝全站貼底界線（同 header 鈕、mode3 鉛筆；手機 44/28 慣例）；有底 bar 的頁 bar 右邊讓位
      （直向 portrait.css、iPad landscape.css）。開著＝白底（footer 的反色，user 2026-11-04「改成白底」）：整屏 footer 是 --footer-bg 底 */
-  @media not all and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .footer-btn-mask {
       bottom: var(--mobile-bottom-anchor);
       width: 44px;
@@ -752,7 +752,7 @@
 
   /* 矮橫向 gate（含 768–1023）：tabs 版型在 landscape.css（unlayered 蓋回本檔 768–1023 段的 absolute），這裡只收 desktop-only 的 .footer-tab-reserve。
      padding-top 歸零：gate 寬落在 768–1023 時會誤吃該段 tabs 預留高（landscape.css 另給自己的 1rem）。 */
-  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .footer-random > :is(.footer-tab-reserve, .footer-note-reserve) {
       display: none;
     }

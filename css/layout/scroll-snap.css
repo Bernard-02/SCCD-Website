@@ -33,7 +33,7 @@ html {
     scroll-snap-stop: always;
   }
   /* 真桌面 footer 是 fixed 覆蓋卡（footer.css），不在捲動流裡＝不當 snap 點；#site-footer 容器 0 高留著＝吸到頁底 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     html:is(.snap-mandatory, .snap-proximity) footer#site-footer-static.snap-zone {
       scroll-snap-align: none;
       scroll-snap-stop: normal;
@@ -166,7 +166,7 @@ html {
    不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。Vision 例外：文字頂對齊 nav btn，放不下改上下同距置中。
    不分高度都套，取代上面 ≥900 gate。同框另兩處：resources（accordion.css）、學制樹（about-structure.css）。
    ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
   /* Vision／學制樹：上下 spacer 均分剩餘高；上 spacer 封頂 nav line − 98 → 內容矮時頂對齊第一顆 nav btn，
@@ -239,7 +239,7 @@ html {
    影片高＝欄寬 × 9/16，扁螢幕會戳出畫面 → 欄寬上限＝框高 × 16/9（等比縮、左緣仍 col-5）。
    位置不套 98/98：上方 98 大半被 header 鈕列（底 96）佔掉＝視覺偏上（user 2026-10-20）→ 維持 HTML 的
    md:pt-[92px]＋置中（header 帶下緣～屏底），被框高限住時頂 144／底 52。鎖欄不鎖影片：clip-reveal 遮罩跟著同寬 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #video-section > div,
   #documentary-video-section > div {
     max-width: calc((100svh - 2 * var(--header-logo-mid)) * 16 / 9);

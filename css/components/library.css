@@ -404,7 +404,7 @@
   width: 5rem;
 }
 /* 無縮圖列：文字 cap 到與有縮圖列同寬（100% − slot 5rem − 欄距 xl） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .press-item-row:not(:has(.press-item-thumb-wrap)) .press-item-titles {
     max-width: calc(100% - 5rem - var(--spacing-xl));
   }
@@ -439,7 +439,7 @@
 /* 真桌面：直式封面高＝標題欄高（兩行標題＋gap＋兩行副標＝88px）→ 縮圖上下留白都＝列 padding 16（user 2026-10-19；
    原 4.5rem 貼頂＝下方多出 16）。佔位灰塊同比例放大。改標題／副標字級或行數要同步這裡。
    16:9 影片幀仍受 max-width 5rem 限制（高 ~45px），上下照舊留比較多 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .press-item-thumb-wrap { min-height: 5.5rem; }
   .press-item-thumb:not(:has(.press-thumb-img[src])) { min-width: 4.15rem; height: 5.5rem; }
   .press-item-thumb img { max-height: 5.5rem; }
@@ -456,7 +456,7 @@
 }
 
 /* ── Press item hover marquee（桌面專用）────────────────────── */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   /* 只在文字溢出時跑（.is-overflow），速度由 JS 算 */
   .press-item:hover .press-item-title-en.is-overflow .press-marquee-inner,
   .press-item:hover .press-item-title-zh.is-overflow .press-marquee-inner,
@@ -512,7 +512,7 @@
   display: contents;
 }
 
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .award-record-item:hover .award-winners.is-hmarquee .award-winners-track {
     animation: award-winners-hmarquee var(--hmarquee-duration, 10s) linear infinite;
   }
@@ -526,7 +526,7 @@
 /* ── 桌面 col 溢出 hover marquee ──
    結構同矮橫向（行＝window、inner＝捲動體、dual-copy），無 CSS keyframe：由 bindMarqueeReturn（GSAP）hover 驅動＋回彈。
    :not(.is-hmarquee) 排除多得獎人橫捲 track；pair base flex-shrink:0 是 hmarquee 鎖整位寬用——單筆要能縮進 cell 才量得出溢出 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #library-awards-list .award-mid .award-cell-line {
     display: block;
     max-width: 100%;
@@ -683,7 +683,7 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
 }
 /* ref row 標題 marquee：桌面 hover 才跑（整列是可點 ref 鈕、hover 目標明確；異於 .list-title-marquee 桌面自動跑）。
    手機沿用 base rule 自動跑。is-overflow 由 JS initAwardRefTitleMarquees 加 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #library-awards-list .award-ref-row .list-title-marquee.is-overflow p {
     animation: none;
   }
@@ -748,7 +748,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 /* 年份／分類鈕 hover＝瞬間 100% 原色（.lib-faint／disabled 不動）。改 text-fill 不改 color：color transition 留給點選變淡、hover 不吃它。
    只給真滑鼠（觸控 sticky hover 會黏住） */
-@media (hover: hover) and (min-width: 1024px) and (min-height: 501px) {
+@media (hover: hover) and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   [id$="-year-picker"] button[data-year]:not(:disabled, .lib-faint):hover,
   :is(.lib-files-cat-btn, .lib-album-cat-btn):not(:disabled, .lib-faint):hover {
     -webkit-text-fill-color: var(--lib-fg);
@@ -794,7 +794,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 /* reset.svg 畫板左側自帶 ~3px 留白（圈最左墨跡 x≈24.5/160）→ 挪 3px 讓墨跡對齊年份數字／chevron 左緣（桌面 slot 貼左
    10-19 實測 chevron 墨跡 224.5、reset 227）。不改 svg：create 面板共用。後台換稿要重量 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .year-reset-btn .icon-reset { margin-left: -3px; }
 }
 
@@ -1121,7 +1121,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* ── Files item hover marquee（桌面專用）─────────────────────── */
 /* 只在真實 :hover 跑；deep-link 的 .is-hovered（handleLibraryHash 程式化加 1s）刻意不跑：marquee 起跑又立刻收像 glitch */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .files-item:hover .files-item-title-en.is-overflow .files-marquee-inner,
   .files-item:hover .files-item-title-zh.is-overflow .files-marquee-inner,
   .files-item:hover .files-item-subtitle-en.is-overflow .files-marquee-inner,
@@ -1146,7 +1146,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 #library-files-list .files-item-subtitle-tag .files-marquee-inner {
   display: inline-block;
 }
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   /* 同上：只真實 :hover 才跑 */
   #library-files-list .files-item:hover .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
@@ -1162,7 +1162,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   display: none;
 }
 
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* tab bar 在 section 底部（order:2，灰卡 order:1）；沿用 activities-section-bar（buttons.css：active 隨機色＋橫向 scroll） */
   .library-mobile-tabs {
     display: flex;
@@ -1304,7 +1304,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 /* ↓ award 收合列（手機＋gate＋觸控桌面排版）：同一份規則、media 多了 (min-width:1024px) and (pointer: coarse)——iPad 橫向桌面 6 欄在 1180 寬擠到 45／27px、
    hover 才讀得到的 marquee 觸控用不了（user 2026-10-31）→ 走 chevron 收合列（library-panels.js portraitDetail 同式）。位置不動＝cascade 順序同手機段 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* award 主列 4 欄：[國旗][.award-mid 競賽/主辦/名次 直排][得獎人][ref 鈕]；兩欄各自 top-align、得獎人多名不撐開中間欄。
      4 欄 grid 在 .award-row（item 是 block） */
   #library-awards-list .award-record-item {
@@ -1347,14 +1347,14 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     font-size: var(--font-size-s) !important;
   }
 }
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   #library-press-list .press-year-label,
   #library-files-list .press-year-label,
   #library-album-list .press-year-label {
     font-size: var(--font-size-s) !important;
   }
 }
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* 中間欄各 cell：解開 truncate 讓 EN/ZH 自然換行 */
   #library-awards-list .award-mid > .award-cell-mask > div {
     min-width: 0 !important;
@@ -1414,7 +1414,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* 手機（含 gate）：得獎人名字換行完整呈現、不跑逐人 marquee（檔尾手機段 .award-mid／.award-detail 的 nowrap 特異度較高 → 那裡改整排 marquee）。
    inner 改 inline 後 scrollWidth=0 → applyMarqueeOverflow 判不溢出、自動不跑 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* header 預設透明（hero 動畫透出）；library 手機給 header 底色擋住下方內容（tab 在卡底、header 帶沒東西要露） */
   #site-header header {
     background: var(--theme-bg);
@@ -1430,7 +1430,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 }
 
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
 
   /* Year picker 移到 search 下方。兩種結構分開處理：
      awards＝[year-col][right-col(search+list)]；press/files/album＝2×2 [Year標題][search+cat][year-picker-wrap][list-scroll]
@@ -1748,7 +1748,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    由上而下：list →（awards logo ticker）→ 年份 → 分類選項（files／album）→ search＋date → tab bar。
    年份／search 列＝最低觸控高 44（user 要「最低可點擊的大小」），三列之間不另加 gap、只留各自觸控區的上下空白。
    ticker 搬進內容欄、award 收合列模板（portraitDetail）的 JS 判斷＝isMobileLayout（main-modular.js／library-panels.js） */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* search＋分類 wrapper 拆掉（同 awards right-col）：兩者才能各自排序、夾住年份 */
   #lib-panel-press > div[style*="grid"] > div:nth-child(2),
   #lib-panel-files > div[style*="grid"] > div:nth-child(2),
@@ -1805,7 +1805,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    只給直向一疊的排法（直向＋iPad）；橫向手機年份是左欄、不收。鈕＝44 觸控區、icon 20 貼右＝跟清單 chevron 右緣同線，
    垂直置中在 sticky 年份標題列（列右側本來就空）＝捲動時也不蓋到清單 */
 .lib-tools-btn { display: none; }
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
   #library-card-main { position: relative !important; }   /* 鈕的定位框（手機段原本 static；卡內其他絕對定位都在各 panel 的 relative 裡，不受影響） */
   /* top 3＝icon 中線對齊 sticky 年份字中線：卡上內距 sm 16 − sticky 1 ＋ 字級 s 行高半 10 − 鈕半高 22 */
   .lib-tools-btn {
@@ -1864,7 +1864,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 }
 /* ↓ award 收合列第二段（同上：union ＋ 觸控桌面排版） */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   /* award（user 10-27）：主列只留 [國旗][獎名＋得獎人][chevron]；主辦／名次收進 chevron 展開區 .award-detail（ref 之上）。
      模板依 portraitDetail 出（library-panels.js buildAwardItemHtml）。獎名換行，其餘一行、超過 marquee */
   #library-awards-list .award-row {
@@ -1910,7 +1910,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     white-space: nowrap !important;
   }
 }
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
 
   /* 選項、tab 鈕：英中一行（同 about 直向底 bar） */
   #library-files-cat-filter .lib-files-cat-btn,
@@ -1948,7 +1948,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    字級、award 收合列模板維持手機段。iPad（768–1023、高 >500）不套、維持直向一疊＋底 bar。
    ⚠️ 本段必須在手機段之後：同 selector 同 !important 靠順序贏 */
 .lib-filter-mask { display: none; }
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
   /* header 帶：手機段給的白底拿掉（tab 在 header 下一層 z40，有底色會整排蓋掉——10-30 原 bug） */
   #site-header header {
     background: transparent;
@@ -2168,7 +2168,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* ── 沒 hover 的桌面排版（iPad 橫向 ≥1024，user 2026-10-31）：桌面「hover 才捲」的 marquee 全退回自動循環（手機段同款）；
    award 單筆 cell 桌面本來只有 GSAP（bindMarqueeReturn、無 keyframe）→ 這裡補 CSS */
-@media (min-width: 1024px) and (min-height: 501px) and (hover: none) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: none) {
   .press-item .press-item-title-en.is-overflow .press-marquee-inner,
   .press-item .press-item-title-zh.is-overflow .press-marquee-inner,
   .press-item .press-item-subtitle.is-overflow .press-subtitle-inner,
@@ -2184,7 +2184,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
 /* 觸控桌面排版（iPad 橫向）的 award 收合列：模板／版面吃上面手機段（media 含 pointer: coarse），字級不跟手機的 s（桌面 token＝16）、
    維持桌面大表的 xs；cv 估高跟桌面 42（只能估小） */
-@media (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (pointer: coarse) {
   #library-awards-list .award-record-item {
     font-size: var(--font-size-xs) !important;
     contain-intrinsic-size: auto 42px;

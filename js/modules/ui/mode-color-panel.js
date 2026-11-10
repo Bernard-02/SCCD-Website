@@ -17,7 +17,7 @@ import { clipRevealIconSwap, ensureIconClipWrap, revealHidden } from './scroll-a
 import { randomSpinAngle } from './arrow-spin.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning, getStoredMode } from './theme-toggle.js';
 
-const DESK_MQ = window.matchMedia('(min-width: 1024px) and (min-height: 501px)');
+const DESK_MQ = window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)');
 const isDesk = () => DESK_MQ.matches;
 // 圓鈕直徑＝capsule 粗細：CSS --mcp-h（真桌面 48／其餘 44，同 header mode/menu 鈕）；展開長＝留白 20 + 色條 160 + 17 + play 20 + chevron 格
 //（css .mcp-cap-row 同步；四段間距推導見該處）。真桌面長在寬（往左）、其餘長在高（往上，css 直排段）

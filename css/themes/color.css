@@ -21,7 +21,7 @@ html.mode-color {
 
 /* Footer scatter 文字卡：JS inline 三原色底（footer-scatter.js）→ mode3 strict B/W（!important 蓋 inline）：
    底 fg-contrast、字 fg-inverse-contrast（對比互補 hue footer）。只限桌面 scatter；較窄版型無 scatter、維持透明底 + var(--footer-fg) */
-@media (min-width: 1024px) {
+@media (orientation: landscape) and (min-width: 1024px) {
   body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
     background: var(--theme-fg-contrast) !important;
   }
@@ -31,7 +31,7 @@ html.mode-color {
   }
 }
 /* 散佈卡 hover（真桌面才有散佈）：mode3 不上 rgb、黑白對調（mode1/2 在 footer.css） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover {
     background: var(--theme-fg-inverse-contrast) !important;
   }
@@ -156,7 +156,7 @@ body.mode-color .colored-accordion .accordion-text-wrap p {
   color: var(--theme-fg-inverse) !important;
 }
 
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body.mode-color .colored-accordion .accordion-item:hover:not(.active),
   body.mode-color .colored-accordion .accordion-item:hover:not(.active) :is(.accordion-label, .accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--theme-fg-inverse) !important;
@@ -525,7 +525,7 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
 /* 真桌面色卡（faculty-slide-in.js openDeskCard）：mode3 底色＝卡片 hover 那個色（上方 .faculty-card:hover＝theme-fg 黑/白），
    字／scrollbar 翻 theme-fg-inverse、代用 logo 線框再 invert 一次（同卡片 hover 的 placeholder 規則）（user 2026-10-20）。
    手機／矮橫向 slide-in 照舊跟 hue */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body.mode-color #faculty-panel {
     --faculty-panel-bg: var(--theme-fg) !important;
     background-color: var(--theme-fg) !important;

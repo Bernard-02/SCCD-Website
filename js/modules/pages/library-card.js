@@ -37,7 +37,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   const DESK_BOTTOM_GAP = 48, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
   const deskLeft = () => 60 + SCCDHelpers.headerGeom().logoSm + 32;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
-  const isDesk = () => window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
+  const isDesk = () => window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
   // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。Math.max 保底＝極矮視窗不算出負高。
   function layoutMain(sw, sh) {

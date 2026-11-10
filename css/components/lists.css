@@ -72,7 +72,7 @@
   }
 }
 /* 桌面：nav＋content 區頂＝全站 nav line（variables.css --nav-line）；其餘維持 header+inner-pad */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .inner-scroll-frame-grid { --inner-box-top: var(--nav-line); }
   /* faculty：捲動盒拉到視窗頂（無遮罩帶，卡片直接被螢幕頂切）、首列照片頂＝logo 中線（--header-logo-mid）。
      nav 仍在 nav line（變數只蓋在盒上）。padding-top 扣掉首面牆 margin sm＋卡片 p-[6px]。 */
@@ -91,7 +91,7 @@
    清單（.nav-scroll-list）放不下才由 JS 掛 .nav-overflowing（開 overflow、chevron 現身），沒溢出＝零視覺變化。
    host：四頁 .inner-scroll-nav-col ＋ about #anchor-nav。矮橫向排除（nav 在 header 帶、橫向 strip）。 */
 .nav-more-btn, .nav-less-btn { display: none; }
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .inner-scroll-nav-col {
     display: flex;
     flex-direction: column;
@@ -186,7 +186,7 @@
 
 /* faculty 桌面：**卡片**（非框）左緣＝col 4、右緣＝col 18。框內左右各 24px 旋轉 clearance padding →
    框兩側各外推 24：margin-left −24、寬＝格線區（faculty.html min-[1024px]:col-start-4/col-span-15）＋48。 */
-@media (min-width: 1024px) {
+@media (orientation: landscape) and (min-width: 1024px) {
   #faculty-cards .inner-scroll-scroll-col {
     margin-left: calc(-1 * var(--spacing-md, 24px));
     width: calc(100% + 2 * var(--spacing-md, 24px));
@@ -208,7 +208,7 @@
    #page-content 前綴：蓋 HTML 的 Tailwind -mx/px/py/mb utility（output.css 後出、同特異度蓋不掉）。
    桌面走 inner-scroll frame；直向手機＋矮橫向（gate）同套（user 2026-10-30：矮橫向 nav 從 header 帶改到底部）＝下方 union media。
    ⚠️ gate 寬 ≥768 會吃到 HTML 的 md: utility（md:flex-col 等）→ 這裡用 #page-content 前綴把列向／捲動寫死。 */
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
   :root { --mobile-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 同 about --about-bar-h：chip 28 置中＝chip 底邊落在全站貼底界線 */
   #page-content .nav-bottom-bar {
     position: fixed;
@@ -724,7 +724,7 @@
    header 白底拿掉（navigation.css）→ 頂上不再有 sticky nav／filter bar 與往上補的白帶；filter bar（只剩 search）回 flow；
    內容頂／遮擋帶／年份 sticky／開啟的 title 釘點＝同一條 --mobile-content-top（108＝faculty 第一張卡，user 2026-11-05；
    釘點由 activities-data-loader updateStickyTop 寫）。矮橫向不套（landscape.css 5f）。 */
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
   /* 內容從 --mobile-content-top 開始（search 頂）；底補兩條 bar（底 bar＋tab 列 60）＝捲到底最後一列不被蓋 */
   #activities-content-section {
     padding-top: var(--mobile-content-top);
@@ -796,7 +796,7 @@
 /* ===== admission 手機直向（user 2026-10-28，同 activities／faculty）=====
    nav＝畫面底 bar（HTML 掛 .nav-bottom-bar，上方共用段）；header 白底拿掉 → 頂上不再 sticky nav 與往上補的白帶；
    內容頂／遮擋帶／年份 sticky／開啟的 title 釘點＝--mobile-content-top（同 activities 直向段）。矮橫向不套。 */
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
   #admission-content-section {
     padding-top: var(--mobile-content-top);
     padding-bottom: calc(var(--spacing-2xl) + var(--mobile-bar-h));
@@ -833,7 +833,7 @@
 
 /* 手機直向：chip 旋轉頂角凸進上方 section-bar box 3~8px，部分裝置依 paint order 被蓋成「被切」→ padding-top 推出正向 clearance。
    桌面 section-bar 是左直欄不重疊（由 chip-clearance 處理）。 */
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
   #exhibitions-type-filter,
   #visits-type-filter {
     padding-top: var(--spacing-sm);
@@ -865,7 +865,7 @@
 /* 真桌面 sticky bar：search 收起連 bar 底 pb-lg 一起收＝清單頂（與釘住的年份／title，RO 跟 bar 高）上到 logo 中線
    （同 faculty 首列照片頂；有子分類 tab 的＝原 search 頂；user 2026-10-29）。
    只真桌面：矮橫向/手機 bar 非 sticky，list-accordion 預扣收合量只算 searchInner 高 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #activities-content-section .activities-filter-bar > .grid-12 {
     transition: padding-bottom var(--dur-fast) ease;
   }
@@ -930,7 +930,7 @@ body.mode-color .tl-icon-btn-inner {
 }
 /* 手機／iPad／矮橫向：同全站手機 icon 鈕 44／icon 28（footer 鈕、header 鈕、鉛筆；user 2026-11-05「history 鈕看起來比其他鈕大」）。
    只掛 history 鈕：library next 鈕桌面限定 */
-@media not all and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #timeline-list-btn > .tl-icon-btn-inner { width: 44px; height: 44px; font-size: 28px; }
 }
 
@@ -1028,7 +1028,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 }
 /* scrollbar↔卡片右緣＝內文字級的字卡右內距：內文 text-s → --card-pad-s 右 6（user 2026-10-26，同 pop up 看內文）。
    只真桌面：手機／矮橫向沒 scrollbar → 右邊回到跟左邊同一個 inset（user 2026-10-29） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .tl-list-content:has(> .tl-list-years) { right: 6px; }
 }
 .tl-list-years {
@@ -1085,7 +1085,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 
 /* ===== Timeline list view 手機 + 矮橫向（buildStrip 全視口共用）=====
    cell 脫離 20-col 方形、單欄滿版、年份改上下堆疊。直式見下方 portrait block；矮橫向見 landscape.css 5i。 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   .tl-list-cell {
     grid-column: auto;
     height: 100%;
@@ -1201,7 +1201,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 
 /* about history list（桌面）：軌道頂內縮＝sticky era 標籤實高（timeline.js measureStickyOffsets 寫 --tl-era-label-h）
    → scrollbar 從第一個 item 起。webkit only。 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .tl-list-years::-webkit-scrollbar-track {
     margin-top: var(--tl-era-label-h, 0px);
   }
@@ -1599,7 +1599,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
   transform: rotate(var(--pl-rot, 0deg));
   transition: transform var(--dur-fast) ease;
 }
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .works-playlist-item:hover { transform: rotate(0deg); }
 }
 .works-playlist-item img {

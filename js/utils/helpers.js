@@ -49,26 +49,28 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   // site-assets.js 拿到後台 cursor 覆蓋後重建一次（經 sitePath 換 CDN URL）
   Helpers.refreshCursorVars = setCursorVars;
 
-  // 版型判斷唯一來源。gate＝矮橫向手機＋768–1023（iPad），沿用手機排版；同 css/layout/landscape.css 等處的
+  // 版型判斷唯一來源。gate＝橫向手機＋iPad，沿用手機排版；同 css/layout/landscape.css 等處的
   // @media（CSS 無法共用 media query，改這串要同步 CSS）。/create 例外：generate-app/js/utils.js 自有斷點。
-  Helpers.LANDSCAPE_GATE = '(orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px)';
+  // 2026-11-10 改看方向（iPhone Duo 內螢幕橫拿 951×585 原本掉進 iPad 直向版、iPad Pro 13 直拿 1032 原本走桌面）：
+  // 橫的且（高 ≤500 或寬 <1024）＝橫向手機；直的且寬 ≥768＝iPad；桌面＝橫的、≥1024、高 >500
+  Helpers.LANDSCAPE_GATE = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px)';
   // MediaQueryList 建一次重複讀：舊版讀 window.innerWidth＝強制 layout，在清單模板迴圈裡每筆一次（手機 activities 續建
   // 4x 降速實測 834ms，user 2026-10-29「marquee 特別卡」）。<768 用 media query 與 CSS 同式
   const _mqPortrait = window.matchMedia('(max-width: 767px)');
   const _mqGate = window.matchMedia(Helpers.LANDSCAPE_GATE);
   Helpers.isLandscapeGate = function() { return _mqGate.matches; };
-  // 橫向手機（高 ≤500）＝gate 前半：nav／tab 回 header 帶、內容左右排（user 2026-10-30「底 bar 一屏頁空間不夠」）；
-  // iPad（768–1023、高 >500）＝gate 後半：維持直向同款底 bar。CSS 對應 landscape.css 檔尾 @media (max-height: 500px) 巢狀段
-  Helpers.LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 500px)';
+  // 橫向手機（橫的且高 ≤500 或寬 <1024）：nav／tab 回 header 帶、內容左右排（user 2026-10-30「底 bar 一屏頁空間不夠」）；
+  // iPad（直的、≥768）：維持直向同款底 bar。CSS 對應 landscape.css gate 段內 @media (orientation: landscape) 巢狀段
+  Helpers.LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px)';
   const _mqPhoneLand = window.matchMedia(Helpers.LANDSCAPE_PHONE);
   Helpers.isLandscapePhone = function() { return _mqPhoneLand.matches; };
-  // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（≥1024 且高 >500）
+  // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（橫的、≥1024 且高 >500）
   Helpers.isMobileLayout = function() { return _mqPortrait.matches || _mqGate.matches; };
   Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
   // 兩個常用組合（2026-11-02 收斂，取代散在各頁的布林式）：
   // 直向手機＝<768 且非 gate（<768 的窄橫向算 gate、走隨機版 hero）；DSD／hero 的 flex stack 版看這個
   Helpers.isPortraitPhone = function() { return _mqPortrait.matches && !_mqGate.matches; };
-  // 底 bar 排版＝直向手機＋iPad（gate 後半）；橫向手機（高 ≤500）nav／tab 回 header 帶、不算
+  // 底 bar 排版＝直向手機＋iPad；橫向手機 nav／tab 回 header 帶、不算
   Helpers.isBottomBarLayout = function() { return Helpers.isMobileLayout() && !_mqPhoneLand.matches; };
   // 輸入判斷，跟版型分開（user 2026-10-31 定案：iPad 橫向 ≥1024 走桌面排版，但 hover／滾輪類互動要看輸入方式）。
   // iPad 不論接不接 Magic Keyboard 都回報 hover:none／pointer:coarse（WebKit 至今如此）→ 一律當觸控；

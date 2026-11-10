@@ -84,7 +84,7 @@
      JS 有海報才掛 .dsd-media-row、有影片才把 #video-wrapper 搬進 #events-video＋.has-video。
      沒影片＝海報高＝resources 卡片高（上下同錨框 100svh − 2×98）、寬隨比例、水平置中於視窗（user 10-20）。整塊在框內垂直置中 */
   .dsd-events-video { display: none; }
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     #dsd-desc-section.dsd-media-row {
       --dsd-frame-h: calc(100svh - 2 * var(--header-logo-mid));
       display: flex;
@@ -279,7 +279,8 @@
      column-gap＝最小水平間距；row-gap＝固定行距。faculty 3 個 list + alumni 會員牆共用。 */
   .faculty-card-wall {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 200px));
+    /* 欄數跟寬度走（每欄至少 140）：直向手機 2 欄、iPhone Duo 內螢幕直拿／iPad mini 3–4 欄（user 2026-11-10 原本固定 2 欄＝中間一大塊空） */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     column-gap: var(--spacing-md);
     row-gap: var(--spacing-xl);
     justify-content: space-between;
@@ -295,7 +296,7 @@
 
   @media (min-width: 768px) {
     .faculty-card-wall {
-      grid-template-columns: repeat(4, minmax(0, 250px)); /* 卡片上限 250 → 圖片 ~238px（扣 12px padding） */
+      grid-template-columns: repeat(4, minmax(0, 15.625rem)); /* 卡片上限 250（rem＝大螢幕跟著放大）→ 圖片 ~238px（扣 12px padding） */
       /* 最小 column-gap 隨視窗放大（32 → 3.5vw → 80）：中寬度（~1280–1600）圖已近 250 上限、space-between 餘量還沒啟動，
          死釘 32 會圖大 gap 小；>~1700 圖封頂後由 space-between 撐大。 */
       column-gap: clamp(var(--spacing-lg), 3.5vw, 5rem);
@@ -318,7 +319,7 @@
       grid-row: span 3;
       /* 行距＝左右實際間距 ×1.5（documents 書本同規則；量卡片框、不含 6px padding）。實際左右間距＝column-gap 下限，
          或卡片封頂 250 後被 space-between 撐大的 (牆寬 − 4×250)/3，取大者。改欄數／卡寬上限要同步這裡 */
-      margin-top: calc(1.5 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
+      margin-top: calc(1.5 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 15.625rem) / 3));
     }
     #faculty-cards .faculty-card:nth-child(-n+4) {
       margin-top: 0;
@@ -328,7 +329,7 @@
       margin-top: 0;
     }
     #faculty-cards .faculty-card-wall:not(:empty) ~ .faculty-card-wall .faculty-card:nth-child(-n+4) {
-      margin-top: calc(3 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 250px) / 3));
+      margin-top: calc(3 * max(clamp(var(--spacing-lg), 3.5vw, 5rem), (100cqw - 4 * 15.625rem) / 3));
     }
     #faculty-cards .faculty-card > .text-left {
       display: contents;
@@ -388,7 +389,7 @@
   }
   /* 真桌面（4 欄 grid）：內文格垂直置中於 row——只有單一語言（一行）的格對齊 row 中線、不貼頂；
      年份不跟著置中、維持上方 align-self:start 貼頂（user 2026-10-26 二修）。矮橫向是另一套兩欄 grid（landscape.css），不動 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .faculty-grid-row { align-items: center; }
     .faculty-grid-row-education > span:first-child { align-self: center; }   /* 學歷列沒有年份欄：首格是校名＝內文 */
   }
@@ -591,7 +592,7 @@
   /* 手機／矮橫向 slide-in 分片進場（desk-card.js createSlideInEntrance）的遮罩＝片本身：滿寬的片左右向要滑整條寬＝像從遠處飛進來
      → 片縮成字寬（user 2026-11-04「就跟 footer 一樣」）。section 標題欄的 sticky 底色要滿寬 → 進場改動 h3（faculty-slide-in.js mobileBlocks）。
      學經歷列拆成格當片（11-05）：右欄各段文字縮字寬；左欄年份／國家維持 4rem 欄寬（sticky 底色要蓋住下面捲過的年份） */
-  @media not all and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     :is(#faculty-detail-name-en, #faculty-detail-name-zh, #faculty-detail-titles > *, #faculty-detail-lead > *, .faculty-lead-rows > *, .faculty-section-title-col h3),
     #faculty-panel .faculty-grid-row:not(.faculty-grid-row-award) > span:not(:first-child),
     #faculty-panel .faculty-grid-row-education > span:first-child,
@@ -648,7 +649,7 @@
     .slide-in-back-square { display: block; }
   }
   /* 矮橫向（landscape gate）走手機返回鍵 → 藏方塊；同 layer 後置規則、特異度相同 → gate 命中時勝 */
-  @media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .slide-in-back-square { display: none; }
   }
 
@@ -660,7 +661,7 @@
      高＝內容高、上限＝上下各留 logo 中線（上下同錨框）、垂直置中畫面（user 2026-10-21）；內距同灰卡內容 lg；
      返回鍵中心釘色卡左下角（library next 鈕釘右上角的鏡像；卡高隨內容變 → top 由 desk-card.js 量卡底寫入）。
      進退場在 js/modules/ui/desk-card.js */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     :is(#faculty-slide-in, #courses-slide-in) {
       --desk-col: calc((100% - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter));
     }

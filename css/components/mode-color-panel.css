@@ -32,7 +32,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   border-radius: calc(var(--mcp-h) / 2);    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
   pointer-events: none;
 }
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .mcp-cap-mask { --mcp-h: 48px; bottom: 48px; }
   /* 右下角讓給 footer 鈕（footer.css .footer-btn-mask，user 2026-11-04 對調）：鉛筆排在它左邊、間距 md 24（＝header mode↔menu）；
      capsule 從這裡往左長、不推 footer 鈕。沒 footer 的頁（router 掛 body.no-footer）回角落。掛 body＝--mcp-footprint-x 也吃得到 */
@@ -41,7 +41,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 /* 手機／iPad／矮橫向：右下讓給 footer 鈕（44，footer.css 手機段）、鉛筆疊在它正上方（user 2026-11-04「移到 footer btn 上方」）、
    間距 sm＝同 header mode↔menu 鈕（header.html gap-sm；user 同日「鉛筆到 footer 鈕的 gap 跟 mode 到 menu 一致」）；
    capsule 照樣往左長。這高度落在第二層 tab 列 → 那幾列 mode3 也讓（portrait.css／landscape.css 檔尾；首頁 news 一律讓到 header mode 鈕右緣、點開的 ↗ 可蓋過鉛筆） */
-@media not all and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body:not(.no-footer) .mcp-cap-mask { bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm)); }
 }
 .mcp-cap {
@@ -183,7 +183,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
    （mode-color-panel.js capDim／capLen），row 直排靠底：色條在上、play、chevron 格＝收起時的圓鈕在底；色條直立、hue 由上往下（barHue 同座標）。
    間距：頂 20、色條→play 17（pause 墨跡上下滿版）、play→chevron 墨跡 ~17、chevron→底 ~16；朝下 chevron 墨跡本來就置中＝不用橫排那個左移。
    body.mcp-left＝這頁照桌面往左開（World 頁橫向手機：可視高只有三百多、往上長會頂到 menu 鈕；atlas.js 掛，mode-color-panel.js isHoriz 同判） */
-@media not all and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body:not(.mcp-left) .mcp-cap-row {
     top: auto;
     bottom: 0;

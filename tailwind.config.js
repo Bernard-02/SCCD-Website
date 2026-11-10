@@ -15,6 +15,8 @@ module.exports = {
   safelist: ['text-xs', 'text-s', 'text-md', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl'],
   theme: {
     extend: {
+      // desk:＝真桌面（橫的 ≥1024）；直拿的大 iPad（1032×1376）走 iPad 版、不吃桌面格位（2026-11-10，同 helpers.js 版型判斷）
+      screens: { desk: { raw: '(orientation: landscape) and (min-width: 1024px)' } },
       // cursor-* utility 直接吃自製游標（--cursor-* 定義在 js/utils/helpers.js）
       cursor: Object.fromEntries(
         ['default', 'pointer', 'text', 'not-allowed', 'grab', 'grabbing', 'zoom-in', 'zoom-out', 'w-resize', 'e-resize']

@@ -85,7 +85,7 @@ function buildImg(src, fixedWidth, onSized) {
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
     // about 橫向手機（≥768 寬也算，11-06）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
     const phone = window.innerWidth < 768 || (SCCDHelpers.isLandscapePhone() && !!panel?.closest('#class-info-area'));
-    const capByBox = phone || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
+    const capByBox = phone || window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
       // --class-img-fill（CSS，預設 1）：只用容器高的幾成＝圖上下留白（DSD 直向 0.9：直圖別貼上方 92 線／說明 box，user 2026-10-29→30）

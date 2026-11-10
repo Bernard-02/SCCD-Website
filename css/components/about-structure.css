@@ -114,7 +114,7 @@
 
   /* 桌面：巢狀子列絕對掛在父 box 正下方置中、脫離流程 → 不佔父節點寬，叔叔節點（MDES）緊接 BFA 右側。
      佔位高度由 about-structure.js reserveHeights 補 margin-bottom。橫向手機（高 ≤500）走下方手機緊湊樹、不吃這段 */
-  @media (min-width: 768px) and (min-height: 501px) {
+  @media (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .prog-node > .prog-children {
       position: absolute;
       top: 100%;
@@ -145,7 +145,7 @@
   }
   /* 桌面：說明卡底跟 resources 卡底對齊（視窗底 − logo 中線，見 accordion.css）；樹框上下同錨 logo 中線（spacer 在 scroll-snap.css）。
      pt 是 utilities layer 的 md:pt-[var(--nav-line)]，components 內要 !important 才蓋得掉（同 accordion.css #resources） */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .prog-legend-stack { top: calc(100svh - var(--header-logo-mid)); }
     #program-structure { padding-top: var(--header-logo-mid) !important; padding-bottom: var(--header-logo-mid) !important; }   /* 上下同錨（見 scroll-snap.css about 框） */
     /* 層距起始值 3xl；實際由 JS layoutLineLengths 改寫（斜綫同角 35° 反推層距；樹高超出框＝底到 Degree 卡底就縮短） */
@@ -161,7 +161,7 @@
     }
   }
   /* 桌面：capsule 展開（往左長到 CAP_W 265）不推卡——收起圓鈕本在 col-18 右緣外、max() 恆取 col-18，直接釘 col-18 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     body.mode-color .prog-legend-stack {
       right: calc(var(--container-padding) + (100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 10 + 2 * var(--spacing-gutter));
     }
@@ -210,7 +210,7 @@
 
   /* ── 手機 <768＋橫向手機（≥768 寬也算，user 2026-11-06）：比照桌面 fan——BFA/MDES 一列、兩組一列，SVG 斜綫照畫；字級改 s；
      SCAIDC 移到子樹之後（display:contents + order 重排）；說明卡 in-flow 在樹底（橫向手機在樹右，landscape.css 5i）── */
-  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
     #program-structure {
       --prog-gap: var(--spacing-md);
       --prog-chip-max: 10rem;                /* md 字級下兩顆並排：2×160 + gap 16 = 336 ≤ 342（390 − container padding） */
@@ -293,7 +293,7 @@
     .prog-legend-bar .prog-legend-en { margin-bottom: 0; }
   }
   /* 橫向手機：說明卡在樹右邊 → 回桌面窄卡（卡頭一行在上、bar 英上中下），手機橫排太寬塞不進樹旁 */
-  @media (orientation: landscape) and (max-height: 500px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
     /* 層距收 xl：手機的 3xl 是給直向一屏鋪滿的，390 高三層＋兩個 96 會超出一屏 */
     #class-works-area #program-structure { --prog-level-gap: var(--spacing-xl); }    #program-structure .prog-legend { flex-direction: column; max-width: 28rem; }
     #program-structure .prog-legend-head { flex-direction: row; gap: 0.4em; align-items: baseline; }

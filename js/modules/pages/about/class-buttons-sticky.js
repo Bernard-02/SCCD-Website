@@ -66,7 +66,7 @@ export function initClassButtonsSticky() {
   // 內容自己走，看起來 sticky 不放 → 改回矮視窗同款「過落點即 1:1 跟內容滑出」。
   // ≥1200 桌面改「上下同錨」框（scroll-snap.css，2026-09-29）：不分高度 works 都落 top 0、鈕列 sticky 0 → 同高視窗路徑
   const tallViewport = window.matchMedia('(min-height: 900px)').matches
-    || window.matchMedia('(min-width: 1024px) and (min-height: 501px)').matches;
+    || window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
   gsap.timeline({
     scrollTrigger: {
       trigger: worksAnchor,

@@ -297,7 +297,7 @@
   }
   /* 桌面不 shrink、整排往右延伸出欄：works 模式多展開 Design Fundamental 時 shrink 會把鈕壓到 max-width 以下多折行，
      鈕高超過固定列高（--about-pill-row-h）被 sticky 的 clip-path 裁底。768–1023 維持 shrink（全排 ~1010 會出畫面） */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     #class-buttons-sticky .grid-20 > div > * { flex-shrink: 0; }
   }
   /* ===== Class Buttons Sticky Container =====

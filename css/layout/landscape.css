@@ -5,7 +5,7 @@
    → 一律抬特異度（#id / main .X / body .X）；@layer 內的 !important 反而贏本檔 !important（見 5i resources）。
    鎖頁（atlas / library / create）body 鎖 h-screen、結構各異，本檔 main > section 選擇器不誤觸它們。 */
 
-@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* 1) 字級整套沿用手機值：寬 ≥768 的橫向誤吃 md: class，但那些 utility 都消費 --font-size-* →
      覆寫成 variables.css @media(max-width:767px) 的同值即全面回手機尺寸。
      ⚠️ 值一對一複製 variables.css 手機 block，那邊改這裡要同步。
@@ -106,7 +106,7 @@
     }
   }
   /* 矮高（≤500）：說明段落 xs（直向 s）＝段落 4~5 行就收進 max-height 內捲上限，不再被切；iPad（高 >500）照 s */
-  @media (max-height: 500px) {
+  @media (orientation: landscape) {
     main .hero-rand-grid .hero-text-en,
     main .hero-rand-grid .hero-text-cn {
       font-size: var(--font-size-xs);
@@ -547,7 +547,7 @@
   /* 5f+) legal 頁（donate/regulations/sitemap）：沿用桌面 frame（標題欄已抽掉、內文滿欄，見 legal.css）、只收緊矮高偏移。
      ①右欄 box 頂：legal.css margin-top（--header-height fallback 96 + 3xl 96 ＝ 192）在 390 高吃半屏 → 104（92 帶 + 12，同 5e）。
      ②100vh→100svh（同 2a）。限 legal.css frame 同式（≥768 且矮）：<768 窄橫向與直放 768–1023（iPad）走 legal.css stack，不可套 frame 偏移 */
-  @media (min-width: 768px) and (max-height: 500px) {
+  @media (min-width: 768px) and (orientation: landscape) {
     main .legal-page-section {
       height: 100svh;
     }
@@ -952,7 +952,7 @@
   /* 7b) 橫向手機（高 ≤500）footer（user 2026-11-05）：字級同直向手機（xs，footer.css 直向段）；tab 列移到 header logo 右邊、
      logo 下那欄留空（inner 左 padding 讓出 logo 欄）＝內容頂從 logo 頂開始；legal 英中上下兩行、copyright 接在下面。
      捲動同直向手機：資訊區（tab＋各 item＋Office Hours）自己捲、tab 釘頂、Office Hours 釘底；legal 在捲動框外不動、整塊靠右（塊內靠左）。iPad 不吃 */
-  @media (max-height: 500px) {
+  @media (orientation: landscape) {
     body .footer-shell {
       padding-top: calc(var(--mobile-bottom-anchor) - 6px);   /* ＝header logo 頂 */
     }
@@ -1248,7 +1248,7 @@
      iPad（768–1023、高 >500）維持直向同款底 bar（lists.css／courses.css／variables.css 的「直向＋iPad」union 段）。
      本段＝10-30 上午砍掉的 header 帶規則原樣放回（值一對一），只多包一層 max-height；後出＝蓋過上方 gate 共用規則。
      JS 分流：SCCDHelpers.isLandscapePhone()（helpers.js）。 */
-  @media (max-height: 500px) {
+  @media (orientation: landscape) {
   /* 橫向手機共用版面線（user 2026-11-05）：nav 列／底部 tab 列／內容左緣＝logo 右＋sm（--lp-start）；
      內容右緣＝header mode 鈕右緣＝最右的鈕欄（menu／footer 鈕 44＋sm，--lp-btn-col）留空；nav 列尾端＝兩顆鈕各＋sm（--lp-nav-end）。
      ponytail: curriculum program 列／faculty 還是同值的字面 calc，動到那幾條時改吃這三個 token */
@@ -1962,7 +1962,7 @@
 
 /* iPad 底 bar 讓右下角鈕：同 portrait.css「右下角鈕讓位」段（列滿寬、鈕蓋在上面，尾端 padding 加長＝捲到底離鈕 sm；
    第二層列只有 mode3＋footer 才加）；兩邊改一邊要同步。橫向手機（高 ≤500）nav 在 header 帶、沒有底 bar＝不用讓 */
-@media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+@media (orientation: portrait) and (min-width: 768px) {
   body:is(:not(.no-footer), .mode-color) { --br-btns: calc(44px + var(--spacing-sm)); }
   body:is(:not(.no-footer), .mode-color) #page-content :is(.nav-bottom-bar:not(.courses-mobile-grade-bar), #mobile-anchor-strip),
   body:is(:not(.no-footer), .mode-color) #courses-content-section .courses-program-bar,

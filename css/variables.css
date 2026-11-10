@@ -220,7 +220,7 @@
 
 /* 真桌面 header：全部從 --header-logo-top 推（user 2026-10-20：logo 以縮小態為準、中線對齊 mode／menu 鈕，「標準一起調整」）。
    矮橫向／768–1023 走手機 header，nav line 維持 160 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   :root {
     /* header 幾何唯一來源：縮小態 logo（100）頂距螢幕頂。JS 讀這個值的：SCCDHelpers.headerGeom()（hero 禁區、footer 卡、library 灰卡）。
        改這裡＝logo、鈕、nav line、上下同錨框全站一起走 */
@@ -236,6 +236,12 @@
     /* 縮小態 logo 中線：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box、DSD 影片高）上下都對齊此線 */
     --header-logo-mid: calc(var(--header-logo-top) + var(--logo-sm) / 2);
   }
+}
+
+/* 大螢幕等比放大（typography.css html font-size，寬 >1920）：rem token 全跟著放大，但 header 鈕／logo／灰卡等 chrome 是 px 錨定值 →
+   container padding 也釘回 px，否則鈕被推進來、跟用 px 算位置的元素疊在一起（library 下一頁鈕壓 mode 鈕，user 2026-11-10） */
+@media (orientation: landscape) and (min-width: 1921px) and (min-height: 1081px) {
+  :root { --container-padding: 60px; }
 }
 
 /* ===== 手機版響應式設計 (Desktop-First) ===== */
@@ -279,7 +285,7 @@
 /* DSD 桌面子展覽 tab 區（degree-show-data-loader buildDesktopEventTabs，2026-10-20 比照 about programs）：一屏。
    tab 列高＝programs 鈕列（--about-pill-row-h，scroll-snap.css）、tab 底對齊 programs 鈕底；tab 換行長高時 JS 寫 --dsd-tabs-row-h。
    卡頂＝列底＋2xl；圖容器／說明卡內捲高＝框內剩餘高（到 98 線）——蓋 scroll-snap.css .class-info-panel 那兩條（多一層 class） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .dsd-event-tabs-section {
     --dsd-area-h: calc(100svh - var(--dsd-tabs-row-h, var(--about-pill-row-h)) - var(--spacing-2xl) - var(--header-logo-mid));
     height: 100svh;
@@ -635,6 +641,24 @@
     color: var(--theme-bg) !important;
   }
 
+  /* BFA 學士班 label（mobile）：桌面 absolute 浮在 btn 上方，mobile 改 in-flow 免被 nav overflow-y 裁掉。
+     bg/color 沿用 buttons.css 桌面 chip；active 由 bfa-division-toggle.js 設 inline accent 底＋黑字，inactive 清 inline 回 chip。 */
+  #mobile-division-nav .class-group-label {
+    position: static;
+    left: auto;
+    bottom: auto;
+    padding: var(--card-pad-s);   /* 行距吃 buttons.css 的 --line-height-s（同桌面；10-27 撤 1） */
+  }
+}
+
+/* ===== about 直向手機：anchor strip 改固定畫面底部 bar、英中同一行（user 2026-10-27）=====
+   顯隱＝anchor-nav.js 切 .is-bar-hidden（hero 上藏、footer 前收、離頁收）：整條從畫面底緣滑出滑進。
+   頂上只剩 header 帶（0–92）→ 各屏內容從 92 起算（scroll-snap.css：落點貼 section 頂＋section 自己 padding-top 92，下方「92 落點」皆指此）；
+   下方各一屏預算＝舊值 −88（落點 180→92）＋ bar 高。改 bar 高／落點要整組同步（timeline.js 也有一份）。 */
+/* 底 bar 本體＝直向＋iPad 共用（user 2026-10-30：先改全 gate、再定橫向手機 nav 回 header 帶＝landscape.css 檔尾 max-height:500 段）；
+   下一段的一屏預算只給直向 */
+@media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
+  /* （11-10 由上方 <768 段搬來：iPad 吃不到＝Design Fundamental 一直露在 Vision 上；橫向手機 landscape.css 5i 自有一份） */
   /* Design Fundamental pill（works-only 分組）：預設收起，捲到 works 區（.is-works-context）才展開（對齊桌面 .class-division-bfa-wrap）。
      收起時負 margin 不佔 gap、visibility 藏。pill 內 .anchor-nav-inner 進退場＝clip-reveal（SCCD_animateBfaChips，user 10-21 撤擦除）：
      進＝空間撐開與滑進同拍；退＝先滑出、空間等 --dur-medium 再收。 */
@@ -655,23 +679,6 @@
     transition-delay: 0s;
   }
 
-  /* BFA 學士班 label（mobile）：桌面 absolute 浮在 btn 上方，mobile 改 in-flow 免被 nav overflow-y 裁掉。
-     bg/color 沿用 buttons.css 桌面 chip；active 由 bfa-division-toggle.js 設 inline accent 底＋黑字，inactive 清 inline 回 chip。 */
-  #mobile-division-nav .class-group-label {
-    position: static;
-    left: auto;
-    bottom: auto;
-    padding: var(--card-pad-s);   /* 行距吃 buttons.css 的 --line-height-s（同桌面；10-27 撤 1） */
-  }
-}
-
-/* ===== about 直向手機：anchor strip 改固定畫面底部 bar、英中同一行（user 2026-10-27）=====
-   顯隱＝anchor-nav.js 切 .is-bar-hidden（hero 上藏、footer 前收、離頁收）：整條從畫面底緣滑出滑進。
-   頂上只剩 header 帶（0–92）→ 各屏內容從 92 起算（scroll-snap.css：落點貼 section 頂＋section 自己 padding-top 92，下方「92 落點」皆指此）；
-   下方各一屏預算＝舊值 −88（落點 180→92）＋ bar 高。改 bar 高／落點要整組同步（timeline.js 也有一份）。 */
-/* 底 bar 本體＝直向＋iPad 共用（user 2026-10-30：先改全 gate、再定橫向手機 nav 回 header 帶＝landscape.css 檔尾 max-height:500 段）；
-   下一段的一屏預算只給直向 */
-@media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
   :root { --about-bar-h: calc(var(--mobile-bottom-anchor) * 2 + 28px); }   /* 一行 chip 28 置中＝chip 底邊落在 --mobile-bottom-anchor（10-30；原固定 64＝chip 底 18）；配對值見上 */
   /* #id 前綴：output.css 的 Tailwind .sticky 也是 unlayered、出在後面，同特異度蓋不掉；display:block 蓋 gate 寬 ≥768 吃到的 md:hidden */
   #about-content-wrapper > .mobile-anchor-strip-wrap {
@@ -780,7 +787,7 @@
    每屏＝header 帶下 92 起、底讓出左下返回／分享列（--dsd-m-bottom＝24 底距＋44 鈕＋16）；子展覽那屏再讓出 tab 列（--dsd-m-tabs-h）。
    JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機堆疊版（landscape.css 5j），但返回／分享鈕與子展覽 tab 列
    同本段底 bar 做法（下方 union 段，user 2026-10-30）。 */
-@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   :root {
     --dsd-m-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm));   /* 返回鈕底（全站貼底界線）＋鈕 44＋sm；tab 列坐在這上面 */
   }

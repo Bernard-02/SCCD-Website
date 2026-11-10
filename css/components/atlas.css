@@ -350,7 +350,7 @@ body.mode-color #atlas-detail-mask {
 }
 /* 真桌面：卡底 48＝左下當前頁卡（navigation.css #page-indicator bottom:48）同一條底線（user 2026-10-04）；
    mode3 鉛筆改圓鈕也是底 48（mode-color-panel.css .mcp-cap-mask）→ 三 mode 一致 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #atlas-detail-mask,
   body.mode-color #atlas-detail-mask {
     bottom: 48px;
@@ -591,7 +591,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   cursor: var(--cursor-pointer);
 }
 /* 手機／iPad／矮橫向：每半 44 正方（觸控標準）、icon 28＝四邊 8 同桌面 48／32（user 2026-10-28；11-05 補 iPad「手機鈕以 44 為主」） */
-@media not all and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .atlas-layout-opt { width: 44px; height: 44px; font-size: 28px; }
 }
 .atlas-layout-face {
@@ -657,7 +657,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
    list 左右由 atlas.js layoutListBox 寫（logo 右緣 → mode 鈕左緣）；
    list 底＝切換鈕頂（底 48＋鈕高 48）再上 md＝固定距離（user 2026-10-20，原「頁卡頂＋16」矮螢幕會壓到鈕；calcListPageSize 讀 list 底）。
    grid 列鎖在 list 高內：auto 列會被欄內容的最小高撐出 list 底（1440×600 實測欄底標題蓋到切換鈕） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #atlas-layout-btn {
     left: 50%;
     translate: -50% 0;
@@ -998,7 +998,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   }
 }
 /* 矮橫向寬 ≥768 會誤落桌面 hover 區、觸控又無 hover → 併入自動捲；(hover: none)＝觸控的桌面排版（iPad 橫向，user 2026-10-31）同 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px), (hover: none) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (hover: none) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1553,14 +1553,14 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 /* ── 矮橫向 gate（同 landscape.css）：圓點/zoom 規則在上方 .atlas-dot-mode；此處只放 list view 重排 + stage top；觸控手勢見 atlas.js isMobileAtlas ── */
 /* 橫排 tab（直向手機＋矮橫向）鈕距只有 xs 8：遮罩四邊放 12 時，左右滑的 inner 會越過鈕距蓋到隔壁（user 2026-10-29）
    → 左右只留旋轉餘裕 2（±3° 角外溢 ≈1px）、上下照留 12 */
-@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px) {
+@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   #atlas-filter .atlas-filter-btn {
     overflow: visible;
     clip-path: inset(-12px -2px);
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* dot 態 A/C/em label opacity:0 但仍佔位、蓋在 co chip 上偷走 elementFromPoint → 關 hit-test。
      直向不套（直向 tap label 直開卡需 hit-test） */
   #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
@@ -1676,7 +1676,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 /* ── 橫向手機（高 ≤500）專屬（user 2026-11-05）：版面線同 landscape.css --lp-*（起點＝logo 右＋sm、內容右緣＝header mode 鈕右緣、
    最右的鈕欄留空）。iPad（768–1023）維持上面 gate 段。本頁不捲動＝瀏覽器原生工具列常駐、可視高比模擬器矮 ~50
    → 高度一律吃 svh／實際盒高、list 列數跟著可視高增減（atlas.js calcListPageSize 讀這裡的 top／bottom／padding-bottom） ── */
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
   /* 星雲只畫在中間：最高到 header 帶（92）的一半＝logo 中線、左起 logo 右＋sm（logo／切換鈕那欄留空，user 2026-11-06）、
      最寬到 mode 鈕右緣；佈局吃 stage 盒（atlas.js W／H） */
   #atlas-stage {

@@ -74,7 +74,7 @@
 /* lightbox 內 pill 鈕（返回／分享／ref）＝全站黑方塊 icon 鈕尺寸（user 2026-10-29；原跟 title pill 同高）：
    真桌面 48、其餘 44（同 header 鈕 #menu-btn／.mobile-header-btn）；跟 title 卡不同高 → 對齊 title 中線（topbar flex 置中；
    PDF 各自 absolute → 底部列規則補半個高差）。icon padding 同 header menu 鈕（48 盒 32 icon＝四邊 8，user 2026-10-21）→ icon＝盒 −16 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #activities-lightbox, #pdf-viewer-modal, #share-lightbox { --lb-icon-btn: 48px; }
 }
 .alb-close-pill, .alb-share-pill, .pdf-back-pill, .pdf-share-pill, .lightbox-ref-btn-pill {
@@ -94,7 +94,7 @@
 /* 自訂影片 UI 的單鈕色塊（WATCH 返回／全螢幕、lightbox 影片全螢幕）：鈕撐滿色塊，hover＝整塊反色、不只淡 icon
    （user 2026-10-21）。底色改在色塊本身（不在鈕上疊一層＝旋轉斜邊不會漏一圈原色）；底色/字色是 JS inline → !important。
    mode3 色塊是 theme-fg（color.css）→ hover 翻 fg-inverse 底 fg 字 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body:not(.mode-color) :is(#video-block-close, #video-block-fullscreen, .lb-video-fs-block):hover {
     background: var(--color-black) !important;
   }
@@ -122,7 +122,7 @@
    ❚❚ 22.4px（播放中常駐，同 mcp 以 pause 算；pause.svg 墨跡 x 26–118/160＝左 3.6 右 5.9）→ 左緣 −4、到進度條 −6；
    音量 28px（volume.svg 墨跡 x 8–158/160＝左 1.4 右 0.3）→ 時間到音量 −1、右緣 padding 20 不動；
    音量到 slider 20＝JS 展開時同拍給 track margin-left（收起寬 0 連間距一起收＝音量到右緣才是 20） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   :is(#video-play-btn, .lb-video-play) { margin: 0 -6px 0 -4px; }
   :is(#video-volume-wrap, .lb-video-vol) { margin-left: -1px; }
 }
@@ -152,7 +152,7 @@
 .alb-fit-toggle {
   margin-left: var(--spacing-xs);
 }
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .lb-zoom-btn:not([aria-disabled="true"]):hover .lb-zoom-pill {
     background: var(--color-black);
     color: var(--color-white);
@@ -161,7 +161,7 @@
 
 /* lightbox 內 pill 鈕（返回／分享／ref）hover＝黑底白 icon（同 ref chip）
    底色/字色由 JS inline 寫 → !important；真桌面才 hover（觸控 tap 會黏住） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   .alb-close:hover .alb-close-pill,
   .alb-share:hover .alb-share-pill,
   .pdf-back-btn:hover .pdf-back-pill,
@@ -421,7 +421,7 @@
 
 /* 橫向手機（高 ≤500）：圖到縮圖列、縮圖列到底列都收成 sm，讓給大圖（user 2026-11-06「渲染的圖片太小」；
    上緣／左右讓 logo 由 JS positionUIRelativeToLogo 設）。gap 只在 <768 直排時有作用（≥768 底列 absolute） */
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
   #activities-lightbox .alb-main-container { padding-bottom: 0; }
   #activities-lightbox .alb-thumbs-wrap {
     padding-top: var(--spacing-sm);
@@ -434,7 +434,7 @@
 /* 真桌面底部控制列（user 2026-10-21）：方塊底＝左下當前頁卡底（48，navigation.css #page-indicator bottom）；
    列頂到大圖區的距離不變（30＝album pt-md 24＋縮圖列 outline 預留 6），列變高＝大圖區讓。
    列高 --lb-btn-h＝title pill 高（JS sync*BtnHeight 寫）；返回／分享鈕比它矮、中線對齊（下方補半個高差） */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #activities-lightbox .alb-thumbs-wrap {
     padding-bottom: 42px;   /* 48 − 縮圖列下 6 */
   }
@@ -467,7 +467,7 @@
 
 /* 真桌面：大圖區左右邊＝col-4 左緣（同內頁內容起點），右邊對稱停 col-17 右緣
    欄寬公式同 .site-container .grid-20：(100vw − 2×container-padding − 19×gutter) / 20 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #pdf-viewer-modal .pdf-main-row,
   #activities-lightbox .alb-main-container {
     --lb-col4: calc(var(--container-padding) + 3 * ((100vw - 2 * var(--container-padding) - 19 * var(--spacing-gutter)) / 20 + var(--spacing-gutter)));

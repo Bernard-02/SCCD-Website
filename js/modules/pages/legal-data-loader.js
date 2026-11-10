@@ -96,11 +96,11 @@ function zebraRow(entry, idx) {
 }
 
 // legal 三頁頂部說明段（user 2026-10-04）：粗體 text-s（.legal-page-desc／.legal-map-desc p），桌面 3/4 寬＝admission
-// 說明段同一套 grid（grid-12 → min-[1024px]:col-span-9）。來源：Donate＝support.overview、Regulations＝regulations.pageDesc、
+// 說明段同一套 grid（grid-12 → desk:col-span-9）。來源：Donate＝support.overview、Regulations＝regulations.pageDesc、
 // Site Map＝accessibility_statement.overview。空＝不渲染。
 function pageDescInner(en, zh) {
   if (!en && !zh) return '';
-  return `<div class="grid-12"><div class="col-span-12 min-[1024px]:col-span-9">`
+  return `<div class="grid-12"><div class="col-span-12 desk:col-span-9">`
     + (en ? `<p>${esc(en)}</p>` : '') + (zh ? `<p lang="zh-Hant">${esc(zh)}</p>` : '')
     + `</div></div>`;
 }

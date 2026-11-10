@@ -94,7 +94,7 @@
   }
   /* 桌面（min-height 排除矮橫向 gate，同 lists.css 慣例）改回自然換行：CMS label 長時 nowrap 會衝出 bar 疊到右欄；
      換行後寬度被 bar clamp。 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .courses-program-btn .anchor-nav-inner > span:first-child {
       white-space: normal;
     }
@@ -102,7 +102,7 @@
   /* 桌面：內容從 col-4 起、nav 與內容間只剩 gutter → btn 文字收在 cols 1-2 折行、col 3 當呼吸。
      bar 寬＝nav wrapper（3 欄）的前 2 欄＝2×欄寬＋1 gutter。
      中文 keep-all：不在字中間斷（免孤字）；中文比 2 欄長時略凸進 gutter，同 faculty DCD 鈕。 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .courses-program-bar {
       width: calc((100% - 2 * var(--spacing-gutter)) * 2 / 3 + var(--spacing-gutter));
     }
@@ -121,7 +121,7 @@
      組內 BFA 小標→組別鈕（group）＝--nav-btn-sub-gap（HTML md:gap-[var(...)]）。不用 absolute label＋margin-top 估突出量：估算隨斷點行數漂移。
      矮橫向（landscape.css）／直向手機（static 併排在鈕左）各有規則，min-height 501 排除矮橫向。 */
   /* 第一層（BFA 小標題、MDES）貼 logo 框左緣（＝欄左緣 0）、第二層組別鈕內縮 12（user 2026-10-21；原第一層 -12 外凸、組別貼 logo） */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .courses-program-group .courses-bfa-label {   /* group 前綴提特異度：基本規則 .courses-bfa-label（absolute）寫在後面 */
       position: relative;
       bottom: auto;
@@ -435,7 +435,7 @@
   }
   /* 真桌面以外全走手機 grid（年級底 bar＋列）；橫向手機 ≥768 寬 11-05 起也是（user「年級 tab 放下面、必修選修 sticky、課程 chip 兩欄」，
      原 10-30 維持桌面 grid） */
-  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .courses-grid {
       display: none;
     }
@@ -506,13 +506,15 @@
     font-weight: var(--font-weight-bold);
   }
   .courses-mobile-cells {
-    /* 卡片直排、各卡寬度貼文字寬（fit-content）；align-self:stretch 給 max-width:100% 滿寬基準，防 nowrap 撐爆 */
+    /* 各卡寬度貼文字寬（justify-items:start）；align-self:stretch 給 max-width:100% 滿寬基準，防 nowrap 撐爆。
+       欄數跟寬度走（每欄至少 240）：直向手機 1 欄、iPhone Duo 內螢幕直拿／iPad 2 欄（user 2026-11-10 原本一欄、右半空著） */
     align-self: stretch;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--spacing-sm);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    justify-items: start;
+    align-items: start;
+    gap: var(--spacing-sm) var(--spacing-md);
   }
 
   /* ===== 直向手機（user 2026-10-27，同 about／faculty）=====
@@ -523,7 +525,7 @@
      header 白底已拿掉（navigation.css）→ 頂上不再有 nav／年級／類型三層 sticky 白帶（類型標籤改左欄 sticky、不墊底色）。矮橫向 nav 進 header（landscape.css）不套。 */
   /* 手機 grid 疊排共用（直向＋iPad＋橫向手機；橫向手機 program 列在 header 帶、年級 bar 直接在底，見 landscape.css 檔尾段）。
      卡片從 --mobile-content-top（108＝faculty 第一張卡，user 2026-11-05）開始；底＝--courses-m-bottom-pad（各版型算到年級 chip 頂＋2xl） */
-  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (min-width: 768px) and (max-width: 1023px) {
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     #courses-content-section {
       padding-top: var(--mobile-content-top);
       padding-bottom: var(--courses-m-bottom-pad);
@@ -568,7 +570,7 @@
 
   /* 直向＋iPad：program 列也在底（年級 bar 疊其上）。底＝兩條 bar 疊起來看得到的高＋2xl（user 2026-11-05）：
      年級 chip 頂＝年級 bar 底＋界線＋8（.nav-bottom-bar 底 16 的置中位移）＋chip 28 → 最後一張卡底到年級 chip 頂＝2xl */
-  @media (max-width: 767px) and (orientation: portrait), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  @media (max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px) {
     #courses-content-section {
       --courses-m-bottom-pad: calc(var(--courses-m-grade-bar-bottom) + var(--mobile-bottom-anchor) + 36px + var(--spacing-2xl));
       --courses-m-program-chip-h: calc(2 * var(--font-size-s) * var(--line-height-s) + var(--space-en-zh-s) + 10px);   /* 英上中下兩行＋card-pad-s 上下 5 */
@@ -614,7 +616,7 @@
   }
 
   /* ===== Mobile（< 768px＋橫向手機）通用尺寸覆寫 ===== */
-  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px) {
+  @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
     #courses-content-section {
       --courses-grid-type-col: 3rem;
       --courses-grid-col-gap: var(--spacing-sm);

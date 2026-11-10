@@ -35,7 +35,7 @@
   }
   /* 手機排版＝非真桌面：標題欄不佔版位（display:contents＝欄框消失、隱藏的 h1 照留），內文滿欄。
      真桌面左欄照留＝內文從 col-4 起（同 activities / admission） */
-  @media not all and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .legal-title-col { display: contents; }
     .legal-page-section .legal-content-col { grid-column: 1 / -1; }
   }
@@ -49,7 +49,7 @@
   /* 桌面：section 收成一屏 frame，右欄內文在 box 內捲（比照 activities / faculty 等 inner-scroll 頁）；只有 .legal-content-col 是捲動層。
      loader 都 scrollGated:false（載入即全 reveal），不依賴 window 捲動源，故 inner-scroll 安全。
      ⚠️ gate＝「≥1024 或 矮橫向」：直放 768–1023 標題壓內容欄 → 走 stack flow；矮橫向用 max-height:500 續留 frame＝landscape.css 5f 的前提，勿改 orientation 判。 */
-  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
+  @media (orientation: landscape) and (min-width: 768px) {
     .legal-page-section {
       height: 100svh;
       overflow: hidden;
@@ -74,7 +74,7 @@
   }
 
   /* 真桌面：內容欄＝col 4–18（HTML min-[1024px]:），左緣貼 col-4，同 activities / admission。 */
-  @media (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
     .legal-page-section .legal-content-col {
       --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（同 curriculum/activities/admission） */
     }
@@ -118,7 +118,7 @@
   /* 手機＋直放 768–1023：stack flow（標題欄已抽掉）。文字／清單頂＝展開標題釘點（loader 寫 inline var）＝blocker 高
      ＝--mobile-content-top（同 faculty 第一張卡／activities／admission，user 2026-11-05「往下時卡片對齊位置也再往下」）。
      768–1023 段用 min-height:501 排除矮橫向（續走桌面 frame）；該段專屬補丁見檔尾。 */
-  @media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  @media (max-width: 767px), (orientation: portrait) and (min-width: 768px) {
     .legal-content-col { padding-top: var(--mobile-content-top); }
     .legal-content-col > .list-mobile-header-blocker {
       height: var(--mobile-content-top);
@@ -133,7 +133,7 @@
 
   /* 桌面：展開 header 釘在 inner-scroll box 頂（var 未設時預設 200px 離頂太遠）；gate 同 frame 區塊。
      直放 768–1023 無 frame，釘點見檔尾 96px */
-  @media (min-width: 1024px), (min-width: 768px) and (max-height: 500px) {
+  @media (orientation: landscape) and (min-width: 768px) {
     .legal-zebra { --list-header-sticky-top: 0px; }
   }
 
@@ -512,7 +512,7 @@
      ① 展開 list header 釘 96px＝list-accordion.js getListStickyTop 在 box 不可捲時回 96，兩處同步；0–92px 由 navigation.css .mobile-header-bg 白帶接住
      （lists.css 桌面段 fallback 200px 太低故必須蓋）
      ② 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
-  @media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
+  @media (orientation: portrait) and (min-width: 768px) {
     /* 中和 lists.css 通用 `.inner-scroll-scroll-col`（min-768 幀高+overflow:auto）：此區間無 frame、
        整頁 window 捲。⚠️ overflow 兩軸都要回 visible（單軸 hidden 會把另軸 visible 算成 auto→
        getScrollableBox 誤判 box 可捲、accordion 捲動走錯層）。 */

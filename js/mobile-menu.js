@@ -19,7 +19,7 @@ function applyRandomRotation(el) {
 
 // 透明疊層 menu（桌面 2026-09-27；直向手機 user 2026-10-27 改跟桌面一樣）：同一個 .mobile-nav 面板，CSS 改成透明底＋靠右旋轉 btn、
 // 不鎖捲動、點外面關（navigation.css 同式 media）。矮橫向／768–1023 同日跟進（兩欄，landscape.css 5b）
-const DESKTOP_MENU_MQ = '(min-width: 1024px) and (min-height: 501px)';
+const DESKTOP_MENU_MQ = '(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)';
 const OVERLAY_MENU_MQ = `${DESKTOP_MENU_MQ}, (max-width: 767px) and (orientation: portrait)`;
 const isDesktopMenu = () => window.matchMedia(DESKTOP_MENU_MQ).matches;   // 只剩 hover 抽角用（手機 tap 不抽）
 const isOverlayMenu = () => window.matchMedia(OVERLAY_MENU_MQ).matches || SCCDHelpers.isLandscapeGate();
