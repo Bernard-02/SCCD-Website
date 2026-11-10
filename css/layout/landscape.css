@@ -1973,3 +1973,45 @@
   /* about strip 在 iPad 沒有直向那套負 margin 出血（右緣停在 container 內）→ 右邊補出血，尾端 padding 才跟其他 bar 同一把尺 */
   body:is(:not(.no-footer), .mode-color) #mobile-anchor-strip { margin-right: calc(-1 * var(--container-padding)); }
 }
+
+/* iPad 直拿 about（11-10）：原本吃「≥768 窄桌面 20 欄（左文右圖）」＋gate 5i 矮橫向落點，沒人設計過每屏上下空白
+   （Vision／Programs 內容頂到 logo 底下、Programs 文字欄 257 寬、Works 那屏露下一區）→ 照直向手機同一套：
+   ① 每屏自己留 header 帶（落點貼 section 頂＋padding-top 92；同 scroll-snap.css 直向段「每屏自己負責上下空白」）；
+   ② Programs／Works 圖上 6、文下 4（同 variables.css about 直向段 --about-room；tab 可見頂＝界線＋105 兩邊同式）。
+   #about-content-wrapper 前綴＝蓋 gate 5i、scroll-snap.css ≥900 高段、HTML md: 欄位 */
+@media (orientation: portrait) and (min-width: 768px) {
+  #about-content-wrapper :is(#overview, #class, #class-info-anchor, #works, #resources, #history) { scroll-margin-top: 0; }
+  #about-content-wrapper { --about-room: calc(100svh - 92px - var(--mobile-bottom-anchor) - 105px); }
+  #about-content-wrapper :is(#overview, #class-info-area, #works, #resources) { min-height: 100lvh; }
+  #about-content-wrapper #overview { padding-top: calc(92px + var(--spacing-md)); }
+  #about-content-wrapper #overview [data-overview-hl] { max-height: calc(100svh - 92px - 2 * var(--spacing-md) - var(--about-bar-h)); }
+  #about-content-wrapper :is(#class-info-area, #works) { height: auto; padding-top: 92px; }
+  #about-content-wrapper #class-works-panels { padding-top: 0; }
+  #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) { padding-bottom: 0; }
+  #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) .grid-20 { row-gap: 0; }
+  #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) .grid-20 > * { grid-column: 1 / -1; margin-left: 0; }
+  #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) .grid-20 > :first-child {
+    order: 2;
+    height: calc(var(--about-room) * 0.4);
+    padding-block: var(--spacing-md);
+    display: flex;
+    align-items: center;
+  }
+  #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) .grid-20 > :last-child { order: 1; height: calc(var(--about-room) * 0.6); }
+  #about-content-wrapper #class-info-area .class-info-panel .division-images { height: calc(var(--about-room) * 0.6) !important; }
+  #about-content-wrapper :is(#class-info-area [data-class-text], .class-works-panel [data-works-text]) {
+    height: auto;
+    max-height: max(calc(var(--about-room) * 0.4 - 2 * var(--spacing-md) - 10px), 4em);
+  }
+  /* Works 影片＋playlist（75）在 6 成格內垂直置中；格放不下時影片等比縮（同直向） */
+  #about-content-wrapper .class-works-panel .grid-20 > :last-child { display: flex; flex-direction: column; justify-content: center; }
+  #about-content-wrapper .class-works-panel .works-video-row { width: 100%; max-width: calc((var(--about-room) * 0.6 - 75px) * 16 / 9); margin-inline: auto; }
+  /* History：內容頂 90、area 高＝到底 bar 頂（timeline.js 同式）；gate 5i++ 的置中＋flex 撐高會把清單鈕推進 bar → 關掉 */
+  #about-content-wrapper #history {
+    min-height: 100lvh;
+    justify-content: flex-start;
+    padding-top: 90px !important;   /* 蓋 inline padding-top:100 */
+    padding-bottom: var(--about-bar-h);
+  }
+  #about-content-wrapper #history #timeline-area { flex: none; }
+}

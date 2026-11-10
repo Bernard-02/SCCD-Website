@@ -175,11 +175,12 @@ export function initTimeline() {
     // ⚠️ 必須在讀 area.offsetHeight（下方 pageH）之前設，否則照片以舊高度算佈局。
     // 直向手機（2026-10-27）：落點 90＋讓出底部 nav bar（--about-bar-h，variables.css 檔尾 about 直向段）
     // 橫向手機（11-06）：about 內容頂（--about-lp-top，landscape.css 5i）到貼底界線＝清單鈕底對齊 footer 鈕底
+    // iPad 直拿（11-10）＝同直向手機（landscape.css 檔尾 iPad about 段）；原本吃舊 178 落點＝清單鈕壓進底 bar
     const portraitPhone = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
     const landPhone = SCCDHelpers.isLandscapePhone();
     if (SCCDHelpers.isMobileLayout()) {
-      area.style.height = portraitPhone ? 'calc(100svh - 90px - var(--about-bar-h))'
-        : landPhone ? 'calc(100svh - var(--about-lp-top) - var(--mobile-bottom-anchor))' : 'calc(100svh - 178px)';
+      area.style.height = landPhone ? 'calc(100svh - var(--about-lp-top) - var(--mobile-bottom-anchor))'
+        : 'calc(100svh - 90px - var(--about-bar-h))';
     }
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;

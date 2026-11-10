@@ -726,6 +726,17 @@
     scrollbar-width: none;
   }
   #mobile-division-nav::-webkit-scrollbar { display: none; }
+  /* 同上：BFA 學士班標籤 in-flow＋非 active chip 配色（11-10 補；iPad 吃不到＝標籤照桌面 absolute 浮在列上、左緣被切） */
+  #mobile-division-nav .class-group-label {
+    position: static;
+    left: auto;
+    bottom: auto;
+    padding: var(--card-pad-s);
+  }
+  #mobile-division-nav .section-nav-btn:not(.active) .anchor-nav-inner {
+    background: var(--theme-fg) !important;
+    color: var(--theme-bg) !important;
+  }
 }
 
 /* ===== about 直向手機：各屏一屏預算（底 bar 之外的部分，只給直向；矮橫向走 landscape.css 5i 自己的版面）===== */

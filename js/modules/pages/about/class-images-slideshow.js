@@ -83,8 +83,8 @@ function buildImg(src, fixedWidth, onSized) {
     // CSS 的 170/250 max-width 仍生效（此處只會更小不會更大）。
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
-    // about 橫向手機（≥768 寬也算，11-06）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
-    const phone = window.innerWidth < 768 || (SCCDHelpers.isLandscapePhone() && !!panel?.closest('#class-info-area'));
+    // about 橫向手機／iPad 直拿（≥768 寬也算，11-06／11-10）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
+    const phone = window.innerWidth < 768 || (SCCDHelpers.isMobileLayout() && !!panel?.closest('#class-info-area'));
     const capByBox = phone || window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
@@ -626,8 +626,9 @@ export async function initClassImagesSlideshow() {
     revealed = false;
 
     // 手機版 reveal trigger：桌面的 reveal ScrollTrigger 在 class-buttons-sticky.js（手機直接 return），
-    // 手機沒人觸發 revealActive → 圖文永遠停在 HIDE。這裡自建同 start 點的 trigger（橫向手機 11-06 起也走手機 division 列）
-    if ((window.innerWidth < 768 || SCCDHelpers.isLandscapePhone()) && activePanelEl && typeof ScrollTrigger !== 'undefined') {
+    // 手機沒人觸發 revealActive → 圖文永遠停在 HIDE。這裡自建同 start 點的 trigger；條件要跟 sticky 那邊的 return 同式
+    // （iPad 直拿也 return，11-10 前漏掉＝Programs 圖從沒揭開）
+    if (SCCDHelpers.isMobileLayout() && activePanelEl && typeof ScrollTrigger !== 'undefined') {
       ScrollTrigger.create({
         trigger: activePanelEl,
         start: 'top 88%',
