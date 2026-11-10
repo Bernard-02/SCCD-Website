@@ -10,7 +10,7 @@ const path = require('path');
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
 const AUTH = { Authorization: 'Bearer ' + token };
 const H = { ...AUTH, 'Content-Type': 'application/json' };
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const DRY = process.argv.includes('--dry');
 
 async function req(method, p, body) {

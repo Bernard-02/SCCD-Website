@@ -12,7 +12,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const path = require('path');
 
-const API = 'https://sccdtest.usc.edu.tw/items';                 // 同 js/config/api.js CMS_API_BASE
+const API = 'https://sccdadmin.usc.edu.tw/items';                 // 同 js/config/api.js CMS_API_BASE
 const CDN = 'https://d2df28pyzslt2v.cloudfront.net/Directus';    // 同 js/config/api.js CMS_CDN_BASE
 const ROOT = path.join(__dirname, '..');
 

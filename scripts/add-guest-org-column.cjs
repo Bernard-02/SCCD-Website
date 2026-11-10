@@ -7,7 +7,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const token = fs.readFileSync('scripts/.directus-token', 'utf8').trim();
 const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const DRY = process.argv.includes('--dry');
 
 async function req(method, path, body) {

@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 // CI（GitHub Actions）讀環境變數 DIRECTUS_TOKEN；本機讀 scripts/.directus-token（gitignore）
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
 const H = { Authorization: 'Bearer ' + token };
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const ASSETS = BASE + '/assets';
 const PDFJS  = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';

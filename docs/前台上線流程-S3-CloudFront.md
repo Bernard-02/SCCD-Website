@@ -11,7 +11,7 @@
 ```
 前台網域（靜態檔）                     後台 CMS
 ────────────────────                  ────────────────────
-sccd.usc.edu.tw                       sccdtest.usc.edu.tw
+sccd.usc.edu.tw                       sccdadmin.usc.edu.tw 
    │                                     │
    ▼                                     ▼
 CloudFront（CDN + 快取）               nginx / 1.22.1
@@ -24,23 +24,22 @@ Amazon S3（靜態網站）                   Directus（:8055）＋ MySQL
 檢查方式（隨時可重驗）：
 ```bash
 curl -sI https://sccd.usc.edu.tw/        # → Server: AmazonS3 + Via: CloudFront
-curl -sI https://sccdtest.usc.edu.tw/    # → Server: nginx/1.22.1 + X-Powered-By: Directus
+curl -sI https://sccdadmin.usc.edu.tw/   # → Server: nginx/1.22.1 + X-Powered-By: Directus
 ```
 
 **重點**：
 - 「Lightsail + nginx」是**後台 Directus 那台**，不是前台。
 - 前台是 **S3 + CloudFront**，所以清 URL **不能**用 `.htaccess`（Apache）也不能用 nginx `try_files`。repo 根目錄那份 `.htaccess` 在這個架構下是**死檔**（S3/CloudFront 不讀），可留可刪。
-- 本地開發時前台接的是**測試 CMS**（`sccdtest`）；上線時把 `js/config/api.js` 改指向正式 Directus 子網域（見 §1①）。
+- 前台接的是正式 CMS 子網域 `sccdadmin`（2026-11-10 起；舊測試網域 `sccdtest` 的 DNS 已撤）。
 
 ---
 
 ## 1. 上線前要改的 code（2 個檔）
 
-### ① API base — `js/config/api.js`
-測試 CMS → 正式 CMS 子網域（正式 Directus 網域確定後改）：
+✅ 已完成（2026-11-10）：正式 CMS 子網域＝`sccdadmin.usc.edu.tw`（同一台 Lightsail），`js/config/api.js` 已指向它：
 ```js
-export const CMS_API_BASE    = 'https://<正式CMS子網域>/items';
-export const CMS_ASSETS_BASE = 'https://<正式CMS子網域>/assets';
+export const CMS_API_BASE    = 'https://sccdadmin.usc.edu.tw/items';
+export const CMS_ASSETS_BASE = 'https://sccdadmin.usc.edu.tw/assets';
 ```
 > 這是唯一注入點，全站 fetch 都吃這兩個常數。憑證是 `*.usc.edu.tw` 萬用憑證，用子網域不用裸 IP。
 
@@ -125,7 +124,7 @@ aws cloudfront create-invalidation \
 - [ ] 在 `/about` 這種內頁按 **refresh** → 正常載入（不是 404）← 這條測 CloudFront fallback 有沒有設對
 - [ ] 直接貼 `sccd.usc.edu.tw/library` 到新分頁 → 正常載入
 - [ ] 亂打 `sccd.usc.edu.tw/xxxxx` → 顯示本站 404 頁
-- [ ] DevTools Network：資料 fetch 打的是**正式** CMS 網域（不是 sccdtest）
+- [ ] DevTools Network：資料 fetch 打的是**正式** CMS 網域（`sccdadmin`，不是舊的 sccdtest）
 - [ ] Directus Public role 有開 Read（沒開前台 fetch 全 401）
 
 ---
@@ -135,6 +134,6 @@ aws cloudfront create-invalidation \
 1. **S3 bucket 名稱** — `aws s3 sync` 的目標。
 2. **CloudFront distribution ID** — 設 error response / function + invalidation 用。
 3. **誰有 AWS 帳號權限** — 目前前台是誰／怎麼部署上去的（repo 無 CI、無 deploy script → 應為手動）。
-4. **正式 Directus 子網域** — 現在前台指向 `sccdtest`（測試），正式上線要換成正式 CMS 網域。
+4. ~~**正式 Directus 子網域**~~ — ✅ 2026-11-10 定案 `sccdadmin.usc.edu.tw`。
 
 > 這四項確定後，§1–§3 就能一路照做。router 那半（§1②）我隨時可以直接幫你改進 code；CloudFront 那半（§2）需要 AWS Console 權限，得你或 IT 操作。

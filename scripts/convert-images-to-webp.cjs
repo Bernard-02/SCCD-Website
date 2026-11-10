@@ -14,7 +14,7 @@ const { chromium } = require('playwright');
 
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
 const H = { Authorization: 'Bearer ' + token };
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const ASSETS = BASE + '/assets';
 const MAX_EDGE = 2000;   // 長邊上限：原 1600 對「點開的大圖」在 Retina/高 DPI 上偏糊（等於半解析度撐大）；
                          //   2000 平衡清晰度與檔案（avg 94KB→~145KB）。要更清可調 2400（avg ~210KB、grid 較重）。小圖不放大。

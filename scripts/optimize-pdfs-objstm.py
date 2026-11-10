@@ -16,7 +16,7 @@ ObjStm → 6 個請求、~300KB、本機 0.5s。⚠️ 不要加 linearize：qpd
 import os, re, sys, urllib.parse, urllib.request, json, tempfile
 import pikepdf
 
-API = 'https://sccdtest.usc.edu.tw/items/library_documents?fields=pdfLink,titleEn,year&limit=-1&sort=-year,sort'
+API = 'https://sccdadmin.usc.edu.tw/items/library_documents?fields=pdfLink,titleEn,year&limit=-1&sort=-year,sort'
 out_dir = sys.argv[1]; only = None; limit = 0
 for i, a in enumerate(sys.argv):
     if a == '--only': only = sys.argv[i + 1]

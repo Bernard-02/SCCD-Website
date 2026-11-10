@@ -6,7 +6,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const path = require('path');
 
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const SRC = 'data-source/about-history.json';
 const DRY = process.argv.includes('--dry');
 const FORCE = process.argv.includes('--force');

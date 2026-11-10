@@ -15,7 +15,7 @@ const path = require('path');
 const SRC = process.argv.find(a => a.endsWith('.xlsx')) ||
   path.join(__dirname, '..', 'data-source', 'Untitled spreadsheet.xlsx');
 const WRITE = process.argv.includes('--write');
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const COL = 'library_awards';
 
 // 表上出現過的中文國名 → ISO（對齊後台 country 下拉 choices）；缺漏會印警告、country 留空

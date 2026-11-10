@@ -4,7 +4,7 @@
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const fs = require('fs');
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
 const api = async (p, o = {}) => { const r = await fetch(BASE + p, { ...o, headers: { ...H, ...(o.headers || {}) } }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t; } return { ok: r.ok, status: r.status, j }; };
 

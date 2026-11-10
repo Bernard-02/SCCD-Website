@@ -9,7 +9,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // *.usc.edu.tw 萬用憑證對�
 const fs = require('fs');
 
 const token = (process.env.DIRECTUS_TOKEN || fs.readFileSync('scripts/.directus-token', 'utf8')).trim();
-const BASE = 'https://sccdtest.usc.edu.tw';
+const BASE = 'https://sccdadmin.usc.edu.tw';
 const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
 const COLLECTION = 'ui_labels';
 const TARGET_KEYS = process.argv.slice(2);
