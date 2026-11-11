@@ -475,3 +475,33 @@
     padding-right: var(--lb-col4) !important;
   }
 }
+
+/* iPad 直拿 album lightbox（user 2026-11-11）：縮圖列獨立一列在上、控制列（返回／分享／標題／ref ＋ 右側縮放）在下
+   ＝標題吃掉縮放鈕以外的剩餘寬（原本同一列三等分、標題只剩 1/3 被切到剩兩個字）。同 <768 直排的做法，縮放鈕留著。
+   ⚠️ topbar／縮放鈕原本 absolute＋inline top/transform → !important 回 flow */
+@media (orientation: portrait) and (min-width: 768px) {
+  #activities-lightbox .alb-thumbs-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding-inline: var(--container-padding);
+    padding-bottom: var(--mobile-bottom-anchor);   /* 控制列底＝全站貼底界線 */
+  }
+  #activities-lightbox.alb-album .alb-thumbs {
+    grid-area: 1 / 1 / 2 / -1;
+    max-width: none !important;
+  }
+  #activities-lightbox.alb-album .alb-topbar,
+  #activities-lightbox .alb-zoom-controls {
+    position: static !important;
+    transform: none !important;
+    grid-row: 2;
+  }
+  #activities-lightbox.alb-album .alb-topbar {
+    grid-column: 1;
+    min-width: 0;
+    max-width: none;
+  }
+  #activities-lightbox .alb-zoom-controls { grid-column: 2; }
+}
