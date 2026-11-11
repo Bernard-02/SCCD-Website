@@ -345,3 +345,14 @@ html.input-touch :focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* iOS／iPadOS Safari：旋轉的色塊邊緣鋸齒（user 2026-11-11 iPad Air）。WebKit 把帶 transform 的元素交給合成層時，層的邊不做反鋸齒
+   （Chrome 會）→ 透明 1px outline 把層往外撐一圈，色塊的邊落在層「裡面」＝取樣時自然柔化。只給 iOS（@supports 這條只有 iOS WebKit 認），
+   桌機零影響；選 inline transform 帶 rotate 的元素（GSAP／JS 抽角都寫 inline）＋旋轉卡內的自繪捲軸。⚠️ headless 驗不到，要實機看 */
+@supports (-webkit-touch-callout: none) {
+  [style*="rotate"]:not(:focus-visible),
+  .touch-thumb,
+  .desk-scroll-thumb > * {
+    outline: 1px solid transparent;
+  }
+}

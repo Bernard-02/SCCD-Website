@@ -252,3 +252,9 @@ html {
     width: 100%;
   }
 }
+
+/* 真桌面的一屏 hero／區塊（h-screen＝100vh）改 svh：iPad Safari 橫拿 100vh 是工具列收起的大視口＝工具列在的時候區塊比畫面高
+   → 首頁只有一屏也能捲（捲了才收工具列）、DSD hero 底部文字被切（user 2026-11-11）。桌機 vh＝svh 不變 */
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  main > section:is(.h-screen, [class*="md:h-screen"]) { height: 100svh; }
+}
