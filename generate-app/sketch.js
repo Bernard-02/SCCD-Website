@@ -724,7 +724,7 @@ function setup() {
 
   // 監聽媒體查詢變化，確保與CSS保持同步（gate 同 utils.js checkMobileMode 的手機式；
   // 平板轉向會跨此界＝portrait 手機版 ↔ landscape 桌面版，變化時重判＋updateUI）
-  _mobileMediaQuery = window.matchMedia('(max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)');
+  _mobileMediaQuery = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px)');
   _mobileMediaQuery.addListener(_handleMobileMediaChange);
 
   // setup 內所有 DOM refs 已 select 完，可放行 handleSiteThemeChange 觸發 updateUI

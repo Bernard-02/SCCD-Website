@@ -70,10 +70,10 @@ function updatePanelIconColorClass() {
 function checkMobileMode() {
   // 使用 matchMedia API 與CSS媒體查詢保持同步（create.css 手機區塊同式，⚠️兩邊必須一字不差：
   // 2026-09 曾因 JS 768 / CSS 767 差 1px，iPad 直放 768 整頁空白）。
-  // 直放平板 768-1023 也算手機：桌面版在此區間左右出血（TYPE AND ENTER 被切），手機直式流版才合身。
+  // 直放平板（≥768，含 iPad Pro 13 直拿 1032；2026-11-11 跟全站「看方向」）也算手機：桌面版在此區間左右出血（TYPE AND ENTER 被切），手機直式流版才合身。
   // 矮橫向（橫向手機，寬 >768 會誤判桌面）也算手機 → 走 handleOrientationChange 的
   // #landscape-overlay「旋轉設備」提示，而不是壞掉的桌面版；gate 同 landscape.css
-  isMobileMode = window.matchMedia('(max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait)').matches
+  isMobileMode = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px)').matches
     || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
 }
 
@@ -141,7 +141,16 @@ function getCanvasSize() {
 function updateDesktopScale() {
   const app = document.getElementById('create-app');
   if (!app) return;
-  if (isMobileMode) { deskScale = 1; app.style.removeProperty('--scale'); return; }
+  if (isMobileMode) {
+    deskScale = 1;
+    // 手機排版也整組等比（user 2026-11-11：iPad 直拿鈕超大、slider 超小）：基準構圖 390×844、contain、不縮小
+    // → 手機 ≈1、直放平板 ~1.15–1.35；create.css 手機段的鈕上限／面板內距／輸入字級同乘 --scale。
+    // 高取「沒開鍵盤的可視高」（mobile.js mobileKbBaseH）：Chrome 開鍵盤連 innerHeight 都縮，不然打字時比例會跳
+    const H = Math.max(window.innerHeight, typeof mobileKbBaseH === 'number' ? mobileKbBaseH : 0);
+    const ms = Math.max(1, Math.min(window.innerWidth / 390, H / 844));
+    app.style.setProperty('--scale', ms.toFixed(3));
+    return;
+  }
   const W = window.innerWidth;
   let s = Math.min(1, (W - 2 * 60) / 1092);   // 左右 container padding 60
   if (createKbOpen && window.visualViewport) {

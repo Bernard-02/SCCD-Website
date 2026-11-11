@@ -251,9 +251,9 @@ function loadScript(src) {
 
 async function loadAllScripts() {
   if (scriptsLoaded) return;
-  for (const src of SCRIPTS) {
-    await loadScript(src);
-  }
+  // 一次全部插入＝並行下載；async=false 保證照插入順序執行。原本逐支 await＝11 支排隊一支一支抓（p5 ~1MB 在最前面），
+  // 慢網路／iPad 上內容要等 logo 打字跑完才出現（user 2026-11-11）
+  await Promise.all(SCRIPTS.map(loadScript));
   scriptsLoaded = true;
 }
 
@@ -300,7 +300,8 @@ async function loadAllScripts() {
 function playCreateExitAnimation(destinationRoute) {
   if (typeof gsap === 'undefined') return Promise.resolve();
 
-  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  // 同 generate-app/js/utils.js checkMobileMode（原本寫 max-width:768＝寬 >768 的直放平板抓桌面元素、全是 display:none → 沒有退場，user 2026-11-11）
+  const isMobile = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (max-height: 500px)').matches;
   const destPage = destinationRoute?.page;
   // library / atlas 用小 logo；其他頁（含 alumni / about / index）皆大 logo（--logo-sm／--logo-lg）
   const isSmallDestLogo = destPage === 'library' || destPage === 'atlas';

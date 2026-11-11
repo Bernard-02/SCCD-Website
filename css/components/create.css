@@ -168,7 +168,7 @@
    display-area 置中於「SCCD 中線 → UI bar 頂」＝SCCD 中線到輸入區、輸入區到 bar 同距。bar 提高 N＝上下兩段 gap 各少 N/2。
    SCCD 中線＝--header-logo-mid（header.js GEN_LOGO_LAYOUT.SVG_TOP 置中字樣）；#create-app 頂＝中線，display-area margin-block:auto 吃剩餘高；
    gap 0 否則範圍底差 1rem。deskScale（generate-app utils.js updateDesktopScale 讀同一個 var）可用高從「字底」算＝範圍多出 35、上下各至少留 17.5，輸入字不會壓到 SCCD。 */
-@media (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   #create-app {
     --create-bar-bottom: 64px;
     margin-top: calc(var(--header-logo-mid) - var(--header-height, 96px));
@@ -184,7 +184,7 @@
 
 /* iPad 螢幕鍵盤模式：sketch.js _handleDesktopKeyboard 切 .create-kb-open、寫 --create-vv-h（鍵盤上方可視高）。
    控制盒＋header 暫藏、顯示區（--scale 已依可視高重算）置中。gate 同桌面排版 */
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+@media (min-width: 768px) and (orientation: landscape) {
   #create-app.create-kb-open {
     margin-top: calc(-1 * var(--header-height, 96px));
     height: var(--create-vv-h, 100svh);
@@ -244,8 +244,8 @@ body.create-kb-open #site-header {
 }
 
 /* 桌面 canvas 容器
-   ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放 768–1023 走手機版（JS utils.js checkMobileMode 同式） */
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+   ⚠️ 桌面 gate＝「≥1024 或 768+ 橫向」：直放（≥768）走手機版（JS utils.js checkMobileMode 同式） */
+@media (min-width: 768px) and (orientation: landscape) {
   #desktop-canvas-container {
     /* 432×540 × --scale（utils.js updateDesktopScale 寫值、getCanvasSize 同乘） */
     width: calc(432px * var(--scale));
@@ -782,7 +782,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 }
 
 /* hover 只在桌面（gate 同 desktop-canvas-container），免觸控殘留 hover 色 */
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+@media (min-width: 768px) and (orientation: landscape) {
   .custom-button:not(.active):not(:disabled):hover {
     color: #888;
   }
@@ -799,7 +799,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 .custom-button-custom:not(.active):not(:disabled) {
   border-color: transparent;
 }
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+@media (min-width: 768px) and (orientation: landscape) {
   .control-box .custom-button-rotate:not(.active):not(:disabled):hover img,
   .control-box .custom-button-custom:not(.active):not(:disabled):hover img {
     opacity: 1;
@@ -927,7 +927,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
    掛在 button 不掛 img：img 自己有 filter:invert（依 mode 反色），寫在 img 會蓋掉。整組合成一次＝像素同預混實色。
    mode 鈕＝hover icon 本身才淡（鈕＝icon 大小；盒仍整盒可點，user 2026-10-21）；下載盒 hover 盒就算；
    custom／▶❚❚ 只有 active（100%）才淡，未選（50%）維持 hover 回 100%（上方規則） */
-@media (min-width: 1024px), (min-width: 768px) and (orientation: landscape) {
+@media (min-width: 768px) and (orientation: landscape) {
   #create-app .control-box .custom-slider.enabled:hover,
   #create-app #colormode-box:not(.disabled) #colormode-button:hover,
   #create-app #save-box:not(.disabled):hover #save-button:not(:disabled),
@@ -1066,11 +1066,11 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   opacity: 0;
   pointer-events: none;
 }
-/* ===== 手機版（<768 ＋ 直放平板 768–1023）===== */
+/* ===== 手機版（<768 ＋ 直放平板 ≥768，含 iPad Pro 13 直拿 1032）===== */
 
 /* ⚠️ 手機 gate 須與 utils.js checkMobileMode 第一條 matchMedia 一字不差（768 曾踩 JS/CSS 差 1px 全白坑）。
    直放平板走手機版（桌面版在此區間左右出血）；矮橫向另走上方 max-height:500 區塊。 */
-@media (max-width: 767px), (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+@media (max-width: 767px), (orientation: portrait) and (min-width: 768px) {
   #create-app {
     overflow: hidden;
     position: fixed;
@@ -1095,6 +1095,9 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     display: flex !important;
     flex-direction: column;
     width: 100%;
+    /* 寬上限＝基準構圖寬 390×scale、超過置中（user 2026-11-11）：平板直拿不再把鈕／slider 拉到滿寬 */
+    max-width: calc(390px * var(--scale));
+    margin-inline: auto;
     height: 100%;
     padding: 2rem 1.5rem 2rem;
     gap: 1rem;
@@ -1102,7 +1105,10 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     box-sizing: border-box;
     --mobile-content-gap: 1rem; /* Custom 區塊和 Color Picker 的 gap */
     --mobile-btn-gap: 1.5rem;
-    --mobile-btn-size: calc((100vw - 3rem - 3 * var(--mobile-btn-gap)) / 4);
+    /* 手機整組等比 --scale（utils.js updateDesktopScale 手機分支：390×844 構圖 contain、≥1）。鈕＝均分寬，但上限 72×scale：
+       直放平板寬很多、高沒多多少，純吃寬會變 160px 大鈕配 4px slider（user 2026-11-11）；手機寬（≤430）碰不到上限＝不變 */
+    --mobile-btn-size: min(calc((100vw - 3rem - 3 * var(--mobile-btn-gap)) / 4), calc(72px * var(--scale)));
+    --mobile-input-fs: calc(2rem * var(--scale));
   }
 
   .mobile-content-section {
@@ -1186,16 +1192,20 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
      內距看得到的邊（user 2026-11-05）：左＝盒緣→slider、右＝icon 本身→盒緣、slider 欄→icon 欄，三段都 sm（同色條盒 --cp-pad）；
      上下＝第一／三條 slider 的 thumb 外緣→盒緣也是 sm：列高比 thumb 高 → 上下 padding 扣掉半個差 */
   .mobile-custom-angle-controls .controls-inner {
-    --ca-row-h: calc(0.8rem * 1.5);   /* 角度數字列高（.angle-input 字級×行高，比 thumb 14 高） */
+    --ca-row-h: calc(var(--slider-label-font-size) * 1.5);   /* 角度數字列高（.angle-input 字級×行高，比 thumb 14 高） */
+    --ca-pad: calc(var(--spacing-sm) * var(--scale));
     display: flex;
     flex-direction: row;
     align-items: stretch;
+    /* 不跟列高伸縮（overflow:hidden＝min-height 0，stretch 會被 0fr 列壓扁、內容置中＝從中間往上下長）：
+       維持自身高、貼列頂＝跟著列長高從底邊滑上來（clip-reveal，同色條） */
+    align-self: start;
     width: 100%;
-    padding: calc(var(--spacing-sm) - (var(--ca-row-h) - var(--slider-thumb-size)) / 2) var(--spacing-sm);
+    padding: calc(var(--ca-pad) - (var(--ca-row-h) - var(--slider-thumb-size)) / 2) var(--ca-pad);
     border: none;
     border-radius: 0;
     box-sizing: border-box;
-    gap: var(--spacing-sm);
+    gap: var(--ca-pad);
     overflow: hidden;
   }
 
@@ -1212,7 +1222,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.7rem;
+    gap: calc(0.7rem * var(--scale));
     min-width: 0;
   }
 
@@ -1226,7 +1236,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     min-width: 0;
   }
 
-  /* slider／角度數字樣式同桌面（user 2026-10-27）：手機 --scale＝1 → 4px 方角線＋4×14 直條 thumb＋0.8rem 數字，
+  /* slider／角度數字樣式同桌面（user 2026-10-27）：手機 --scale≈1（直放平板 >1，見 --mobile-btn-size）→ 4px 方角線＋4×14 直條 thumb＋0.8rem 數字，
      這裡只管寬度排版（原手機圓點 thumb／14px 數字已撤） */
   .mobile-custom-angle-controls .custom-slider {
     flex: 1 1 auto;
@@ -1236,7 +1246,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   .mobile-custom-angle-controls .angle-input {
     height: var(--ca-row-h);   /* 列高定死＝上下內距算得出 thumb 外緣離盒緣多遠（.controls-inner） */
-    width: 38px;
+    width: calc(38px * var(--scale));
     flex-shrink: 0;
     text-align: center;
     pointer-events: none;
@@ -1402,8 +1412,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     width: 100%;
     /* 全 mode 一行（user 2026-11-04「手機的 input 都改成一行，不需要三行」；原 mode1/2 三行預留＋≤6 字大字，改跟 mode3 同一套）：
        一行字＋上下 padding、固定高＝打字不改版面 */
-    height: calc(2rem * 1.2 + 2rem * 0.8 * 2);
-    padding-block: calc(2rem * 0.8);
+    height: calc(var(--mobile-input-fs) * 1.2 + var(--mobile-input-fs) * 0.8 * 2);
+    padding-block: calc(var(--mobile-input-fs) * 0.8);
     margin-bottom: var(--mobile-content-gap);
     transition: margin-bottom var(--dur-fast) ease, height var(--dur-fast) ease, margin-top var(--dur-fast) ease;
     overflow: visible;
@@ -1411,7 +1421,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
 
   /* Custom 開著：只留一行＋gap（負 margin 抵消 logo↔輸入框 gap） */
   .mobile-input-area.has-custom {
-    height: calc(2rem * 1.2 + var(--mobile-content-gap));
+    height: calc(var(--mobile-input-fs) * 1.2 + var(--mobile-content-gap));
     margin-top: calc(-1 * var(--mobile-content-gap));
     margin-bottom: 0;
     padding: 0;
@@ -1425,8 +1435,8 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   /* 一行、字多於框寬＝橫向捲（捲軸藏起來） */
   #mobile-input-box {
     width: 100%;
-    height: calc(2rem * 1.2);
-    font-size: 2rem;
+    height: calc(var(--mobile-input-fs) * 1.2);
+    font-size: var(--mobile-input-fs);
     font-family: inherit;
     font-weight: 500;
     text-align: center;
@@ -1469,7 +1479,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     display: none !important;
   }
   #create-app.create-kb-mobile .mobile-input-area {
-    height: calc(2rem * 1.2);
+    height: calc(var(--mobile-input-fs) * 1.2);
     padding: 0;
     margin: 0;
   }
