@@ -18,7 +18,20 @@ function yearCollapseTarget(group, scroller, pinTop, collapse) {
   const cur = scroller ? scroller.scrollTop : window.scrollY;
   const anchorTop = next ? next.getBoundingClientRect().top - collapse : group.getBoundingClientRect().top;
   const max = scroller ? scroller.scrollHeight - scroller.clientHeight : document.documentElement.scrollHeight - window.innerHeight;
-  return Math.max(0, Math.min(Math.round(anchorTop - viewTop + cur - pinTop), max - collapse));
+  return Math.max(0, Math.min(Math.round(anchorTop - viewTop + cur - pinTop), max - (scroller ? collapse : docShrinkAfterCollapse(group, collapse))));
+}
+
+// window 路徑：某塊收掉 amount 高之後，文件「實際」會變矮多少。
+// 祖先帶 min-height（activities／admission 的 section 至少一屏）而內容本來就沒撐過它時，收合不會讓文件變矮——直接拿
+// 「文件高 − 收合量」當收合後的 maxScroll 會算得太小，跟捲就把頁面往上拉：iPad 直拿畫面高、公告只有一筆，關掉後整頁被捲回去、
+// hero 露出來（user 2026-11-11；短清單的手機同理）。逐層往上：每個祖先最多只能縮到自己的 min-height。
+function docShrinkAfterCollapse(el, amount) {
+  let shrink = amount;
+  for (let p = el.parentElement; p && p !== document.documentElement && shrink > 0; p = p.parentElement) {
+    const mh = getComputedStyle(p).minHeight;
+    if (mh.endsWith('px') && parseFloat(mh) > 0) shrink = Math.min(shrink, Math.max(0, p.getBoundingClientRect().height - parseFloat(mh)));
+  }
+  return shrink;
 }
 
 // 年份收合的跟捲／補差 tween：box＝gsap 捲 scroller；window＝掛在 window 上的空 tween、onUpdate 逐幀 scrollTo。
@@ -454,13 +467,26 @@ function resetBoxSpacer(header) {
 // 無 scroll-col 容器（alumni 等）＝純 clamp 不補。spacer 由收合路徑歸零（closeListHeader scrollFollow / instantClose）。
 export function alignWithBottomSpacer(itemEl, alignTop, footerShiftPx = 0) {
   const host = /** @type {HTMLElement | null} */ (itemEl.closest('.inner-scroll-scroll-col'));
+  const y0 = window.scrollY;
   if (host) resetBoxSpacer(itemEl);   // 先歸零舊 spacer 再量 footer，避免殘留灌水
   const clamped = clampBelowFooter(alignTop, footerShiftPx);
+  let target = clamped;
   if (host && clamped < alignTop) {
-    getBoxSpacer(host).style.height = (alignTop - clamped) + 'px';
-    return alignTop;  // footer 已被 spacer 推出視窗 → 直達 pin 線
+    // 祖先 min-height 的餘裕會先把 spacer 吃掉（section 至少一屏、內容沒撐滿：iPad 直拿畫面高／短清單）＝文件沒變高、照樣捲不到
+    // pin 線（user 2026-11-11：公告只有一筆、點開標題停在半空）→ 用一顆夠大的 spacer 實量餘裕，連餘裕一起補
+    const sp = getBoxSpacer(host);
+    const PROBE = 100000;
+    const d0 = document.documentElement.scrollHeight;
+    sp.style.height = PROBE + 'px';
+    const grew = document.documentElement.scrollHeight - d0;
+    const slack = grew > 0 ? Math.max(0, PROBE - grew) : 0;   // 完全沒長高＝host 在定高裁切框裡，補再多也沒用 → 照舊只補差值
+    sp.style.height = (alignTop - clamped + slack) + 'px';
+    target = alignTop;  // footer 已被 spacer 推出視窗 → 直達 pin 線
   }
-  return clamped;
+  // 歸零舊 spacer 那一下文件變矮，量測一讀 layout 瀏覽器就把 scrollY 夾回去；新 spacer 補回後原位置又合法 → 同一個 task 內放回去
+  // ＝畫面沒動過。不放回的話，展開完的收齊 pass 會從「被夾回去的位置」再補捲一次＝標題掉下去又升上來（user 2026-11-11「會閃一下再對齊」）
+  if (host && Math.abs(window.scrollY - y0) > 0.5) window.scrollTo({ top: y0, behavior: 'instant' });
+  return target;
 }
 
 // Sticky-pinned 偵測：sentinel pattern — 在 list-header 上方塞 0 高度 sentinel div，IO 偵測 sentinel
@@ -612,7 +638,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
       const target = Math.min(restoreScroll, Math.max(0, scroller.scrollHeight - collapseAmount - spacerH - scroller.clientHeight));
       if (Math.abs(target - scroller.scrollTop) > 1) gsap.to(scroller, { scrollTop: target, duration, ease: EASE.exitSoft, overwrite: true });
     } else {
-      const target = Math.min(restoreScroll, Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight));
+      const target = Math.min(restoreScroll, Math.max(0, document.documentElement.scrollHeight - docShrinkAfterCollapse(content, collapseAmount) - window.innerHeight));
       if (Math.abs(target - window.scrollY) > 1) scrollWindowNoSnap(target, { duration, ease: EASE.exitSoft });
     }
   } else if (scrollFollow) {
@@ -631,7 +657,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
       //   靠底 item＝最後一筆中招，user 2026-06-30）。gsap 同 duration/ease + overwrite → 收進序列、re-open 前必被 overwrite。
       if (postMax < scroller.scrollTop - 1) gsap.to(scroller, { scrollTop: postMax, duration, ease: EASE.exitSoft, overwrite: true });
     } else {
-      const postMax = Math.max(0, document.documentElement.scrollHeight - collapseAmount - window.innerHeight);
+      const postMax = Math.max(0, document.documentElement.scrollHeight - docShrinkAfterCollapse(content, collapseAmount) - window.innerHeight);
       if (postMax < window.scrollY - 1) scrollWindowNoSnap(postMax, { duration, ease: EASE.exitSoft });
     }
   }
@@ -880,12 +906,20 @@ function initListHeaderAccordion() {
               const barCollapseDelta = barSticky ? 0 : barInner;
               const headerDocTop = self.getBoundingClientRect().top + window.scrollY;
               const alignTop = Math.max(0, Math.round(headerDocTop - stickyTop - barCollapseDelta));
-              // 真實量測：暫撐開 content 量「展開後」真 footer 再收回（不被 min-height:100vh 留白騙）；footerShift −barInner 補 bar 收合。
               // 短清單被 clamp 夾短時 alignWithBottomSpacer 補底部 spacer 直達 pin 線（見該 helper 註解；不能靠高度預測——
-              // 低估會把落點夾成「往上捲」、反觸發 activities-search 的 scroll-up 還原 search bar）。
-              gsap.set(content, { height: 'auto' });
-              const targetScrollY = alignWithBottomSpacer(self, alignTop, -barInner);
-              gsap.set(content, { height: 0 });
+              // 低估會把落點夾成「往上捲」、反觸發 activities-search 的 scroll-up 還原 search bar）；footerShift −barInner 補 bar 收合。
+              // 有 spacer 可補（host＝.inner-scroll-scroll-col）＝落點恆為 alignTop → spacer 照「收合態」量（寬鬆）：照展開後量的話，
+              //   內容還沒長高前文件比較矮、捲動被夾在舊 maxScroll，等內容長夠才一次跳上去（user 2026-11-11「title 往上了但會閃一下」）。
+              //   展開完的收齊 pass（content onComplete）會把 spacer 修回剛好。
+              // 沒 host（alumni 等，只能 clamp）才暫撐開 content 量「展開後」的真 footer 再收回（不被 min-height:100vh 留白騙）。
+              let targetScrollY;
+              if (self.closest('.inner-scroll-scroll-col')) {
+                targetScrollY = alignWithBottomSpacer(self, alignTop, -barInner);
+              } else {
+                gsap.set(content, { height: 'auto' });
+                targetScrollY = alignWithBottomSpacer(self, alignTop, -barInner);
+                gsap.set(content, { height: 0 });
+              }
               if (Math.abs(targetScrollY - window.scrollY) > 1) {
                 alignDone = new Promise(res => scrollWindowNoSnap(targetScrollY, { duration: DUR.medium, ease: EASE.enterSoft, onComplete: res }));
               }

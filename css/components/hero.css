@@ -237,6 +237,18 @@
     }
   }
 
+  /* iPad 直拿的 DSD hero（DSD 在所有手機排版都走 .hero-mobile；四頁 hero 在 iPad 走隨機版、圖的比例由 hero-animation.js setBannerAspect 管）：
+     圖同上面直向手機那條＝一屏置中、又高又窄佈滿畫面（user 2026-11-11「直式的 DSD 在 iPad 上也要調整」）。
+     main 前綴＋多疊一層 class＝蓋 landscape.css 5j-hero 給整個 gate 的 16:9 置中框（橫向手機照舊吃那條）；top／left 兩邊同值 */
+  @media (orientation: portrait) and (min-width: 768px) {
+    main [data-hero-title-last] .hero-mobile.hero-mobile-rand .hero-mobile-bg {
+      width: calc(100vw - 2 * var(--container-padding) + (11vw + 2 * var(--container-padding)) * var(--hero-bg-w, 0.5));
+      height: calc(100svh - 2 * var(--container-padding));
+      aspect-ratio: auto;
+      transform: translate(-50%, -50%) rotate(var(--hero-bg-rot, -3deg));
+    }
+  }
+
   /* 手機 chip padding 收窄；!important 蓋 hero-animation.js 的 inline padding */
   @media (max-width: 767px) {
     [data-hero-hl] {

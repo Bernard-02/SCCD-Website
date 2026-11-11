@@ -84,7 +84,8 @@ function buildImg(src, fixedWidth, onSized) {
     const panel = wrapper.closest ? wrapper.closest('.class-info-panel') : null;
     // ≥1200 桌面同理：圖容器＝上下同錨框內剩餘高（scroll-snap.css，2026-09-29），扁螢幕圖等比縮、不戳出 98 線
     // about 橫向手機／iPad 直拿（≥768 寬也算，11-06／11-10）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
-    const phone = window.innerWidth < 768 || (SCCDHelpers.isMobileLayout() && !!panel?.closest('#class-info-area'));
+    // DSD 子展覽 11-11 起所有手機排版同一套 → 一律吃容器高
+    const phone = SCCDHelpers.isMobileLayout();
     const capByBox = phone || window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
@@ -586,16 +587,14 @@ export async function initClassImagesSlideshow() {
 
     // 直向手機＝主圖置中、左右依實寬疊放接下去（user 2026-10-27→29：同桌面疊法、窄圖就多露幾張；7 張＝中心＋各 3 張，蓋到 767 寬），
     // 自動往左輪播、點哪張整列移到那張置中（peekNav）。
-    // 矮橫向（landscape gate）維持單圖置中（user 2026-07-07 wireframe：圖左文右單圖輪播）；桌面 3-slot 左移輪播。
+    // iPad 直拿同直向手機（user 2026-11-11「圖片只有一張、應該是很多張」；原本吃矮橫向時代的單圖置中）：圖寬上限 336／520 時
+    // 7 張仍蓋得到 1032 寬。桌面 3-slot 左移輪播。
     // 橫向手機（高 ≤500）＝桌面三張疊放（user 2026-11-06「像 pc 那樣多點圖片、不要一次一張」），步距收窄（15%）塞進文字右邊那格
     const landPhone = SCCDHelpers.isLandscapePhone();
-    const isMobileSlots = SCCDHelpers.isMobileLayout() && !landPhone;
-    const isPeekSlots = isMobileSlots && !SCCDHelpers.isLandscapeGate();
+    const isPeekSlots = SCCDHelpers.isMobileLayout() && !landPhone;
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isPeekSlots
       ? { slotLefts: Array(7).fill('50%'), slotXPercent: -50, slotZ: [1, 2, 3, 4, 3, 2, 1], peekNav: true, textHlReveal: true }
-      : isMobileSlots
-      ? { slotLefts: ['50%'], slotXPercent: -50, textHlReveal: true }
       : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true,   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
         ...(landPhone && { slotLefts: ['0%', '15%', '30%'] }) };
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {

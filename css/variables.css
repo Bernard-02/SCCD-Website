@@ -835,7 +835,7 @@
   }
 }
 
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {   /* 11-11：＋iPad 直拿＋橫向手機＝所有手機排版；橫向手機的左右排在 landscape.css 5j */
   :root {
     --dsd-m-tabs-h: 60px;
     --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));

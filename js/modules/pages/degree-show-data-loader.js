@@ -27,8 +27,10 @@ import { makeTabsDraggable } from '../ui/footer-scatter.js';
 import { initAboutMobileSnap } from '../ui/snap-scroll.js';
 
 // 直向手機（user 2026-10-29）：版面跟桌面同一套（子展覽 tab＋說明 box＋圖、海報影片一屏、無活動清單），尺寸／位置走 variables.css 檔尾 DSD 直向段；
-// 矮橫向維持舊手機版（清單＋每個 event 一段＋header 帶 strip）
-const isPortraitPhone = () => SCCDHelpers.isPortraitPhone();
+// 2026-11-11 起所有手機排版（直向手機／iPad 直拿／橫向手機）都走這套（user「舊排版應該全刪」「橫向手機先以直式的改一版」）
+// ＝名字沿用 isPortraitPhone，實際是「非桌面」；CSS＝variables.css DSD 手機段（media 含整個 gate）＋landscape.css 5j（橫向手機左右排）。
+// ⚠️ 舊手機版分支（清單、appendExhibitionSection、buildMobileEventStrip、色塊上下屆卡）現在走不到＝待 user 看過橫向手機版後刪
+const isPortraitPhone = () => SCCDHelpers.isMobileLayout();
 
 // 標題色卡寬度 → 收到「換行後最寬一行 + 左右 padding」。inline-block + max-width 只把 max-width 當 wrap
 // 上限，色卡實際寬仍會撐到 max-width（短末行右側空一大塊 accent 底）；用 Range 量 wrapped lines 取最寬行寫回
@@ -980,10 +982,10 @@ function setupNextProject(prev, next) {
   // 離頁退場：正在顯示（hover 中）的 title 字卡也 clip-reveal 收回（user 2026-09-11「桌面 title 字卡少了 reveal 出場」）。
   // 沿用 mouseleave 收法（clip-path hidden + translate navChipHidden，走 labelTransition CSS 0.5s）；只有真的在顯示才收+await。
   const exitLabels = () => {
-    if (!shownLabelsKey || typeof gsap === 'undefined' || prefersReducedMotion()) return null;
-    const labels = document.getElementById(`${shownLabelsKey}-labels`);
-    if (!labels) return null;
-    const chips = /** @type {NodeListOf<HTMLElement>} */ (labels.querySelectorAll('p'));
+    // 觸控（字卡常駐、沒有 hover 狀態）＝兩組都收（user 2026-11-11 iPad「title 沒有做出場」）
+    const keys = staticLabels ? ['prev', 'next'] : shownLabelsKey ? [shownLabelsKey] : [];
+    if (!keys.length || typeof gsap === 'undefined' || prefersReducedMotion()) return null;
+    const chips = /** @type {HTMLElement[]} */ (keys.flatMap(k => [...(document.getElementById(`${k}-labels`)?.querySelectorAll('p') || [])]));
     if (!chips.length) return null;
     chips.forEach(chip => {
       chip.style.transition = labelTransition();
@@ -1887,7 +1889,7 @@ function setupStickyAndHeroChips(data, year) {
       bindMobileBottomBar(b);
     });
     // 直向：各段一屏＋子展覽 tab／返回列固定在畫面底：停在兩屏之間＝內容被底列蓋住 → 同 about 直向方向磁吸（user 2026-10-29）
-    if (isPortraitPhone()) initAboutMobileSnap();
+    if (SCCDHelpers.isPortraitPhone()) initAboutMobileSnap();   // 方向磁吸只給 <768（snap-scroll.js 自己也只認 <768）
     return;
   }
 

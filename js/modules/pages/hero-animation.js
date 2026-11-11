@@ -87,6 +87,15 @@ function textPad() {
   const b = bannerPad();
   return { top: b.bottom - 6 + 28, side: b.side, bottom: b.bottom };
 }
+// 圖的長寬比：橫的畫面＝16:9（hero.css）；直拿的隨機版（iPad 直向）＝跟可用區同比例＝圖又高又窄、盡量佈滿畫面
+// （同直向手機 .hero-mobile-rand 的原則，user 2026-11-11；16:9 在直的畫面只佔一小截、上下大片空白）。
+// 套 cache 的那條路也要叫：SPA 換到另一頁 hero 是新 DOM，snapshot 只記寬、不記比例
+function setBannerAspect(banner) {
+  const W = window.innerWidth, H = window.innerHeight;
+  if (SCCDHelpers.isDesktopLayout() || H <= W) { banner.style.aspectRatio = ''; return; }
+  const bp = bannerPad();
+  banner.style.aspectRatio = `${W - 2 * bp.side} / ${H - bp.top - bp.bottom}`;
+}
 function clampHeroItemsIntoSection(grid) {
   const section = /** @type {HTMLElement|null} */ (grid.closest('section'));
   if (!section) return;
@@ -133,6 +142,7 @@ function applyLayoutSnapshot(grid, snapshot) {
   });
   const banner = grid.querySelector('.hero-banner');
   if (banner && snapshot.banner) {
+    setBannerAspect(banner);
     banner.style.left = snapshot.banner.left;
     banner.style.top = snapshot.banner.top;
     banner.style.transform = snapshot.banner.transform;
@@ -505,6 +515,7 @@ function randomizeHeroLayout() {
     // bbox 等比換算）×0.9–1 隨機。矮橫向／iPad 同算法（11-05 起，原本吃 CSS 寬＝比桌面小一截）
     const bp = bannerPad();
     const region = { left: bp.side, top: bp.top, right: W - bp.side, bottom: H - bp.bottom };
+    setBannerAspect(banner);
     banner.style.width = '1000px';
     const r0 = banner.getBoundingClientRect();
     const fit = Math.min((region.right - region.left) / r0.width, (region.bottom - region.top) / r0.height);

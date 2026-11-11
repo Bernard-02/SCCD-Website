@@ -176,8 +176,10 @@ export function initTimeline() {
     // 直向手機（2026-10-27）：落點 90＋讓出底部 nav bar（--about-bar-h，variables.css 檔尾 about 直向段）
     // 橫向手機（11-06）：about 內容頂（--about-lp-top，landscape.css 5i）到貼底界線＝清單鈕底對齊 footer 鈕底
     // iPad 直拿（11-10）＝同直向手機（landscape.css 檔尾 iPad about 段）；原本吃舊 178 落點＝清單鈕壓進底 bar
-    const portraitPhone = window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches;
     const landPhone = SCCDHelpers.isLandscapePhone();
+    // 直拿（直向手機＋iPad 直拿）：照片大小跟寬走（vw）＝裝置多大就等比放大（user 2026-11-11 iPad「後面的圖可以大一點、看裝置 size 等比例」；
+    // 原本只認 <768，iPad 吃桌面的 30~50vw＋五條 bar，在直的畫面裡只剩小小幾張）
+    const portrait = SCCDHelpers.isMobileLayout() && !landPhone;
     if (SCCDHelpers.isMobileLayout()) {
       area.style.height = landPhone ? 'calc(100svh - var(--about-lp-top) - var(--mobile-bottom-anchor))'
         : 'calc(100svh - 90px - var(--about-bar-h))';
@@ -185,10 +187,10 @@ export function initTimeline() {
     const pageW = area.offsetWidth;
     const pageH = area.offsetHeight;
     const vw = pageW / 100;
-    // 直向手機（<768）：照片放大近全幅（60~85vw、一屏至少一張）；垂直改「兩行」交替上下排（見下方
+    // 直拿（直向手機＋iPad）：照片放大近全幅（60~85vw、一屏至少一張）；垂直改「兩行」交替上下排（見下方
     // photoTopsVH），用滿高螢幕的上下空間（user 2026-09-06）。橫向鋪排「跨幅」SPAN 200vw（桌面 100）——
     // 兩行有垂直分離、可比一行密些而不疊成一坨。桌面（5-bar collage）原樣。
-    const bigPhoto = portraitPhone;
+    const bigPhoto = portrait;
     const SPAN = bigPhoto ? 200 : 100;      // 每個 item 的橫向鋪排跨幅（vw 單位）
     const itemW = pageW * SPAN / 100;       // 每 item 佔 px 寬＝marquee 步距（桌面 = pageW）
     // 手機 64~84（user 10-27「再大一點」，原 55~72）：歷程 45~62 太小 → 60~85 疊成坨 → 55~72；

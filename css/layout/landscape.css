@@ -139,16 +139,19 @@
     padding-top: 92px;
     padding-bottom: var(--spacing-md);
   }
-  #site-header .mobile-nav nav {
-    flex-direction: row-reverse;
-    align-items: flex-start;
-    gap: var(--spacing-md);
-  }
-  #site-header .mobile-nav nav > .flex-1 {
-    display: none;
-  }
-  body .mobile-nav .mobile-nav-link {
-    white-space: nowrap;
+  /* 兩欄只給橫向手機（高度不夠）；iPad 直拿高度夠＝同直向手機上到下一排（user 2026-11-11） */
+  @media (orientation: landscape) {
+    #site-header .mobile-nav nav {
+      flex-direction: row-reverse;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+    }
+    #site-header .mobile-nav nav > .flex-1 {
+      display: none;
+    }
+    body .mobile-nav .mobile-nav-link {
+      white-space: nowrap;
+    }
   }
   /* 5b+) create 旋轉提示 overlay 降到 header(z-50) 之下（原 z:99999 連 header 蓋掉）：
      橫向停在提示頁時 logo / mode / menu 仍可用、能離開 /create。overlay 只在橫向顯示（sketch.js handleOrientationChange）。 */
@@ -476,6 +479,17 @@
      不誤傷 #summer-camp-list 內的 .list-year-group.grid-12） */
   #admission-content-section .activities-panel > .grid-12 > div {
     grid-column: 1 / -1;
+  }
+  /* camp 搜尋列：md:sticky 蓋回 static（同 5f activities）。拆 frame 後黏在視窗頂 0＝躲在遮擋帶後面，而且 updateStickyTop
+     （activities-data-loader）看到 bar 是 sticky 就拿「bar 高」當開啟標題的釘點（31～60）＝標題被捲進遮擋帶底下、只露副標
+     （user 2026-11-11 iPad「camp 點開對齊位置不對」；≥768 寬的橫向手機同病）。
+     md: 縮排（col-start-2＋pl-41＝桌面年份欄的位置）一併收平＝搜尋列左緣對齊清單左緣（user 同日「search 跑位」） */
+  #admission-content-section .activities-filter-bar {
+    position: static;
+  }
+  #admission-content-section .activities-filter-bar > .grid-12 > div {
+    grid-column: 1 / -1;
+    padding-left: 0;
   }
   /* camp 年份投影進左 gutter（logo 下方）：年份欄（summer-camp 非-toggle 版無 .list-year-toggle → 用 :not(.list-year-items) 兼容兩版）
      absolute 到 padding 外（left = -indent，回到 container 邊 24）；items 收平全寬 flush 128 */
@@ -1015,190 +1029,21 @@
     }
   }
 
-  /* 5j) degree-show-detail：body 內容全走手機版做法。DSD 手機規則在 variables.css @media(max-width:767) 內、
-     寬 ≥768 吃不到 → 這裡複製一份（值一對一，改一處要同步兩處）。JS degree-show-data-loader.js isMobileView()
-     已把 detail 頁各 mobile 分支（event strip / 單圖輪播 / next-project 色塊卡 / sticky-chip 跳過）併入本 gate。
-     hero 例外：改「手機式堆疊＋文字打散」（見 5j-hero）。 */
-
-  /* md: 斷點錯配：寬 ≥768 吃桌面 md: 顯隱（手機元素被藏、桌面元素現形）→ 逐一翻回：
-     ① 桌面 sticky info card / 返回鍵 / ref 鍵 / next-project overlap stage 全藏（JS setupStickyAndHeroChips 已 isMobileView 早退不填內容）。 */
+  /* 5j) degree-show-detail 內文：2026-11-11 起整個 gate 同直向手機新版面（variables.css DSD 手機段；舊的「清單＋每個活動一段＋色塊上下屆卡」
+     規則已刪，要看翻 git 歷史 63d758e）。橫向手機的左右排＝本檔橫向手機段的 5j。
+     這裡只補 gate 寬 ≥768 才有的差異：翻回吃到的 md: utility（桌面元素藏、手機上下屆容器顯示、md: 欄位歸滿寬）＋ <768 基底段才有的卡片字色 */
   #sticky-info-card,
   #degree-show-ref-btn,
-  #next-project-section > #next-project-stage {
-    display: none;
-  }
-  /* 返回／分享＝直向同款左下固定黑方塊（variables.css DSD union 段；JS bindMobileBottomBar，user 2026-10-30） */
-  /* ② galleries root：md:block 蓋掉手機 flex-col → 翻回 flex（flex-col/gap-3xl 是 base class 仍在，只補 display + py-3xl；
-     子展覽 section 自身 py 已歸零，間距全靠這裡的 gap）。 */
-  #event-galleries-root {
-    display: flex;
-    padding-top: var(--spacing-3xl);
-    padding-bottom: var(--spacing-3xl);
-  }
-  /* ③ 手機 next-project 色塊卡容器（HTML md:hidden）→ 顯示（flex flex-row 是 base class 仍在）。 */
-  #next-project-section > .md\:hidden {
-    display: flex;
-  }
-  /* ④ 桌面一屏 snap（md:h-screen）不適用 → 高度回自然流（#id 特異度贏 md: utility）。
-     gallery section 的 height/display 在下方 #event-galleries-root 區塊蓋；next-project 的 py 由下方 2xl 規則給。 */
-  #next-project-section {
-    height: auto;
-  }
-  #video-outer-section,
-  #documentary-outer-section {
-    height: auto;
-  }
-  #video-outer-section {
-    padding-top: var(--spacing-3xl);
-  }
-  #documentary-outer-section {
-    padding-top: 0;   /* 蓋回桌面 md:pt-[92px]（header 帶置中偏移，矮橫向不適用） */
-    padding-bottom: var(--spacing-3xl);
-  }
-
-  /* 內容左緣對齊 header tab strip（左緣 128）：桌面 col-start-5 縮排是給（已隱藏的）sticky info card 留位、且隨寬度變。
-     改固定縮排 128＝container padding 24 + grid padding-left 104（同 admission --adm-ls-indent），寬度無關。
-     galleries/next 維持置中（刻意例外）。 */
-  /* events-section 是 .site-container 直下的 .grid-20 → 縮排 104（起點 128）*/
-  #dsd-desc-section > .site-container > .grid-20 {
-    padding-left: 104px;
-  }
-  /* events list wrapper：padded grid 內全寬 → 起點＝128 */
-  #events-section > div { grid-column: 1 / -1; }
-
-  /* 子展覽 tab（header 帶主 strip）上限 3/4 容器寬 + 溢出自動 marquee（觸控無 hover）*/
-  .dsd-event-strip .class-division-btn {
-    max-width: calc((100vw - 2 * var(--container-padding)) * 0.75);
-  }
-  .dsd-tab-line.is-overflow .dsd-tab-marquee-inner {
-    animation: dsd-tab-marquee var(--marquee-duration, 8s) linear infinite;
-  }
-
-  /* 手機子展覽 sticky tab strip（buildMobileEventStrip）：仿 about #mobile-anchor-strip——
-     負 margin 全出血、隱藏捲軸、overflow-y:clip 容旋轉 pill、::before 向上補 header(96) 透明帶。 */
-  /* JS 建的 wrap 帶 md:hidden（Tailwind utility 同特異度但 source order 較後會贏）→ 用 #root 提特異度蓋回 */
-  #event-galleries-root > .dsd-event-strip-wrap {
-    display: flex;
-  }
-  /* 5j #5) event tab 列＝畫面底固定列、坐在返回／分享鈕上方（同直向 tab 列；user 2026-10-30，原進 header 帶）：
-     hero gate（setupStripHeaderGate）照舊用 clip-path 藏/現；全寬 blocker 不再需要（藏起、JS 動它無害）。 */
-  #event-galleries-root > .dsd-event-strip-header {
-    position: fixed;
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: var(--dsd-m-bottom);
-    height: auto;
-    margin: 0;
-    padding: 0 var(--container-padding);
-    align-items: center;
-    background: transparent;
-    z-index: 40;
-  }
-  .dsd-event-strip-blocker { display: none; }
-  /* 最後一屏底補 tab 列＋返回列高＝捲到底內容不被蓋 */
-  #next-project-section { padding-bottom: calc(var(--dsd-m-bottom) + 60px + var(--spacing-2xl)); }
-  /* header 帶模式不要下方 sticky 版的 header 遮罩 ::before（改由全寬 blocker 遮）*/
-  .dsd-event-strip-header::before {
-    content: none;
-  }
-  /* strip row：header 帶內不出血（蓋掉下方版的負 margin），padding 給旋轉 pill 上下 clearance */
-  .dsd-event-strip-header .dsd-event-strip {
-    margin: 0;
-    padding: 0.75rem;
-    width: 100%;
-  }
-  .dsd-event-strip {
-    position: relative;
-    margin-left: calc(-1 * var(--container-padding));
-    margin-right: calc(-1 * var(--container-padding));
-    padding-left: var(--container-padding);
-    padding-right: var(--container-padding);
-    overflow-y: clip;
-    scrollbar-width: none;
-  }
-  .dsd-event-strip::-webkit-scrollbar {
-    display: none;
-  }
-  .dsd-event-strip-wrap::before {
-    content: '';
-    position: absolute;
-    top: -96px;
-    left: 0;
-    right: 0;
-    height: 98px;
-    background: var(--theme-bg);
-  }
-  /* tab 點擊捲動落點：strip 進 header 帶（92）→ 92 + 12 呼吸＝104 */
-  .event-gallery-section {
-    scroll-margin-top: 104px;
-    overflow-x: clip;
-  }
-  /* ⚠️ section 自帶 md:py-6xl(192px) 會把圖推很下面——歸零要用 #root 提 ID 特異度贏 Tailwind `.md\:py-6xl`
-     （純 .class 同特異度、utility source order 較後會贏，同 strip-wrap display 的坑）。間距改由 #event-galleries-root flex gap 給。 */
-  #event-galleries-root > .event-gallery-section {
-    padding-top: 0;
-    padding-bottom: 0;
-    /* 桌面一屏 snap（md:h-screen + md:flex 置中）不適用 → 自然高、直排堆疊 */
-    height: auto;
-    display: block;
-  }
-
-  /* 主影片 / 紀錄影片：grid padding-left 104 → 左緣 128 對齊 strip/內容；影片欄收 13/20 cols（≈2/3 寬）；
-     #id 特異度蓋掉桌面 md:col-start-5/span-16。aspect-video 高度隨寬縮。 */
-  #video-outer-section .grid-20,
-  #documentary-outer-section .grid-20 {
-    padding-left: 104px;
-  }
-  #video-section > div,
-  #documentary-video-section > div {
-    grid-column: 1 / 14;
-  }
-
-  /* 子展覽單圖置中輪播容器（exhibition / ref-based 都走 createClassImagesSlideshow 單 slot）：
-     矮橫向一屏高有限 → 容器收到 ~一屏內。 */
-  .event-gallery-section .division-images--degree-show {
-    min-height: calc(100svh - 140px);
-  }
-  /* 單圖垂直置中（!important 蓋 gsap inline top:70%）；尺寸用固定 px 不用 vw——寬 844 時 60vw=506px 遠超一屏高。
-     高度預算反推（比照 about 5i）：直圖 ~220 寬(3:4≈293 高)、橫圖 ~340 寬(16:9≈191 高)。 */
-  .event-gallery-section .class-img {
-    top: 50% !important;
-    max-width: 220px;
-  }
-  .event-gallery-section .class-img.class-img--landscape {
-    max-width: 340px;
-  }
-
-  /* Next Project：section py 收 2xl；色塊寬 32%（844 寬≈270px、4:3≈202px 高 < 一屏 390）；容器已 justify-center 置中。 */
-  #next-project-section {
-    padding-top: var(--spacing-2xl);
-    padding-bottom: var(--spacing-2xl);
-  }
-  /* Next Project 手機色塊卡（取消 poster thumbnail）：左右並排 -6% overlap + 黑字 + 高低落差 */
-  .dsd-next-card-m {
-    width: 32%;
-    aspect-ratio: 4 / 3;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 0.25rem;
-    text-align: left;
-    padding: var(--spacing-sm);
-    color: var(--color-black);
-  }
-  .dsd-next-card-m + .dsd-next-card-m {
-    margin-left: -6%;
-  }
-  #next-link-m.dsd-next-card-m {
-    margin-top: var(--spacing-lg);
-  }
-
-  /* 5j-hero) DSD hero：改「手機式堆疊＋文字打散」（分佈比照其他頁 hero）。≥768 橫向 hero.css 會顯桌面 rand-grid + 左下字卡 →
-     這裡藏 rand-grid 與桌面字卡、顯 .hero-mobile。打散＝.hero-mobile-text 直向 space-between + 三 chip 各 flex-start/center/flex-end；
-     chip 隨機旋轉由 initHeroMobileSync 注入、滑入由 setupHeroMobileEntrance（isMobileView 已含本 gate）跑。
-     scope 全用 [data-hero-title-last]（只 DSD hero 有）→ 不外溢共用 hero 頁。 */
+  #next-project-section > #next-project-stage { display: none; }
+  #next-project-section { display: block; }                 /* 蓋 md:flex md:items-center */
+  #next-project-section > .dsd-next-m { display: flex; }    /* 蓋 md:hidden */
+  .dsd-next-card-m { color: #000; }
+  #dsd-desc-section.dsd-media-row #events-section > *,
+  :is(#video-outer-section, #documentary-outer-section) .grid-20 > * { grid-column: 1 / -1; }
+  /* 5j-hero) DSD hero（11-11 改版，user「iPad 也要在左下角」）：字卡同 PC／直向手機集中左下角（variables.css DSD 手機段的
+     .hero-mobile-rand 規則：由下往上堆、貼底；hero-mobile-sync.js 全手機排版都替 DSD 掛 .hero-mobile-rand）。
+     ≥768 寬 hero.css 會顯桌面 rand-grid＋左下桌面字卡（JS 手機排版不填內容）→ 這裡藏掉、顯 .hero-mobile。
+     圖＝置中有界 16:9（直向那套「一屏高滿版」在 gate 的寬高比下會裁太多）。scope 全用 [data-hero-title-last]（只 DSD hero 有） */
   [data-hero-title-last] .hero-rand-grid {
     display: none;
   }
@@ -1207,22 +1052,20 @@
     display: none;
   }
   [data-hero-title-last] .hero-mobile {
-    display: block;
-    min-height: 100svh;
+    display: flex;                  /* 蓋 hero.css ≥768 的 display:none；排法（column／flex-end）在 variables.css */
     padding-top: 96px;              /* 讓開手機式 header 列（logo 列 ~92）*/
-    padding-bottom: var(--spacing-md);
     overflow: clip;
     visibility: visible;            /* 保險：hero.css base 預設 hidden 等 sync，sync 完會設 inline visible */
   }
   /* bg 圖比照 .hero-banner：置中有界 16:9 box，寬上限由 svh 反推（旋轉後 bbox 仍完整落一屏內）；
      非 108vw cover 出血（旋轉會切兩側/角）。img 仍 object-fit:cover 填滿 box。 */
   [data-hero-title-last] .hero-mobile-bg {
-    top: 50%;
+    top: 50svh;
     left: 50%;
     width: min(88vw, calc((100svh - 150px) * 1.7));
     height: auto;
     aspect-ratio: 16 / 9;
-    transform: translate(-50%, -50%) rotate(-4deg);
+    transform: translate(-50%, -50%) rotate(var(--hero-bg-rot, -4deg));
   }
   /* 年份字級對齊直向手機（variables.css portrait 的 h6 規則被 max-width:767 擋住 → 補；--font-size-md 已由 gate #1 收成 1rem）。
      padding：!important 蓋 hero-animation.js 給 [data-hero-hl] 的 inline 0.5/0.6 → 手機段落慣例 0.3/0.45。 */
@@ -1230,18 +1073,6 @@
     font-size: var(--font-size-md);
     padding: 0.3rem 0.45rem !important;
   }
-  /* 文字撐滿一屏高 space-between（垂直散開）；水平 band 限寬置中 min(100%, 26rem) → 三 chip 落同一居中帶、不貼兩側。 */
-  [data-hero-title-last] .hero-mobile-text {
-    min-height: calc(100svh - 96px - 1.5rem);
-    justify-content: space-between;
-    width: min(100%, 26rem);
-    margin-left: auto;
-    margin-right: auto;
-  }
-  /* 三 chip 左/中/右（band 內水平打散）；setupHeroMobileEntrance 把 chip 包進 wrapper → nth-child 命中 wrapper */
-  [data-hero-title-last] .hero-mobile-text > *:nth-child(1) { align-self: flex-start; }
-  [data-hero-title-last] .hero-mobile-text > *:nth-child(2) { align-self: center; }
-  [data-hero-title-last] .hero-mobile-text > *:nth-child(3) { align-self: flex-end; }
 
   /* =====================================================================================
      橫向手機（高 ≤500）限定：nav／tab 回 header 帶、內容左右排（user 2026-10-30 定案：底 bar 版一屏頁空間不夠）。
@@ -1921,41 +1752,74 @@
     padding: 0;
   }
 
-  /* 5j #5) event tab 進 header 帶（同 5f nav）：fixed 在 logo 右～mode/menu 左、z-55、垂直置中 92 帶、可左右滑。
-     hero gate（setupStripHeaderGate）用 clip-path 藏/現。 */
-  #event-galleries-root > .dsd-event-strip-header {
-    position: fixed;
-    top: 0;
-    left: calc(128px - 0.75rem);   /* 離 logo（同 activities/admission nav）；-0.75 抵銷 strip padding */
-    right: calc(140px - 0.75rem);  /* 避開右上 mode/menu 鈕 */
-    height: 92px;
-    margin: 0;
-    padding: 0;
+  /* 5j) DSD 橫向手機（user 2026-11-11「先以直式的改一版」，待 user preview）：同直向手機一屏一段（variables.css DSD 手機段），
+     但高只有 ~390 → 直向「上下疊」的改左右排：海報｜主影片、子展覽圖｜說明卡、上屆｜下屆。
+     內容框＝左右各讓出一欄兩顆鈕（左下返回／分享、右上 mode／menu＝--lp-nav-end）、上下各 --mobile-bottom-anchor；
+     子展覽 tab 列跟返回／分享同一條線（畫面底、夾在兩欄中間），那一屏的內容框底多讓一列。
+     section 左右 padding 扣掉 container padding＝裡面的 .site-container 自己還有一份 */
+  :root { --dsd-m-frame: calc(100svh - 2 * var(--mobile-bottom-anchor)); }
+  #dsd-desc-section.dsd-media-row,
+  #video-outer-section:not(.hidden),
+  #documentary-outer-section:not(.hidden),
+  .dsd-event-tabs-section,
+  #next-project-section {
+    padding: var(--mobile-bottom-anchor) calc(var(--lp-nav-end) - var(--container-padding)) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh);
+  }
+  /* 海報｜主影片：海報欄貼圖寬（最多 45%）、影片吃剩下的；只有海報＝置中（直向規則） */
+  #dsd-desc-section.dsd-media-row.has-video #events-section {
+    grid-template-columns: fit-content(45%) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: var(--spacing-md);
+  }
+  #dsd-desc-section.dsd-media-row.has-video #events-section > * { grid-column: auto; }   /* 蓋上方 gate 的滿寬 */
+  #dsd-desc-section.dsd-media-row.has-video .dsd-events-kv-img { max-height: var(--dsd-m-frame); }
+  /* 只有影片／紀錄影片：寬由框高反推（16:9 整支放進一屏）、置中 */
+  :is(#video-outer-section, #documentary-outer-section) .grid-20 > * {
+    width: min(100%, calc(var(--dsd-m-frame) * 16 / 9));
+    justify-self: center;
+  }
+  /* 子展覽：圖左｜說明卡右（卡貼字、最多 45%，放不下卡內捲）；底多讓 tab 列（44＋sm） */
+  .dsd-event-tabs-section {
+    padding-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) + 100lvh - 100svh);
+    --class-text-h: calc(var(--dsd-m-frame) - 44px - var(--spacing-sm) - 10px);
+  }
+  .dsd-event-panel-row {
+    flex-direction: row;
     align-items: center;
-    background: transparent;
-    z-index: 55;
+    padding-bottom: 0;
   }
-  /* header 帶模式不要下方 sticky 版的 header 遮罩 ::before（改由全寬 blocker 遮）*/
-  .dsd-event-strip-header::before {
-    content: none;
+  .dsd-event-tabs-section .class-info-panel .division-images { align-self: stretch; }
+  /* z：左右疊放的圖會伸到卡這邊 → 卡壓在圖上（直向是上下排、碰不到） */
+  .dsd-event-boxes {
+    flex: 0 1 auto;
+    max-width: 45%;
+    position: relative;
+    z-index: 10;   /* slideshow 的圖 z 到 4 */
   }
-  /* strip row：header 帶內不出血（蓋掉下方版的負 margin），padding 給旋轉 pill 上下 clearance */
-  .dsd-event-strip-header .dsd-event-strip {
+  /* tab 列：60 高的列中線＝返回／分享鈕中線（界線＋22）；左右收在兩欄鈕之間 */
+  #event-galleries-root .dsd-event-tabs-row {
+    left: var(--lp-nav-end);
+    right: var(--lp-nav-end);
+    bottom: calc(var(--mobile-bottom-anchor) + 22px - var(--dsd-m-tabs-h) / 2);
+    width: auto;      /* .site-container 的 width:100% 會讓 right 失效 */
+    padding: 0;
+  }
+  .dsd-event-tabs-scroller {
     margin: 0;
-    padding: 0.75rem;
-    width: 100%;
+    padding-inline: var(--spacing-sm);
   }
-  /* 全寬 blocker：z-40 < logo(z-50) < strip(z-55) → 遮住捲過透明 header 的內容、不蓋 logo。opacity 由 gate 控（display:block 蓋上方 gate 段的 none） */
-  .dsd-event-strip-blocker {
-    display: block;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 92px;
-    background: var(--theme-bg);
-    z-index: 40;
-    pointer-events: none;
+  /* 上下屆：左右各半、中段疊 2xl（直向是上下各半） */
+  #next-project-section > .dsd-next-m { flex-direction: row; }
+  .dsd-next-m .dsd-next-card-m {
+    flex: none;
+    width: calc((100% + var(--spacing-2xl)) / 2);
+    height: 100%;
+  }
+  .dsd-next-m #prev-link-m,
+  .dsd-next-m #next-link-m { align-self: stretch; }
+  .dsd-next-m #next-link-m {
+    margin-top: 0;
+    margin-left: calc(-1 * var(--spacing-2xl));
   }
   }
 }
@@ -1972,6 +1836,23 @@
   body.mode-color .library-mobile-tabs { padding-right: calc(var(--container-padding) + var(--br-btns)) !important; }
   /* about strip 在 iPad 沒有直向那套負 margin 出血（右緣停在 container 內）→ 右邊補出血，尾端 padding 才跟其他 bar 同一把尺 */
   body:is(:not(.no-footer), .mode-color) #mobile-anchor-strip { margin-right: calc(-1 * var(--container-padding)); }
+}
+
+/* iPad 直拿 admission camp 年份（11-11）：gate 5e 把年份 absolute 投影進左 gutter（不會釘）。搜尋列改 static 後 updateStickyTop
+   走直向那條、會把年份的 inline top 寫成 --mobile-content-top → absolute 的年份會整顆往下掉 108。改成跟其他版型一樣 sticky 釘在
+   內容頂線（做法同橫向手機段：年份跟清單疊同一列、負 margin 伸進左 gutter；約束框＝自己那組、捲完被下一組推走）。
+   底色／z 由 lists.css「直向＋iPad」段的年份 sticky 規則給；selector 同 5e（同特異度、後出勝） */
+@media (orientation: portrait) and (min-width: 768px) {
+  #admission-content-section .list-year-group > div:first-child {
+    position: sticky;
+    top: var(--mobile-content-top);
+    left: auto;
+    grid-row: 1;
+    align-self: start;
+    justify-self: start;
+    margin-left: calc(-1 * var(--adm-ls-indent));
+  }
+  #admission-content-section .list-year-group .list-year-items { grid-row: 1; }
 }
 
 /* iPad 直拿 about（11-10）：原本吃「≥768 窄桌面 20 欄（左文右圖）」＋gate 5i 矮橫向落點，沒人設計過每屏上下空白
@@ -1998,14 +1879,39 @@
     align-items: center;
   }
   #about-content-wrapper :is(#class-info-area .class-info-panel, .class-works-panel) .grid-20 > :last-child { order: 1; height: calc(var(--about-room) * 0.6); }
-  #about-content-wrapper #class-info-area .class-info-panel .division-images { height: calc(var(--about-room) * 0.6) !important; }
+  #about-content-wrapper #class-info-area .class-info-panel .division-images { height: calc(var(--about-room) * 0.6) !important; min-height: 0; }
+  /* Programs 圖＝直向手機同款多張疊放（class-images-slideshow.js peekNav，user 2026-11-11；原單圖）：圖在格內垂直置中
+     （!important 蓋 gsap inline top:70%，同 variables.css <768 段）；圖寬沿用桌面上限 336／520、高由 JS 依格高 cap */
+  #about-content-wrapper #class-info-area .class-info-panel .class-img { top: 50% !important; }
   #about-content-wrapper :is(#class-info-area [data-class-text], .class-works-panel [data-works-text]) {
     height: auto;
     max-height: max(calc(var(--about-room) * 0.4 - 2 * var(--spacing-md) - 10px), 4em);
   }
-  /* Works 影片＋playlist（75）在 6 成格內垂直置中；格放不下時影片等比縮（同直向） */
+  /* Programs／Works 說明卡寬上限（user 2026-11-11「iPad 上整條滿寬很突兀」）：36rem≈一行 90 個英文字；靠左＝跟底部 tab／nav 同一條左線 */
+  #about-content-wrapper :is([data-class-hl], [data-works-hl]) { max-width: 36rem; }
+  /* Works 影片＋縮圖列在 6 成格內垂直置中；格放不下時影片等比縮（同直向）。縮圖列＝直向手機同款（播放器下方橫捲＋左右 chevron，
+     lists.css 手機段的 media 含 iPad 直拿；user 2026-11-11）、縮圖高 64（手機 44）→ 列高 96，下面的 95＝96 − 1 疊縫 */
+  #about-content-wrapper { --pl-thumb-h: 64px; }
   #about-content-wrapper .class-works-panel .grid-20 > :last-child { display: flex; flex-direction: column; justify-content: center; }
-  #about-content-wrapper .class-works-panel .works-video-row { width: 100%; max-width: calc((var(--about-room) * 0.6 - 75px) * 16 / 9); margin-inline: auto; }
+  #about-content-wrapper .class-works-panel .works-video-row { width: 100%; max-width: calc((var(--about-room) * 0.6 - 95px) * 16 / 9); margin-inline: auto; }
+  /* Resources：卡片列在 header 帶（92）與底 bar 之間垂直置中（user 2026-11-11「內容沒那麼多就置中畫面」；原本貼頂、下面空一大片）。
+     height:auto 蓋 scroll-snap.css ≥900 高段的 100svh（min-height 100lvh 照留）；容器自己的 pt／pb 歸零＝置中範圍只看 section 的上下 padding。
+     圖高：gate 的 120 是橫向手機 390 高的預算，直拿卡寬 418～571 會變細長條 → 跟卡寬走 16:10；
+     文字盒上限＝置中範圍扣標題列 51、圖高、上下各留 md，超過內捲（--res-img-h＝卡寬 58% × 10/16，卡寬式同 accordion.css gate 段） */
+  #about-content-wrapper #resources {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 92px;
+    padding-bottom: calc(var(--about-bar-h) + 100lvh - 100svh);
+    --res-img-h: calc((100vw - 2 * var(--container-padding)) * 0.58 * 10 / 16);
+  }
+  #about-content-wrapper #resources > .site-container { padding-top: 0; padding-bottom: 0; }
+  #about-content-wrapper .colored-accordion .accordion-img-wrap { height: var(--res-img-h); }
+  #about-content-wrapper .colored-accordion .accordion-text-wrap {
+    max-height: max(calc(100svh - 92px - var(--about-bar-h) - 51px - var(--res-img-h) - 2 * var(--spacing-md)), 80px);
+  }
   /* History：內容頂 90、area 高＝到底 bar 頂（timeline.js 同式）；gate 5i++ 的置中＋flex 撐高會把清單鈕推進 bar → 關掉 */
   #about-content-wrapper #history {
     min-height: 100lvh;
@@ -2014,4 +1920,6 @@
     padding-bottom: var(--about-bar-h);
   }
   #about-content-wrapper #history #timeline-area { flex: none; }
+  /* 清單鈕底＝清單卡底＝area 底（user 2026-11-11「btn 跟打開的卡片沒有對齊底部」；基底 bottom:32 是桌面值，卡在 gate 5i++ 已 bottom:0） */
+  #about-content-wrapper #history .tl-list-btn-grid { bottom: 0; }
 }

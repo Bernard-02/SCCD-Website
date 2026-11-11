@@ -95,10 +95,10 @@ export function initHeroMobileSync() {
   // 順序固定 TTDD＝title 恆在頂（user 2026-07-13 三修：shuffle 退役），只留各 chip 隨機水平落點，
   // 配 hero.css .hero-mobile-rand（portrait 下 stack 撐滿一屏 space-between 散開、desc 限高內捲）。
   // degree-show-detail（年份＋英中標題三顆、沒有段落）直向手機也走這套（user 2026-10-29「比照其他頁 hero」）；
-  // 矮橫向維持它自己的左／中／右打散（landscape.css 5j-hero）
+  // gate（iPad／橫向手機）11-11 起同直向：字卡集中左下角（landscape.css 5j-hero；圖照 gate 的置中有界 16:9）
   const stack = mobile.querySelector('.hero-mobile-text');
   const isDsd = !!mobile.closest('[data-hero-title-last]');
-  if (stack && (stack.querySelector('.hero-mobile-text-cn') || (isDsd && !SCCDHelpers.isLandscapeGate()))) {
+  if (stack && (stack.querySelector('.hero-mobile-text-cn') || isDsd)) {
     const aligns = ['flex-start', 'center', 'flex-end'];
     // DSD 字卡同 PC 集中左下角（user 2026-10-29；hero.css 不打散、variables.css DSD 直向段貼底）→ 不抽水平落點
     if (!isDsd) SYNC_MAP.forEach(({ to }) => {

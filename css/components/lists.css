@@ -97,17 +97,17 @@
     flex-direction: column;
     /* 欄高釘死＝frame 高：不釘的話 grid 列是 auto、清單一長就把欄（與列）撐過視窗＝永遠「放得下」、判不出溢出 */
     height: 100svh;
-    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
+    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--nav-btn-gap));   /* chevron／末顆到當前頁卡＝btn 間距（user 2026-11-11「chevron 離卡太遠」，原 md） */
   }
   /* about：nav 的 sticky 軌道（about.html #anchor-nav 父層 pb-6xl 192）底部留白縮到同一條線（當前頁卡上方 md）：
      不縮的話捲到頁尾軌道底比 nav 底高 → 溢出態的 nav 被往上推 65px、鑽進 logo 底下（user 2026-10-20）。
      pb-6xl 是桌面 footer 還在捲動流時的留白，footer 改覆蓋卡後已無作用 */
   #about-content-wrapper div:has(> #anchor-nav) {
-    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--spacing-md, 24px));
+    padding-bottom: calc(var(--page-indicator-top, 0px) + var(--nav-btn-gap));   /* chevron／末顆到當前頁卡＝btn 間距（user 2026-11-11「chevron 離卡太遠」，原 md） */
   }
   /* about：nav 黏在 nav line，最高長到當前頁卡上方 md；gap 歸零（清單↔chevron 間距由 chevron margin 給，同四頁） */
   #anchor-nav.nav-overflow-host {
-    max-height: calc(100svh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--spacing-md, 24px));
+    max-height: calc(100svh - var(--nav-line) - var(--page-indicator-top, 0px) - var(--nav-btn-gap));
     gap: 0;
   }
   #anchor-nav > .nav-scroll-list {
@@ -1623,14 +1623,15 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
 /* 當前播放＝lightbox 縮圖同款：2px 框外推 2px 留縫（activities-lightbox renderMain） */
 .works-playlist-item.is-active { outline: 2px solid var(--color-black); outline-offset: 2px; }
 
-/* 手機：縮圖列移到播放器下方、橫向捲動；縮圖 44px 高（＝觸控下限；user 10-27 從 72 縮到 56、11-04 再縮） */
-@media (max-width: 767px) {
+/* 手機：縮圖列移到播放器下方、橫向捲動；縮圖 44px 高（＝觸控下限；user 10-27 從 72 縮到 56、11-04 再縮）。
+   iPad 直拿同款（user 2026-11-11：原本吃桌面右側直欄、手機排版又不畫自繪捲軸＝沒有可捲提示）、縮圖高 64（landscape.css iPad about 段寫 --pl-thumb-h） */
+@media (max-width: 767px), (orientation: portrait) and (min-width: 768px) {
   .works-video-row { flex-direction: column; }
   .works-playlist-list {
     flex: 0 0 auto;
     margin-left: 0;
     margin-top: -1px;                 /* 蓋 player 底緣 sub-pixel 縫 */
-    height: 76px;                     /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖 44；改了同步 variables.css about 直向段（--about-room）的 75 */
+    height: calc(var(--pl-thumb-h, 44px) + 32px);   /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖高；改了同步 variables.css about 直向段（--about-room）的 75、landscape.css iPad about 段的 95 */
   }
   /* 四邊同桌面：inset 6 ＋ padding 10＝色塊邊→縮圖 16（user 10-27）；手機無 thumb → 右邊也 10 */
   .works-playlist-inner {
@@ -1651,7 +1652,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
   .works-playlist-inner::-webkit-scrollbar { display: none; }
   .works-playlist-item {
     width: auto;
-    height: 100%;                     /* 44px（aspect-ratio 撐出寬） */
+    height: 100%;                     /* ＝--pl-thumb-h（aspect-ratio 撐出寬） */
   }
   /* 左右 chevron（user 10-29，同 activities gallery：鈕 32、icon 16 距色塊邊 16、縮圖從 48 起、端點半透明）；
      JS 判溢出才掛 .has-chev，捲動列左右讓出 6＋32 */

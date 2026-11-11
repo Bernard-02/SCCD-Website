@@ -1983,8 +1983,10 @@ export async function loadListInto(containerId, url, options = {}) {
   // 開啟的 title／年份釘 --mobile-content-top（108＝內容頂＝blocker，user 2026-11-05）。alumni 等其他 loadListInto 頁不套
   const portraitPin = !filterBarSticky && SCCDHelpers.isMobileLayout()
     && !!container.closest('#activities-content-section, #admission-content-section');
-  // 橫向手機（user 2026-11-05）也釘同一條線，但年份在左欄（landscape.css）不佔 title 上方 → title 直接釘 token、不加年份高
-  const yearAbove = !SCCDHelpers.isLandscapePhone();
+  // 橫向手機（user 2026-11-05）也釘同一條線，但年份在左欄（landscape.css）不佔 title 上方 → title 直接釘 token、不加年份高。
+  // iPad 直拿同理（年份在左欄 80／admission 左 gutter）：原本照直向加年份高＝title 釘 164、遮擋帶只到 108，
+  // 中間那 56 露出上一筆／捲過的內容（user 2026-11-11「打開時看得到上面那筆」「title sticky 有 bug」）→ 只有直向手機（年份疊在清單上方）才加
+  const yearAbove = SCCDHelpers.isPortraitPhone();
   const stickyActive = window.innerWidth >= 768 || filterBarSticky || portraitPin;
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝
   //   剛被批次弄髒的 DOM 上 forced recalc（profiler self 8s）。bar 高只在「bar 自己 resize」時變（bar-hidden/

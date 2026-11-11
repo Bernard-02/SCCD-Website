@@ -224,12 +224,13 @@
     .colored-accordion .accordion-label {
       align-items: flex-start;
     }
-    /* 說明文字內捲 box：最寬 80%；padding-right＝文字與 .list-scroll scrollbar 的間距 */
+    /* 說明文字內捲 box：最寬 80%（寬螢幕免一行太長）；卡窄到 80% 不足 22rem 時放寬到卡右緣（user 2026-11-11 iPad；1440 以上不變）；
+       padding-right＝文字與 .list-scroll scrollbar 的間距 */
     .colored-accordion .accordion-text-wrap > [data-resources-text] {
       flex: 1 1 auto;
       min-height: 0;
       overflow-y: auto;
-      max-width: 80%;
+      max-width: max(80%, min(100%, 22rem));
       padding-right: var(--spacing-sm);
     }
     /* 中英間距只交給 -sep 空格；拿掉 base 的 0.4em 免疊加 */
