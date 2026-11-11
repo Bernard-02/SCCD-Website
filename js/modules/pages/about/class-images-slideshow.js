@@ -57,7 +57,7 @@ function randomRotation() { return parseFloat(((Math.random() * 2 - 1) * 4).toFi
 // wrapper 寬度在 img 載入後依 natural 尺寸（capped at max-width）明確設定，
 // 避免 wrapper width:auto + img max-width:100% 的循環依賴造成尺寸不對
 // fixedWidth（可選）：統一 wrapper 寬（degree-show 全寬 slot 幾何用，pair overlap 要靠統一寬度保證）
-function buildImg(src, fixedWidth, onSized) {
+function buildImg(src, fixedWidth, onSized, capW) {
   const wrapper = document.createElement('div');
   wrapper.className = 'class-img';
   // wrapper＝滑動遮罩（inline 不動共用 .class-img class；桌面 timeline 照片另有自己的 clip 路線不受影響）
@@ -98,6 +98,9 @@ function buildImg(src, fixedWidth, onSized) {
         maxW = Math.min(maxW, Math.floor(availH / (SIN4 + COS4 * img.naturalHeight / img.naturalWidth)));
       }
     }
+    // 寬也封頂（opts.fitStack）：容器比圖窄時整疊收在容器內。面板還沒顯示（寬 0）＝不封
+    const cw = capW ? capW() : 0;
+    if (cw > 0) maxW = Math.min(maxW, Math.floor(cw));
     wrapper.style.width = Math.min(img.naturalWidth, maxW) + 'px';
     if (onSized) onSized();
   };
@@ -161,7 +164,10 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
   // → 每張再往右補「前一張比自己寬的差」，每張露出寬恆＝固定步距（24% 容器寬）；其他組合（直直/橫橫/直→橫）位置不變。
   // 寬度要等 img 載入（sizeWrapper）才知道 → 載入後重排；tick 推移也照同規則算新位置。
   const adaptive = !!opts.adaptiveSlots;
-  const stepRatio = parseFloat(slotLefts[1] ?? SLOT_LEFTS[1]) / 100;   // 步距跟自訂 slot 走（about 橫向手機 15%）
+  const stepRatio = parseFloat(slotLefts[1] ?? SLOT_LEFTS[1]) / 100;   // 步距跟自訂 slot 走
+  // fitStack（about 橫向手機）：圖寬封頂在「容器寬 − 後面每張露出的一個步距」＝整疊剛好收在容器內，
+  // 不伸進右邊鈕欄、容器比圖窄（Duo 內螢幕橫拿）也不會被視窗切
+  const capW = opts.fitStack ? () => container.clientWidth * (1 - stepRatio * (slotCount - 1)) : null;
 
   // 同一個 panel 內的 text highlight 區塊（含底色），和 imgs 一起做 clip-path
   // about 場景自動從 .class-info-panel 找 [data-class-hl]；degree-show 場景可顯式傳入 textHlEl
@@ -337,7 +343,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     slots = [];
     for (let i = 0; i < slotCount; i++) {
       const src = pool[nextIdx % pool.length];
-      const img = buildImg(src, imgWidth, relayout);
+      const img = buildImg(src, imgWidth, relayout, capW);
       img._poolIdx = nextIdx % pool.length;   // tick 前後都從兩端那張的池位置往外取（往回退也接得上）
       nextIdx++;
       container.appendChild(img);
@@ -388,7 +394,7 @@ export function createClassImagesSlideshow(container, pool, opts = {}) {
     const newImgs = [];
     for (let j = 1; j <= n; j++) {
       const idx = ((edge + (back ? -j : j)) % len + len) % len;
-      const el = buildImg(pool[idx], imgWidth, relayout);
+      const el = buildImg(pool[idx], imgWidth, relayout, capW);
       el._poolIdx = idx;
       newImgs.push(el);
     }
@@ -589,14 +595,16 @@ export async function initClassImagesSlideshow() {
     // 自動往左輪播、點哪張整列移到那張置中（peekNav）。
     // iPad 直拿同直向手機（user 2026-11-11「圖片只有一張、應該是很多張」；原本吃矮橫向時代的單圖置中）：圖寬上限 336／520 時
     // 7 張仍蓋得到 1032 寬。桌面 3-slot 左移輪播。
-    // 橫向手機（高 ≤500）＝桌面三張疊放（user 2026-11-06「像 pc 那樣多點圖片、不要一次一張」），步距收窄（15%）塞進文字右邊那格
+    // 橫向手機＝桌面疊放（user 2026-11-06「像 pc 那樣多點圖片、不要一次一張」）但只放兩張（user 2026-11-11「也許兩張、照每張露出的比例調」；
+    // 原三張步距 15%＝後兩張各只露 ~55px、第三張還伸進右邊鈕欄）：步距同桌面 24%，前面那張寬封頂＝容器寬 − 一個步距（fitStack）
+    // ＝後面那張固定露出容器的 24%、整疊不出格
     const landPhone = SCCDHelpers.isLandscapePhone();
     const isPeekSlots = SCCDHelpers.isMobileLayout() && !landPhone;
     // about program 文字說明卡（[data-class-hl]）走 clip-reveal、圖片維持 clip-path（user 2026-08-10）
     const slotOpts = isPeekSlots
       ? { slotLefts: Array(7).fill('50%'), slotXPercent: -50, slotZ: [1, 2, 3, 4, 3, 2, 1], peekNav: true, textHlReveal: true }
       : { textHlReveal: true, hoverAll: true, alignTop: true, adaptiveSlots: true,   // 桌面 hover 轉正含 slot 0（10-19）＋圖頂對齊說明 box 頂（09-15）＋直式接橫式往右補（09-28）；手機置中不帶
-        ...(landPhone && { slotLefts: ['0%', '15%', '30%'] }) };
+        ...(landPhone && { slotLefts: ['0%', '24%'], fitStack: true }) };
     /** @type {NodeListOf<HTMLElement>} */ (document.querySelectorAll('.division-images')).forEach(container => {
       const division = container.dataset.division;
       if (!division) return;

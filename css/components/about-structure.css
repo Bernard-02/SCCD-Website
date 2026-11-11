@@ -294,8 +294,13 @@
   }
   /* 橫向手機：說明卡在樹右邊 → 回桌面窄卡（卡頭一行在上、bar 英上中下），手機橫排太寬塞不進樹旁 */
   @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
-    /* 層距收 xl：手機的 3xl 是給直向一屏鋪滿的，390 高三層＋兩個 96 會超出一屏 */
-    #class-works-area #program-structure { --prog-level-gap: var(--spacing-xl); }    #program-structure .prog-legend { flex-direction: column; max-width: 28rem; }
+    /* 層距跟可用高走（同直向那條式子）：可用高 --about-lp-room（landscape.css 5i）扣樹本身的高（--prog-fixed-h，about-structure.js
+       fitMobileGap；說明卡在樹右邊、不佔高）平分兩層，夾 xl～4xl。390 高放不下＝停在 xl（原本的固定值：手機的 3xl 會超出一屏）；
+       Duo 內螢幕橫拿（585 高）就撐開用到下面的空間（user 2026-11-11「都堆在上方」） */
+    #class-works-area #program-structure {
+      --prog-level-gap: clamp(var(--spacing-xl), calc((var(--about-lp-room, 0px) - var(--prog-fixed-h, 0px)) / 2), var(--spacing-4xl));
+    }
+    #program-structure .prog-legend { flex-direction: column; max-width: 28rem; }
     #program-structure .prog-legend-head { flex-direction: row; gap: 0.4em; align-items: baseline; }
     #program-structure .prog-legend-head > span:first-child { margin-bottom: 0; }
     #program-structure .prog-legend-bar { flex-direction: column; gap: 0; align-items: stretch; }

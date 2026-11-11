@@ -771,8 +771,11 @@
     height: auto;
     max-height: max(calc(var(--about-room) * 0.4 - 2 * var(--spacing-md) - 10px), 4em);
   }
-  /* Works 影片格：影片＋playlist（75＝76 − 1 疊縫，lists.css .works-playlist-list）垂直置中；
-     格放不下（矮機）影片等比縮＝寬度上限由格高反推（同桌面 .works-player-box 做法，鎖在 row 上＝playlist 跟著同寬） */
+  /* Works 影片格：影片＋playlist 垂直置中；格放不下（矮機／寬直屏如 Duo 內螢幕）影片等比縮＝寬度上限由格高反推
+     （同桌面 .works-player-box 做法，鎖在 row 上＝playlist 跟著同寬）。--works-w 的 31＝playlist 列高（縮圖高＋32，lists.css）− 1 疊縫。
+     說明卡跟影片同寬、同一條左緣（user 2026-11-11「文字 box 的寬度 fit YT 的寬度、對齊畫面中間」）：文字格左右 padding 讓到影片的範圍，
+     卡撐滿它（上限 36rem＝iPad 那條說明卡寬上限；窄手機碰不到） */
+  .class-works-panel { --works-w: min(100%, calc((var(--about-room) * 0.6 - var(--pl-thumb-h, 44px) - 31px) * 16 / 9)); }
   .class-works-panel .grid-20 > :last-child {
     height: calc(var(--about-room) * 0.6);
     display: flex;
@@ -780,10 +783,11 @@
     justify-content: center;
   }
   .class-works-panel .works-video-row {
-    width: 100%;
-    max-width: calc((var(--about-room) * 0.6 - 75px) * 16 / 9);
+    width: var(--works-w);
     margin-inline: auto;
   }
+  .class-works-panel .grid-20 > :first-child { padding-inline: calc((100% - var(--works-w)) / 2); }
+  .class-works-panel [data-works-hl] { min-width: min(100%, 36rem); }
   /* history 末屏：area 已讓出 bar（timeline.js），section 底再補 bar 高＝照樣填到畫面底、footer 不露頭
      （露一截會被手機 footer 磁吸整張吸上來）。#id 前綴蓋 lists.css 直向段的 padding-bottom:0 */
   #about-content-wrapper #history { padding-bottom: var(--about-bar-h); }

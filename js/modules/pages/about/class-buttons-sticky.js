@@ -14,6 +14,7 @@
  */
 
 import { registerPageExit } from '../../ui/page-exit.js';
+import { registerPageCleanup } from '../../ui/page-cleanup.js';
 import { DUR, EASE } from '../../ui/motion.js';
 import { navChipHidden, NAV_CHIP_SHOWN, pickNavDir } from '../../ui/scroll-animate.js';
 
@@ -28,6 +29,21 @@ export function initClassButtonsSticky() {
   const stickyWrapper     = document.getElementById('class-info-sticky-wrapper');
 
   if (!infoArea || !worksPanels || !classButtonsEl || !worksAnchor || !stickyWrapper) return;
+
+  // ─── Works 影片＋playlist 右緣跟到鈕列最後一顆鈕 ──────────────
+  // 鈕寬吃後台文字、不隨視窗縮：窄桌面（iPad 橫向 1180）鈕列比內容欄 col 4～18 寬、最後一顆凸出去，影片區卻停在 col 18
+  // ＝看起來短一截（user 2026-11-11）。凸出多少寫成 --works-row-extra，scroll-snap.css 真桌面段把 .works-video-row 往右伸同樣多。
+  // 量 offset（版面位置）不量 rect：鈕會旋轉。逐顆聽：Design Fundamental 那顆進 Works 才展開，後面幾顆只是被推走、自己尺寸不變
+  const tabRow = classButtonsEl.querySelector('.division-tab-row');
+  const lastTab = tabRow?.lastElementChild;
+  if (lastTab && typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      const end = lastTab.offsetLeft + lastTab.offsetWidth - (lastTab.offsetParent === tabRow ? 0 : tabRow.offsetLeft);
+      worksPanels.style.setProperty('--works-row-extra', `${Math.max(0, Math.round(end - tabRow.clientWidth))}px`);
+    });
+    [tabRow, ...tabRow.children].forEach(el => ro.observe(el));
+    registerPageCleanup(() => ro.disconnect());
+  }
 
   // ─── 初始狀態 ──────────────────────────────────────────────
   // 預設 scroll context = 'info'，BFA toggle 可透過 window.SCCD_classContext 讀取

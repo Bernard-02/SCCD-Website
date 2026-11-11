@@ -489,10 +489,12 @@ export async function initProgramStructure() {
   // 直向手機：樹＋說明卡扣掉層距的高 → --prog-fixed-h，CSS 拿可視區剩下的平分給層距（about-structure.css 直向段）。
   //   扣掉層距＝跟當下層距無關（冪等）；層距變了連綫端點由後面的 cacheEndpoints 重量。
   //   兩塊高度相加、不量「樹頂→卡底」：中間是置中的彈性空白（scroll-snap.css 直向 grid），量進去會跟著層距變
+  //   橫向手機同一招（about-structure.css 橫向手機段）：說明卡在樹右邊＝不佔高，只算樹
   function fitMobileGap(levelBoxes) {
-    if (!legendStack || !roots || !(window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches)) return;
+    const landPhone = SCCDHelpers.isLandscapePhone();
+    if (!legendStack || !roots || !(landPhone || (window.innerWidth < 768 && window.matchMedia('(orientation: portrait)').matches))) return;
     const gaps = levelBoxes.reduce((s, c) => s + (parseFloat(getComputedStyle(c).marginTop) || 0), 0);
-    const h = roots.getBoundingClientRect().height + legendStack.getBoundingClientRect().height;
+    const h = roots.getBoundingClientRect().height + (landPhone ? 0 : legendStack.getBoundingClientRect().height);
     root.style.setProperty('--prog-fixed-h', `${Math.round(h - gaps)}px`);
   }
 

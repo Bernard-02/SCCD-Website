@@ -1152,6 +1152,11 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
     inset: var(--spacing-sm);
   }
 }
+/* 直拿的寬螢幕（Duo 內螢幕、iPad Pro）：清單卡寬上限 36rem＝同 about Programs／Works 說明卡（user 2026-11-11「螢幕很寬就不需要全部填滿」）；
+   靠左＝清單鈕那側。窄手機碰不到；橫向手機的卡左右緣是指定的版面線（landscape.css 5i）、桌面是橫的＝都不吃 */
+@media (orientation: portrait) {
+  .tl-list-cell { max-width: 36rem; }
+}
 
 /* ===== Inline Scrollbar（.list-scroll 統一 hook + library year pickers）：細 thumb / 無 track / 無箭頭 ===== */
 .list-scroll::-webkit-scrollbar,
@@ -1423,6 +1428,10 @@ body.lightbox-open .hm-banner.is-poster-open { z-index: 15; }
   cursor: var(--cursor-pointer);
 }
 .hm-banner-btn .icon { font-size: 28px; }
+/* 桌面排版的點擊版（iPad 橫向沒 hover，user 2026-11-11）＝真桌面鈕尺寸 icon 32；index-marquee.js SHARE_W 同步 */
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  .hm-banner-btn .icon { font-size: 32px; }
+}
 /* ↗ 鈕進出的遮罩＝鈕本身大小（index-marquee.js setShareBtn）；↑↓ 換 icon＝新舊 icon 在自己的框裡推移交棒（setBtnState，
    新的疊在舊的上面、舊的走完就拔掉） */
 .hm-banner-btn-clip { flex: none; display: flex; overflow: clip; }
@@ -1631,7 +1640,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
     flex: 0 0 auto;
     margin-left: 0;
     margin-top: -1px;                 /* 蓋 player 底緣 sub-pixel 縫 */
-    height: calc(var(--pl-thumb-h, 44px) + 32px);   /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖高；改了同步 variables.css about 直向段（--about-room）的 75、landscape.css iPad about 段的 95 */
+    height: calc(var(--pl-thumb-h, 44px) + 32px);   /* inner inset 6×2 + 上下 clearance 10×2 + 縮圖高；改了同步 --works-w 裡的 31（variables.css about 直向段、landscape.css iPad about 段） */
   }
   /* 四邊同桌面：inset 6 ＋ padding 10＝色塊邊→縮圖 16（user 10-27）；手機無 thumb → 右邊也 10 */
   .works-playlist-inner {

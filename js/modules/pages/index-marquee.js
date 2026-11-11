@@ -40,7 +40,11 @@ const WIDTH_MOBILE = () => Math.min(window.innerWidth - MOBILE_PADDING_X * 2, WI
 // 右下 footer 鈕／mode3 鉛筆同欄）；有 ↗ 的卡總寬再多那格：點開時 ↗ 伸進鈕欄、蓋過鉛筆／footer 鈕（body.hm-poster-open，footer.css）。
 // ponytail: 寫死，手機鈕尺寸改了同步這裡（同 lists.css .hm-banner-btn）
 const BTN_COL = 44 + 16;
-const SHARE_W = 44;   // ↗ 鈕＝icon 28＋左右 xs 8
+// 右邊鈕寬＝icon＋左右 xs 8：手機排版 icon 28、桌面排版（iPad 橫向的點擊版）icon 32（lists.css .hm-banner-btn）
+const SHARE_W = () => (SCCDHelpers.isMobileLayout() ? 44 : 48);
+// 點擊版（bar 右邊有鈕、點 bar 開合海報）vs hover 版：看輸入不看版型——iPad 橫向走桌面排版但沒有 hover（user 2026-11-11
+// 「news 的設計以手機為主、版面還是 pc」）；位置／寬度那些「版面」仍看 isMobileLayout
+const tapUI = () => SCCDHelpers.isMobileLayout() || !SCCDHelpers.canHover();
 const BAR_HEIGHT = 40;        // 單行 bar 高度（h5 font 1.4rem + 預設 line-height + padding 上下 --card-pad-lg ≈ 40）
 // hover 色（--hm-accent／播放器 UI 色）：每次 hover 重抽三原色（user 2026-11-04「每次 hover 的顏色都不一樣」）
 // hover WATCH 卡時整條 news 被遮蔽：色塊蓋回自己的 rgb、黑條蓋黑 → 內容變抽象色塊（同浮卡池 news hover 語彙）。
@@ -153,7 +157,7 @@ export function initMarquee(gate = Promise.resolve()) {
       // 手機：點 news 以外的地方＝收合開著的海報（user 2026-11-01）。stack 內的點擊各自處理（bar toggle／海報跳連結）；
       // 影片播放器 overlay 上的點擊不算（海報留著、關播放器才由 openWatch 的 onLeave 收尾）
       const onDocClick = (e) => {
-        if (!closeOpenPoster || !SCCDHelpers.isMobileLayout()) return;
+        if (!closeOpenPoster || !tapUI()) return;
         if (e.target instanceof Element && e.target.closest('#homepage-marquee-stack, #video-player-overlay')) return;
         closeOpenPoster();
       };
@@ -192,16 +196,18 @@ function createBanner(item, squareColor) {
   const isVideo = isVideoUrl(item.url);
   const internal = hasLink && !isVideo ? sitePath(item.url) : null;   // 本站網址＝SPA 換頁、不開新分頁
   const external = hasLink && !isVideo && !internal;   // ↗ 鈕只給外部連結（影片／站內不給，user 2026-11-05）
-  const hasShare = !!item.poster && external;   // 手機開著時右邊多一顆 ↗（下方 mkBtn）
-  const hasBtn = SCCDHelpers.isMobileLayout() && (external || !!item.poster);
-  // 直向手機：收著的右緣對齊 header mode 鈕（BTN_COL）、有 ↗ 的再多一格（寬視窗 banner 封頂 480 本來就碰不到＝min 不動它）；
-  // 手機沒鈕的那則扣掉一顆鈕寬＝右緣停在別則 ↑ 鈕的左緣（user 2026-11-05）。
-  // 矮橫向：↗ 的空位收在左欄內（伸出去會壓右欄海報）＝沒 ↗ 的卡先扣一格，看得到的黑條才跟直向一樣（有鈕的齊、沒鈕的短一格）
-  const totalWidth = SCCDHelpers.isMobileLayout()
-    ? (side ? Math.min(WIDTH_MOBILE(), sideColW()) - (hasShare ? 0 : SHARE_W)
-      : Math.min(WIDTH_MOBILE(), window.innerWidth - MOBILE_PADDING_X * 2 - BTN_COL + (hasShare ? SHARE_W : 0)))
-      - (hasBtn ? 0 : SHARE_W)
-    : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE);
+  const mobile = SCCDHelpers.isMobileLayout();
+  const hasBtn = tapUI() && (external || !!item.poster);
+  const hasShare = hasBtn && !!item.poster && external;   // 點擊版開著時右邊多一顆 ↗（下方 mkBtn）
+  const btnW = SHARE_W();
+  // 手機 barW＝收著時看得到的黑條寬（不含 ↗ 的預留格）。直向：右緣對齊 header mode 鈕（BTN_COL）、封頂 480 連 ↗ 那格一起算
+  // （Duo 內螢幕 669 寬會碰到封頂：原本封頂只算在總寬上，沒鈕的那則少扣一格＝跟別則一樣長）；
+  // 矮橫向：↗ 的空位收在左欄內（伸出去會壓右欄海報）。有 ↗ 的總寬多一格；沒鈕的那則上限再短一格＝右緣停在別則 ↑ 鈕的左緣（user 2026-11-05）
+  const barW = (side ? Math.min(WIDTH_MOBILE(), sideColW()) : Math.min(WIDTH_MOBILE_MAX, window.innerWidth - MOBILE_PADDING_X * 2 - BTN_COL + btnW)) - btnW;
+  // 桌面排版：寬依海報方向（海報寬＝這個值）；點擊版的鈕加在外面＝海報跟 hover 版一樣大
+  const totalWidth = mobile
+    ? barW + (hasShare ? btnW : 0) - (hasBtn ? 0 : btnW)
+    : (item.orientation === 'portrait' ? WIDTH_PORTRAIT : WIDTH_LANDSCAPE) + (hasBtn ? btnW : 0) + (hasShare ? btnW : 0);
   // rotation 樞紐＝中心（同全站 nav btn；user 2026-09-28，原 left center 是錯的錨點）：兩端各擺 (w/2)·sinθ、
   // 左緣在 1° 內只飄 ~4px。手機加了 MOBILE_PADDING_X 後左右有 buffer，桌面手機都套隨機 rotation
   const rotation = randomRotation();
@@ -216,9 +222,10 @@ function createBanner(item, squareColor) {
     will-change: transform;
   `;
   // 桌面沒海報＝寬度沒東西要配（固定寬是給海報的）→ 貼字寬、上限照原寬（放不下照跑馬燈；user 2026-10-26 WATCH 那則）。
-  // 手機一律固定寬（user 2026-11-05）＝不貼字寬；沒鈕的那則見 totalWidth。
+  // 手機有鈕的固定寬（鈕才會上下對齊，user 2026-11-05）；沒鈕的那則（WATCH）同樣貼字寬、上限＝totalWidth＝別則 ↑ 鈕的左緣
+  // （user 2026-11-11「內文沒那麼長就不需要那麼長、也不該到箭頭那裡」）。
   // gateMarqueeScroll 量的時候 clone 還在＝兩份字撐到上限才量，不會有 max-content 小數寬 vs clientWidth 整數的誤判
-  if (!item.poster && !SCCDHelpers.isMobileLayout()) { wrap.style.width = 'max-content'; wrap.style.maxWidth = `${totalWidth}px`; }
+  if (mobile ? !hasBtn : !item.poster) { wrap.style.width = 'max-content'; wrap.style.maxWidth = `${totalWidth}px`; }
 
   // Clip wrapper 包覆 row → 提供 entry/exit 動畫的 overflow:clip
   const clipWrap = document.createElement('div');
@@ -423,8 +430,18 @@ function gateMarqueeScroll(b) {
   // 兩行共用同一 duration（取較長行）＝同拍循環、loop 接縫不脫節（短行等比慢，同 buildSyncedMarqueeTimeline 慣例）
   const widths = (b.lines || []).map(line => line.textEl.getBoundingClientRect().width);
   const duration = Math.max(3, Math.max(0, ...widths) / marqueeSpeed());
+  // 放不放得下看「字本身」的寬（不含行尾 em space，那是 loop 接縫用的）：連空白一起量＝字明明放得下也判成要捲，
+  // 貼字寬的那則（WATCH）就一直撐在上限寬（user 2026-11-11「內文沒那麼長就不需要那麼長」）
+  const textW = (line) => {
+    const node = line.textEl.firstChild;
+    if (!node) return 0;
+    const range = document.createRange();
+    range.setStart(node, 0);
+    range.setEnd(node, node.data.trimEnd().length);
+    return range.getBoundingClientRect().width;
+  };
   (b.lines || []).forEach((line, i) => {
-    const fits = widths[i] <= line.viewport.clientWidth;
+    const fits = textW(line) <= line.viewport.clientWidth;
     line.inner.style.animationName = fits ? 'none' : '';
     line.cloneEl.style.display = fits ? 'none' : '';
     if (fits) line.textEl.textContent = line.textEl.textContent.trimEnd();   // 行尾 em space 是 loop 接縫用；不捲時留著＝貼字寬的框右邊多一截空白
@@ -529,7 +546,7 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
       document.body.classList.add('hm-poster-open');   // footer 鈕降到開著這則底下＝↗ 可以蓋過它（footer.css）
       setBtnState(b, true, true);
       setShareBtn(b, true);
-      if (SCCDHelpers.isMobileLayout()) setSwap(true);   // 手機點開＝桌面 hover 同款 active（user 2026-11-04）
+      if (tapUI()) setSwap(true);   // 點開＝桌面 hover 同款 active（user 2026-11-04）
       // 只長到圖高（舊 +20 是 max-height 超過內容高的空跑段、視覺不變，但 push 也 +20 → 海報上方多出 20px 假 gap）
       gsap.to(b.posterEl, { maxHeight: b._openH, duration: PUSH_DUR, ease: PUSH_EASE, overwrite: 'auto' });
       if (!b.side) pushAbove(b);
@@ -549,14 +566,15 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     onLeave();
   };
 
-  // 影片 news：點 bar 開播放器（手機有海報時 bar 照舊 toggle 海報、點海報才開）；播放中算一次 hover＝暫停 cycle，收完才放
+  // 影片 news：點 bar 開播放器（點擊版有海報時 bar 照舊 toggle 海報、點海報才開）；播放中算一次 hover＝暫停 cycle，收完才放
+  const tap = tapUI();
   if (b.isVideo) {
     const play = (e) => { e.preventDefault(); e.stopPropagation(); if (openWatch(b, onLeave)) onEnter(); };
     b.posterEl?.addEventListener('click', play);
-    if (!b.posterEl || !SCCDHelpers.isMobileLayout()) b.link.addEventListener('click', play);
+    if (!b.posterEl || !tap) b.link.addEventListener('click', play);
   }
 
-  // 手機右邊鈕（createBanner 只在手機建）：↑ 開海報、↗ 跳外部連結、↓ 收合（setBtnState 三態）；海報開著才現的 ↗ 同一支
+  // 右邊鈕（createBanner 只在點擊版建）：↑ 開海報、↗ 跳外部連結、↓ 收合（setBtnState 三態）；海報開著才現的 ↗ 同一支
   b.shareBtn?.addEventListener('click', (e) => { e.stopPropagation(); openLink(b); });
   b.btn?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -566,10 +584,10 @@ function bindBannerInteraction(b, onEnter, onLeave, pushAbove, restoreAbove) {
     else openPoster();
   });
 
-  if (!b.posterEl && SCCDHelpers.isMobileLayout()) {
-    // 手機沒海報：沒東西可 toggle，點 bar＝直接跳連結／開影片
-  } else if (SCCDHelpers.isMobileLayout()) {
-    // 手機：點 title (link / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
+  if (!b.posterEl && tap) {
+    // 點擊版沒海報：沒東西可 toggle，點 bar＝直接跳連結／開影片
+  } else if (tap) {
+    // 點擊版（手機＋iPad 橫向）：點 title (link / row) toggle poster 展開；poster 自己有 click → 跳轉（保留）
     // link <a> 預設 click 會跳轉，preventDefault 改成 toggle
     const toggleHandler = (e) => {
       e.preventDefault();

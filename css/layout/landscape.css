@@ -1241,9 +1241,11 @@
   /* 圖片高不小於螢幕高 1/3（user 2026-11-05；原 <768 寬吃直向 2 欄×200＝螢幕越小圖越大，改固定 4 欄又在 667 寬縮到 96）：
      欄寬下限＝1/3 螢幕高＋卡片左右 padding 12，放得下幾欄就幾欄、剩餘寬均分。lvh＝工具列收起的大視口＝工具列收不收都不低於 1/3。
      欄數不固定 → ≥768 寬那半的 subgrid 卡（首列判斷寫死 :nth-child(-n+4)、行距掛卡片 margin，cards.css）退回 <768 的一般卡＋牆 row-gap。
+     至少三欄（user 2026-11-11「三個為一組」）：下限再跟「牆寬三等分」取小——Duo 外螢幕橫拿 594×368 原本只排得下兩欄、
+     圖被 1fr 撐到 188＝半個螢幕高、名字掉出畫面；三欄圖 ~115（略低於 1/3 螢幕高，三欄優先）。
      #page-content 前綴：cards.css 那幾條同特異度、在 output.css 後出 */
   #page-content #faculty-cards .faculty-card-wall {
-    grid-template-columns: repeat(auto-fill, minmax(calc(100lvh / 3 + 12px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(calc(100lvh / 3 + 12px), calc((100% - 2 * var(--spacing-md)) / 3)), 1fr));
     column-gap: var(--spacing-md);
     row-gap: var(--spacing-xl);
   }
@@ -1561,9 +1563,11 @@
   .mobile-division-wrap.is-div-hidden { visibility: hidden; }
   .mobile-division-wrap.is-off { pointer-events: none; }
   #class-works-area #mobile-division-nav {
-    height: var(--about-lp-bar);
+    /* 頂多墊 sm（高跟著加＝chip 位置不變）：active chip 會轉、最寬那顆 268 轉 4° 角會翹 ~9px，原本 chip 上方只有 5px 就是捲動框的裁切邊
+       ＝角被切平（user 2026-11-11；直向那條靠 HTML py-sm 本來就有 16） */
+    height: calc(var(--about-lp-bar) + var(--spacing-sm));
     margin: 0;
-    padding: 0 var(--about-lp-r) 16px var(--container-padding);   /* 底 16＝chip 中線對齊 footer 鈕中線（同 .nav-bottom-bar）；起點＝內容左緣（about 用到 logo 下方，user 11-06）；centerMobilePill 讀 paddingLeft */
+    padding: var(--spacing-sm) var(--about-lp-r) 16px var(--container-padding);   /* 底 16＝chip 中線對齊 footer 鈕中線（同 .nav-bottom-bar）；起點＝內容左緣（about 用到 logo 下方，user 11-06）；centerMobilePill 讀 paddingLeft */
     align-items: center;
     gap: var(--spacing-md);
     overflow-x: auto;
@@ -1621,7 +1625,9 @@
     gap: var(--spacing-md);
     padding: var(--about-lp-top) var(--about-lp-r) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh) var(--container-padding);
   }
-  #program-structure > .grid-20 { display: block; flex: 1 1 auto; min-width: 0; align-self: flex-start; }
+  /* 樹在可用高內垂直置中（層距也跟高度走，about-structure.css 橫向手機段）：Duo 內螢幕橫拿 585 高時不再整棵堆在上面（user 2026-11-11）；
+     390 高樹剛好塞滿＝跟原本貼頂一樣 */
+  #program-structure > .grid-20 { display: block; flex: 1 1 auto; min-width: 0; align-self: center; }
   /* sticky 貼底界線：樹比一屏高（375 高）時落地就在右下角、捲到段尾回原位（同桌面右下角） */
   #program-structure > .prog-legend-stack {
     flex: none;
@@ -1635,8 +1641,8 @@
 
   #about-content-wrapper #class-works-area { padding-bottom: 0; }   /* 蓋 md:pb-6xl（≥768 寬會吃到） */
 
-  /* Programs：文字左、圖右（user 2026-11-06）；圖＝桌面三張疊放（class-images-slideshow 橫向手機走桌面 slot、步距收窄），
-     圖頂對齊說明 box 頂（同桌面 alignTop）；圖格高＝內容頂到 tab chip 頂上 sm，圖寬由 JS 依格高 cap */
+  /* Programs：文字左、圖右（user 2026-11-06）；圖＝桌面疊放、兩張（class-images-slideshow 橫向手機走桌面 slot；11-11 由三張改兩張），
+     圖頂對齊說明 box 頂（同桌面 alignTop）；圖格高＝內容頂到 tab chip 頂上 sm，圖寬由 JS 依格高／格寬 cap */
   #about-content-wrapper #class-info-area { padding: var(--about-lp-top) var(--about-lp-r) 0 var(--container-padding); }
   #class-info-area .class-info-panel { padding-bottom: 0; }
   #class-info-area .class-info-panel .grid-20 {
@@ -1667,14 +1673,21 @@
     scrollbar-width: none;
   }
   #class-info-area .class-info-panel [data-class-hl]::-webkit-scrollbar { display: none; }
+  /* <768 寬的橫向手機（667×375）還吃得到 variables.css <768 段給直向的內層固定高（120 地板）／上限（150）＝說明卡只有一百多高、
+     下面空著（11-11 視口總表看到）→ 內層回 auto，高度只由外盒上限（格高）管；≥768 寬本來就吃不到那段 */
+  #class-info-area .class-info-panel [data-class-text],
+  #class-works-panels .class-works-panel [data-works-text] { height: auto; max-height: none; overflow: visible; }
 
-  /* Works：文字左、影片＋playlist 右，playlist 直排在影片右邊（user 2026-11-06）；影片高 cap 在格高 */
+  /* Works：文字左、影片＋playlist 右，playlist 直排在影片右邊（user 2026-11-06）；影片高 cap 在格高。
+     右緣拉到 menu 鈕右緣（鈕欄在這屏中段是空的；user 2026-11-11「playlist 可以拉到 menu 那裡」）、文字與影片都靠頂（同 Programs）；
+     mode3 鉛筆在 footer 鈕正上方、會壓到 playlist 尾端 → mode3 照舊讓出鈕欄 */
   #about-content-wrapper #works { padding-top: var(--about-lp-top); }
-  body #class-works-panels { padding: 0 var(--about-lp-r) 0 var(--container-padding); }
+  body #class-works-panels { padding: 0 var(--container-padding); }
+  body.mode-color #class-works-panels { padding-right: var(--about-lp-r); }
   #class-works-panels .class-works-panel .grid-20 {
     display: flex;
     gap: var(--spacing-sm);     /* 文字 box↔影片（user 11-06 二修「gap 少一點」） */
-    align-items: center;
+    align-items: flex-start;
     height: var(--about-lp-tab-room);
   }
   /* 文字欄至少 34%、不縮；影片欄理想寬＝格高×16/9（影片高剛好格高）＋playlist 欄，放不下時只縮影片 */
@@ -1890,10 +1903,14 @@
   /* Programs／Works 說明卡寬上限（user 2026-11-11「iPad 上整條滿寬很突兀」）：36rem≈一行 90 個英文字；靠左＝跟底部 tab／nav 同一條左線 */
   #about-content-wrapper :is([data-class-hl], [data-works-hl]) { max-width: 36rem; }
   /* Works 影片＋縮圖列在 6 成格內垂直置中；格放不下時影片等比縮（同直向）。縮圖列＝直向手機同款（播放器下方橫捲＋左右 chevron，
-     lists.css 手機段的 media 含 iPad 直拿；user 2026-11-11）、縮圖高 64（手機 44）→ 列高 96，下面的 95＝96 − 1 疊縫 */
+     lists.css 手機段的 media 含 iPad 直拿；user 2026-11-11）、縮圖高 64（手機 44）→ 列高 96 */
   #about-content-wrapper { --pl-thumb-h: 64px; }
   #about-content-wrapper .class-works-panel .grid-20 > :last-child { display: flex; flex-direction: column; justify-content: center; }
-  #about-content-wrapper .class-works-panel .works-video-row { width: 100%; max-width: calc((var(--about-room) * 0.6 - 95px) * 16 / 9); margin-inline: auto; }
+  /* --works-w／說明卡跟影片同寬同左緣：同 variables.css about 直向段（那段 media 只到 <768，這裡照抄；31＝縮圖列高 − 縮圖高 − 1 疊縫） */
+  #about-content-wrapper .class-works-panel { --works-w: min(100%, calc((var(--about-room) * 0.6 - var(--pl-thumb-h) - 31px) * 16 / 9)); }
+  #about-content-wrapper .class-works-panel .works-video-row { width: var(--works-w); margin-inline: auto; }
+  #about-content-wrapper .class-works-panel .grid-20 > :first-child { padding-inline: calc((100% - var(--works-w)) / 2); }
+  #about-content-wrapper .class-works-panel [data-works-hl] { min-width: min(100%, 36rem); }
   /* Resources：卡片列在 header 帶（92）與底 bar 之間垂直置中（user 2026-11-11「內容沒那麼多就置中畫面」；原本貼頂、下面空一大片）。
      height:auto 蓋 scroll-snap.css ≥900 高段的 100svh（min-height 100lvh 照留）；容器自己的 pt／pb 歸零＝置中範圍只看 section 的上下 padding。
      圖高：gate 的 120 是橫向手機 390 高的預算，直拿卡寬 418～571 會變細長條 → 跟卡寬走 16:10；
@@ -1922,4 +1939,18 @@
   #about-content-wrapper #history #timeline-area { flex: none; }
   /* 清單鈕底＝清單卡底＝area 底（user 2026-11-11「btn 跟打開的卡片沒有對齊底部」；基底 bottom:32 是桌面值，卡在 gate 5i++ 已 bottom:0） */
   #about-content-wrapper #history .tl-list-btn-grid { bottom: 0; }
+  /* 學制樹：說明卡（Term／Degree）貼底＝底 bar 上緣、樹在 header 帶與說明卡之間置中（user 2026-11-11「terms 應該對齊底部」）
+     ＝直向手機同一套（scroll-snap.css 直向段的 flex spacer，那段 media 只到 <768 → 這裡照抄）；原本卡緊接在樹下、下面空一大片。
+     卡左緣回 container padding（gate 的 margin-left 是給沒有左右 padding 的舊橫向版，這裡 section 自己有）＝跟底部 nav 同一條左線 */
+  #about-content-wrapper #program-structure {
+    min-height: 100lvh;
+    display: flex;
+    flex-direction: column;
+    padding-top: 92px;
+    padding-bottom: calc(var(--about-bar-h) + 100lvh - 100svh);
+  }
+  #about-content-wrapper #program-structure::before,
+  #about-content-wrapper #program-structure::after { content: ''; flex: 1 1 0; }
+  #about-content-wrapper #program-structure::after { order: 1; min-height: var(--spacing-xl); }
+  #about-content-wrapper #program-structure > .prog-legend-stack { order: 2; margin: 0; }
 }

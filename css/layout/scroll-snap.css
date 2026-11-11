@@ -203,6 +203,10 @@ html {
   #class-works-panels .works-player-box {
     max-width: calc((100svh - var(--about-pill-row-h) - var(--spacing-2xl) - var(--header-logo-mid)) * 16 / 9);
   }
+  /* 窄桌面（~1024～1200，iPad 橫向）鈕列比內容欄 col 4～18 寬、最後一顆鈕凸出去 → 影片＋playlist 右緣跟到那顆鈕的右緣
+     （user 2026-11-11「playlist 可以拉到 MDES 那邊」）。凸出量＝--works-row-extra（class-buttons-sticky.js 量；鈕寬吃後台文字、CSS 算不出），
+     寬桌面鈕列在欄內＝0 */
+  #class-works-panels .works-video-row { margin-right: calc(-1 * var(--works-row-extra, 0px)); }
   #class-works-area { padding-bottom: 0; }
 
   /* 長文內捲，底收在 98 線（−1em＝外盒 0.5em×2 padding；8rem 保極矮可讀） */
