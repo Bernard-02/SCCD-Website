@@ -205,6 +205,11 @@
   padding-right: 2em;  /* 單位間距（含進 shift 距離）*/
 }
 
+/* section 的 margin-top（HTML inline＝header 高）會穿過 main／body 往外塌（margin collapse）→ body 整個下移一個 header 高、
+   文件比視窗高出那一截：平常鎖捲動看不出來，被程式捲動（視口總表）或輸入框聚焦推上去時卡片上移、底下露一截空白（user 2026-11-11）。
+   main 自成 BFC＝margin 留在 main 裡、文件高＝視窗高；:where＝特異度不變 */
+main#page-content:where(:has(> section > #library-card-main)) { display: flow-root; }
+
 /* ── 灰色矩形內容字體 ────────────────────────────────────────── */
 #library-card-main,
 #library-card-content {

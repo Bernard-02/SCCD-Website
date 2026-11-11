@@ -71,10 +71,10 @@ function checkMobileMode() {
   // 使用 matchMedia API 與CSS媒體查詢保持同步（create.css 手機區塊同式，⚠️兩邊必須一字不差：
   // 2026-09 曾因 JS 768 / CSS 767 差 1px，iPad 直放 768 整頁空白）。
   // 直放平板（≥768，含 iPad Pro 13 直拿 1032；2026-11-11 跟全站「看方向」）也算手機：桌面版在此區間左右出血（TYPE AND ENTER 被切），手機直式流版才合身。
-  // 矮橫向（橫向手機，寬 >768 會誤判桌面）也算手機 → 走 handleOrientationChange 的
-  // #landscape-overlay「旋轉設備」提示，而不是壞掉的桌面版；gate 同 landscape.css
+  // 橫向手機（矮橫向，或寬 <1024 的觸控橫向＝Duo 內螢幕橫拿；寬 >768 會誤判桌面）也算手機 → 走 handleOrientationChange 的
+  // #landscape-overlay「旋轉設備」提示（螢幕鍵盤一開就沒空間，user 2026-11-11 一律擋）；同式見 create.css 矮橫向硬 gate
   isMobileMode = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px)').matches
-    || window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    || window.matchMedia('(orientation: landscape) and (max-height: 500px), (max-width: 1023px) and (min-aspect-ratio: 4/3) and (pointer: coarse)').matches;
 }
 
 // 計算Canvas尺寸

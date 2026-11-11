@@ -301,7 +301,7 @@ function playCreateExitAnimation(destinationRoute) {
   if (typeof gsap === 'undefined') return Promise.resolve();
 
   // 同 generate-app/js/utils.js checkMobileMode（原本寫 max-width:768＝寬 >768 的直放平板抓桌面元素、全是 display:none → 沒有退場，user 2026-11-11）
-  const isMobile = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (max-height: 500px)').matches;
+  const isMobile = window.matchMedia('(max-width: 767px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (max-height: 500px), (max-width: 1023px) and (min-aspect-ratio: 4/3) and (pointer: coarse)').matches;
   const destPage = destinationRoute?.page;
   // library / atlas 用小 logo；其他頁（含 alumni / about / index）皆大 logo（--logo-sm／--logo-lg）
   const isSmallDestLogo = destPage === 'library' || destPage === 'atlas';

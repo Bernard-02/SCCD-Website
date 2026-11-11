@@ -51,8 +51,11 @@
 /* 矮橫向硬 gate：只留 header＋旋轉提示。iOS 轉向時 JS inline display 時序不穩會漏 → CSS 釘死（!important 蓋 JS inline）。
    z-index 40 < header z-50＝header 照常可點；gate 外維持 JS 行為。
    打字中（.create-typing，mobile.js）不算：Chrome 開鍵盤連 innerHeight 都縮、直向手機變「寬＞高」→ 輸入框被藏＝失焦收鍵盤
-   → 又變回直向，一直循環（user 2026-11-04「Chrome 輸入超卡、畫面一直抖」）。真的轉橫向由 JS 看寬度變了處理 */
-@media (orientation: landscape) and (max-height: 500px) {
+   → 又變回直向，一直循環（user 2026-11-04「Chrome 輸入超卡、畫面一直抖」）。真的轉橫向由 JS 看寬度變了處理。
+   後半（寬 <1024 的觸控橫向，user 2026-11-11「手機橫向怎樣都要擋，keyboard 一打開就很難用」）：Duo 內螢幕橫拿 951×585 高過 500、
+   原本落到桌面版；限 pointer: coarse＝理由是螢幕鍵盤，桌面縮窄視窗不擋；
+   寬高比 ≥4:3 才算＝iPad 直拿在 Chrome 開鍵盤也會變「寬＞高」（820×~770，接近正方），收鍵盤那一下 .create-typing 已拿掉、高還沒長回來，不設比例會閃一下提示。⚠️ 同式三處：這裡／utils.js checkMobileMode／create-app.js playCreateExitAnimation */
+@media (orientation: landscape) and (max-height: 500px), (max-width: 1023px) and (min-aspect-ratio: 4/3) and (pointer: coarse) {
   #create-app:not(.create-typing) .main-container {
     display: none !important;
   }
