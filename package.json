@@ -9,7 +9,8 @@
     "check:ts": "tsc -p .",
     "watch:ts": "tsc -p . --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "sync:assets": "node scripts/pull-site-assets.cjs"
+    "sync:assets": "node scripts/pull-site-assets.cjs",
+    "sweep": "node scripts/viewport-sweep.cjs --open"
   },
   "keywords": [],
   "author": "",
