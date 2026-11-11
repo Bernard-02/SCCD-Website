@@ -631,8 +631,9 @@ body.mode-color #library-card-content {
 }
 
 /* 手機：initLibraryCard 只在桌面跑 → 無 inline --lib-bg 標記，直接 remap main，否則淺卡配白字。
-   桌面不套（會蓋掉 demote 成 color rect 的情境） */
-@media (max-width: 767px) {
+   桌面不套（會蓋掉 demote 成 color rect 的情境）。media＝非真桌面（原 max-width:767 漏 iPad 直拿／橫向手機：
+   卡底沒 remap 又被下面那條蓋成 theme-fg，卡內 sticky 年份標題的 --lib-bg 跟卡底不同色＝年份有色底，user 2026-11-11） */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   body.mode-color #library-card-main {
     --lib-bg: var(--lib-bg-contrast);
   }
@@ -643,7 +644,7 @@ body.mode-color #library-card-content {
    :not([style*="--lib-bg"]) 排除 setAsGray 升為主卡者。桌面限定：手機不跑 initLibraryCard、無標記可排除，會被蓋成純黑白 */
 /* Hover 由 JS applyCardHover 寫 inline fg-inverse 底 + fg 字（箭頭預覽同一套）；
    以 [style*="--theme-fg-inverse"] 標記放行 hover 中的卡，免被下面 !important 吃掉 */
-@media (min-width: 768px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
   body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]),
   body.mode-color #library-card-main:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]) {
     background: var(--theme-fg) !important;

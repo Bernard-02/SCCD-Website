@@ -1517,7 +1517,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             delete item.dataset.refOpen;
             item.style.removeProperty('--item-color');
             item.style.removeProperty('--item-color-deep');
-            if (SCCDHelpers.isDesktopLayout() && item.matches(':hover')) {
+            if (SCCDHelpers.isDesktopLayout() && SCCDHelpers.canHover() && item.matches(":hover")) {   // 觸控的 :hover 點完會黏著＝收合後底色不退（user 2026-11-11 iPad）
               const color = SCCDHelpers.getRandomAccentColor();
               item.style.background = color;
               item.dataset.accentHex = color;
@@ -1883,7 +1883,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           const img = document.createElement('img');
           img.decoding = 'async';   // 捲動中陸續載入的 logo 不在主線程同步解碼
           img.src = src; img.alt = 'Award';
-          img.style.cssText = 'height:40px;width:auto;object-fit:contain;filter:grayscale(1);flex-shrink:0;'; // ticker logo 桌面 40px（user 2026-09-13 終版；手機 30px 在 library.css）
+          img.style.cssText = 'height:40px;width:auto;object-fit:contain;flex-shrink:0;'; // ticker logo 桌面 40px（user 2026-09-13 終版；手機 30px 在 library.css）
           img.onerror = () => { img.style.display = 'none'; };
           track.appendChild(img);
         });
@@ -3706,6 +3706,15 @@ function setupFilesScrollReveal(listEl) {
   if (!scroller) return;
   if (_filesRevealCleanup) { _filesRevealCleanup(); _filesRevealCleanup = null; }
   if (!listEl.querySelector('.files-item-card.files-card-pending')) return;   // 全揭完＝不綁 listener
+  // 還沒揭過卡的年份＝標籤也先藏、等第一批卡同拍揭（revealFilesCards）。原本標籤出生就亮著：捲到新年份時標籤先進視窗、
+  // 卡過觸發線那刻才「藏→重播」＝閃一下（user 2026-11-11）。重藏冪等（進場那批已藏過的不受影響）
+  hideYearLabels(/** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.files-year-block')]).filter(bk => !bk.querySelector('.files-item-card:not(.files-card-pending)')));
+  const showLabelNow = (/** @type {Element} */ card) => {   // 不播進場就位的卡（snap／已捲過）＝標籤直接現
+    const pt = yearLabelParts(/** @type {HTMLElement|null} */ (card.closest('.files-year-block')));
+    if (!pt) return;
+    pt.text.style.transition = ''; pt.text.style.translate = '';
+    pt.label.style.overflow = ''; pt.label.style.boxShadow = '';
+  };
   const flush = (snap = false, lead = true) => {
     // 「全揭完」看全部預藏卡（含被 search／篩選 display:none 的）：只看可見的會在 search 縮短清單→scrollTop 夾回→
     // scroll 觸發 flush 時誤判揭完拆 listener，清掉 search 後重現的預藏卡就永遠不揭（user 2026-10-26 年份空白／缺卡）
@@ -3722,7 +3731,7 @@ function setupFilesScrollReveal(listEl) {
       const top = el.getBoundingClientRect().top;
       if (top >= rb) return;                                  // 還沒到觸發線
       // snap＝deep-link 飛行窗口（沿途看不清進場動畫、省整波 wrap/transition）；已捲過（視窗上方）本就 snap
-      if (snap || top < st - 100) el.classList.remove('files-card-pending');
+      if (snap || top < st - 100) { el.classList.remove('files-card-pending'); showLabelNow(el); }
       else animate.push(el);
     });
     if (animate.length) revealFilesCards(/** @type {HTMLElement[]} */ (animate));  // revealFilesCards 內移除 pending
@@ -4475,8 +4484,32 @@ function bindToolsToggle() {
  *   handleHash: (unlock: () => void) => void
  * }}
  */
+// 觸控的桌面排版（iPad 橫向）：自動捲的 title marquee 只讓「在畫面中」的列跑，且進視窗 0.7s 後（進場動畫播完）才開始
+// （user 2026-11-11；library.css (hover: none) 段要 .mq-live 才給 animation）。列是 lazy 續建的 → MutationObserver 補掛
+function bindTouchMarqueeGate() {
+  if (!(SCCDHelpers.isDesktopLayout() && !SCCDHelpers.canHover()) || typeof IntersectionObserver === 'undefined') return;
+  const timers = new WeakMap();
+  const io = new IntersectionObserver(entries => entries.forEach(e => {
+    clearTimeout(timers.get(e.target));
+    if (e.isIntersecting) timers.set(e.target, setTimeout(() => e.target.classList.add('mq-live'), 700));
+    else e.target.classList.remove('mq-live');
+  }));
+  const SEL = '.press-item, .files-item';
+  const root = document.getElementById('page-content');
+  if (!root) return;
+  root.querySelectorAll(SEL).forEach(el => io.observe(el));
+  const mo = new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
+    if (!(n instanceof Element)) return;
+    if (n.matches(SEL)) io.observe(n);
+    n.querySelectorAll(SEL).forEach(el => io.observe(el));
+  })));
+  mo.observe(root, { childList: true, subtree: true });
+  registerPageCleanup(() => { io.disconnect(); mo.disconnect(); });
+}
+
 export function initLibraryPanels() {
   bindToolsToggle();
+  bindTouchMarqueeGate();
   // 離頁放掉各面板掛的 re-init hook（舊閉包抓著整份 DOM／records）；下次進頁各 init 重掛
   registerPageCleanup(() => { _awardsMarqueeInit = _awardsResetAccordions = _awardsRerender = _awardsTickerStart = _pressMarqueeInit = _filesMarqueeInit = _albumMarqueeInit = null; });
   ensureSerifFonts();

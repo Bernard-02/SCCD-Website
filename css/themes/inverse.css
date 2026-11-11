@@ -150,7 +150,7 @@ body.mode-inverse .list-content .border-black {
 /* 標準 #f2f2f2 + 黑字 ↔ inverse #333 + 白字：--lib-bg / --lib-fg / --lib-fg-rgb 定義在 variables.css + 本檔 Base，
    library.css / library.html / library-panels.js / library-card.js 都用 var() 取色 */
 
-/* Awards ticker logo：黑 PNG 翻白（!important 蓋過 JS inline filter:grayscale） */
+/* Awards ticker logo：黑 PNG 翻白 */
 body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   filter: invert(1) !important;
 }

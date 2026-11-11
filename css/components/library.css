@@ -1658,9 +1658,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-right: var(--spacing-lg) !important;
   }
 
-  /* 卡片 grid 手機 2 欄 */
+  /* 卡片 grid：手機 2 欄；寬一點（iPad 直拿）依寬增欄、每欄至少 170（768→3 欄、1032→5 欄；user 2026-11-11「不是套手機就只有 2 個」）。
+     min(170px, 半寬)＝窄手機 170 放不下兩欄時退回剛好兩欄 */
   .files-grid {
-    grid-template-columns: 1fr 1fr !important;
+    grid-template-columns: repeat(auto-fill, minmax(min(170px, calc(50% - var(--spacing-sm) / 2)), 1fr)) !important;
     gap: var(--spacing-xl) var(--spacing-sm) !important;
   }
 
@@ -2167,16 +2168,17 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 }
 
 /* ── 沒 hover 的桌面排版（iPad 橫向 ≥1024，user 2026-10-31）：桌面「hover 才捲」的 marquee 全退回自動循環（手機段同款）；
-   award 單筆 cell 桌面本來只有 GSAP（bindMarqueeReturn、無 keyframe）→ 這裡補 CSS */
+   award 單筆 cell 桌面本來只有 GSAP（bindMarqueeReturn、無 keyframe）→ 這裡補 CSS。
+   .mq-live＝在畫面中且進場播完才跑（library-panels.js bindTouchMarqueeGate，user 2026-11-11 iPad 整頁同時捲太吃力） */
 @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: none) {
-  .press-item .press-item-title-en.is-overflow .press-marquee-inner,
-  .press-item .press-item-title-zh.is-overflow .press-marquee-inner,
-  .press-item .press-item-subtitle.is-overflow .press-subtitle-inner,
-  .files-item .files-item-title-en.is-overflow .files-marquee-inner,
-  .files-item .files-item-title-zh.is-overflow .files-marquee-inner,
-  .files-item .files-item-subtitle-en.is-overflow .files-marquee-inner,
-  .files-item .files-item-subtitle-zh.is-overflow .files-marquee-inner,
-  #library-files-list .files-item .files-item-subtitle-tag.is-overflow .files-marquee-inner {
+  .press-item.mq-live .press-item-title-en.is-overflow .press-marquee-inner,
+  .press-item.mq-live .press-item-title-zh.is-overflow .press-marquee-inner,
+  .press-item.mq-live .press-item-subtitle.is-overflow .press-subtitle-inner,
+  .files-item.mq-live .files-item-title-en.is-overflow .files-marquee-inner,
+  .files-item.mq-live .files-item-title-zh.is-overflow .files-marquee-inner,
+  .files-item.mq-live .files-item-subtitle-en.is-overflow .files-marquee-inner,
+  .files-item.mq-live .files-item-subtitle-zh.is-overflow .files-marquee-inner,
+  #library-files-list .files-item.mq-live .files-item-subtitle-tag.is-overflow .files-marquee-inner {
     animation: press-marquee var(--marquee-duration, 8s) linear infinite;
   }
   /* award 大表（600+ 列、每列多格溢出）刻意不自動捲：iPad 實測整頁動畫死機（user 2026-10-31）；溢出的格維持裁切，點列展開看全文 */

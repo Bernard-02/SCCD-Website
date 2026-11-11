@@ -1266,6 +1266,13 @@ export function initPdfViewer() {
         //   （本站 press 幾乎全是 ≥2 長文，見封面裁頂理由）。真頁若在 [1.5,2)（雜誌/報紙掃描）色塊會在揭露前縮一次（罕見）。
         //   render 的 ≥2 門檻是 user 定案不能降；要全消得把色塊移出 rendered-content、改 zoom-stage 絕對定位不隨 render 重算。
         if (allowAutoRead && (coverIsCropped || imgAspect >= 2)) return;
+        // 手機／iPad（不走閱讀縮放＝整頁 Fit Page）：裁頂封面（1.5）看不出真比例，拿它定色塊＝先一塊大的、真頁（長文）算出來再縮成細長條
+        // （user 2026-11-11 iPad 直拿 press）→ 開過的檔用快取的真比例，沒開過＝等 sizeLoaderToPage 一次到位（同桌面 press「要精準勝過即時」）
+        if (coverIsCropped) {
+          const d = getCachedPdfDims(pdfUrl);
+          if (d) showLoaderFitRect(d[0], d[1]);
+          return;
+        }
         // 其餘 → 封面 fit 尺寸置中（非 press，或 press 首頁橫幅/短頁）
         showLoaderFitRect(img.naturalWidth, img.naturalHeight);
       };
