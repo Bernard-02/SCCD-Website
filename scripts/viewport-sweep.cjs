@@ -1,6 +1,6 @@
 // 視口總表：各頁 × 各裝置尺寸逐屏截圖＋自動檢查（JS／console 錯誤、頁面可橫向捲、header・footer 鈕跑出畫面），
 // 輸出 ../SCCD-視口總表/index.html（放 repo 外＝不觸發 Live Server 重整、不會被 commit）。版面對不對還是靠人眼掃總表。
-// 用法：npm run sweep                      全部（約 18 尺寸 × 16 頁，~11 分鐘）
+// 用法：npm run sweep                      全部（18 尺寸 × 15 頁，~12 分鐘）
 //       npm run sweep -- --pages about,library --sizes ipad,390x844     只重跑這幾列
 //       其他：--mode inverse|color、--browser webkit（近似 Safari）、--screens 8（每頁最多截幾屏）、--jobs 3（同時跑幾個尺寸）
 // 總表是累積的：每次只蓋掉這次重跑的那幾列（rows.json 記全部列），其餘留著——不整個清掉，有人可能正開著總表在看。
@@ -22,7 +22,8 @@ const SIZES = [
   ['desktop', '桌面', 1280, 720, 0], ['desktop', '桌面', 1440, 900, 0], ['desktop', '桌面', 1920, 1080, 0], ['desktop', '桌面', 2560, 1440, 0],
 ];
 // menu-footer＝不是頁面：在 about 上開 menu、開 footer 各截一張（這兩個是跟著尺寸變的全站 chrome）
-const PAGES = ['index', 'about', 'faculty', 'curriculum', 'activities', 'admission', 'library', 'atlas', 'create', 'alumni',
+// alumni 不掃（user 2026-11-12「可以跳過」：頁面暫時隱藏、nav 沒入口）；要掃就加回這裡
+const PAGES = ['index', 'about', 'faculty', 'curriculum', 'activities', 'admission', 'library', 'atlas', 'create',
   'degree-show-detail', 'donate', 'regulations', 'sitemap', '404', 'menu-footer'];
 const urlOf = p => p === 'index' ? 'index.html' : p === 'menu-footer' ? 'pages/about.html'
   : `pages/${p}.html${p === 'degree-show-detail' ? '?year=2025' : ''}`;
@@ -124,7 +125,7 @@ const server = http.createServer((req, res) => {
   const key = r => `${r.page}|${r.w}x${r.h}`;
   const fresh = new Set(rows.map(key));
   const sizeIdx = r => SIZES.findIndex(s => s[2] === r.w && s[3] === r.h);
-  const all = [...prev.filter(r => !fresh.has(key(r))), ...rows]
+  const all = [...prev.filter(r => PAGES.includes(r.page) && !fresh.has(key(r))), ...rows]   // 已從 PAGES 拿掉的頁（alumni）舊列一併丟
     .sort((x, y) => PAGES.indexOf(x.page) - PAGES.indexOf(y.page) || sizeIdx(x) - sizeIdx(y));
   fs.writeFileSync(DATA, JSON.stringify(all));
 
