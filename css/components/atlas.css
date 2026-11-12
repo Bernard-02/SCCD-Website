@@ -1429,70 +1429,78 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 @media (pointer: coarse) {
   #atlas-stage { touch-action: none; }
 }
-/* 反向縮放兩條路（user 2026-11-06）：
-   ① 形狀（圓點／國家方塊／主持矩形）吃 --atlas-line-scale＝atlas.js 逐幀寫的 zoom → 手勢中大小恆定；
-   ② 文字的字級／padding 吃 --atlas-zoom-scale＝150ms 節流（改字級會 reflow），中間的差額由 scale: var(--atlas-resid) 逐幀補
-      ＝不會先跟著 zoom 變大、150ms 後再縮回。
-   ⚠️ 圓點／矩形用 transform 縮、不要把寬高除到 3–4px：盒子邊緣會各自貼齊像素、寬高差 1px，放大幾倍後圓變橢圓 */
-/* 系友主持企業環（co-*）：圓點態＝無字矩形（底色＝chip 色；圓＝人／單位、方＝國家、矩形＝主持企業），視覺恆 24×12；
-   進到畫面中間那塊（.atlas-as-text，atlas.js syncTextRegion）才是文字 chip。.atlas-cat-b 的 transform-origin 0 0＝繞 anchor 縮 */
+/* 反向縮放（放大時字／形狀的視覺大小恆定、只有間距被拉開）：一律「照正常大小畫、整顆（合成層本身＝.atlas-name）用 transform 縮」。
+   --atlas-inv＝1／max(1, zoom)，吃 atlas.js 逐幀寫的 --atlas-line-scale。
+   ⚠️ 不要把字級／寬高除以 zoom（2026-11-12 以前的做法）：Safari 的合成層照「自己的尺寸」畫成一張圖、再被 #atlas-zoom 放大
+   → 3–5px 的字放大三倍＝整片糊、一直不會變清楚（user iPad／iPhone 實機；Chrome 會重畫所以看不出來）。圓點盒除到 3–4px 同理：
+   各邊貼齊像素、放大後圓變橢圓（user 2026-11-06）。縮也要掛在 .atlas-name 這層：縮裡面的子元素＝字還是畫進同一張小圖。
+   連帶：放大不改字級＝不 reflow（原本 150ms 節流＋--atlas-resid 補差額全拿掉）；文字⇄圓點兩態字級相同＝離開文字態不會
+   「字跳大一下才淡出」（user 2026-11-12） */
+#atlas-stage.atlas-dot-mode {
+  --atlas-inv: calc(1 / max(1, var(--atlas-line-scale, 1)));
+}
+/* A/C（沒底色的名字）：盒子靠 anchor 那端的中點釘在 anchor、繞「縮完的盒中心」轉——漂浮的 translate／rotate 是 JS 寫的個別屬性、
+   疊在 transform 外層，原點要跟著縮。k＝--atlas-inv：origin＝(50%·k, 50%·k)、transform＝translate(−50%·k(1−k), −50%·k(2−k)) scale(k)
+   ＝跟「字級除以 zoom＋基底 translateY(-50%)＋origin 盒中心」逐點相同（k＝1 就是基底）。side-left（盒右緣在 anchor）x 向鏡像 */
+#atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-name {
+  font-size: 0.75rem;   /* 文字態視覺 12px；圓點態字看不到、同字級＝切換時盒子不跳 */
+  transform-origin: calc(50% * var(--atlas-inv)) calc(50% * var(--atlas-inv));
+  transform: translate(calc(-50% * var(--atlas-inv) * (1 - var(--atlas-inv))), calc(-50% * var(--atlas-inv) * (2 - var(--atlas-inv)))) scale(var(--atlas-inv));
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-side-left:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-name {
+  transform-origin: calc(100% - 50% * var(--atlas-inv)) calc(50% * var(--atlas-inv));
+  transform: translate(calc(50% * var(--atlas-inv) * (1 - var(--atlas-inv))), calc(-50% * var(--atlas-inv) * (2 - var(--atlas-inv)))) scale(var(--atlas-inv));
+}
+/* B chip（有底色；手機上＝主持企業環 co-*）：基底 translate(-50%,-50%)＋origin 0 0 → 個別屬性 scale 剛好繞 chip 中心（＝anchor）縮 */
+#atlas-stage.atlas-dot-mode .atlas-cat-b .atlas-name {
+  font-size: 0.75rem;
+  scale: var(--atlas-inv);
+}
+/* 主持企業環（co-*）：圓點態＝無字矩形（底色＝chip 色；圓＝人／單位、方＝國家、矩形＝主持企業），視覺恆 24×12；
+   進到畫面中間那塊（.atlas-as-text，atlas.js syncTextRegion）才是文字 chip */
 #atlas-stage.atlas-dot-mode .atlas-anchor-co:not(.atlas-as-text) .atlas-name {
   width: 24px;
   height: 12px;
   padding: 0;
-  scale: calc(1 / max(1, var(--atlas-line-scale, 1)));
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor-co:not(.atlas-as-text) .atlas-item-nameline {
   display: none;
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor-co.atlas-as-text .atlas-name {
-  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
-  /* padding 跟字級等比（同桌面 B chip 3px 5px） */
-  padding: calc(3px / var(--atlas-zoom-scale, 1)) calc(5px / var(--atlas-zoom-scale, 1));
-  scale: var(--atlas-resid, 1);
+  padding: 3px 5px;   /* 同桌面 B chip */
 }
-/* D 國家方塊反向縮放＝視覺恆 14px（atlas.js DOT_CITY_SIZE 同值；桌面 20 不動，user 2026-11-06「再小一點」） */
+/* D 國家方塊＝視覺恆 14px（atlas.js DOT_CITY_SIZE 同值；桌面 20 不動，user 2026-11-06「再小一點」）。實心方塊、連線端點盒
+   （atlas.js _boxW）跟著寬高走 → 這顆照舊除寬高 */
 #atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name {
   width: calc(14px / max(1, var(--atlas-line-scale, 1)));
   height: calc(14px / max(1, var(--atlas-line-scale, 1)));
 }
-/* 展開國名 chip：字級/padding 反向縮放（同 A/C chip 規則），寬高交還 max-content */
+/* 展開國名 chip（有字）也整顆縮：寬高交還 max-content。這顆的 transform 是 JS inline（translate(-50%,-50%) rotate()、origin 盒中心），
+   縮只能掛個別屬性 scale——它疊在 transform 外層＝連「置中位移」一起縮掉 → 個別屬性 translate 補回差額，chip 中心才留在 anchor。
+   展開／收合補間的寬高是「縮之前」的尺寸（atlas.js openCountrySquare：方塊那端＝DOT_CITY_SIZE） */
 #atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name.atlas-square-open {
   width: max-content;
   height: auto;
-  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
-  padding: calc(3px / var(--atlas-zoom-scale, 1)) calc(5px / var(--atlas-zoom-scale, 1));
+  font-size: 0.75rem;
+  padding: 3px 5px;
+  scale: var(--atlas-inv);
+  translate: calc(-50% * (1 - var(--atlas-inv))) calc(-50% * (1 - var(--atlas-inv)));
 }
-/* 連線 stroke：除以 line-scale 抵銷 zoom 放大、再除 zoom-scale 保留「zoom 越大線越細」 */
+/* 連線 stroke：除以 zoom 抵銷放大、再乘一次 --atlas-inv 保留「zoom 越大線越細」 */
 #atlas-stage.atlas-dot-mode .atlas-city-line {
-  stroke-width: calc(1px / (var(--atlas-zoom-scale, 1) * var(--atlas-line-scale, 1)));
+  stroke-width: calc(1px * var(--atlas-inv) / var(--atlas-line-scale, 1));
 }
 #atlas-stage.atlas-dot-mode .atlas-line {
-  stroke-width: calc(0.7px / (var(--atlas-zoom-scale, 1) * var(--atlas-line-scale, 1)));
+  stroke-width: calc(0.7px * var(--atlas-inv) / var(--atlas-line-scale, 1));
 }
 #atlas-stage.atlas-dot-mode .atlas-line.atlas-line-highlight {
-  stroke-width: calc(1.4px / (var(--atlas-zoom-scale, 1) * var(--atlas-line-scale, 1)));
+  stroke-width: calc(1.4px * var(--atlas-inv) / var(--atlas-line-scale, 1));
 }
-/* A/C/em 文字態＝每顆 .atlas-as-text（atlas.js syncTextRegion：過 zoom 門檻＋在畫面內才掛；user 2026-10-27
-   「放大時是區域變成文字、看不到的維持圓點」）——不看 stage 的 .atlas-text-zoom（co chip 字級與 tap 判斷仍用它）。
-   反向縮放：視覺恆 ~12px，zoom 只拉開間距 */
-#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
-  font-size: calc(0.75rem / var(--atlas-zoom-scale, 1));
-}
-/* 字級節流的差額（上面 ②）：就職 chip（.atlas-cat-b，有底色）整顆繞 anchor 縮；A/C 沒底色、span 的 transform-origin 是盒中心
-   （漂浮的 rotate 要繞中心）→ 改縮裡面的名行，原點＝圓點那端 */
-#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text.atlas-cat-b:not(.atlas-anchor-co) .atlas-name {
-  scale: var(--atlas-resid, 1);
-}
-#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-item-nameline {
-  scale: var(--atlas-resid, 1);
-  transform-origin: 0 50%;
-}
-#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-as-text.atlas-side-left:not(.atlas-cat-d):not(.atlas-cat-b) .atlas-item-nameline {
-  transform-origin: 100% 50%;
-}
-/* 字距：全站 * 那條英文字距公式（typography.css）依「各元素自己的字級」算、字越小越寬；反向縮放把字級除到 4–5px
-   ＝被當成極小字、字距 +0.06em，放大後看起來字距鬆掉（user 2026-11-06）→ 子層一律繼承 .atlas-name 的 0.01em（em 跟著縮） */
+
+/* A/C 文字態＝每顆 .atlas-as-text（atlas.js syncTextRegion：過 zoom 門檻＋在畫面中間那塊才掛；user 2026-10-27
+   「放大時是區域變成文字、看不到的維持圓點」）——不看 stage 的 .atlas-text-zoom（tap 判斷仍用它） */
+/* 字距：子層一律繼承 .atlas-name 的 0.01em（全站 * 那條英文字距公式依各元素自己的字級算；2026-11-06 字級還除 zoom 時
+   子層被當極小字、字距鬆掉才加的，現在字級固定 12px、留著＝文字態字距跟之前一樣） */
 #atlas-stage.atlas-dot-mode .atlas-name * {
   letter-spacing: inherit;
 }
@@ -1521,13 +1529,12 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   position: absolute;
   left: 0;
   top: 50%;
-  /* 反向縮放＝視覺恆 10px（同 D 方塊）：放大後只有中間變文字、其餘「還是一樣的圓點」（user 2026-11-05；原本跟著 zoom 變大）。
-     盒子固定 10px、用 scale 縮（見上方 ⚠️：寬高除到 3–4px 會變橢圓，user 2026-11-06） */
+  /* 視覺恆 10px：放大後只有中間變文字、其餘「還是一樣的圓點」（user 2026-11-05）。盒子固定 10px、跟著 .atlas-name 整顆縮
+     （見上方「反向縮放」；自己不用再掛 scale） */
   --dot: 10px;
   width: var(--dot);
   height: var(--dot);
   margin: calc(var(--dot) / -2) 0 0 calc(var(--dot) / -2);
-  scale: calc(1 / max(1, var(--atlas-line-scale, 1)));
   border-radius: 50%;
   background-color: var(--atlas-chip-c, currentColor);
   pointer-events: none;

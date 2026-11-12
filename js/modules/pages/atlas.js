@@ -195,7 +195,7 @@ const MIN_SCALE         = 0.78;
 const MAX_SCALE         = 3.5;    // zoom in 上限拉到 3.5x
 const ZOOM_SPEED        = 0.0015;
 // 橫向手機（landscape gate）圓點模式：zoom 過此門檻才顯示文字（CSS .atlas-text-zoom 切換）
-// 文字採反向縮放（視覺字級恆定，見 --atlas-zoom-scale）→ 門檻越高間距越開、可讀性越好
+// 文字採反向縮放（視覺字級恆定，見 atlas.css --atlas-inv）→ 門檻越高間距越開、可讀性越好
 const TEXT_ZOOM_SCALE   = 2.0;
 // 點圓點 zoom-in 的目標 scale（> TEXT_ZOOM_SCALE，置中後文字必可讀）
 const TAP_ZOOM_SCALE    = 2.6;
@@ -2506,12 +2506,20 @@ export async function initAtlas(options = {}) {
     // 上一顆國家（可能正在 open 或 close 動畫中）立刻還原；同一顆 re-hover 則保留、繼續往下重新展開
     if (openSquareItem && openSquareItem !== item) hardRestoreSquare(openSquareItem);
     openCountryItem = item;
-    const w0 = span.offsetWidth, h0 = span.offsetHeight;
+    // 圓點星雲（手機）：展開的 chip 整顆吃 CSS scale(--atlas-inv)（atlas.css；字照 12px 畫、不除字級）→ 補間的寬高是「縮之前」的尺寸，
+    // 方塊那端＝DOT_CITY_SIZE（方塊本身沒掛 scale、CSS 寬高＝DOT_CITY_SIZE÷zoom；直接量會被取整）。桌面沒縮＝量到多少是多少
+    const dot = stage.classList.contains('atlas-dot-mode');
+    // 收合到一半又點開＝還掛著 open class、inline 寬高已經是縮之前的尺寸 → 照量
+    const fromSquare = dot && !span.classList.contains('atlas-square-open');
+    const w0 = fromSquare ? DOT_CITY_SIZE : span.offsetWidth, h0 = fromSquare ? DOT_CITY_SIZE : span.offsetHeight;
     span.classList.add('atlas-square-open');
     const w1 = span.offsetWidth, h1 = span.offsetHeight;
     openSquareItem = item;
     item._sqW0 = item._boxW; item._sqH0 = item._boxH; item._sqRot0 = item._squareRotDeg || 0;
-    item._boxW = w1; item._boxH = h1;
+    // 連線端點盒＝看到的大小（content px）：圓點星雲要 ÷ zoom，之後 zoom 變了由 syncCityBoxes 用 _openW/_openH 重算
+    const inv = dot ? 1 / Math.max(1, scale) : 1;
+    item._openW = dot ? w1 : 0; item._openH = dot ? h1 : 0;
+    item._boxW = w1 * inv; item._boxH = h1 * inv;
     item._squareRotDeg = 0;
     if (typeof gsap === 'undefined') { span.style.transform = 'translate(-50%, -50%)'; return; }
     const st = { w: w0, h: h0, r: item._sqRot0 };
@@ -2520,7 +2528,7 @@ export async function initAtlas(options = {}) {
       onUpdate: () => setSquareFrame(span, st.w, st.h, st.r),
       onComplete: () => {
         countryTween = null;
-        span.style.width = ''; span.style.height = '';   // 交還 CSS（max-content，字級反向縮放自動跟）
+        span.style.width = ''; span.style.height = '';   // 交還 CSS（max-content）
         span.style.transform = 'translate(-50%, -50%)';
       },
     });
@@ -2542,11 +2550,14 @@ export async function initAtlas(options = {}) {
     };
     if (typeof gsap === 'undefined') { restore(); return; }
     const w1 = span.offsetWidth, h1 = span.offsetHeight;
-    // 量收合目標（方塊尺寸）：暫時脫 class + 清 inline 量一次再掛回
-    span.classList.remove('atlas-square-open');
-    span.style.width = ''; span.style.height = '';
-    const w0 = span.offsetWidth, h0 = span.offsetHeight;
-    span.classList.add('atlas-square-open');
+    let w0 = DOT_CITY_SIZE, h0 = DOT_CITY_SIZE;   // 圓點星雲：方塊那端「縮之前」的尺寸（見 openCountrySquare）
+    if (!stage.classList.contains('atlas-dot-mode')) {
+      // 量收合目標（方塊尺寸）：暫時脫 class + 清 inline 量一次再掛回
+      span.classList.remove('atlas-square-open');
+      span.style.width = ''; span.style.height = '';
+      w0 = span.offsetWidth; h0 = span.offsetHeight;
+      span.classList.add('atlas-square-open');
+    }
     const st = { w: w1, h: h1, r: 0 };
     countryTween = gsap.to(st, {
       w: w0, h: h0, r: rot0, duration: DUR.fast, ease: EASE.exitSoft,
@@ -2784,19 +2795,11 @@ export async function initAtlas(options = {}) {
   // 橫向手機圓點模式：zoom 過門檻 → stage 加 .atlas-text-zoom（CSS 圓點淡出、文字淡入）
   // 放在 applyTransform 內＝所有改 scale 的路徑（wheel / pinch / tap tween / intro / 重置）單一同步點
   let textZoomOn = false;
-  // 文字反向縮放（可讀性）：--atlas-zoom-scale = max(1, scale)，CSS font-size: calc(基準 / var)
-  // → zoom 後視覺字級恆定、只有間距被拉開（文字跟版面同倍縮放時 overlap 永遠解不開）。
-  // 150ms 節流：改 font-size 會 reflow 全部 label，pinch 逐幀同步在手機太重；手勢結束 ≤150ms 收斂到終值。
-  // 節流那段時間字級還是舊的、會跟著 zoom 變大再縮回（user 2026-11-06「閃一下比較大的字體」）→ 差額用 transform 逐幀補：
-  // --atlas-resid＝上次寫的字級倍率÷當下倍率（atlas.css 文字態的 scale 吃它）；字級追上那刻歸 1
-  let fontSyncTimer = null;
-  let zoomFontV = 1;
-  function syncZoomFontVar() {
-    zoomFontV = Math.max(1, scale);
-    stage.style.setProperty('--atlas-zoom-scale', zoomFontV.toFixed(3));
-    stage.style.setProperty('--atlas-resid', '1');
-    syncCityBoxes();
-  }
+  // 文字／形狀的反向縮放（zoom 後視覺大小恆定、只有間距被拉開）全在 CSS：atlas.css --atlas-inv＝1/max(1, zoom)、吃下面逐幀寫的
+  // --atlas-line-scale，字照正常 12px 畫、整顆 .atlas-name 用 transform 縮。2026-11-12 以前是「字級除以 zoom」（150ms 節流
+  // ＋--atlas-resid 補差額）：Safari 把 3–5px 的字畫成圖再放大＝一直是糊的（user iPad／iPhone 實機）。
+  // 這裡只剩「哪幾顆出字」（syncTextRegion 逐顆量 rect）150ms 節流：pinch 逐幀跑太重，手勢結束 ≤150ms 收斂
+  let textSyncTimer = null;
   // D 方塊 CSS 反向縮放（DOT_CITY_SIZE/v，逐幀吃 --atlas-line-scale），連線端點 box（_boxW/_boxH + padding）整組同縮，
   // 否則線停在舊 box 邊、方塊外圍留一圈空白（user 2026-07-07）。
   // box 與 padding 都 ×1/v → 視覺 gap 恆 6px，任何 zoom 都貼緊；
@@ -2806,31 +2809,33 @@ export async function initAtlas(options = {}) {
     const v = Math.max(1, scale);
     items.forEach(it => {
       if (it.category !== 'D') return;
-      // 展開中的國名 chip：_boxW/_boxH 是展開後實測值（openCountrySquare 設）→ 不要蓋回方塊尺寸
-      if (it === openCountryItem) { it._boxPad = 6 / v; return; }
+      // 展開中的國名 chip：端點盒＝展開後實測值（openCountrySquare 存 _openW/_openH＝縮之前的尺寸）÷ zoom，不要蓋回方塊尺寸
+      if (it === openCountryItem) {
+        it._boxPad = 6 / v;
+        if (it._openW) { it._boxW = it._openW / v; it._boxH = it._openH / v; }
+        return;
+      }
       it._boxW = DOT_CITY_SIZE / v;
       it._boxH = DOT_CITY_SIZE / v;
       it._boxPad = 6 / v;
     });
   }
-  cleanupFns.push(() => { if (fontSyncTimer) clearTimeout(fontSyncTimer); });
+  cleanupFns.push(() => { if (textSyncTimer) clearTimeout(textSyncTimer); });
   let lastDesktopPadV = 0;
   function applyTransform() {
     zoomEl.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
     // 線粗細反向補償（取代 vector-effect: non-scaling-stroke，見 atlas.css .atlas-line 註解）
     stage.style.setProperty('--atlas-line-scale', scale.toFixed(4));
-    if (isMobileAtlas) {   // 圓點星雲（直向+橫向手機）：zoom 過門檻 → 圓點淡出、文字淡入 + 反向縮放同步
+    if (isMobileAtlas) {   // 圓點星雲（直向+橫向手機）：zoom 過門檻 → 畫面中間那塊圓點淡出、文字淡入
       const on = scale >= TEXT_ZOOM_SCALE;
       if (on !== textZoomOn) {
         textZoomOn = on;
         stage.classList.toggle('atlas-text-zoom', on);
-        syncZoomFontVar();   // 門檻交界立即同步（文字浮現那刻字級就是對的）
-        syncTextRegion();
+        syncTextRegion();   // 門檻交界立即算（不等節流）
       }
-      stage.style.setProperty('--atlas-resid', (zoomFontV / Math.max(1, scale)).toFixed(4));
       syncCityBoxes();
-      if (!fontSyncTimer) {
-        fontSyncTimer = setTimeout(() => { fontSyncTimer = null; syncZoomFontVar(); syncTextRegion(); }, 150);
+      if (!textSyncTimer) {
+        textSyncTimer = setTimeout(() => { textSyncTimer = null; syncTextRegion(); }, 150);
       }
     } else {
       // 桌面 zoom：BOX_PADDING 是 content px、跟內容一起被 zoom 放大 → 高倍時線端離 chip 一大截
@@ -2847,11 +2852,10 @@ export async function initAtlas(options = {}) {
   }
 
   // 文字區域（user 2026-10-27「放大時是區域變成文字、看不到的 item 維持圓點」）：過門檻後只有畫面內（＋邊距）的
-  //   A/C/em 掛 .atlas-as-text（CSS 文字態看它）；pan/zoom 跟 syncZoomFontVar 同一個 150ms 節流重算。
+  //   A/C/em 掛 .atlas-as-text（CSS 文字態看它）；pan/zoom 走 applyTransform 的 150ms 節流重算。
   //   先全部量完再一次寫 class（讀寫分離，免逐顆 forced reflow）；D 方塊不參與。主持環 co chip 2026-11-06 起也參與
   //   （圓點態＝無字矩形、進到中間那塊才出字；量中心：文字態的盒比矩形寬很多，量左緣會在區域邊緣來回切）。
-  //   量「圓點位置」（span 起點，side-left＝右緣；同 handleTap dotPoint）——span 盒在圓點態不反向縮放、會跟 zoom 放大，
-  //   拿盒子判斷會把畫面外的大盒算進來。
+  //   量「圓點位置」（span 起點，side-left＝右緣；同 handleTap dotPoint）——名字長短不一，拿整個盒子判斷會在區域邊緣不一致。
   //   2026-11-05 再收：只有畫面中間那塊（stage 中心 ± 寬 25%／高 35%）變文字、其餘照舊是圓點（user「不需要每個都改成文字」）；
   //   點圓點／拖動把別的區域帶到中間就換那一區出字。中心＝stage 中心＝tap 置中的落點
   const TEXT_REGION_FX = 0.25, TEXT_REGION_FY = 0.35;
