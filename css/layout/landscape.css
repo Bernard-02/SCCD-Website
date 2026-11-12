@@ -545,21 +545,23 @@
     padding-left: 0;
   }
   /* 5f+) legal 頁（donate/regulations/sitemap）：沿用桌面 frame（標題欄已抽掉、內文滿欄，見 legal.css）、只收緊矮高偏移。
-     ①右欄 box 頂：legal.css margin-top（--header-height fallback 96 + 3xl 96 ＝ 192）在 390 高吃半屏 → 104（92 帶 + 12，同 5e）。
-     ②100vh→100svh（同 2a）。限 legal.css frame 同式（≥768 且矮）：<768 窄橫向與直放 768–1023（iPad）走 legal.css stack，不可套 frame 偏移 */
+     ①右欄 box 頂：legal.css margin-top（--header-height fallback 96 + 3xl 96 ＝ 192）在 390 高吃半屏 → 全站手機內容頂
+        --mobile-content-top（108；原 104，11-12 跟 activities／admission 對齊）。
+     ②100vh→100svh（同 2a）。限 legal.css frame 同式（≥768 且矮）：<768 窄橫向與直放 768–1023（iPad）走 legal.css stack，不可套 frame 偏移。
+     左右範圍比照清單頁：橫向手機在下方橫向手機段（--lp-*）、iPad 直拿在 legal.css 檔尾 */
   @media (min-width: 768px) and (orientation: landscape) {
     main .legal-page-section {
       height: 100svh;
     }
     main .legal-content-col {
-      margin-top: 104px;
-      height: calc(100svh - 104px);
+      margin-top: var(--mobile-content-top);
+      height: calc(100svh - var(--mobile-content-top));
     }
   }
-  /* <768 窄橫向（stack）：內文頂同上 104，不吃 legal.css 直向的 header＋3xl（375 高會吃掉四成） */
+  /* <768 窄橫向（stack）：內文頂同上，不吃 legal.css 直向的 header＋3xl（375 高會吃掉四成） */
   @media (max-width: 767px) {
     main .legal-content-col {
-      padding-top: 104px;
+      padding-top: var(--mobile-content-top);
     }
   }
 
@@ -1401,8 +1403,10 @@
   :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col > div::-webkit-scrollbar { display: none; }
   :is(#activities-content-section, #admission-content-section) .inner-scroll-nav-col > div > * { flex-shrink: 0; }
 
-  /* 內容範圍：左＝nav 列起點（24～--lp-start 那欄只放年份）、右＝mode 鈕右緣（鈕欄留空） */
-  :is(#activities-content-section, #admission-content-section) .inner-scroll-scroll-col {
+  /* 內容範圍：左＝nav 列起點（24～--lp-start 那欄只放年份）、右＝mode 鈕右緣（鈕欄留空）。
+     legal 三頁的手風琴／說明／網站地圖同一個範圍（user 2026-11-12「比照其他頁面的 list、寬度不拉到 menu btn」；原本 24～menu 鈕右緣） */
+  :is(#activities-content-section, #admission-content-section) .inner-scroll-scroll-col,
+  main .legal-content-col {
     padding-left: calc(var(--lp-start) - var(--container-padding));
     padding-right: var(--lp-btn-col);
   }

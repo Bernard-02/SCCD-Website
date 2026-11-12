@@ -521,6 +521,9 @@
       height: auto;
       overflow: visible;
       padding-bottom: var(--spacing-3xl);
+      /* 左緣同 admission 清單／說明（內容從 128 起、左欄留空；landscape.css 5e --adm-ls-indent 104）：
+         比照其他頁的清單（user 2026-11-12）；右緣本來就同清單（container padding） */
+      padding-left: 104px;
     }
     .legal-zebra .list-header.active { top: var(--mobile-content-top); }
     .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat { position: static; }
