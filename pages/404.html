@@ -22,11 +22,16 @@
   <main id="page-content">
     <!-- 404-only 樣式：放 main 內，SPA innerHTML 切換時自動跟著進出（離開頁時隨 innerHTML 替換被移除） -->
     <style>
-      /* 隱藏 nav bars + mobile menu btn；保留 logo + mode btn */
+      /* header 鈕全藏（桌面 mode／menu 都帶 data-bar），只留 logo */
       body.page-404 #site-header header [data-bar],
       body.page-404 #site-header header .mobile-menu-btn,
       body.page-404 .mobile-nav {
         display: none !important;
+      }
+      /* 手機／iPad 同桌面：鈕的黑底外殼也藏（原本只藏裡面的鈕＝右上角剩一顆空的黑方塊，user 2026-11-12）。
+         visibility 不用 display：這列的高是鈕撐的、logo 靠它垂直置中，整顆拿掉 logo 會往上跳 22px */
+      body.page-404 #site-header header .mobile-header-btn {
+        visibility: hidden !important;
       }
 
       /* Stage：占整個 viewport 高（100vh），cards 用 absolute % 在此分佈；
