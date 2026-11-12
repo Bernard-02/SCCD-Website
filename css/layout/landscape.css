@@ -797,16 +797,15 @@
     display: grid;
     /* col1 tab 區吃大頭 */
     grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-    grid-template-rows: 1fr;
+    grid-template-rows: minmax(0, 1fr);
     column-gap: var(--spacing-xl);
     align-items: start;
     /* 頂距在 .footer-shell；底多墊 lvh−svh＝工具列展開時 copyright 仍在可視區 */
     padding-top: 0;
     padding-bottom: calc(var(--container-padding) + 100lvh - 100svh);
-    /* 內容比框高＝inner 自己捲（卡本身不捲，footer.css 檔尾）：捲到底不帶動後面的頁 */
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: none;
+    /* 卡本身不捲（footer.css 檔尾）、inner 也不捲：內容比框高＝資訊區 .footer-random 自己捲（下方），legal 在捲動框外不動 */
+    min-height: 0;
+    overflow: visible;
   }
   body .footer-right {
     position: static;
@@ -827,15 +826,30 @@
     padding-top: var(--spacing-sm);   /* 兩欄 pt 對齊 privacy 的 1rem */
     align-self: stretch;   /* 撐滿整列＝Office Hours 能推到欄底 */
     flex-wrap: nowrap;     /* 蓋 footer.css 768–1023 段的 wrap：撐滿列高後矮橫向會折成第二欄壓到 legal；放不下＝框內捲 */
+    /* 捲動同直向手機（footer.css 直向段）：資訊區（tab＋各 item＋Office Hours）自己捲、tab 釘頂、Office Hours 釘底 */
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
   }
-  /* Office Hours（後台 footer_tabs.note；user 2026-11-04 iPad／橫向也要）：同直向固定在欄底、切分頁位置不動；
-     排法同資訊卡（粗體標題＋mb-xs＋內文照後台換行）。橫向手機排法待 user 微調 */
+  body .footer-random > * { flex-shrink: 0; }   /* 同直向：放不下就捲、不壓扁（tab 列會被壓到 0 高） */
+  body .footer-random > :is(.footer-social, :has(> .footer-social)) {
+    order: 0;   /* 蓋 footer.css 768–1023 的 order:99（排到 Office Hours 後面＝被釘底的 note 擋住）；回 DOM 順序同直向 */
+  }
+  /* Office Hours（後台 footer_tabs.note；user 2026-11-04 iPad／橫向也要）：同直向固定在資訊區底、切分頁位置不動；
+     排法同資訊卡（粗體標題＋mb-xs＋內文照後台換行）。釘底＝同 footer.css 直向段（底色帶往左右鋪、往上多蓋一個 gap） */
   body .footer-random .footer-note,
   body .footer-random > .clip-reveal-wrapper:has(> .footer-note) {
     display: block;
   }
   body .footer-random > :is(.footer-note, .clip-reveal-wrapper:has(> .footer-note)) {
     margin-top: auto;
+    position: sticky;
+    bottom: 0;
+    background-color: var(--footer-bg, var(--color-black));
+    box-shadow: 0 0 0 100vmax var(--footer-bg, var(--color-black));
+    clip-path: inset(calc(-1 * var(--spacing-md)) -100vmax 0);
   }
   body .footer-random .footer-note-title {
     margin-bottom: var(--spacing-xs);
@@ -952,36 +966,14 @@
     margin-top: 0;
   }
   /* 7b) 橫向手機（高 ≤500）footer（user 2026-11-05）：字級同直向手機（xs，footer.css 直向段）；tab 列移到 header logo 右邊、
-     logo 下那欄留空（inner 左 padding 讓出 logo 欄）＝內容頂從 logo 頂開始；legal 英中上下兩行、copyright 接在下面。
-     捲動同直向手機：資訊區（tab＋各 item＋Office Hours）自己捲、tab 釘頂、Office Hours 釘底；legal 在捲動框外不動、整塊靠右（塊內靠左）。iPad 不吃 */
+     logo 下那欄留空（inner 左 padding 讓出 logo 欄）＝內容頂從 logo 頂開始；legal 英中上下兩行、copyright 接在下面；
+     legal 在右欄、整塊靠右（塊內靠左）。資訊區捲動／Office Hours 釘底在上方 gate 共用段（11-12 起 iPad 也用） */
   @media (orientation: landscape) {
     body .footer-shell {
       padding-top: calc(var(--mobile-bottom-anchor) - 6px);   /* ＝header logo 頂 */
     }
     body .footer-inner {
       padding-left: calc(var(--container-padding) + 56px + var(--spacing-md));   /* logo 56 方塊＋md */
-      min-height: 0;
-      grid-template-rows: minmax(0, 1fr);
-      overflow: visible;   /* 不再整塊捲：捲動框改資訊區 */
-    }
-    body .footer-random {
-      min-height: 0;
-      overflow-x: hidden;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      scrollbar-width: none;
-    }
-    body .footer-random > * { flex-shrink: 0; }   /* 同直向：放不下就捲、不壓扁（tab 列會被壓到 0 高） */
-    body .footer-random > :is(.footer-social, :has(> .footer-social)) {
-      order: 0;   /* 蓋 footer.css 768–1023 的 order:99（排到 Office Hours 後面＝被釘底的 note 擋住）；回 DOM 順序同直向 */
-    }
-    /* Office Hours 釘在資訊區底：同 footer.css 直向段（底色帶往左右鋪、往上多蓋一個 gap） */
-    body .footer-random > :is(.footer-note, .clip-reveal-wrapper:has(> .footer-note)) {
-      position: sticky;
-      bottom: 0;
-      background-color: var(--footer-bg, var(--color-black));
-      box-shadow: 0 0 0 100vmax var(--footer-bg, var(--color-black));
-      clip-path: inset(calc(-1 * var(--spacing-md)) -100vmax 0);
     }
     body .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) {
       justify-self: end;
@@ -1015,6 +1007,30 @@
     body .footer-privacy {
       padding-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) - var(--container-padding));
     }
+  }
+  /* 7c) iPad 直拿 footer＝單欄往下排、同直向手機（user 2026-11-12「legal 應該往下排，怎麼會靠 tab btn 的右邊」；
+     原本吃上面橫向用的兩欄＝legal 浮在 tab 列右邊）：資訊區（tab 釘頂＋各 item＋Office Hours 釘底）吃剩餘高、自己捲，
+     legal＋copyright 接在下面貼底、靠左。字級維持 s（直向手機 xs） */
+  @media (orientation: portrait) {
+    body .footer-inner { display: flex; }   /* 蓋兩欄 grid；flex-direction: column 在本段開頭 */
+    body .footer-right {
+      display: flex;                        /* 蓋 display: contents */
+      flex-direction: column;
+      align-items: flex-start;              /* legal 的進場遮罩貼字寬（同 footer.css 直向段） */
+      gap: var(--spacing-md);
+      flex: 1 1 0;
+      min-height: 0;
+    }
+    body .footer-random {
+      flex: 1 1 0;
+      padding-top: 0;                       /* 單欄不用跟右欄對齊 */
+    }
+    body .footer-privacy {
+      display: block;
+      height: auto;
+      padding-top: 0;
+    }
+    body .footer-privacy .footer-copyright { margin-top: var(--spacing-sm); }   /* 同直向：接在 legal 下，不再推到欄底 */
   }
 
   /* 5j) degree-show-detail 內文：2026-11-11 起整個 gate 同直向手機新版面（variables.css DSD 手機段；舊的「清單＋每個活動一段＋色塊上下屆卡」
