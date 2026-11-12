@@ -1,6 +1,6 @@
 // 視口總表：各頁 × 各裝置尺寸逐屏截圖＋自動檢查（JS／console 錯誤、頁面可橫向捲、header・footer 鈕跑出畫面），
 // 輸出 ../SCCD-視口總表/index.html（放 repo 外＝不觸發 Live Server 重整、不會被 commit）。版面對不對還是靠人眼掃總表。
-// 用法：npm run sweep                      全部（18 尺寸 × 15 頁，~12 分鐘）
+// 用法：npm run sweep                      全部（18 尺寸 × 18 列，~14 分鐘）
 //       npm run sweep -- --pages about,library --sizes ipad,390x844     只重跑這幾列
 //       其他：--mode inverse|color、--browser webkit（近似 Safari）、--screens 8（每頁最多截幾屏）、--jobs 3（同時跑幾個尺寸）
 // 總表是累積的：每次只蓋掉這次重跑的那幾列（rows.json 記全部列），其餘留著——不整個清掉，有人可能正開著總表在看。
@@ -23,9 +23,12 @@ const SIZES = [
 ];
 // menu-footer＝不是頁面：在 about 上開 menu、開 footer 各截一張（這兩個是跟著尺寸變的全站 chrome）
 // alumni 不掃（user 2026-11-12「可以跳過」：頁面暫時隱藏、nav 沒入口）；要掃就加回這裡
-const PAGES = ['index', 'about', 'faculty', 'curriculum', 'activities', 'admission', 'library', 'atlas', 'create',
+// library＝預設分頁 Awards；其餘三個分頁各一列（網址帶分頁 hash 直開，user 2026-11-12）
+const PAGES = ['index', 'about', 'faculty', 'curriculum', 'activities', 'admission',
+  'library', 'library-press', 'library-files', 'library-album', 'atlas', 'create',
   'degree-show-detail', 'donate', 'regulations', 'sitemap', '404', 'menu-footer'];
 const urlOf = p => p === 'index' ? 'index.html' : p === 'menu-footer' ? 'pages/about.html'
+  : p.startsWith('library-') ? `pages/library.html#${p.slice(8)}`
   : `pages/${p}.html${p === 'degree-show-detail' ? '?year=2025' : ''}`;
 
 const IGNORE = /youtube|googleapis|doubleclick|compute-pressure|Failed to load resource|ERR_|favicon/i;   // 第三方（compute-pressure＝YouTube embed）與圖片 404 不算
