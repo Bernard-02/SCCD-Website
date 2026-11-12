@@ -580,6 +580,63 @@ function bindCoverRatio(containerEl) {
   });
 }
 
+// press／album 的列、documents 的資訊帶掛了 content-visibility:auto（library.css，2026-11-06）。對「跳過中」的列讀尺寸，瀏覽器得
+// 當場替那一列補排版——整份清單量一遍＝幾百次 layout，每次切到這個分頁凍 1～2 秒（2026-11-12 CDP 量到；awards 早就分流，見
+// applyAwardMarquees）。這裡逐列分流：有畫的列現在量，跳過中的等它進渲染範圍再補量。
+// 不支援事件／checkVisibility 的瀏覽器（＝c-v 也不支援）照舊整份量。
+const MQ_CV_HOST = '.press-item, .album-panel-item, .files-card-info';
+const MQ_CV_OPTS = { viewIO: false };   // 畫面外的列瀏覽器本來就不畫、動畫不跑 → 不必再逐行掛離屏暫停的 observer
+// ⚠️ 要探列的「子元素」：c-v auto 掛在列自身，列的 box 永遠算可見（同 applyAwardMarquees）
+const cvLive = (/** @type {Element} */ host) => (host.firstElementChild || host).checkVisibility({ contentVisibilityAuto: true });
+// 觸控桌面排版的「在畫面中才捲」閘門（bindTouchMarqueeGate）：列有畫才掛、被跳過就卸，由下面的分流通知
+let _touchGate = /** @type {{ on: (host: Element) => void, off: (host: Element) => void, prune: () => void } | null} */ (null);
+const _mqCv = new WeakMap();   // 清單容器 → { jobs: 行 selector→inner selector, done: 量過的列, queue, raf, enqueue }
+function mqCvState(/** @type {HTMLElement} */ containerEl) {
+  let st = _mqCv.get(containerEl);
+  if (st) return st;
+  st = { jobs: new Map(), done: new WeakSet(), queue: new Set(), raf: 0, enqueue: (/** @type {Element[]} */ _hosts) => {} };
+  _mqCv.set(containerEl, st);
+  const flush = () => {
+    st.raf = 0;
+    const hosts = [...st.queue].filter(h => h.isConnected && !st.done.has(h) && cvLive(h));
+    st.queue.clear();
+    if (!hosts.length) return;
+    hosts.forEach(h => { st.done.add(h); _touchGate?.on(h); });
+    st.jobs.forEach((inner, row) => applyMarqueeOverflow(hosts, row, inner, MQ_CV_OPTS));   // 同一幀進來的列併一批量
+  };
+  st.enqueue = (hosts) => {
+    hosts.forEach(h => st.queue.add(h));
+    if (st.queue.size && !st.raf) st.raf = requestAnimationFrame(flush);
+  };
+  // 「列進了渲染範圍」三個來源：① 事件（Chrome 每次都發）② 捲動 ③ 每秒巡一次。只靠事件不夠——WebKit 對「第一次被判定要畫」
+  // 的列不發（2026-11-12 Playwright WebKit：documents 捲進來的卡一顆都沒收到）；進場把列揭出來、篩選把列推上來也都不是捲動
+  const onCv = (/** @type {any} */ e) => {
+    const host = e.target;
+    if (!(host instanceof Element) || !host.matches(MQ_CV_HOST)) return;
+    if (e.skipped) _touchGate?.off(host);
+    else if (st.done.has(host)) _touchGate?.on(host);
+    else st.enqueue([host]);
+  };
+  const sweep = () => {
+    _touchGate?.prune();
+    if (document.hidden || !containerEl.getClientRects().length) return;   // 分頁沒開＝一次查詢就走
+    const live = [...containerEl.querySelectorAll(MQ_CV_HOST)].filter(cvLive);
+    live.forEach(h => _touchGate?.on(h));
+    st.enqueue(live.filter(h => !st.done.has(h)));
+  };
+  let sweepT = 0;
+  const onScroll = () => { if (!sweepT) sweepT = setTimeout(() => { sweepT = 0; sweep(); }, 120); };
+  containerEl.addEventListener('contentvisibilityautostatechange', onCv, true);   // capture：WebKit 這個事件不冒泡
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true });   // 清單在內捲框裡，scroll 不冒泡
+  const tick = setInterval(sweep, 1000);
+  registerPageCleanup(() => {
+    containerEl.removeEventListener('contentvisibilityautostatechange', onCv, true);
+    document.removeEventListener('scroll', onScroll, true);
+    clearInterval(tick); clearTimeout(sweepT); cancelAnimationFrame(st.raf);
+  });
+  return st;
+}
+
 /**
  * 偵測文字溢出並啟動 marquee 動畫（一次性）— delegate 到共用 utility
  * @param {HTMLElement} containerEl
@@ -587,7 +644,17 @@ function bindCoverRatio(containerEl) {
  * @param {string} innerSelector
  */
 function runMarqueeOverflow(containerEl, rowSelector, innerSelector, hoverItemSelector) {
-  applyMarqueeOverflow(containerEl, rowSelector, innerSelector);
+  const hosts = 'oncontentvisibilityautostatechange' in containerEl && typeof containerEl.checkVisibility === 'function'
+    ? [...containerEl.querySelectorAll(MQ_CV_HOST)] : [];
+  if (!hosts.length) applyMarqueeOverflow(containerEl, rowSelector, innerSelector);
+  else {
+    // 這次呼叫＝整份重量（切回分頁／寬度變了／重渲染）：有畫的列現在量，其餘標回「沒量過」等它進渲染範圍
+    const st = mqCvState(containerEl);
+    st.jobs.set(rowSelector, innerSelector);
+    const live = hosts.filter(h => { const on = cvLive(h); if (on) st.done.add(h); else st.done.delete(h); return on; });
+    live.forEach(h => _touchGate?.on(h));
+    if (live.length) applyMarqueeOverflow(live, rowSelector, innerSelector, MQ_CV_OPTS);
+  }
   // 桌面 hover 放開平滑回彈（user 2026-08-19 B）：每個 list item 綁 bindMarqueeReturn（手機由 helper 自我 gate 跳過）；
   // 跟 bindListItemHover（換底色）共存於同一 hover 目標、互不干擾。
   if (hoverItemSelector) {
@@ -4489,14 +4556,28 @@ function bindToolsToggle() {
 function bindTouchMarqueeGate() {
   if (!(SCCDHelpers.isDesktopLayout() && !SCCDHelpers.canHover()) || typeof IntersectionObserver === 'undefined') return;
   const timers = new WeakMap();
+  const SEL = '.press-item, .files-item';
+  const root = document.getElementById('page-content');
+  if (!root) return;
+  // 列有 content-visibility:auto 的瀏覽器：只盯「有畫」的列（一次十來列）。整份 792 列全掛著＝瀏覽器每畫一幀都要把每一列的
+  // 位置算一遍（2026-11-12 量到每幀多 ~1ms，logo 讓主執行緒每幀都在畫）→ 列進渲染範圍才掛、被跳過就卸（mqCvState 通知）
   const io = new IntersectionObserver(entries => entries.forEach(e => {
     clearTimeout(timers.get(e.target));
     if (e.isIntersecting) timers.set(e.target, setTimeout(() => e.target.classList.add('mq-live'), 700));
     else e.target.classList.remove('mq-live');
   }));
-  const SEL = '.press-item, .files-item';
-  const root = document.getElementById('page-content');
-  if (!root) return;
+  if ('oncontentvisibilityautostatechange' in root && typeof root.checkVisibility === 'function') {
+    const watched = new Map();   // 列 → 它的 c-v 元素
+    const off = (/** @type {Element} */ el) => { watched.delete(el); io.unobserve(el); clearTimeout(timers.get(el)); el.classList.remove('mq-live'); };
+    _touchGate = {
+      on: (host) => { const el = host.closest(SEL); if (el && !watched.has(el)) { watched.set(el, host); io.observe(el); } },
+      off: (host) => { const el = host.closest(SEL); if (el) off(el); },
+      // 跳捲時一批列只是短暫被判定要畫，之後不一定收得到「被跳過」的事件 → 每次巡的時候把沒在畫的卸掉，不然越掛越多
+      prune: () => watched.forEach((host, el) => { if (!cvLive(host)) off(el); }),
+    };
+    registerPageCleanup(() => { io.disconnect(); _touchGate = null; });
+    return;
+  }
   root.querySelectorAll(SEL).forEach(el => io.observe(el));
   const mo = new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
     if (!(n instanceof Element)) return;

@@ -89,10 +89,10 @@ function viewIO() {
 }
 
 /**
- * @param {Element} scope - 容器（querySelectorAll 的根）
+ * @param {Element | Element[]} scope - 容器（querySelectorAll 的根）；給陣列＝多個容器的行併成同一批量（讀寫仍只各一輪）
  * @param {string} rowSelector - 要 marquee 的「行」selector
  * @param {string} innerSelector - row 內部包文字的 inner span selector
- * @param {{speed?: number, minDuration?: number, tolerance?: number}} [opts]
+ * @param {{speed?: number, minDuration?: number, tolerance?: number, viewIO?: boolean}} [opts]
  */
 export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {}) {
   const speed = opts.speed ?? marqueeSpeed();
@@ -100,10 +100,10 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
   const tolerance = opts.tolerance ?? 0;  // fit-content 遮罩貼齊時吸掉 subpixel 假溢出；預設 0 不影響其他 caller
 
   const pairs = [];
-  scope.querySelectorAll(rowSelector).forEach((rowEl) => {
+  (Array.isArray(scope) ? scope : [scope]).forEach(s => s.querySelectorAll(rowSelector).forEach((rowEl) => {
     const inner = /** @type {HTMLElement | null} */ (rowEl.querySelector(innerSelector));
     if (inner) pairs.push({ row: /** @type {HTMLElement} */ (rowEl), inner });
-  });
+  }));
   if (!pairs.length) return;
 
   // ① 全寫：reset — SPA 重 render / 轉向重跑時 inner 可能已是 dual-copy，先還原單份再重新偵測
@@ -134,6 +134,7 @@ export function applyMarqueeOverflow(scope, rowSelector, innerSelector, opts = {
     row.classList.add('is-overflow');
     const html = inner.innerHTML;
     inner.innerHTML = `<span class="marquee-copy">${html}</span><span class="marquee-copy">${html}</span>`;
+    if (opts.viewIO === false) return;   // 行在 content-visibility:auto 的列裡＝畫面外瀏覽器本來就不跑動畫，不用再掛一顆 observer
     inner.style.animationPlayState = 'paused';
     /** @type {any} */ (row)._marqueeInner = inner;
     viewIO().observe(row);
