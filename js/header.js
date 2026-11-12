@@ -369,6 +369,30 @@ if (typeof window !== 'undefined') {
   }, { passive: true });
 }
 
+// 版型翻面（轉向／視窗拉過斷點）時把「剛變成 display:none 那一排」的 logo／鈕歸位（orientation-reload.js 呼叫）。
+// 收起是照「當下版型」挑對象（getHeaderTargets／getFooterHideLogo）：收著的時候翻面（待機中把 iPad 轉向、開著 lightbox 轉向…）
+// → 展開找的是另一排，原本那排永遠停在遮罩外，轉回來 logo／mode／menu 都不見、要重整才回來（user 2026-11-12 iPad）。
+// 那排此刻看不到＝直接歸位、不用動畫
+export function resetInactiveHeaderChrome() {
+  const header = document.querySelector('#site-header header');
+  if (!header || typeof gsap === 'undefined') return;
+  const mobile = SCCDHelpers.isMobileLayout();
+  /** @type {NodeListOf<HTMLElement>} */ (header.querySelectorAll(mobile
+    ? ':scope > .site-container > .md\\:flex [data-bar]' : ':scope > .site-container > .grid-12 .mobile-header-btn')).forEach(bar => {
+    if (modeBtnCreateHidden && bar.id === 'mode-btn') return;
+    settleBtnCycle(bar);
+    gsap.killTweensOf(bar, 'x,y');
+    clearBarMask(bar);
+  });
+  const logo = document.getElementById(mobile ? 'header-logo' : 'header-logo-mobile');
+  const mask = logo && logo.parentElement;
+  if (!logo || !mask) return;
+  gsap.killTweensOf([logo, mask], 'xPercent,yPercent');
+  gsap.set([logo, mask], { clearProps: 'transform' });
+  mask.style.overflow = '';
+  mask.style.pointerEvents = '';
+}
+
 // atlas 頁待機（user 2026-10-01）：頁面本身當待機畫面，header logo＋鈕、左下頁卡跟 footer-near／離頁同一套 clip-reveal 收起，
 // 醒來展回（頁卡只在真的收了才揭回：畫面外／reduced-motion 時 playPageIndicatorExit 沒動它）
 export function hideHeaderChromeForStandby() {
