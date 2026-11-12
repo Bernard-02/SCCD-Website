@@ -26,15 +26,24 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   let TOP_GAP = BASE_TOP_GAP; // ≥1200 由 layoutMain 換成 DESK_TOP_GAP
   const BOTTOM_GAP = 64;  // 下緣留白（改這個 = 底部距離）
   // ≥1200（同 desktop menu / 當前頁卡 gate）桌面版面（user 2026-09-27）：灰卡頂在 header 鈕半高、底對齊左下當前頁卡底、不置中——
-  //   deskTopGap()＝header 鈕垂直中線（SCCDHelpers.headerGeom().mid）− section 頂 96：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
+  //   deskTopGap()＝header 鈕垂直中線（SCCDHelpers.headerGeom().mid）− section 頂（＝header 高）：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
   //   （灰卡頂伸進 header 列；header 放行點擊見 library.css）；
   //   DESK_BOTTOM_GAP 48＝當前頁卡底（navigation.css bottom 48）＝上下 padding 一致（上＝header 列 pt 48）；色卡底界也用它；
   //   deskLeft()＝logo 右緣（60＋縮小態 logo，依視窗高；1920×960＝160）+ 32（左下當前頁卡同樣讓開 32）＝192；
-  //   DESK_RIGHT 228＝next 鈕中心 sw−228 → 右緣 sw−204，跟 mode 鈕（左緣 sw−180）留 24＝mode↔漢堡 gap（header.html ml-md）＝三顆等距；
+  //   deskRight()＝next 鈕中心離視窗右緣：container padding 60＋漢堡 48＋gap＋mode 48＋gap＋半顆 next 24，gap＝mode↔漢堡間距
+  //   （header.html ml-md）＝三顆等距；一般螢幕 228（next 右緣 sw−204、mode 左緣 sw−180）；
   //   色卡上界＝全站 nav line（見 genColorConfig），左右到 container padding 60；只避開左下當前頁卡（見 indicatorZone）。
-  // ponytail: header 幾何寫死（列 pt / logo 尺寸 / 鈕寬），header 列改了要同步
-  const deskTopGap = () => SCCDHelpers.headerGeom().mid - 96;
-  const DESK_BOTTOM_GAP = 48, DESK_RIGHT = 228, DESK_COLOR_PAD_X = 60;
+  // header 高與 md 間距是 rem：寬 >1920 的大螢幕根字級放大（typography.css）＝header 列 96→128、gap 24→32；寫死 96／228 時
+  //   next 鈕比 mode／漢堡低 32、間距也不等（user 2026-11-12，2560×1440）→ 兩個都讀當下的值
+  // ponytail: 其餘 header 幾何寫死（container padding 60／鈕寬 48 都是 px、不跟 rem），header 列改了要同步
+  const rootStyle = () => getComputedStyle(document.documentElement);
+  const deskTopGap = () => SCCDHelpers.headerGeom().mid - (parseFloat(rootStyle().getPropertyValue('--header-height')) || 96);
+  const deskRight = () => {
+    const cs = rootStyle();
+    const gap = (parseFloat(cs.getPropertyValue('--spacing-md')) || 1.5) * parseFloat(cs.fontSize);   // --spacing-md 是 rem
+    return 60 + 48 + gap + 48 + gap + 24;
+  };
+  const DESK_BOTTOM_GAP = 48, DESK_COLOR_PAD_X = 60;
   const deskLeft = () => 60 + SCCDHelpers.headerGeom().logoSm + 32;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
   const isDesk = () => window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
@@ -43,7 +52,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   function layoutMain(sw, sh) {
     const desk = isDesk();
     TOP_GAP = desk ? deskTopGap() : BASE_TOP_GAP;
-    MAIN_W = desk ? sw - deskLeft() - DESK_RIGHT : Math.round(sw * 0.84);
+    MAIN_W = desk ? sw - deskLeft() - deskRight() : Math.round(sw * 0.84);
     MAIN_H = Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP));
   }
   const grayCx = (sw) => (isDesk() ? deskLeft() + MAIN_W / 2 : sw / 2); // 灰卡水平中心（≥1200 不置中）
@@ -183,6 +192,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     const pen = desk ? pencilZone(sw, sh) : null;
     const maxBW = sw - padX * 2, maxBH = sh - topY - padB;
     const gCx = grayCx(sw), gCy = centerY();
+    const deskRightPx = desk ? deskRight() : 0;   // 迴圈外讀一次（裡面讀 computed style 80 次沒必要）
     let best = null, bestRatio = -1;
 
     for (let t = 0; t < MAX_TRIES; t++) {
@@ -193,7 +203,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
       // ≥1200 色塊貼 padding、灰卡不置中 → 太窄會構不到灰卡（user 2026-09-28「一定要被灰卡遮住」）：
       // 旋轉後內側邊最淺點離外緣＝w·cos → w·cos ≥ padding 到灰卡邊的距離＋重疊量。取左右較遠那側（避當前頁卡時會換邊）
-      const minW = desk ? (Math.max(deskLeft(), DESK_RIGHT) - padX + DESK_MIN_OVERLAP) / cosA : 0;
+      const minW = desk ? (Math.max(deskLeft(), deskRightPx) - padX + DESK_MIN_OVERLAP) / cosA : 0;
       let w = rand(Math.max(minSide, minW), maxBW), h = rand(minSide, maxBH);
       let bw = w*cosA + h*sinA, bh = w*sinA + h*cosA;
       if (bw > maxBW) { const f = maxBW/bw; w*=f; h*=f; }
