@@ -461,3 +461,10 @@ body:has(#homepage-marquee-stack) #site-header .mobile-header-bg {
   .chip-mq-inner > .marquee-copy { display: inline-block; padding-right: var(--marquee-copy-gap); }
   .chip-mq.is-overflow .chip-mq-inner { animation: dshow-title-marquee var(--marquee-duration, 8s) linear infinite; }
 }
+
+/* header logo 合成器版（試用開關 ?gpulogo=1）：Lottie 畫好第 0 格後拆成幾張疊著的 SVG，各自在合成器上轉（lottie-visibility.js spinOnCompositor）。
+   isolate＝字母之間的 multiply／screen 只在 logo 裡混色（原本由 Lottie 那張 svg 的根擔任）。
+   keyframe 兩端都寫 rotate()：只寫終點會跟起點做矩陣內插，360° 等於沒轉 */
+.logo-spin { position: relative; width: 100%; height: 100%; isolation: isolate; }
+.logo-spin > svg { position: absolute; inset: 0; }
+@keyframes logo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
