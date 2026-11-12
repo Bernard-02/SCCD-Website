@@ -441,13 +441,15 @@
     min-height: 0;
     padding-bottom: 0 !important;   /* cards.css 手機 works-container 的 1rem 預留不適用此容器 */
   }
+  /* 圖寬上限跟螢幕寬走（user 2026-11-12「依裝置大小調整、不是都一個大小」；about Programs 與 DSD 子展覽同一條）：
+     直圖 56vw／橫圖 67vw＝390 寬時 218／261（原 about 寫死 220／260、DSD 170／200）；橫圖越寬、左右疊放那張露越少（375 寬露 ~62）。
+     高度仍由 class-images-slideshow.js 依格高（橫圖 ×0.8）等比 cap＝不裁切 */
   .class-info-panel .class-img {
     top: 50% !important;
-    max-width: 170px;
+    max-width: 56vw;
   }
-  /* 橫圖 200（原 250）：375 寬時主圖佔掉 2/3、左右疊放那張只露 ~60＝太擠（user 2026-10-29，about 與 DSD 子展覽共用） */
   .class-info-panel .class-img.class-img--landscape {
-    max-width: 200px;
+    max-width: 67vw;
   }
 
   /* HTML pt-2xl → md，讓整個 panel 進一屏 */
@@ -755,10 +757,6 @@
   #class-info-area .class-info-panel .grid-20,
   .class-works-panel .grid-20 { row-gap: 0; }
   #class-info-area .class-info-panel .division-images { height: calc(var(--about-room) * 0.6) !important; }
-  /* 圖格變 6 成後照片放大（user 2026-11-05「圖片高度再大一點」）：上方 170／200 是對半分時代的寬上限；
-     高度仍由 class-images-slideshow.js 依格高（橫圖 ×0.8）等比 cap＝不裁切。橫圖越寬、左右疊放露越少 */
-  #class-info-area .class-info-panel .class-img { max-width: 220px; }
-  #class-info-area .class-info-panel .class-img.class-img--landscape { max-width: 260px; }
   #class-info-area .class-info-panel .grid-20 > :first-child,
   .class-works-panel .grid-20 > :first-child {
     height: calc(var(--about-room) * 0.4);

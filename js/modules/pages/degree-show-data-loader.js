@@ -1127,9 +1127,12 @@ function buildDesktopEventTabs(root, items) {
     const k = Math.min(7, n % 2 ? n : n - 1), c = Math.floor(k / 2);
     return { textHlEl: null, slotLefts: Array(k).fill('50%'), slotXPercent: -50, slotZ: Array.from({ length: k }, (_, j) => c - Math.abs(j - c) + 1), peekNav: true };
   };
+  // 橫向手機（user 2026-11-12「跟 pc／Programs 一樣：左文字 box、右圖」）：桌面疊放、只放兩張，整疊收在說明卡右邊那格（同 about 橫向手機的 fitStack）
+  const landPhone = SCCDHelpers.isLandscapePhone();
   const apis = items.map((it, i) => it.pool.length
     ? createClassImagesSlideshow(/** @type {HTMLElement} */ (panels[i].querySelector('.division-images')), it.pool,
-      phone ? peekOpts(it.pool.length)
+      landPhone ? { textHlEl: null, alignTop: true, adaptiveSlots: true, slotLefts: SLOTS.slice(0, Math.min(2, it.pool.length)), fitStack: true }
+        : phone ? peekOpts(it.pool.length)
         : { textHlEl: null, hoverAll: true, alignTop: true, adaptiveSlots: true, slotLefts: SLOTS.slice(0, it.pool.length) })
     : null);
   registerPageCleanup(() => apis.forEach(a => a?.stop()));

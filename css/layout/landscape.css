@@ -88,22 +88,8 @@
     main .about-hero-stack { justify-items: center; }
     main .about-hero-stack > :not(:has([data-hero-logo])) { width: auto; }
     main .about-hero-name { font-size: clamp(1.5rem, 3.2vw, 5rem); }
-    /* DSD（沒有隨機版）維持窄橫向手機 stack：180px 頂留白在 390 高太致命 → 96px；bg 圖跟著上移（超出由 overflow clip 裁）；
-       長 desc 塞不下一屏 → section 放棄固定一屏、自然增高 window 捲（snap 已關） */
-    main [data-hero-title-last] .hero-mobile {
-      min-height: 100svh;
-      padding-top: 96px;
-      overflow: clip;
-    }
-    main [data-hero-title-last] .hero-mobile-bg {
-      top: 96px;
-    }
-    main > section[data-hero-title-last] {
-      height: auto;
-      min-height: 100svh;
-      overflow: visible;
-      overflow-x: clip;
-    }
+    /* DSD hero 窄橫向不再另寫：舊 stack 版的「圖頂釘 96」留到 11-11 改版後＝圖心被釘在 96、上半截出畫面
+       （user 2026-11-12「banner 位置太高」）→ 刪，<768 窄橫向同吃下方 5j-hero（圖一屏置中） */
   }
   /* 矮高（≤500）：說明段落 xs（直向 s）＝段落 4~5 行就收進 max-height 內捲上限，不再被切；iPad（高 >500）照 s */
   @media (orientation: landscape) {
@@ -1057,12 +1043,13 @@
     overflow: clip;
     visibility: visible;            /* 保險：hero.css base 預設 hidden 等 sync，sync 完會設 inline visible */
   }
-  /* bg 圖比照 .hero-banner：置中有界 16:9 box，寬上限由 svh 反推（旋轉後 bbox 仍完整落一屏內）；
-     非 108vw cover 出血（旋轉會切兩側/角）。img 仍 object-fit:cover 填滿 box。 */
+  /* bg 圖比照其他頁 hero 的 .hero-banner（user 2026-11-12「跟其他頁的 hero 一樣」）：一屏置中的 16:9 box、範圍同 hero-animation.js bannerPad
+     ＝左右 container padding、上下貼底界線；轉最多 5° 後的外框要落在範圍內 → 寬上限＝可用寬 ÷1.045、可用高 ×1.544
+     （16:9 轉 5°：外框寬＝w×1.045、高＝w×0.648）。非 108vw cover 出血（旋轉會切兩側/角）。img 仍 object-fit:cover 填滿 box。 */
   [data-hero-title-last] .hero-mobile-bg {
     top: 50svh;
     left: 50%;
-    width: min(88vw, calc((100svh - 150px) * 1.7));
+    width: min(calc((100vw - 2 * var(--container-padding)) / 1.045), calc((100svh - 2 * var(--mobile-bottom-anchor)) * 1.544));
     height: auto;
     aspect-ratio: 16 / 9;
     transform: translate(-50%, -50%) rotate(var(--hero-bg-rot, -4deg));
@@ -1765,18 +1752,26 @@
     padding: 0;
   }
 
-  /* 5j) DSD 橫向手機（user 2026-11-11「先以直式的改一版」，待 user preview）：同直向手機一屏一段（variables.css DSD 手機段），
-     但高只有 ~390 → 直向「上下疊」的改左右排：海報｜主影片、子展覽圖｜說明卡、上屆｜下屆。
-     內容框＝左右各讓出一欄兩顆鈕（左下返回／分享、右上 mode／menu＝--lp-nav-end）、上下各 --mobile-bottom-anchor；
-     子展覽 tab 列跟返回／分享同一條線（畫面底、夾在兩欄中間），那一屏的內容框底多讓一列。
+  /* 5j) DSD 橫向手機（user 2026-11-11「先以直式的改一版」→ 11-12 preview 後二修）：同直向手機一屏一段（variables.css DSD 手機段），
+     但高只有 ~390 → 直向「上下疊」的改左右排：海報｜主影片、說明卡｜子展覽圖、上屆｜下屆。
+     兩種內容框：
+     ① 海報／影片屏＝左右各讓出一欄兩顆鈕（左下返回／分享、右上 mode／menu＝--lp-nav-end）、上下各 --mobile-bottom-anchor
+        （用到 header 的高度＝影片才夠大；user 沒要求改，照舊）；
+     ② 子展覽／上下屆屏＝全站橫向手機的版面線（user 11-12「範圍是 logo 到 mode btn、header 跟 nav bar 區不放內容」）：
+        左＝logo 左緣（container padding）、右＝mode 鈕右緣（鈕欄留空）、上＝header 帶 92 以下、下＝返回／分享列以上（--dsd-m-bottom）
+        ＝variables.css DSD 手機段原本的上下 padding，這裡只補右邊鈕欄。
+     子展覽 tab 列跟返回／分享同一條線（畫面底、夾在兩欄中間）。
      section 左右 padding 扣掉 container padding＝裡面的 .site-container 自己還有一份 */
   :root { --dsd-m-frame: calc(100svh - 2 * var(--mobile-bottom-anchor)); }
   #dsd-desc-section.dsd-media-row,
   #video-outer-section:not(.hidden),
-  #documentary-outer-section:not(.hidden),
+  #documentary-outer-section:not(.hidden) {
+    padding: var(--mobile-bottom-anchor) calc(var(--lp-nav-end) - var(--container-padding)) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh);
+  }
   .dsd-event-tabs-section,
   #next-project-section {
-    padding: var(--mobile-bottom-anchor) calc(var(--lp-nav-end) - var(--container-padding)) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh);
+    --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));
+    padding-right: var(--lp-btn-col);
   }
   /* 海報｜主影片：海報欄貼圖寬（最多 45%）、影片吃剩下的；只有海報＝置中（直向規則） */
   #dsd-desc-section.dsd-media-row.has-video #events-section {
@@ -1791,23 +1786,30 @@
     width: min(100%, calc(var(--dsd-m-frame) * 16 / 9));
     justify-self: center;
   }
-  /* 子展覽：圖左｜說明卡右（卡貼字、最多 45%，放不下卡內捲）；底多讓 tab 列（44＋sm） */
+  /* 子展覽：說明卡左｜圖右、都靠頂＝同 PC／about Programs 橫向手機（user 2026-11-12；11-11 版是圖左卡右、卡壓在置中疊放的圖上）。
+     卡貼字、最多 46%（同 Programs 文字欄），放不下卡內捲；圖＝桌面疊放兩張、整疊收在右邊那格（degree-show-data-loader 橫向手機 opts，
+     同 about 的 fitStack）。底＝返回／分享列以上（tab 列跟它同一條線，不像直向另疊一列） */
   .dsd-event-tabs-section {
-    padding-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) + 100lvh - 100svh);
-    --class-text-h: calc(var(--dsd-m-frame) - 44px - var(--spacing-sm) - 10px);
+    padding-bottom: calc(var(--dsd-m-bottom) + 100lvh - 100svh);
+    --class-text-h: calc(var(--dsd-m-frame) - 10px);
+    --class-img-fill: 1;        /* 直向留 0.9 是不貼上下；這裡圖頂對齊卡頂、高由格高封頂 */
   }
   .dsd-event-panel-row {
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
+    gap: var(--spacing-lg);
     padding-bottom: 0;
   }
-  .dsd-event-tabs-section .class-info-panel .division-images { align-self: stretch; }
-  /* z：左右疊放的圖會伸到卡這邊 → 卡壓在圖上（直向是上下排、碰不到） */
+  .dsd-event-tabs-section .class-info-panel .division-images {
+    order: 0;                   /* 蓋直向的 order:-1（圖在上）→ 回 DOM 順序：卡左、圖右 */
+    align-self: stretch;
+  }
+  /* 蓋 <768 段的置中 top:50%!important 與 vw 寬上限（窄橫向吃得到）：回桌面上限，實際寬由 JS 依格高／格寬 cap（同 5i Programs） */
+  .dsd-event-tabs-section .class-info-panel .class-img { top: 0 !important; max-width: 336px; }
+  .dsd-event-tabs-section .class-info-panel .class-img.class-img--landscape { max-width: 520px; }
   .dsd-event-boxes {
     flex: 0 1 auto;
-    max-width: 45%;
-    position: relative;
-    z-index: 10;   /* slideshow 的圖 z 到 4 */
+    max-width: 46%;
   }
   /* tab 列：60 高的列中線＝返回／分享鈕中線（界線＋22）；左右收在兩欄鈕之間 */
   #event-galleries-root .dsd-event-tabs-row {
