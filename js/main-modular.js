@@ -572,7 +572,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       if (awardsGrid && ticker) awardsGrid.append(ticker);
       // 橫向手機（user 2026-11-05）：分類選項／年份收進灰卡左下 filter 鈕的浮層（library.css 檔尾 .lib-filter-pop；
       // 開關 library-panels.js bindToolsToggle）。遮罩掛內容欄、不掛 panel：panel 直接子層會被進場的整塊 clip 掃到。
-      // search／date sort 不進浮層（user 2026-11-06「應該要放在外面」）：整列搬到內容欄尾、掛 .lib-land-tools＝疊在 filter 鈕上方的常駐 icon
+      // search／date sort 不進浮層（user 2026-11-06「應該要放在外面」）：整列搬到內容欄尾、掛 .lib-land-tools＝跟 filter 鈕同一欄的常駐 icon（sort 在上、search 在最下，11-12）
       if (SCCDHelpers.isLandscapePhone()) {
         document.querySelectorAll('[id^="lib-panel-"]').forEach(panel => {
           const grid = panel.querySelector(':scope > div[style*="grid"]');
@@ -588,7 +588,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
           if (!row) return;
           row.classList.add('lib-land-tools');
           grid.append(row);
-          // 有字＝輸入框維持展開（同桌面工具列的 .has-value）
+          // 有字＝輸入框維持開著（同桌面工具列的 .has-value）
           const input = /** @type {HTMLInputElement|null} */ (row.querySelector('input'));
           if (input) input.addEventListener('input', () => input.parentElement?.classList.toggle('has-value', input.value !== ''));
         });

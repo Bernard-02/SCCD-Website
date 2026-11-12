@@ -1948,7 +1948,8 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    上面手機段把卡內排成直向一疊（list → 年份 → 分類 → search），375 高時 list 只剩 ~100。這裡：
    ① tab 鈕 fixed 進 header 帶、滿寬（同 curriculum／faculty，landscape.css）；② 灰卡右緣＝header mode 鈕右緣（鈕欄留空）；
    ③ 清單的年份標題排到列的左邊、sticky（原左欄的年份 picker 收進浮層）；④ award 主列得獎人排到獎名右邊；
-   ⑤ 灰卡左下三顆工具鈕：search／date sort 常駐（11-06 移出浮層）、filter 鈕（#lib-tools-btn）→ 浮層從卡右緣滑進來、寬＝內容寬：
+   ⑤ 灰卡左下三顆工具鈕（date sort／filter／search）：search／date sort 常駐（11-06 移出浮層；11-12 search 移到最下、
+      點開＝輸入框從卡底整列升上來）、filter 鈕（#lib-tools-btn）→ 浮層從卡右緣滑進來、寬＝內容寬：
       左分類（files／album）、右年份、各自捲（.lib-filter-pop，DOM 由 main-modular.js 搬、開關 library-panels.js bindToolsToggle）；
       ⑥ awards logo ticker＝清單下一列、filter 鈕右邊。
    字級、award 收合列模板維持手機段。iPad（768–1023、高 >500）不套、維持直向一疊＋底 bar。
@@ -2039,45 +2040,52 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding: 7px 0 var(--spacing-sm) !important;
   }
 
-  /* ⑤ 灰卡左下三顆工具鈕（由上而下 search／date sort／filter）：同一欄、44 觸控區、icon 20 貼左＝跟年份字同左緣；
-     底色＝其餘三頁清單吃到卡底、年份標題會從鈕底下捲過（filter 鈕下面那一截用 box-shadow 補） */
+  /* ⑤ 灰卡左下三顆工具鈕（由上而下 date sort／filter／search；user 2026-11-12 search 移到最下）：同一欄、44 觸控區、
+     icon 20 貼左＝跟年份字同左緣；底色＝其餘三頁清單吃到卡底、年份標題會從鈕底下捲過（最下面 search 到卡底那一截用 box-shadow 補） */
   .lib-tools-btn {
     display: flex;
     position: absolute;
     left: var(--spacing-sm);
-    bottom: var(--lib-tool-lift);
+    bottom: calc(var(--lib-tool-lift) + 44px);
     z-index: 7;
     width: 44px;
     height: 44px;
     align-items: center;
     justify-content: flex-start;
     background: var(--lib-bg);
-    box-shadow: 0 var(--lib-tool-lift) var(--lib-bg);
     color: var(--lib-fg);
     cursor: var(--cursor-pointer);
   }
   .lib-tools-btn .icon { font-size: 20px; }
   /* search／date sort 常駐在外面、不進浮層（user 2026-11-06「應該要放在外面，不是在 filter 裏面」）：各 panel 的 search 列
-     （main-modular.js 掛 .lib-land-tools、搬到內容欄尾）疊在 filter 鈕正上方。search＝點 icon 才往右展開輸入框蓋在清單上
-     （同桌面工具列 .lib-toolbar）、有字維持展開（.has-value） */
+     （main-modular.js 掛 .lib-land-tools、搬到內容欄尾）跟 filter 鈕同一欄——DOM 是 search→sort，column-reverse＝search 貼卡底、
+     sort 在最上、中間 gap 44 讓給 filter 鈕。列橫跨整張卡＝輸入框的定位框，本身不接點擊（只有鈕＋打開的輸入框接）＝不擋清單／filter 鈕。
+     雙 #id：手機段有一條 (1,3,0) 的 width:100% !important 要蓋 */
   #library-card-main #library-card-content .lib-land-tools {
     position: absolute;
     left: var(--spacing-sm);
-    bottom: calc(var(--lib-tool-lift) + 44px);
+    right: 0;
+    bottom: 0;
     z-index: 7;
-    /* 列本身只佔鈕欄（不擋清單的點擊）；展開的輸入框溢出到右邊。雙 #id：手機段有一條 (1,3,0) 的 width:100% !important 要蓋 */
-    width: 44px !important;
-    flex-direction: column !important;
+    width: auto !important;
+    flex-direction: column-reverse !important;
     align-items: flex-start !important;
-    gap: 0 !important;
+    gap: 44px !important;
     margin: 0 !important;
+    padding-bottom: var(--lib-tool-lift);
+    pointer-events: none;
+    /* 輸入框的遮罩（收著時停在卡底之外）。⚠️ 要 clip 不能只靠外層：沒裁掉的話那截算進 panel 的可捲範圍，
+       focus 時瀏覽器把整個 panel 往上捲 50px 去找輸入框＝整份清單跳一下 */
+    overflow: clip;
   }
+  #library-card-main #library-card-content .lib-land-tools > * { pointer-events: auto; }
   #library-card-main #library-card-content .lib-land-tools > div {
     flex: none !important;
     height: 44px;
     gap: 0 !important;
     padding: 0 !important;
     background: var(--lib-bg);
+    box-shadow: 0 var(--lib-tool-lift) var(--lib-bg);
   }
   /* label 本身就是 icon（mask）：盒撐到 44 當觸控區、圖維持 20 貼左 */
   #library-card-main #library-card-content .lib-land-tools label.icon-search {
@@ -2089,16 +2097,26 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
             mask-position: left center;
     cursor: var(--cursor-pointer);
   }
+  /* search 輸入框＝卡底一整列（清單左緣～卡右緣），點 search icon（label for）focus 才從卡底 clip-reveal 上來、蓋在清單／ticker 上
+     （user 2026-11-12「右邊會拉一個 search bar 上來」；原本是 icon 右邊橫向展開 12rem）；有字（.has-value）維持開著。
+     遮罩＝列本身（overflow clip）。高含卡底那截 lift＝底色蓋到卡底、字跟 icon 同中線 */
   #library-card-main #library-card-content .lib-land-tools input {
-    flex: none !important;
-    width: 0;
-    padding: 0;
-    transition: width var(--dur-medium) ease;
+    position: absolute;
+    left: var(--lib-year-col);
+    bottom: 0;
+    box-sizing: border-box;
+    width: calc(100% - var(--lib-year-col));
+    height: calc(44px + var(--lib-tool-lift));
+    padding: 0 var(--spacing-sm) var(--lib-tool-lift);
+    background: var(--lib-bg) !important;
+    translate: 0 110%;
+    pointer-events: none;
+    transition: translate var(--dur-medium) var(--ease-wipe);
   }
   #library-card-main #library-card-content .lib-land-tools > div:focus-within input,
   #library-card-main #library-card-content .lib-land-tools > div.has-value input {
-    width: 12rem;
-    padding-right: var(--spacing-sm);
+    translate: 0 0;
+    pointer-events: auto;
   }
   #library-card-main #library-card-content .lib-land-tools .library-sort-btn {
     height: 44px;
@@ -2107,14 +2125,15 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 
   /* filter 浮層（user 2026-11-06）：從卡右緣滑進來、不滿版——寬＝內容寬（左分類｜右年份；沒分類的頁只有年份一欄）、高＝整張卡，
-     開著時左邊的清單照樣看得到篩選結果。遮罩＝浮層自己的框（bindToolsToggle 把浮層從右邊推進來）；z 高過 sticky 年份 5 */
+     開著時左邊的清單照樣看得到篩選結果。遮罩＝浮層自己的框（bindToolsToggle 把浮層從右邊推進來）；z 高過 sticky 年份 5、
+     也高過卡底的 search 列 7（search 開著時浮層蓋住它的右段、年份照樣選得到底） */
   #library-card-main.lib-tools-open .lib-filter-mask {
     display: block;
     position: absolute;
     top: 0;
     right: 0;
     bottom: 0;
-    z-index: 6;
+    z-index: 8;
     overflow: clip;
   }
   /* 兩欄各自捲；上內距 xs＝第一列（高 36）的字跟清單第一列的字同線 */
