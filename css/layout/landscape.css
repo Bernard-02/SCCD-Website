@@ -1629,7 +1629,7 @@
   #about-content-wrapper #program-structure {
     display: flex;
     align-items: flex-end;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);   /* sm 不用 md：橫向缺的是高度，樹欄每窄一點就多折一行／多掉一列（594 寬時 BFA｜MDES 並排只差 4px，user 2026-11-12） */
     padding: var(--about-lp-top) var(--about-lp-r) calc(var(--mobile-bottom-anchor) + 100lvh - 100svh) var(--container-padding);
   }
   /* 樹在可用高內垂直置中（層距也跟高度走，about-structure.css 橫向手機段）：Duo 內螢幕橫拿 585 高時不再整棵堆在上面（user 2026-11-11）；
@@ -1670,7 +1670,12 @@
     min-width: 0;
     height: 100% !important;
     min-height: 0;              /* 蓋 base 440 */
+    /* 圖格右緣拉到 menu 鈕右緣（user 2026-11-12；同 Works playlist）：圖格這段高在 header 鈕下、footer 鈕上＝鈕欄是空的。
+       594×368 圖格只有 230 寬、前面那張封頂在 76%＝174×98、下面空一半 → 290 寬、圖 220。文字卡寬不變（負 margin 只長圖格）；
+       mode3 鉛筆在 footer 鈕正上方、直圖會壓到 → 照舊讓出鈕欄 */
+    margin-right: calc(-1 * var(--lp-btn-col));
   }
+  body.mode-color #class-info-area .class-info-panel .division-images { margin-right: 0; }
   /* 蓋 <768 段的單圖置中 top:50%!important 與 170／200 寬上限：回桌面上限，實際寬由 JS 依格高 cap */
   #class-info-area .class-info-panel .class-img { top: 0 !important; max-width: 336px; }
   #class-info-area .class-info-panel .class-img.class-img--landscape { max-width: 520px; }
@@ -1933,23 +1938,21 @@
   #about-content-wrapper .class-works-panel .works-video-row { width: var(--works-w); margin-inline: auto; }
   #about-content-wrapper .class-works-panel .grid-20 > :first-child { padding-inline: calc((100% - var(--works-w)) / 2); }
   #about-content-wrapper .class-works-panel [data-works-hl] { min-width: min(100%, 36rem); }
-  /* Resources：卡片列在 header 帶（92）與底 bar 之間垂直置中（user 2026-11-11「內容沒那麼多就置中畫面」；原本貼頂、下面空一大片）。
-     height:auto 蓋 scroll-snap.css ≥900 高段的 100svh（min-height 100lvh 照留）；容器自己的 pt／pb 歸零＝置中範圍只看 section 的上下 padding。
+  /* Resources：卡片靠頂＝同直向手機（卡頂 90＋md＝114；user 2026-11-12「卡片頂部對齊才對」，前一天的垂直置中撤掉）。
+     卡高＝文字最長那張（accordion.css stretch），螢幕比卡高＝下面留白、不拉長。
+     height:auto 蓋 scroll-snap.css ≥900 高段的 100svh（min-height 100lvh 照留）。
      圖高：gate 的 120 是橫向手機 390 高的預算，直拿卡寬 418～571 會變細長條 → 跟卡寬走 16:10；
-     文字盒上限＝置中範圍扣標題列 51、圖高、上下各留 md，超過內捲（--res-img-h＝卡寬 58% × 10/16，卡寬式同 accordion.css gate 段） */
+     文字盒上限＝卡底最低到底 bar 再上 52（同直向手機），超過內捲（--res-img-h＝卡寬 58% × 10/16，卡寬式同 accordion.css gate 段；51＝標題列） */
   #about-content-wrapper #resources {
     height: auto;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding-top: 92px;
+    padding-top: 90px;
     padding-bottom: calc(var(--about-bar-h) + 100lvh - 100svh);
     --res-img-h: calc((100vw - 2 * var(--container-padding)) * 0.58 * 10 / 16);
   }
-  #about-content-wrapper #resources > .site-container { padding-top: 0; padding-bottom: 0; }
+  #about-content-wrapper #resources > .site-container { padding-top: var(--spacing-md); padding-bottom: 0; }
   #about-content-wrapper .colored-accordion .accordion-img-wrap { height: var(--res-img-h); }
   #about-content-wrapper .colored-accordion .accordion-text-wrap {
-    max-height: max(calc(100svh - 92px - var(--about-bar-h) - 51px - var(--res-img-h) - 2 * var(--spacing-md)), 80px);
+    max-height: max(calc(100svh - 114px - 51px - var(--res-img-h) - var(--about-bar-h) - 52px), 80px);
   }
   /* History：內容頂 90、area 高＝到底 bar 頂（timeline.js 同式）；gate 5i++ 的置中＋flex 撐高會把清單鈕推進 bar → 關掉 */
   #about-content-wrapper #history {

@@ -300,6 +300,9 @@
     #class-works-area #program-structure {
       --prog-level-gap: clamp(var(--spacing-xl), calc((var(--about-lp-room, 0px) - var(--prog-fixed-h, 0px)) / 2), var(--spacing-4xl));
     }
+    /* 頂 chip 比照桌面不設折行上限（15.5rem 是直向手機 342 寬才需要的）：橫向寬度夠就英文一行、省下的一行高給層距；
+       樹欄不夠寬（594 寬）照舊自然折兩行（user 2026-11-12） */
+    #program-structure .prog-top .prog-box--dcd { max-width: none; }
     #program-structure .prog-legend { flex-direction: column; max-width: 28rem; }
     #program-structure .prog-legend-head { flex-direction: row; gap: 0.4em; align-items: baseline; }
     #program-structure .prog-legend-head > span:first-child { margin-bottom: 0; }

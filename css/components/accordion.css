@@ -289,7 +289,9 @@
        overflow-x 蓋上方 visible !important（同 layer 同特異度後出勝）、y 用 clip 防被軸連動算成 auto */
     .colored-accordion {
       flex-direction: row;
-      align-items: flex-start;      /* 卡片各自自然高，不拉齊最高卡 */
+      /* 所有卡同高＝文字最長那張的高（user 2026-11-12，桌面以外）：stretch 把每張拉到最高那張；卡片母層自帶底色＝短卡下面補色。
+         文字盒只設上限（一屏預算，見下）：螢幕比卡高＝卡照內容高、靠頂不拉長；螢幕比卡矮＝卡封頂在一屏、文字盒內捲 */
+      align-items: stretch;
       gap: var(--spacing-sm) !important;
       overflow-x: auto !important;
       overflow-y: clip !important;
@@ -325,7 +327,8 @@
       padding: 14px var(--spacing-xs) 13px;
     }
 
-    /* Resources 卡片一屏預算：卡片上移到 anchor strip 正下方（封鎖線由 resources-cycling.js 依卡片列上緣重釘）；文字盒固定高、內捲
+    /* Resources 卡片一屏預算：卡片上移到 anchor strip 正下方（封鎖線由 resources-cycling.js 依卡片列上緣重釘）；
+       文字盒高＝內容高、上限一屏預算（超過才內捲；11-12 前是固定高＝字少的卡下面空一截）
        505 = 186 resources 落點 + 24 容器 pt + 51 title 列（14+13 padding + p1 一行）+ 220 圖 + 24 底部呼吸
        ＝窄橫向（<768 landscape）用；直向手機另算，見本段後面的 portrait 段。落點/anchor strip 配對組見 scroll-snap.css，改要同步 */
     #resources {
@@ -335,13 +338,13 @@
       padding-top: var(--spacing-md);
     }
     .colored-accordion .accordion-text-wrap {
-      height: max(calc(100svh - 505px), 150px);
+      max-height: max(calc(100svh - 505px), 150px);
       /* ⚠️ 必須翻回 flex-start：base 的 flex-end 配內捲會讓溢出往上長、開頭被裁且捲不回去 */
       justify-content: flex-start;
     }
-    /* 內捲掛內層 [data-resources-text]：wrap 的 padding 固定不隨捲動；flex:1 + min-height:0 讓內層吃滿 wrap 固定高並出捲軸 */
+    /* 內捲掛內層 [data-resources-text]：wrap 的 padding 固定不隨捲動；內層照內容高、wrap 到上限時縮（min-height:0）並出捲軸 */
     .colored-accordion .accordion-text-wrap > [data-resources-text] {
-      flex: 1;
+      flex: 0 1 auto;
       min-height: 0;
       overflow-y: auto;
       scrollbar-width: none;
@@ -408,11 +411,12 @@
     }
   }
 
-  /* 直向手機：卡片上下同 history list 卡（user 2026-11-05）：頂＝90 落點＋24、底＝讓出 about bar 再上 52
-     （history 是讓 toggle 鈕 44＋8，lists.css .tl-list-grid）。430 = 90 + 24 + 52 + 44 title 列（14+13 padding＋一行）+ 220 圖。
+  /* 直向手機：卡頂＝90 落點＋24；卡底最低到 history list 卡的底＝讓出 about bar 再上 52（history 是讓 toggle 鈕 44＋8，
+     lists.css .tl-list-grid）＝文字盒上限。430 = 90 + 24 + 52 + 44 title 列（14+13 padding＋一行）+ 220 圖。
+     11-12 起卡高跟最長文字走（上限才是這條；11-05 是固定撐到這條底線）。
      --about-bar-h 只在直向有定義（variables.css）→ 窄橫向維持上面 505 那條 */
   @media (max-width: 767px) and (orientation: portrait) {
-    .colored-accordion .accordion-text-wrap { height: max(calc(100svh - var(--about-bar-h) - 430px), 120px); }
+    .colored-accordion .accordion-text-wrap { max-height: max(calc(100svh - var(--about-bar-h) - 430px), 120px); }
   }
 
   /* ===== 矮橫向 gate：resources 同款水平 carousel =====
@@ -421,7 +425,7 @@
      上方 overflow: visible !important 只能在同 layer 內後出覆蓋 */
   @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .colored-accordion {
-      align-items: flex-start;
+      align-items: stretch;   /* 所有卡同高＝文字最長那張（同上方 <768 段，user 2026-11-12） */
       gap: var(--spacing-md) !important;
       overflow-x: auto !important;
       overflow-y: clip !important;
