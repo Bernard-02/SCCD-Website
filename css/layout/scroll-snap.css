@@ -258,7 +258,9 @@ html {
 }
 
 /* 真桌面的一屏 hero／區塊（h-screen＝100vh）改 svh：iPad Safari 橫拿 100vh 是工具列收起的大視口＝工具列在的時候區塊比畫面高
-   → 首頁只有一屏也能捲（捲了才收工具列）、DSD hero 底部文字被切（user 2026-11-11）。桌機 vh＝svh 不變 */
+   → 首頁只有一屏也能捲（捲了才收工具列）、DSD hero 底部文字被切（user 2026-11-11）。桌機 vh＝svh 不變。
+   min-height 歸零：四個 nav 頁的 hero／內容區另帶 min-h-screen（手機用的下限，activities 是 inline → !important）＝100vh，
+   不歸零的話 svh 的高被撐回大視口、上面那條等於沒生效（11-12）。內容區 frame 的高在 lists.css 再改成 dvh */
 @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
-  main > section:is(.h-screen, [class*="md:h-screen"]) { height: 100svh; }
+  main > section:is(.h-screen, [class*="md:h-screen"]) { height: 100svh; min-height: 0 !important; }
 }

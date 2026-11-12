@@ -10,7 +10,9 @@
    頁面專屬：activities 旋轉 chip-clearance + filter bar；curriculum sticky 表頭（courses.css）；admission 無 filter bar。 */
 @media (min-width: 768px) {
   .inner-scroll-frame-grid {
-    height: 100svh;   /* svh：iPad Safari 100vh＝大視口（user 2026-10-31） */
+    /* dvh＝當下看得到的視窗高：iPad Safari 的 100vh 是工具列收起的大視口（user 2026-10-31 改 svh），但工具列真的收起後
+       svh 的框又比畫面矮一截 → 跟著視窗走（11-12）。section 本身同高，見下方真桌面段。桌機三者相等 */
+    height: 100dvh;
     --inner-pad: var(--spacing-2xl, 64px);                            /* content 區上 pad；nav chip resting = header 96 + 64 = 160（四頁 nav 共用） */
     --inner-pad-bottom: 0px;                                          /* box 底貼齊 viewport 底：卡片直接被螢幕邊緣切、不留白 bar */
     --inner-box-top: calc(var(--header-height, 96px) + var(--inner-pad));  /* content 區上緣（扣 fixed header）*/
@@ -25,7 +27,7 @@
   .inner-scroll-scroll-col {
     --chip-clearance: 0px;
     margin-top: calc(var(--inner-box-top) - var(--chip-clearance));
-    height: calc(100svh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
+    height: calc(100dvh - var(--inner-box-top) - var(--inner-pad-bottom) + var(--chip-clearance));
     padding-bottom: var(--spacing-2xl, 64px);
     align-self: start;
     overflow-x: hidden;
@@ -73,6 +75,9 @@
 }
 /* 桌面：nav＋content 區頂＝全站 nav line（variables.css --nav-line）；其餘維持 header+inner-pad */
 @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  /* section＝frame 同高（dvh）。原本 section 是 svh（scroll-snap.css）又被 min-h-screen 撐回 100vh＝iPad 上比框高一截：
+     框底下多一條白帶、整頁還能再往下捲那一截（user 2026-11-12）；min-height 在 scroll-snap.css 同一條規則歸零 */
+  :is(#faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section) { height: 100dvh; }
   .inner-scroll-frame-grid { --inner-box-top: var(--nav-line); }
   /* faculty：捲動盒拉到視窗頂（無遮罩帶，卡片直接被螢幕頂切）、首列照片頂＝logo 中線（--header-logo-mid）。
      nav 仍在 nav line（變數只蓋在盒上）。padding-top 扣掉首面牆 margin sm＋卡片 p-[6px]。 */
@@ -85,6 +90,11 @@
   :is(#courses-content-section, #activities-content-section, #admission-content-section) .inner-scroll-scroll-col {
     --inner-box-top: var(--header-logo-mid);
   }
+  /* admission camp 的 search bar 釘在盒頂（top 0）、上面沒有遮罩（上方 ≥768 段整個關掉：200px 會蓋到說明文字）：盒頂是小數 px
+     （logo 中線），裁切邊跟 sticky 層各自對齊像素格 → iPad 往下捲時兩者之間露出 1px 捲過的內容（user 2026-11-12；
+     activities／curriculum 的 sticky 上方都有往上的遮罩所以沒有）。遮罩開回來但只留 4px：釘住時整段在裁切邊外、只蓋那條縫；
+     沒釘住時蓋的是說明文字下方的空白 margin */
+  #admission-content-section .activities-filter-bar::before { display: block; top: -4px; height: 4px; }
 }
 /* ===== nav 清單太高（視窗矮）→ 可捲盒＋上下 chevron（JS＝section-switch-helpers bindNavOverflow）=====
    host（.nav-overflow-host）＝限高 flex column，底部讓出左下當前頁卡（--page-indicator-top）＋md；
@@ -96,7 +106,7 @@
     display: flex;
     flex-direction: column;
     /* 欄高釘死＝frame 高：不釘的話 grid 列是 auto、清單一長就把欄（與列）撐過視窗＝永遠「放得下」、判不出溢出 */
-    height: 100svh;
+    height: 100dvh;
     padding-bottom: calc(var(--page-indicator-top, 0px) + var(--nav-btn-gap));   /* chevron／末顆到當前頁卡＝btn 間距（user 2026-11-11「chevron 離卡太遠」，原 md） */
   }
   /* about：nav 的 sticky 軌道（about.html #anchor-nav 父層 pb-6xl 192）底部留白縮到同一條線（當前頁卡上方 md）：
