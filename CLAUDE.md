@@ -213,7 +213,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
    SCCDHelpers.isBottomBarLayout() // 直向＋iPad 底 bar（橫向手機 nav 回 header 帶、不算）
    ```
 5. **Breakpoint**：md (768) / lg (1024) / xl (1280) — **不用 sm**。⚠️ `md:`／`min-width: 768px` 只是「底」：768–1023 會再被 landscape.css 蓋成矮橫向排版；**只給真桌面的規則要寫 `(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)`**（HTML 用 `desk:`＝tailwind.config.js 自訂 screen；原 ≥1200 的 gate 已於 2026-10-01 全數下放到 1024；11-10 補 orientation）
-6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出；**桌面一屏框也一樣**——iPad Safari 橫向的 100vh 是工具列收起的大視口，legal／inner-scroll frame／footer 卡／DSD 媒體屏 2026-10-31 全掃成 svh）——但 **section 框本身用 `100lvh`＋底 pad 多墊 `100lvh − 100svh`**（iOS Safari 底部工具列半透明、視窗底之外的內容會透出：svh 框下方的 footer 黑／下一屏會露；lvh 框多出的那截是自己的底、工具列收起後剛好一屏可磁吸到頂）。直向手機跨頁共通的版面骨架（一屏框高、首頁第一屏）寫在 **`css/layout/portrait.css`**（跟 landscape.css gate 層對稱、互斥），不要塞進 landscape.css
+6. **一屏高度用 `svh` 不用 `vh`**（手機工具列會讓 vh 高估溢出；**桌面一屏框也一樣**——iPad Safari 橫向的 100vh 是工具列收起的大視口，legal／inner-scroll frame／footer 卡／DSD 媒體屏 2026-10-31 全掃成 svh；四個 nav 頁的 inner-scroll frame（section＋框＋兩欄）11-12 再改 `dvh`＝跟當下視窗同高、框底不多一截白帶，真桌面 `md:h-screen` section 的 `min-h-screen`（手機用的下限＝100vh）在 scroll-snap.css 歸零、否則 svh 被撐回大視口）——但 **section 框本身用 `100lvh`＋底 pad 多墊 `100lvh − 100svh`**（iOS Safari 底部工具列半透明、視窗底之外的內容會透出：svh 框下方的 footer 黑／下一屏會露；lvh 框多出的那截是自己的底、工具列收起後剛好一屏可磁吸到頂）。直向手機跨頁共通的版面骨架（一屏框高、首頁第一屏）寫在 **`css/layout/portrait.css`**（跟 landscape.css gate 層對稱、互斥），不要塞進 landscape.css
 7. **版型看寬度、互動看輸入（2026-10-31 定案）**：iPad 橫向（≥1024）走桌面排版但是觸控（WebKit 不論接不接 Magic Keyboard 都回 `hover: none`／`pointer: coarse`，偵測不到也不用處理）。hover 樣式一律包 `@media (hover: hover)`；「hover 才有」的功能（hover 才捲的 marquee）要有 `(hover: none)` 退路＝自動循環；滾輪驅動的互動（atlas 縮放）要有 touch 路徑（atlas.js pan／pinch 掛 `isCoarsePointer()`）。JS 用 `SCCDHelpers.canHover()`／`isCoarsePointer()`（helpers.js），**勿拿 `isMobileLayout()` 兼判觸控**。觸控的內捲框捲軸＝`js/modules/ui/touch-box-thumb.js`（每個 `.list-scroll` 框內自繪 thumb，iOS overlay 捲軸只在捲動時閃現；main-modular 只在 coarse 啟用）。Safari／iPad 實測三坑（2026-10-31）：① 不支援 `overflow-clip-margin`→要外擴改 `clip-path: inset(-N)`（atlas filter btn、courses filter row、activities 縮圖條）；② 旋轉的 `overflow: clip` 遮罩裁不到 GSAP 位移的圖（圖「從別處飛進來」）→圖遮罩用 `overflow: hidden`（faculty mask、Programs 圖、DSD 上下屆海報）；③ `<button>` 當 container query 容器不可靠（/create ▶❚❚ 寬上限改 px）。head 一律帶 `<meta name="format-detection">`（iOS 會把電話／email 自動變底線連結）。待補：全站 173 條 hover 規則包 `(hover: hover)`、171 個 mouseenter 監聽加 `canHover()` 守門
 
 ### 矮橫向（landscape gate）
@@ -222,7 +222,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - **gate 內再分兩種（2026-10-30 定案）**：**橫向手機（橫的且高 ≤500 或寬 <1024）**＝nav／tab 進 header 帶（logo 右～mode/menu 鈕左、垂直置中 92 帶，hero 上藏、footer 前收＝`bindLandscapeNavGate`）、第二層 tab 列（about division／curriculum 年級／activities 子分頁）在畫面底（chip 中線對齊 footer 鈕）、內容照版面線 --lp-start／--lp-btn-col（landscape.css 橫向手機段開頭；about 11-06 起每屏內容頂 --about-lp-top＝logo 底＋sm 90、每區磁吸）——規則在 landscape.css gate 段內 `@media (orientation: landscape)` 巢狀段（gate 內「橫的」＝橫向手機；11-10 前是 max-height:500），其他檔寫 `(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px)`，JS 判斷 `SCCDHelpers.isLandscapePhone()`；**iPad（直拿 ≥768）**＝直向同款畫面底 bar：直向底 bar 那套 CSS（lists.css `.nav-bottom-bar`、courses.css program 列＋手機 grid、variables.css about strip／division 列、navigation.css 去 header 白帶）的 media 是「直向＋iPad」union `(max-width: 767px) and (orientation: portrait), (orientation: portrait) and (min-width: 768px)`，JS 寫 `isMobileLayout() && !isLandscapePhone()`；gate 貼底界線 `--mobile-bottom-anchor` 24（landscape.css gate :root）。DSD 返回／分享鈕兩種都在左下（variables.css DSD union 段）。⚠️ gate 寬 ≥768 會吃 HTML `md:` utility（md:flex-col／md:hidden）→ union 段用 `#id` 前綴把列向、顯示寫死
 - **hero（2026-10-30）**：整個 gate（含 <768 窄橫向）走桌面隨機版 `.hero-rand-grid`（hero-animation 的 `innerWidth<768` 判斷改「直向才走 .hero-mobile」）、矮高說明段落 xs；iPad 直拿的隨機版，圖的長寬比跟可用區走＝又高又窄佈滿畫面（hero-animation.js `setBannerAspect`，2026-11-11；橫的維持 16:9）；DSD 整頁 11-11 起所有手機排版（直向／iPad／橫向手機）同一套新版面（一屏一段、子展覽 tab＋說明卡、上下屆大圖；variables.css DSD 手機段，橫向手機左右排在 landscape.css 橫向手機段 5j），hero＝.hero-mobile 字卡集中左下角（5j-hero）；about 系名 hero 窄橫向（<768）也照桌面左右兩塊＋桌面字級（同段 `main .about-hero-*`）
 - **footer**：整屏 slide-in（見「Footer scatter」段，2026-11-04）＝頂端 logo 列（同 header logo 位置）；橫向手機＝兩欄（tabs＋群組卡｜legal＋copyright，landscape.css 7／7b）、iPad 直拿＝單欄往下排同直向手機（legal 接在資訊區下，7c；2026-11-12）、內容超過一屏＝資訊區自己捲；library 矮橫向整套走 library.css 手機段（5h 只剩卡頂）；**但橫向手機（高 ≤500）例外**（user 2026-10-30「header 位置用作 nav btn 區」「參考桌面左右」）：tab 鈕釘回 header 帶（滿寬、在 logo／鈕底下滑過，同 curriculum／faculty）、灰卡右緣＝mode 鈕右緣、清單年份標題在列左 sticky、award 得獎人排獎名右、左下三顆工具鈕（date sort／filter／search）：filter 開浮層（左分類｜右年份，從卡右緣滑進；DOM 由 main-modular 搬進 `.lib-filter-pop`）、search 點開＝輸入框從卡底整列升上來（2026-11-12）、awards ticker 在清單下（2026-11-05 改版）——library.css 檔尾 `(orientation: landscape) and (max-height: 500px)` 段；iPad 維持底 bar＋直向一疊
-- **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）；iPad 直↔橫（跨 1024）同樣走這條
+- **跨 gate 轉向**：靠 orientation-reload 整頁重載自癒（init 時決定一次、不跟 resize）；iPad 直↔橫（跨 1024）同樣走這條。header 的 logo／mode／menu 鈕桌面、手機各一排、收起只收當下那排 → 翻面當下把換下去那排歸位（header.js `resetInactiveHeaderChrome`，2026-11-12；不然收著時轉向、再轉回來那排會卡在遮罩外）
 - ⚠️ landscape.css 是 unlayered：同特異度的純 class 蓋不掉 output.css 的 `md:` utility（source order 輸）→ 要用 `#id` 或多層 selector 提特異度；`!important` 也輸給 @layer 內的 `!important`
 - ⚠️ 動態載入的頁面 CSS（library/atlas/create/alumni）link 在 output.css 之後 = cascade 贏 landscape.css，改 <768 規則要 portrait 限定
 
@@ -272,6 +272,8 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - 事件綁定分幀（rAF 批次）＋ incremental（`data-bound` 守衛）；`.list-item` 加 `content-visibility: auto`
 - **讀寫分離**：先讀全部 layout 再寫全部 style，別逐項讀寫交錯（forced reflow thrash）；per-元素 ResizeObserver 要 bail 守衛
 - **`:has()` 只放 subject 位置、引數用子選擇器**（`.a:has(> .b)`）：`.a:has(.b) > *`（子孫引數＋非 subject）會讓 Chrome 把全站任何 DOM 插入升級成全頁 style recalc（~20ms×N；2026-11-01 about 切 division 500ms long task 根因＝lists.css 副標收合那條）。要選 `:has()` 元素的子孫＝直接寫子選擇器
+- **`content-visibility:auto` 的列別整份量尺寸**（2026-11-12）：讀「被跳過」列裡的 offsetWidth／rect＝瀏覽器當場逐列補排版（press／album／documents 整份量 marquee，每次切分頁凍 1～2 秒）。只量有畫的列（`checkVisibility({ contentVisibilityAuto: true })` 要探列的**子元素**），其餘等它進渲染範圍——事件 `contentvisibilityautostatechange`＋捲動＋每秒巡，三路都要（WebKit 對第一次判定不發事件、事件也不冒泡）。範本：library-panels.js `mqCvState`（awards 是 `applyAwardMarquees`）
+- **IntersectionObserver 的目標數＝每畫一幀的固定成本**（Chrome 約每 800 個多 1ms／幀；c-v auto 的列瀏覽器自己也各算一次）：別把整份清單掛上去，只掛有畫的那幾列（library 觸控 marquee 閘門 792 → 十來個）
 
 ### 動畫
 - 清單 rows 進退場用 **`list-row-reveal.js`**（CSS transition、compositor 接管、零 computed 讀），不用 GSAP yPercent。⚠️ 揭前隱藏態必須已 commit（painted）才會 transition 而非 snap——同步 hide→reveal 之間要 `void el.offsetHeight` 單次 reflow
@@ -345,6 +347,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 - /create 頁有 typewriter entry + reverse backspace exit
 - 退場時根據 logo state（State A/B/C）決定 backspace / skip / fade
 - **進站進場（2026-10-26）**：logo＋mode／menu 鈕 clip-reveal 滑入（`prepareHeaderEntrance` header 注入當下預藏、`playHeaderEntrance` 取代原 header opacity 淡入；首頁跟 stage1／intro 同拍、/create 與 reduced-motion 不走、SPA 換頁不重跑）。⚠️ 鈕的 x/y 與 logo 的 yPercent 由 header.js 管：換頁 cleanup 只砍 clipPath、updateNavActive 只砍 width/height，別再全砍
+- **合成器版 logo（試用，預設關，2026-11-12）**：網址加 `?gpulogo=1`（同分頁有效、`=0` 關）＝Lottie 畫完第 0 格後依群組拆成幾張 SVG、各自 CSS rotate，Lottie 實例 destroy（lottie-visibility.js `spinOnCompositor`、navigation.css `.logo-spin`）。logo 只是三個群組等速自轉，Lottie 卻每幀在主執行緒改 SVG（小頁閒置也佔主執行緒 12～14%、頁面愈大愈貴）。headless 逐像素比過（靜止相同；轉動中實心版只差邊緣柔化、線框版細線會變淡），iOS 的混色與取樣驗不到 → 實機看過才把預設改成觸控裝置開
 
 ### Footer scatter（`js/modules/ui/footer-scatter.js`）
 JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generate verified layout + 每 10s shuffle 動畫（hidden 頁自動 pause）。2026-08-10 由 footer-draggable.js 改名（drag 功能早已移除）；舊 commit / memory 提到 footer-draggable 即此檔。
@@ -424,6 +427,7 @@ JS random scatter + collision resolution 8 items + 每次 shuffle 即時 generat
 | atlas.css 同時編進 output.css 又被 router 動態載一份 raw：移除 PAGE_CSS 那份可省 atlas 頁 ~5KB gz，但 raw 那份目前在 cascade 贏了 color/inverse/landscape 的同特異度規則，拿掉要 3 mode＋矮橫向視覺回歸 | 小（驗證成本為主） | 動 atlas 樣式時 |
 | `inverse.css` / `color.css` 同 selector 規則合併（用 `body:is(.mode-inverse, .mode-color)` + `var(--theme-fg)`）| 中（需 audit 每對語義 + 視覺回歸） | 動該頁 theme 規則時順手 |
 | `themes/inverse.css` 內 `/* 不再 / 不再列入 */` 等 dead 註解殘留清理 | 極小 | 動到該檔時 |
+| library 切分頁「色塊放大落定」那一刻的長任務（4× 降速 1～1.5s）：新分頁內容連做兩輪樣式重算（先整頁 ~1300 個元素、藏列後再 ~900 個，每個 ~0.1ms）。要再省＝把藏列的寫入排到第一次讀尺寸之前，或查是哪條 sibling／nth-child 規則讓改一列連帶重算整排 | 中（切換時序是多輪定案的，動了要逐分頁看） | iPad 仍嫌切分頁頓時 |
 
 ### B. 結構性對齊（需 HTML/CSS 一起改）
 
