@@ -16,7 +16,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { initListAccordion, refreshStickyPinObservers } from '../accordions/list-accordion.js';  // zebra 手風琴（Regulations & Policy / Support 共用 admission 那套）
 import { revealRows, hideRow, coverZebra, uncoverZebra } from '../ui/list-row-reveal.js';  // rows 進場（CSS transition，同 activities）；hideRow＝per-item 翻上；cover/uncoverZebra＝sitemap 斑馬帶長底色
-import { playAdmissionPanelExit } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
+import { playAdmissionPanelExit, collapseOpenAccordionsInPanel } from './admission-data-loader.js';  // 離頁退場整套沿用 activities（先收 accordion → zebra clip 收 + rows 滑出）
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';  // sitemap 卡片名稱吃 ui_labels（後台改 nav 名稱如 Atlas→World 同步跟上）
 import { DUR, EASE } from '../ui/motion.js';
 import { applyMarqueeOverflow, bindMarqueeReturn } from '../ui/marquee-overflow.js';  // reg 列英中單行過長 marquee（桌面 hover 回彈）
@@ -188,21 +188,45 @@ function mountZebra(contentEl, html) {
     items.forEach(it => { it.style.clipPath = ''; });
   }
   // 全部 title rows 揭完（onDone）才依序自動展開——全部打開（user 2026-10-27；10-03～10-26 只開第一個）
-  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items) });
-  // 離頁退場＝activities 同一套（admission-data-loader）：先收展開的 accordion → zebra 底 clip 收回 + rows 滑出
-  registerPageExit(() => playAdmissionPanelExit(contentEl));
+  const gen = autoOpenGen;
+  revealRows(rows, { dur: DUR.reveal, stagger: 0.12, onDone: () => autoOpenZebra(items, gen) });
+  // 離頁退場＝activities 同一套（admission-data-loader）：先收展開的 accordion → zebra 底 clip 收回 + rows 滑出。
+  // legal 預設全開、收完整份只剩幾列標題 → 捲著的時候內容一變矮，瀏覽器就把捲動位置往回夾，上面那幾列（別的顏色）
+  // 在收合最後幾格衝進畫面＝「收起的動畫閃一下」（user 2026-11-16）。收之前先把內容區的高釘住：捲動位置不動、
+  // 東西只往上收，不會有別的列掉進來。捲得深的時候整份會先收出畫面上緣（畫面已空）→ 那一刻就放行換頁，
+  // 不等看不到的收合跑完、也不播看不到的標題退場
+  registerPageExit(async () => {
+    autoOpenGen++;   // 還在排隊的自動展開作廢，不然退場途中又彈開一列
+    contentEl.style.minHeight = `${Math.ceil(contentEl.getBoundingClientRect().height)}px`;
+    contentEl.style.overflowAnchor = 'none';   // 瀏覽器的 scroll anchoring 也別跟著上方收合去挪捲動位置
+    const box = contentEl.closest('.legal-content-col')?.getBoundingClientRect();   // 沒有內捲框的版型它跟內容同高＝等於只看視窗
+    const top = Math.max(0, box ? box.top : 0), bottom = Math.min(window.innerHeight, box ? box.bottom : Infinity);
+    const anyInView = () => rows.some(r => { const b = r.getBoundingClientRect(); return b.bottom > top && b.top < bottom; });
+    let collapsed = false;
+    await Promise.race([
+      collapseOpenAccordionsInPanel(contentEl).then(() => { collapsed = true; }),
+      new Promise(res => {
+        const tick = () => { if (collapsed) return; if (anyInView()) requestAnimationFrame(tick); else res(undefined); };
+        requestAnimationFrame(tick);
+      }),
+    ]);
+    if (anyInView()) await playAdmissionPanelExit(contentEl);
+  });
 }
+
+// 自動展開的世代：換頁退場時遞增＝還在排隊（或還沒起跑）的 autoOpenZebra 全部作廢
+let autoOpenGen = 0;
 
 // 依序自動展開 zebra 列：走 list-accordion 正常 click 路徑（上色/sticky observer/aria 全現成）。
 //   skipOpenScroll＝跳過 proceedOpen 的對齊捲動（進場不該捲頁）；點擊被 listAnimating 鎖吞掉
 //   （前一項還在展開/user 搶先點了別項）→ 短輪詢重試。傳全部列（預設全開、可多開，user 2026-10-27）。
-function autoOpenZebra(rows, firstDelay = 100) {
+function autoOpenZebra(rows, gen, firstDelay = 100) {
   const headers = rows
     .map(r => /** @type {HTMLElement|null} */ (r.querySelector('.list-header')))
     .filter(Boolean);
   let i = 0;
   const tryOpen = () => {
-    if (i >= headers.length) return;
+    if (gen !== autoOpenGen || i >= headers.length) return;   // 已開始換頁退場 → 整串放棄
     const h = /** @type {any} */ (headers[i]);
     if (!h.isConnected) return;   // 已換頁 → 整串放棄
     if (h.classList.contains('active') || h.dataset.opening) { i++; setTimeout(tryOpen, 300); return; }  // user 搶先開了

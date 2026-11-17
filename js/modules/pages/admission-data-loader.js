@@ -41,7 +41,8 @@ function parseNewsDate(s) {
   return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
 }
 
-export async function loadAdmissionData() {
+// keepId＝deep-link 指到的那則公告（首頁 news「連到公告」→ ?section=news&item=）：不在最新 5 則內也留著，不然換頁過來找不到它
+export async function loadAdmissionData(keepId = null) {
   const container = document.getElementById('admission-list');
   if (!container) return;
   // Directus admission_announcement（admission-source.js；失敗＝空清單）
@@ -64,7 +65,7 @@ export async function loadAdmissionData() {
       if (db) return 1;
       return 0;
     })
-    .slice(0, 5);
+    .filter((it, i) => i < 5 || String(it.id) === keepId);
 
   // 一次 render 全部 items（不分頁）；逐一進場由 playAdmissionPanelReveal 的 ScrollTrigger 接管
   // （每個 item 捲入 viewport 才 reveal）。資料量小（~12 筆），全 render 成本可忽略。
@@ -337,7 +338,7 @@ export function playAdmissionPanelReveal(panel, { useScrollTrigger = false, view
  *   - 完成後清除 .active + 所有 inline accent 樣式（header / content / list-item bg + --item-color）
  * 不清會看到「panel 已淡出但底下 header 還留 accent 色塊」的殘留視覺
  */
-function collapseOpenAccordionsInPanel(panel) {
+export function collapseOpenAccordionsInPanel(panel) {
   return new Promise(resolve => {
     if (!panel || typeof gsap === 'undefined') { resolve(); return; }
     const openHeaders = [...panel.querySelectorAll('.list-header.active')];
@@ -360,6 +361,9 @@ function collapseOpenAccordionsInPanel(panel) {
           height: 0,
           duration: DUR.medium,
           ease: EASE.exitSoft,
+          // 剛點開、還在展開的列：那支展開 tween 跑完會把 overflow 設回 visible（list-accordion doExpand）→ 收到一半內文整段溢出來、
+          // 收完還留在標題上（user 2026-11-16 legal 換頁「閃一下」；legal 進頁自動展開那一秒內換頁就會中）。收合期間每幀釘回 hidden
+          onUpdate: () => { if (/** @type {HTMLElement} */ (content).style.overflow !== 'hidden') /** @type {HTMLElement} */ (content).style.overflow = 'hidden'; },
           onComplete: () => {
             header.classList.remove('active');
             /** @type {HTMLElement} */ (header).style.background = '';
