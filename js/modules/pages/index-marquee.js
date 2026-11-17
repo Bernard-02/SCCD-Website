@@ -22,6 +22,7 @@ import { navigateTo } from '../../router.js';
 import { CMS_API_BASE, cdnUrl } from '../../config/api.js';
 import { marqueeSpeed } from '../ui/marquee-overflow.js';
 import { revealHidden } from '../ui/scroll-animate.js';
+import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 
 const SLOT_COUNT = 3;
 const CYCLE_INTERVAL = 5000;
@@ -116,7 +117,9 @@ export function initMarquee(gate = Promise.resolve()) {
           // 只能用 U+2003 字元，不能用 &emsp; 實體；不用破折號）
           textEn: row.titleEn ? row.titleEn + '  ' : '',
           textZh: row.titleZh ? row.titleZh + '  ' : '',
-          url: row.url || '',
+          // 連到公告（後台 announcement＝M2O → admission_announcement，從公告池挑一則；user 2026-11-16）：站內換頁到 admission
+          // 那則公告（?section=news&item＝同首頁浮卡的 deep-link）。後台兩欄互鎖＝不會同時有值；萬一都有＝公告優先
+          url: row.announcement ? `${SITE_BASE_PATHNAME}pages/admission.html?section=news&item=${row.announcement}` : (row.url || ''),
           poster: cdnUrl(row.poster),
         }));
         return { items };
@@ -155,10 +158,11 @@ export function initMarquee(gate = Promise.resolve()) {
       document.addEventListener('menu:open', onMenuOpen);
       registerPageCleanup(() => document.removeEventListener('menu:open', onMenuOpen));
       // 手機：點 news 以外的地方＝收合開著的海報（user 2026-11-01）。stack 內的點擊各自處理（bar toggle／海報跳連結）；
-      // 影片播放器 overlay 上的點擊不算（海報留著、關播放器才由 openWatch 的 onLeave 收尾）
+      // 影片播放器 overlay 上的點擊不算（海報留著、關播放器才由 openWatch 的 onLeave 收尾）；
+      // footer 鈕／footer 本身也不算：footer 直接蓋上去、news 留著不收（user 2026-11-16；疊層見 lists.css body.footer-covering）
       const onDocClick = (e) => {
         if (!closeOpenPoster || !tapUI()) return;
-        if (e.target instanceof Element && e.target.closest('#homepage-marquee-stack, #video-player-overlay')) return;
+        if (e.target instanceof Element && e.target.closest('#homepage-marquee-stack, #video-player-overlay, .footer-btn-mask, .footer-shell, .footer-backdrop')) return;
         closeOpenPoster();
       };
       document.addEventListener('click', onDocClick);

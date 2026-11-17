@@ -12,9 +12,9 @@
   overflow: hidden;         /* inset:0＝視窗：也防 off-screen 鈕撐出橫向捲軸 */
 }
 
-/* overlay 覆蓋時強制藏 */
-body.lightbox-open #mode-color-panel,
-html.has-slide-in #mode-color-panel { display: none !important; }
+/* 手機滿版 slide-in 蓋著時強制藏；lightbox／PDF viewer／share／桌面色卡（overlay-no-dim）留在原位（user 2026-11-16）：
+   z 9998 本來就在 overlay（9999）下＝跟頁面一起被蓋暗、點不到 */
+html.has-slide-in:not(.overlay-no-dim) #mode-color-panel { display: none !important; }
 
 /* 桌面 footer 卡開著：沉到 backdrop（9997）下＝被卡蓋住、點不到（user 2026-10-20；本檔 unlayered，規則放這才蓋得過上面的 9998） */
 body.footer-card-open #mode-color-panel { z-index: 9996; }
@@ -28,11 +28,11 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   position: absolute;
   right: var(--mcp-right, var(--container-padding));
   bottom: var(--mobile-bottom-anchor, 32px);
-  overflow: hidden;       /* 進退場：圓鈕 xPercent 滑出遮罩 */
+  overflow: hidden;       /* 進退場：圓鈕四向隨機滑出遮罩（mode-color-panel.js capDir） */
   border-radius: calc(var(--mcp-h) / 2);    /* 遮罩＝鈕本身形狀（收起圓、展開 capsule）：滑出不撞直邊 */
   pointer-events: none;
 }
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .mcp-cap-mask { --mcp-h: 48px; bottom: 48px; }
   /* 右下角讓給 footer 鈕（footer.css .footer-btn-mask，user 2026-11-04 對調）：鉛筆排在它左邊、間距 md 24（＝header mode↔menu）；
      capsule 從這裡往左長、不推 footer 鈕。沒 footer 的頁（router 掛 body.no-footer）回角落。掛 body＝--mcp-footprint-x 也吃得到 */
@@ -41,7 +41,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
 /* 手機／iPad／矮橫向：右下讓給 footer 鈕（44，footer.css 手機段）、鉛筆疊在它正上方（user 2026-11-04「移到 footer btn 上方」）、
    間距 sm＝同 header mode↔menu 鈕（header.html gap-sm；user 同日「鉛筆到 footer 鈕的 gap 跟 mode 到 menu 一致」）；
    capsule 照樣往左長。這高度落在第二層 tab 列 → 那幾列 mode3 也讓（portrait.css／landscape.css 檔尾；首頁 news 一律讓到 header mode 鈕右緣、點開的 ↗ 可蓋過鉛筆） */
-@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body:not(.no-footer) .mcp-cap-mask { bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm)); }
 }
 .mcp-cap {
@@ -146,7 +146,9 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
   color: inherit;
   cursor: var(--cursor-pointer);
 }
-.mcp-cap-play { width: 20px; margin-left: 17px; font-size: 20px; }   /* 間距推導見 .mcp-cap-row */
+/* icon＝盒 −28（48/20、44/16）：跟鉛筆／chevron 一起縮。原本固定 20＝手機上只有它沒縮、線條比 chevron 粗一截（user 2026-11-16）。
+   格維持 20、icon 置中（間距推導見 .mcp-cap-row） */
+.mcp-cap-play { width: 20px; margin-left: 17px; font-size: calc(var(--mcp-h) - 28px); }
 /* ❚❚（pause.svg：160 方框、兩條 stroke 28 在 x 26–118）換圖遮罩裁到圖案自己的寬、不沿用方框（user 2026-10-26，
    同 /create ❚❚）；class 在換圖藏好時才換 → 遮罩跟著換 */
 .mcp-cap-play [data-icon-clip-wrap]:has(.icon-pause) { clip-path: inset(0 26.25% 0 16.25%); }
@@ -183,7 +185,7 @@ body.footer-card-open #mode-color-panel { z-index: 9996; }
    （mode-color-panel.js capDim／capLen），row 直排靠底：色條在上、play、chevron 格＝收起時的圓鈕在底；色條直立、hue 由上往下（barHue 同座標）。
    間距：頂 20、色條→play 17（pause 墨跡上下滿版）、play→chevron 墨跡 ~17、chevron→底 ~16；朝下 chevron 墨跡本來就置中＝不用橫排那個左移。
    body.mcp-left＝這頁照桌面往左開（World 頁橫向手機：可視高只有三百多、往上長會頂到 menu 鈕；atlas.js 掛，mode-color-panel.js isHoriz 同判） */
-@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body:not(.mcp-left) .mcp-cap-row {
     top: auto;
     bottom: 0;

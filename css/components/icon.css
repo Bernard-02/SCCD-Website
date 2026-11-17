@@ -36,10 +36,12 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 
 /* hover＝隨機三原色塊（user 2026-10-19；色由 footer-content.js mouseenter 抽 --social-c）。雙色底圖不能直接換色 →
    疊一層同形 ::after（mask＝icon 外框）用 screen 混色：黑塊變疊色、白字不動，之後才經本體 filter。
-   mode1 本體 invert → 疊色先自己 invert 抵銷（結果＝色塊黑字）；mode2 不反（色塊白字）；mode3 不上 rgb＝difference 白＝黑白對調。瞬間進出不 fade */
+   mode1 本體 invert → 疊色先自己 invert 抵銷（結果＝色塊黑字）；mode2 不反（色塊白字）；mode3 不上 rgb＝difference 白＝黑白對調。瞬間進出不 fade。
+   ⚠️ ::after 常駐、平常 opacity 0（不是 hover 才生出來）：mask 圖是 CORS 模式另抓一次、不共用底圖那次下載 → hover 才生＝
+   第一次 hover 現抓，抓到前整顆 icon 不畫＝閃一下（user 2026-11-16；headless 延遲那支請求實拍） */
 @media (min-width: 768px) {
   .icon.footer-social-glyph { position: relative; }
-  .footer-social-icon:hover .icon.footer-social-glyph::after {
+  .icon.footer-social-glyph::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -48,9 +50,11 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
             mask: var(--icon) center / contain no-repeat;
     mix-blend-mode: screen;
     filter: invert(1);
+    opacity: 0;
   }
-  body.mode-inverse .footer-social-icon:hover .icon.footer-social-glyph::after { filter: none; }
-  body.mode-color .footer-social-icon:hover .icon.footer-social-glyph::after { background: var(--color-white); filter: none; mix-blend-mode: difference; }
+  .footer-social-icon:hover .icon.footer-social-glyph::after { opacity: 1; }
+  body.mode-inverse .icon.footer-social-glyph::after { filter: none; }
+  body.mode-color .icon.footer-social-glyph::after { background: var(--color-white); filter: none; mix-blend-mode: difference; }
 }
 
 /* 沒底色的 icon 鈕 hover＝icon 降到 0.6、瞬間不 fade（同 lightbox／album 翻頁 chevron 的 hover:opacity-60；user 2026-10-21）。
@@ -126,8 +130,8 @@ body.mode-color .icon.footer-social-glyph { filter: var(--footer-invert-filter, 
 .icon-time-asc      { --icon: url('../website-icons/time_asc.svg'); }
 /* 手機灰卡右上工具鈕（#lib-tools-btn）：後台 key filter（原桌面工具列 filter，10-19 桌面撤掉後改給手機用） */
 .icon-filter        { --icon: url('../website-icons/filter.svg'); }
-/* 展開中＝實心版（後台 key filter_active；user 2026-11-05） */
-[aria-expanded="true"] > .icon-filter { --icon: url('../website-icons/filter_active.svg'); }
+/* 展開中＝實心版（後台 key filter_active；user 2026-11-05）；library-panels.js bindToolsToggle clip-reveal 換 class */
+.icon-filter-active { --icon: url('../website-icons/filter_active.svg'); }
 
 /* misc */
 /* alumni（畢業帽）~1.45:1：viewBox 已 tighten，width 1.5em＝國旗 .fi 寬 → list 內與國旗同高、slot 較寬 */

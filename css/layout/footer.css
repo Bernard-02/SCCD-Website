@@ -21,6 +21,11 @@
   html.has-slide-in .footer-shell {
     z-index: 40;
   }
+  /* 手機滿版 slide-in（faculty／curriculum）：footer 鈕留在 panel 上、照常開 footer（user 2026-11-16）→ footer 要蓋過 slide-in：
+     同它的 9999、DOM 在後＝在上，仍在 header（這時抬到 10000）的 logo 下。平常停在視窗下＝不會露出來 */
+  html.has-slide-in:not(.overlay-no-dim) .footer-shell {
+    z-index: 9999;
+  }
 
   .footer-link {
     color: var(--footer-fg, var(--color-white));
@@ -154,7 +159,7 @@
 
   /* <1024 共用（手機＋768–1023）：右側都是線性堆疊（散佈只在 ≥1024），故這些非散佈樣式套到 1023。
      ⚠️ logo 貼頂 margin（上方 max-width:767 那條）不在此列——那是 logo 疊最上的全手機專屬。 */
-  @media (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+  @media (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (hover: none) {
     .footer-random .icon {
       /* 線性版 icon 縮小（覆蓋上方散佈版的 1.5×） */
       font-size: calc(var(--icon-hero) * 0.975);
@@ -175,7 +180,7 @@
   }
   /* 散佈版（≥1024）中文地址 nowrap 一整行；卡寬由 applyOfficeSnugWidth 量最長行鎖定、不會切到。<1024 線性列表自然 wrap。
      特異度 (0,3,1) > 上面 .footer-info p normal 的 (0,2,1)（office 卡同掛 .footer-info） */
-  @media (orientation: landscape) and (min-width: 1024px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (hover: hover) {
     .footer-random .footer-office p.footer-text-zh {
       white-space: nowrap;
     }
@@ -184,7 +189,7 @@
   /* ===== 768–1023：logo 靠左縮小＋右欄由上往下線性列表（無散佈）=====
      footer-inner 靠 HTML md:flex-row 左右分欄；JS usesMobileFooter() 走 initFooterMobileReveal（由上往下 clip-reveal、無 shuffle）。
      ⚠️ 此寬度也在矮橫向 gate 內，landscape.css（unlayered）會蓋掉多數規則。:is 涵蓋已包/未包 clip-reveal wrapper 兩態。 */
-  @media (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+  @media (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (min-width: 1024px) and (hover: none) {
     /* 為 header 留空間：線性版 header 是漢堡列、捲到 footer 不隱藏 → 內容整體下移到 header 帶之下（104 同矮橫向 header 讓位）。 */
     .footer-inner {
       padding-top: 104px;
@@ -343,7 +348,7 @@
        --tab-text-cap＝起跳寬（短名在此寬內 hug）；長名超過兩行由 fitTabText 加寬到剛好兩行。 */
     .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
     .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
-    /* ⚠️ 不加列尾 spacer（同 faculty/activities nav 列）：點擊靠左對齊由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝最右顆自然停右側。 */
+    /* ⚠️ 不加列尾 spacer（同 faculty/activities nav 列）：點擊置中由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝頭尾那顆自然貼邊。 */
 
     /* 文字一律 xs（user 2026-10-27）：同特異度、本段在 <1024 線性 s 段與 tab base 之後＝後出勝 */
     .footer-random :is(h6, p, a),
@@ -392,42 +397,34 @@
       padding-top: calc(var(--mobile-bottom-anchor) - 6px + 56px + var(--spacing-md));
       padding-bottom: calc(var(--container-padding) + 100lvh - 100svh);
     }
-    /* Office Hours／legal／copyright（之後的無障礙標章）固定在畫面上，放不下＝內容區自己捲（user 2026-11-04）：
-       卡不捲（檔尾 unlayered 段），資訊區（tab＋各 item＋note）＝捲動框吃剩餘高；legal 在框外＝自然貼底 */
+    /* tab 列／Office Hours／legal／copyright（之後的無障礙標章）固定在畫面上，放不下＝只有各分頁的 item 捲（user 2026-11-04；
+       11-16「Office Hours 跟 legal 一樣不動、可以捲的框不包含它」）：卡不捲（檔尾 unlayered 段）、資訊區吃剩餘高也不捲，
+       裡面 tab 列在上、note 在下，中間的 .footer-scroll（footer-scatter.js wrapMobileScroll 把 item 包進去）才是捲動框；
+       legal 在資訊區外＝自然貼底。原本整個資訊區捲、tab 列與 note 靠 sticky 釘住＝兩者還在捲動框裡 */
     .footer-right,
-    .footer-random {
+    .footer-random,
+    .footer-random > .footer-scroll {
       flex: 1 1 0;
       min-height: 0;
     }
-    .footer-random {
+    .footer-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-width: none;
     }
-    /* 捲動框裡的子項不壓縮、放不下就捲：tab 列自己是橫捲框（min-height auto＝0），矮螢幕會被壓到 0 高消失 */
-    .footer-random > * { flex-shrink: 0; }
-    /* tab 列釘在資訊區頂（user 2026-11-04 小手機）：內容從 tab 底下捲過去；底色帶往下多蓋一個 gap（同 note 的帶、方向相反）。
-       z 1：之後的 item 帶 GSAP transform＝自成疊層、DOM 在後會畫在 tab 上 */
-    .footer-random > .footer-tabs {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background-color: var(--footer-bg, var(--color-black));
-      box-shadow: 0 var(--spacing-md) 0 var(--footer-bg, var(--color-black));
-    }
-    /* note 推到資訊區底、捲動時釘在框底（sticky）。遮罩本身是字寬（下一條）→ 底色帶靠 box-shadow 往左右鋪、往上多蓋一個 gap，
-       clip-path 只放行這兩向＝捲過的內容在帶下消失、不從字旁邊露出 */
+    /* 框外的 tab 列／note、框裡的 item 都不壓縮、放不下就捲：tab 列自己是橫捲框（min-height auto＝0），矮螢幕會被壓到 0 高消失 */
+    .footer-random > :not(.footer-scroll),
+    .footer-scroll > * { flex-shrink: 0; }
+    /* note 貼資訊區底（中間的捲動框吃掉剩餘高；auto margin＝還沒包捲動框時也貼底） */
     .footer-random > :is(.footer-note, .clip-reveal-wrapper:has(> .footer-note)) {
       margin-top: auto;
-      position: sticky;
-      bottom: 0;
-      background-color: var(--footer-bg, var(--color-black));   /* 框本身（box-shadow 只畫在框外） */
-      box-shadow: 0 0 0 100vmax var(--footer-bg, var(--color-black));
-      clip-path: inset(calc(-1 * var(--spacing-md)) -100vmax 0);
     }
     /* item 四向進場的遮罩＝item 自己的字寬（user 2026-11-04）：滿寬遮罩下左右向要滑整條寬＝看起來從很遠飛進來 */
-    :is(.footer-inner, .footer-right, .footer-random) > .clip-reveal-wrapper {
+    :is(.footer-inner, .footer-right, .footer-random, .footer-scroll) > .clip-reveal-wrapper {
       width: fit-content;
       max-width: 100%;
     }
@@ -439,7 +436,7 @@
      開著時 mode／menu 鈕收起、logo 換 footer 對比色（header.js footer:progress）。
      框＝100lvh（Safari 底工具列後面也是 footer 自己的底）；內容超過一屏＝框內捲（檔尾 unlayered 段）。
      ⚠️ 要排在 768–1023 段（height 100svh）之後；矮橫向／iPad 的內容排法在 landscape.css 7) */
-  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     .footer-shell {
       position: fixed;
       left: 0;
@@ -451,7 +448,7 @@
   }
 
   /* ===== Desktop scatter (≥1024)：散佈區（tabs 左上、legal 右側、copyright 貼底）===== */
-  @media (orientation: landscape) and (min-width: 1024px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (hover: hover) {
     /* 高度＝內容（散佈區 480 保證＋padding），不再一屏（user 2026-10-19 拿掉底部 logo 列）。 */
     .footer-shell {
       height: auto;
@@ -584,10 +581,11 @@
   }
 
   /* 真桌面（散佈版；排除矮橫向）才有的幾樣 */
-  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     /* 整張 footer＝蓋在頁面上的一張旋轉卡（user 2026-10-19）：不在捲動流裡、fixed、平常停在視窗下；
        點右下 footer 鈕 → footer-scatter.js openFooter 以每次新抽的 ±[1,2]° 從卡底 clip-reveal 升起（user 2026-11-04；散佈量測時暫時轉正見 unrotated）。
-       0° 時的框＝左右 container padding、頂對齊第一顆 nav btn（--nav-line）、底在 footer 鈕上方（--footer-card-bottom）；
+       框＝左右 container padding；上下都離鈕一個 --menu-gap（menu 打開時 menu 鈕到第一個選項的距離，user 2026-11-16）：
+       底＝footer 鈕上方（--footer-card-bottom）、頂＝menu 鈕下方（＝menu 第一個選項的頂線），卡左上在 logo 底下的那一截與傾角由 --card-trim 讓；
        散佈區 480 保證撐不下（矮視窗）就往上長高。z＝全站最高、只低於 header（9999）的 logo（user 2026-10-20）；
        開卡期間 .footer-backdrop 墊在卡下吃掉卡外的滑鼠操作（點／滾＝關卡，不碰後面內容；hover 也到不了）。
        mode／menu 鈕同在 header stacking context、不能單獨壓到卡下 → 開卡改 pointer-events:none 放行給 backdrop
@@ -598,18 +596,20 @@
       /* --card-ext：矮螢幕縮卡時 footer-scatter.js fitCardWidth 把版面寬往兩側放大，縮完視覺寬仍貼 container padding */
       left: calc(var(--container-padding) - var(--card-ext, 0px));
       right: calc(var(--container-padding) - var(--card-ext, 0px));
-      /* 卡底在右下 footer 鈕上方：鈕底 48＋鈕 48＋間距＝header menu 鈕底到第一顆 nav btn（--nav-line）的距離＝卡頂卡底上下對稱
-         （user 2026-11-04「卡片到 footer btn 要有一定的 gap，用 menu 到 about btn 那個 gap」；logo-sm/2＋12＝視窗高 960 時 62）。
+      /* 卡底在右下 footer 鈕上方：鈕底 48＋鈕 48＋ --menu-gap（user 2026-11-04「卡片到 footer btn 要有一定的 gap，用 menu 到 about btn
+         那個 gap」＝menu 打開時 menu 鈕到第一個選項 About 的距離，2026-11-16 釐清；原誤用成 menu 鈕底到 nav line＝兩倍）。
          footer-scatter.js cardBottom() 同式 */
-      --footer-card-bottom: calc(96px + var(--nav-line) - var(--header-btn-top) - 48px);
+      --footer-card-bottom: calc(96px + var(--menu-gap));
       bottom: var(--footer-card-bottom);
-      /* 矮螢幕不設上限、不長高：卡的版面高＝max(框, 內容 540+)，放不進「logo 底 148＋24 → 卡底」時由
+      /* 矮螢幕不設上限、不長高：卡的版面高＝max(框, 內容 540+)，放不進「logo 底＋gap → 卡底」時由
          footer-scatter.js applyCardScale 整張等比縮（下限 0.75），空間夠＝1:1 不動（user 2026-10-20「縮卡，空間夠就不調」） */
       transform: translateY(130%);   /* 停放位：整張在視窗下；開卡時 JS 歸位再 clip-reveal */
     }
     .footer-inner {
       padding: var(--popup-pad);   /* 卡內四周 20（user 2026-10-26；原 container-padding 一半＝30），不再綁 container-padding；faculty／curriculum 色卡共用 */
-      min-height: calc(100svh - var(--nav-line) - var(--footer-card-bottom));
+      /* 框高＝menu 鈕底＋gap → footer 鈕頂−gap；--card-trim＝這次開卡要讓掉的高（logo 比 menu 鈕低的那截＋傾角翹起的量，
+         footer-scatter.js applyCardScale 寫在 shell） */
+      min-height: calc(100svh - var(--header-btn-top) - 48px - var(--menu-gap) - var(--footer-card-bottom) - var(--card-trim, 0px));
     }
     /* 散佈卡 hover＝翻成 footer 前景色底（user 2026-10-19：mode1 白底黑字、mode2 黑底白字；mode3 黑白對調在 color.css）。
        !important 蓋 JS inline 三原色底；:not(.mode-color)＝本檔是 layer、layered !important 會壓過 color.css 的 mode3 規則 */
@@ -680,15 +680,22 @@
       height: 48px;
       overflow: hidden;
       z-index: 10002;
+      /* 下面幾條把 z 降下去的狀態解除時，晚 0.3s 才升回＝等 lightbox overlay 淡完，不然鈕先亮回來（降下去是立刻：各條 delay 0） */
+      transition: z-index 0s 0.3s;
     }
     /* 首頁 news 海報開著（index-marquee.js 掛 body.hm-poster-open）：開著那則的 ↗ 伸進右下鈕欄、可以蓋過 footer 鈕（user 2026-11-04）
        → 降到 .hm-banner.is-poster-open（10000，lists.css）之下；鉛筆 9998 本來就在下面 */
-    body.hm-poster-open .footer-btn-mask { z-index: 9999; }
-    /* footer 藏起的頁（router 寫 inline display:none；SPA 容器整個藏、首頁靜態 footer 看兄弟）、lightbox／slide-in 蓋著＝不出現
-       （menu 開著、首頁 WATCH 播放層由 footer-scatter.js syncFooterBtn 滑出） */
-    #site-footer-static[style*="display: none"] + .footer-btn-mask,   /* 別只比 "none"：GSAP 會在 footer 寫 inline translate: none */
+    body.hm-poster-open .footer-btn-mask { z-index: 9999; transition-delay: 0s; }
+    /* lightbox／PDF viewer／share／桌面色卡（不 dim 的 pop up）開著：鈕不消失、留在原位（user 2026-11-16），沉到 overlay（9999）下
+       ＝跟頁面一起被蓋暗、點不到（點了＝點到 overlay＝關閉；同 header mode／menu 鈕）；鉛筆 9998 同理（mode-color-panel.css） */
     body.lightbox-open .footer-btn-mask,
-    html.has-slide-in .footer-btn-mask {
+    html.overlay-no-dim .footer-btn-mask { z-index: 9998; transition-delay: 0s; }
+    /* 手機滿版 slide-in（faculty／curriculum）：鈕不消失、留在 panel 上、照常開 footer（user 2026-11-16；原 display:none）。
+       slide-in 也掛 body.lightbox-open → 把上一條降下去的 z 蓋回來 */
+    html.has-slide-in:not(.overlay-no-dim) .footer-btn-mask { z-index: 10002; }
+    /* footer 藏起的頁（router 寫 inline display:none；SPA 容器整個藏、首頁靜態 footer 看兄弟；換頁時鈕先由 footer-scatter.js
+       setFooterBtnRouteHidden 滑出遮罩）＝不出現（menu 開著、首頁 WATCH 播放層由 syncFooterBtn 滑出） */
+    #site-footer-static[style*="display: none"] + .footer-btn-mask {   /* 別只比 "none"：GSAP 會在 footer 寫 inline translate: none */
       display: none;
     }
     .footer-btn {
@@ -732,7 +739,7 @@
   }
   /* 手機／iPad／矮橫向鈕＝44／icon 28、底＝全站貼底界線（同 header 鈕、mode3 鉛筆；手機 44/28 慣例）；有底 bar 的頁 bar 右邊讓位
      （直向 portrait.css、iPad landscape.css）。開著＝白底（footer 的反色，user 2026-11-04「改成白底」）：整屏 footer 是 --footer-bg 底 */
-  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     .footer-btn-mask {
       bottom: var(--mobile-bottom-anchor);
       width: 44px;
@@ -752,7 +759,7 @@
 
   /* 矮橫向 gate（含 768–1023）：tabs 版型在 landscape.css（unlayered 蓋回本檔 768–1023 段的 absolute），這裡只收 desktop-only 的 .footer-tab-reserve。
      padding-top 歸零：gate 寬落在 768–1023 時會誤吃該段 tabs 預留高（landscape.css 另給自己的 1rem）。 */
-  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
     .footer-random > :is(.footer-tab-reserve, .footer-note-reserve) {
       display: none;
     }

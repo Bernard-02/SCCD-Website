@@ -24,6 +24,9 @@
     height: 100svh !important;
     bottom: calc(100lvh - 100svh) !important;
   }
+  /* 首頁只有一屏、手機不給捲（user 2026-11-16）：框是 100lvh＝比工具列展開時的可視區高，不鎖就能把那一截捲掉、整頁跟著往上跑。
+     鎖法同 atlas／library／create 的 body.overflow-hidden（router.js）；用 :has 是因為只有手機要鎖、換頁自動解 */
+  body:has(> main > #home-hero) { overflow: hidden; }
 }
 
 /* 右下角鈕讓位（user 2026-11-04 第三版「nav／tab 可以被鉛筆、footer 鈕蓋過，但滑到最後一個要離鈕有 gap」）：

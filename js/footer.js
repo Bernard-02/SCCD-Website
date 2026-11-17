@@ -4,7 +4,7 @@
  */
 
 // footer-scatter：每次刷新 random 散佈 + collision resolution（v4，取代 v3 grid）
-import { initFooterScatter } from './modules/ui/footer-scatter.js';
+import { initFooterScatter, ensureFooterBtn } from './modules/ui/footer-scatter.js';
 // footer 內容（tab + 散佈項目）走 Directus footer_tabs/footer_items（2026-08-11）；渲染完才 init 散佈
 import { renderFooterContent } from './modules/ui/footer-content.js';
 import { sitePath } from './modules/ui/site-base.js';
@@ -15,6 +15,7 @@ export function initFooter() {
   // index.html 靜態 footer：先渲染 CMS 內容（tab+項目）再 init 散佈；渲染失敗（連 fallback 都掛）仍 init（privacy 照常）
   const staticFooter = document.getElementById('site-footer-static');
   if (staticFooter) {
+    ensureFooterBtn(staticFooter);   // 右下開卡鈕不等後台內容：要趕上 header 鈕進場那一拍
     renderFooterContent(staticFooter)
       .catch((e) => console.warn('[footer] render failed', e))
       .then(() => initFooterScatter(staticFooter));
@@ -34,6 +35,7 @@ export function initFooter() {
         footerContainer.innerHTML = html;
         const spaFooter = footerContainer.querySelector('footer.footer-shell');
         if (spaFooter) {
+          ensureFooterBtn(spaFooter);
           renderFooterContent(spaFooter)
             .catch((e) => console.warn('[footer] render failed', e))
             .then(() => initFooterScatter(spaFooter));

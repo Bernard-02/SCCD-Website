@@ -7,7 +7,7 @@
  * - 點開＝圓拉長成 capsule（真桌面往左、其餘往上——手機鉛筆疊在 footer 鈕上方、左邊是 nav），內放 create 手機版同款長條色條
  *   （indicator 直線）＋ play/pause，鉛筆換成 chevron（點它收回）
  * - 色條 drag 改 hue、play/pause 控背景色循環：全部接 theme-toggle.js 既有 export，不新增色彩邏輯
- * - 進退場＝hero clip-reveal：mask wrapper overflow:hidden + 本體 xPercent 滑動（DUR.medium；
+ * - 進退場＝hero clip-reveal：mask wrapper overflow:hidden + 本體四向隨機滑動（capDir；DUR.medium；
  *   進出同 EASE.enter——出場用 power3.in 起步慢會顯拖，見 feedback_trigger_hide_ease_out_not_in）
  * - 全尺寸同一套（user 2026-10-29「手機跟桌面對齊」；原 <1024 的鉛筆方鈕＋色環面板已刪）：尺寸差只在 CSS --mcp-h
  *   （真桌面 48／其餘 44，mode-color-panel.css），JS 讀它算 capsule 寬
@@ -16,8 +16,9 @@ import { DUR, EASE } from './motion.js';
 import { clipRevealIconSwap, ensureIconClipWrap, revealHidden } from './scroll-animate.js';
 import { randomSpinAngle } from './arrow-spin.js';
 import { setColorHue, getColorHue, startSiteColorLoop, stopSiteColorLoop, isColorLoopRunning, getStoredMode } from './theme-toggle.js';
+import { currentPageFile } from '../../config/slugs.js';
 
-const DESK_MQ = window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)');
+const DESK_MQ = window.matchMedia(SCCDHelpers.DESKTOP_MQ);
 const isDesk = () => DESK_MQ.matches;
 // 圓鈕直徑＝capsule 粗細：CSS --mcp-h（真桌面 48／其餘 44，同 header mode/menu 鈕）；展開長＝留白 20 + 色條 160 + 17 + play 20 + chevron 格
 //（css .mcp-cap-row 同步；四段間距推導見該處）。真桌面長在寬（往左）、其餘長在高（往上，css 直排段）
@@ -31,6 +32,13 @@ const ICON_SWAP = 0.4;   // chevron clipRevealIconSwap 每半段秒數；色條/
 // 色條／play icon 各自四向隨機進退場（user 2026-10-01，同 clipRevealIconSwap 四向）；±110＝整條真的出遮罩
 // （色條遮罩外擴 1px 給 indicator，±100 會在邊上留一條 1px）
 const pickRevealDirs = () => capReveal.map(() => revealHidden());
+// 整顆鈕進退場＝四向隨機（user 2026-11-16，首次展開的整條也是）：停好才重抽；滑到一半被反過來（快速跨 gate）＝沿原方向接回、不斜著走。
+// 傳給 GSAP 一律展開成新物件（GSAP 會把預設值寫回傳入的物件）
+let capDir = revealHidden();
+function hideCap(onComplete) {
+  if (!gsap.getProperty(cap, 'xPercent') && !gsap.getProperty(cap, 'yPercent')) capDir = revealHidden();
+  gsap.to(cap, { ...capDir, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete });
+}
 
 let root, cap, capToggle, capIcon, capPlay, playIcon, bar, barTrack, barInd, barIndWrap, capReveal;
 let capColorTween = null;   // 收起時底色 active→inactive 的補間（open 要殺掉＋清 inline）
@@ -154,7 +162,8 @@ function open(instant = false) {
   else cap.style[capDim()] = capLen() + 'px';
   if (capColorTween) { capColorTween.kill(); capColorTween = null; gsap.set(cap, { clearProps: 'backgroundColor,color' }); }
   cap.classList.remove('no-hover');
-  cap.classList.add('is-active');   // 展開中＝反色（css .mcp-cap.is-active）
+  // 展開中＝反色（css .mcp-cap.is-active）。首次展示那條不反色（user 2026-11-16：沒人 hover／點它）；使用者碰了才補上（initModeColorPanel）
+  if (!instant) cap.classList.add('is-active');
   capToggle.setAttribute('aria-expanded', 'true');
   // 下一 tick 才綁 outside-close，避免開啟的那一下 pointerdown 立刻關回去
   setTimeout(() => document.addEventListener('pointerdown', onOutside, true), 0);
@@ -190,7 +199,7 @@ function close(instant, opts = {}) {
     cap.classList.remove('is-active');
     if (typeof gsap !== 'undefined') gsap.killTweensOf(capReveal);   // 還在等 delay 的 reveal 別在收合後升起
     capIcon.className = 'icon icon-pencil';
-    if (typeof gsap !== 'undefined') gsap.set(cap, { xPercent: pencilReturn ? 0 : 110 });
+    if (typeof gsap !== 'undefined') gsap.set(cap, pencilReturn ? { xPercent: 0, yPercent: 0 } : { ...capDir });
     finish(); return;
   }
   // 展開的反序（user 2026-09-29）：色條＋play icon 先收進遮罩（各自四向隨機）→ 收完 chevron 才換回鉛筆＋capsule 縮
@@ -212,7 +221,7 @@ function close(instant, opts = {}) {
   // 收完才判：收的途中 gate 又翻回 show（捲到 footer 又立刻捲回）＝updateVisibility 已把圓滑回，別再把它送出遮罩
   gsap.to(cap, { [capDim()]: capH(), duration: DUR.medium, ease: EASE.enter, delay: ICON_SWAP, overwrite: 'auto', onComplete: () => {
     if (pencilReturn || wasShown) finish();
-    else gsap.to(cap, { xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto', onComplete: finish });
+    else hideCap(finish);
   } });
 }
 function onOutside(e) {
@@ -221,16 +230,32 @@ function onOutside(e) {
 
 /* ── 可見性 gate ── */
 function currentPage() {
-  return (window.location.pathname.split('/').pop() || '').replace('.html', '') || 'index';
+  return currentPageFile();   // 檔名（網址列是 slug 也換回檔名）
+}
+// 換頁時右下角要換位（有 footer 鈕的頁 ↔ 沒有的頁：鉛筆的位置跟著 body.no-footer 跳，footer 鈕一進場就把它往左推）→
+// router 換頁前先整顆收起、body.no-footer 換完才放＝在新位置跟 footer 鈕同拍進場（user 2026-11-16「鉛筆也收起，再一起出來」；
+// footer-scatter.js setFooterBtnRouteHidden 同時長同曲線）。回傳收完的 Promise 給 router 等；本來就沒在畫面上＝不用等
+let routeHold = false;
+export function holdModeColorPanel(hold) {
+  const shown = wasShown;
+  routeHold = hold;
+  if (!root) return Promise.resolve();
+  updateVisibility();
+  return hold && shown && typeof gsap !== 'undefined' ? new Promise(r => setTimeout(r, DUR.medium * 1000)) : Promise.resolve();
 }
 function shouldShow() {
   if (!document.body.classList.contains('mode-color')) return false;
+  if (routeHold) return false;
   const page = currentPage();
   if (page === 'create' || page === 'generate') return false;          // /create 由頁內 control 控
   if (!document.querySelector('.theme-toggle-btn')) return false;       // mode-btn（header）還沒載入
-  if (document.body.classList.contains('lightbox-open')) return false;  // lightbox / slide-in overlay
+  // 進站：等 header 鈕進場那一拍（header.js playHeaderEntrance 掛 html.header-entered）才出來＝跟 mode／menu／footer 鈕同拍同速
+  //（user 2026-11-16：首頁 header 等 news 一起進，鉛筆卻在 header 一載入就先滑進來、而且比較快）
+  if (!document.documentElement.classList.contains('header-entered')) return false;
   if (document.body.classList.contains('idle-standby-inplace')) return false;   // atlas 頁待機＝頁面本身當待機畫面（idle-standby.js）
-  if (document.documentElement.classList.contains('has-slide-in')) return false;
+  // 手機滿版 slide-in 才收；lightbox／桌面色卡（overlay-no-dim）留在原位、壓在 overlay 下（user 2026-11-16「鉛筆不需要消失」）
+  const html = document.documentElement.classList;
+  if (html.contains('has-slide-in') && !html.contains('overlay-no-dim')) return false;
   const vid = document.getElementById('video-player-overlay');
   if (vid && vid.style.display === 'flex') return false;                // 自架 video player（無 class，看 inline display）
   // footer 打開＝不出現在 footer 裡（user 2026-11-04；整屏版蓋滿畫面）。真桌面卡底在鈕列上方、鉛筆照常
@@ -244,12 +269,18 @@ function shouldShow() {
 // lightbox/slide-in 由 CSS !important 即時硬藏（overlay 蓋住時不該看到滑出過程）。
 // theme:changed 在 color loop 中 ~5Hz 重發，靠 wasShown 不變 early return 去重。
 let wasShown = false;
+let headerWasIn = false;
 function updateVisibility() {
   const show = shouldShow();
+  // header 鈕進場的那一拍：這次進場用 header 鈕的時長曲線（header.js footerShowBars 預設），其餘 gate 轉換照舊
+  const headerIn = document.documentElement.classList.contains('header-entered');
+  const withHeader = headerIn && !headerWasIn;
+  headerWasIn = headerIn;
   if (show === wasShown) return;
   wasShown = show;
 
   if (show) {
+    const parked = root.style.display !== 'block';   // 整顆藏好了（不是退場途中）→ 這次進場重抽方向
     root.style.display = 'block';
     // 首次切進 mode3：還藏在遮罩外就擺成展開態，整條 capsule 滑進來（不是圓鈕滑進來再長開），停一下再收
     if (openPending) {
@@ -259,7 +290,13 @@ function updateVisibility() {
         introClose = gsap.delayedCall(DUR.medium + INTRO_HOLD, () => { introClose = null; if (isOpen && !dragging) close(false); });
       }
     }
-    if (typeof gsap !== 'undefined') gsap.to(cap, { xPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto' });
+    if (typeof gsap !== 'undefined') {
+      if (parked) gsap.set(cap, { ...(capDir = revealHidden()) });
+      gsap.to(cap, {
+        xPercent: 0, yPercent: 0, overwrite: 'auto',
+        duration: withHeader ? DUR.slow : DUR.medium, ease: withHeader ? EASE.enterSoft : EASE.enter,
+      });
+    }
     else cap.style.transform = '';
     return;
   }
@@ -272,15 +309,9 @@ function updateVisibility() {
     });
     return;
   }
-  if (typeof gsap !== 'undefined') {
-    gsap.to(cap, {
-      xPercent: 110, duration: DUR.medium, ease: EASE.enter, overwrite: 'auto',
-      // 動畫期間若又翻回 show（快速捲回），onComplete 別把剛 reveal 的層藏掉
-      onComplete: () => { if (!wasShown) root.style.display = 'none'; },
-    });
-  } else {
-    root.style.display = 'none';
-  }
+  // 動畫期間若又翻回 show（快速捲回），onComplete 別把剛 reveal 的層藏掉
+  if (typeof gsap !== 'undefined') hideCap(() => { if (!wasShown) root.style.display = 'none'; });
+  else root.style.display = 'none';
 }
 
 function build() {
@@ -344,7 +375,8 @@ function build() {
 
 export function initModeColorPanel() {
   build();
-  cap.addEventListener('pointerdown', () => { introClose?.kill(); introClose = null; });   // 首次展示中先碰了＝留給使用者
+  // 首次展示中先碰了＝留給使用者，從這刻起算正常展開（補回反色）
+  cap.addEventListener('pointerdown', () => { introClose?.kill(); introClose = null; if (isOpen) cap.classList.add('is-active'); });
 
   // gate 觸發：mode 切換 / overlay class / video 的 body|html style / footer 捲動 / header 載入
   lastMode = getStoredMode();

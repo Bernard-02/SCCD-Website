@@ -74,7 +74,7 @@
   }
 }
 /* 桌面：nav＋content 區頂＝全站 nav line（variables.css --nav-line）；其餘維持 header+inner-pad */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   /* section＝frame 同高（dvh）。原本 section 是 svh（scroll-snap.css）又被 min-h-screen 撐回 100vh＝iPad 上比框高一截：
      框底下多一條白帶、整頁還能再往下捲那一截（user 2026-11-12）；min-height 在 scroll-snap.css 同一條規則歸零 */
   :is(#faculty-cards, #courses-content-section, #activities-content-section, #admission-content-section) { height: 100dvh; }
@@ -101,7 +101,7 @@
    清單（.nav-scroll-list）放不下才由 JS 掛 .nav-overflowing（開 overflow、chevron 現身），沒溢出＝零視覺變化。
    host：四頁 .inner-scroll-nav-col ＋ about #anchor-nav。矮橫向排除（nav 在 header 帶、橫向 strip）。 */
 .nav-more-btn, .nav-less-btn { display: none; }
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .inner-scroll-nav-col {
     display: flex;
     flex-direction: column;
@@ -196,7 +196,7 @@
 
 /* faculty 桌面：**卡片**（非框）左緣＝col 4、右緣＝col 18。框內左右各 24px 旋轉 clearance padding →
    框兩側各外推 24：margin-left −24、寬＝格線區（faculty.html min-[1024px]:col-start-4/col-span-15）＋48。 */
-@media (orientation: landscape) and (min-width: 1024px) {
+@media (orientation: landscape) and (min-width: 1024px) and (hover: hover) {
   #faculty-cards .inner-scroll-scroll-col {
     margin-left: calc(-1 * var(--spacing-md, 24px));
     width: calc(100% + 2 * var(--spacing-md, 24px));
@@ -833,7 +833,7 @@
   /* 年份 sticky（user 2026-11-05）：釘在同一條線、捲過自己那組被下一組推走（containing block＝.list-year-group）；
      開啟的 title 釘在年份正下方（--list-header-sticky-top＝108＋年份高，activities-data-loader updateStickyTop；同日 user
      「在年份之下打開、不要蓋到年份」）。年份 z 4 壓過 item（item 不再浮上來）＝內容捲過 title 上緣後被年份 theme-bg 底蓋掉。
-     top 由 JS inline 寫（同值） */
+     top 由 JS inline 寫（直向手機再減自己的 pt＝字對齊 token，同 curriculum 標籤） */
   :is(#activities-content-section, #admission-content-section) .list-year-group > .list-year-label {
     position: sticky;
     top: var(--mobile-content-top);
@@ -887,7 +887,7 @@
 /* 真桌面 sticky bar：search 收起連 bar 底 pb-lg 一起收＝清單頂（與釘住的年份／title，RO 跟 bar 高）上到 logo 中線
    （同 faculty 首列照片頂；有子分類 tab 的＝原 search 頂；user 2026-10-29）。
    只真桌面：矮橫向/手機 bar 非 sticky，list-accordion 預扣收合量只算 searchInner 高 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #activities-content-section .activities-filter-bar > .grid-12 {
     transition: padding-bottom var(--dur-fast) ease;
   }
@@ -952,7 +952,7 @@ body.mode-color .tl-icon-btn-inner {
 }
 /* 手機／iPad／矮橫向：同全站手機 icon 鈕 44／icon 28（footer 鈕、header 鈕、鉛筆；user 2026-11-05「history 鈕看起來比其他鈕大」）。
    只掛 history 鈕：library next 鈕桌面限定 */
-@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #timeline-list-btn > .tl-icon-btn-inner { width: 44px; height: 44px; font-size: 28px; }
 }
 
@@ -1050,7 +1050,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 }
 /* scrollbar↔卡片右緣＝內文字級的字卡右內距：內文 text-s → --card-pad-s 右 6（user 2026-10-26，同 pop up 看內文）。
    只真桌面：手機／矮橫向沒 scrollbar → 右邊回到跟左邊同一個 inset（user 2026-10-29） */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .tl-list-content:has(> .tl-list-years) { right: 6px; }
 }
 .tl-list-years {
@@ -1107,7 +1107,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 
 /* ===== Timeline list view 手機 + 矮橫向（buildStrip 全視口共用）=====
    cell 脫離 20-col 方形、單欄滿版、年份改上下堆疊。直式見下方 portrait block；矮橫向見 landscape.css 5i。 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   .tl-list-cell {
     grid-column: auto;
     height: 100%;
@@ -1228,7 +1228,7 @@ body.mode-color button.active > .tl-icon-btn-inner { background: var(--theme-fg-
 
 /* about history list（桌面）：軌道頂內縮＝sticky era 標籤實高（timeline.js measureStickyOffsets 寫 --tl-era-label-h）
    → scrollbar 從第一個 item 起。webkit only。 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .tl-list-years::-webkit-scrollbar-track {
     margin-top: var(--tl-era-label-h, 0px);
   }
@@ -1424,6 +1424,10 @@ body.mode-color .gallery-ph > span {
 .hm-banner.is-poster-open { z-index: 10000; transition-delay: 0s; }
 /* 開著的海報（10000）會蓋過 share 卡（9999）→ lightbox 開著時先降回來 */
 body.lightbox-open .hm-banner.is-poster-open { z-index: 15; }
+/* footer 蓋上來（body.footer-covering＝開卡起、收完才摘，footer-scatter.js）：點開的 news 不收、footer 直接蓋過去（user 2026-11-16）
+   → 降到 footer（9998）下一層；橫向手機的側邊海報是 inline 10000 */
+body.footer-covering .hm-banner.is-poster-open { z-index: 9997; }
+body.footer-covering #homepage-marquee-stack > .hm-poster { z-index: 9997 !important; }
 
 /* 手機 bar 右邊鈕（index-marquee.js：↑ 開海報／↗ 跳連結）：左右 padding＝手機正方形 icon 鈕的 8（44 鈕／28 icon，同 header 鈕）、
    高跟 bar、不必正方形（user 2026-10-29；原寬＝bar 實高）。
@@ -1436,15 +1440,19 @@ body.lightbox-open .hm-banner.is-poster-open { z-index: 15; }
   background: var(--theme-fg);
   color: var(--theme-fg-inverse);
   cursor: var(--cursor-pointer);
+  box-shadow: -1px 0 0 var(--theme-fg);   /* 往左多畫 1px 蓋住接縫，見下方 .hm-banner-btn-clip */
 }
 .hm-banner-btn .icon { font-size: 28px; }
 /* 桌面排版的點擊版（iPad 橫向沒 hover，user 2026-11-11）＝真桌面鈕尺寸 icon 32；index-marquee.js SHARE_W 同步 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .hm-banner-btn .icon { font-size: 32px; }
 }
 /* ↗ 鈕進出的遮罩＝鈕本身大小（index-marquee.js setShareBtn）；↑↓ 換 icon＝新舊 icon 在自己的框裡推移交棒（setBtnState，
-   新的疊在舊的上面、舊的走完就拔掉） */
-.hm-banner-btn-clip { flex: none; display: flex; overflow: clip; }
+   新的疊在舊的上面、舊的走完就拔掉）。
+   接縫（user 2026-11-16「↓ 跟 ↗ 之間有 1px 的縫」）：banner 有轉角，並排的色塊各自反鋸齒、中間透出一條底色細線（Safari 每條都有，
+   bar｜↑ 也是）→ 每顆鈕往左多畫 1px 壓在左邊鄰居上（box-shadow 同底色）。遮罩因此用 clip-path 往左多開 1px：
+   overflow: clip 外擴不了（Safari 不支援 overflow-clip-margin）。鈕的寬與位置都沒變 */
+.hm-banner-btn-clip { flex: none; display: flex; clip-path: inset(0 0 0 -1px); }
 .hm-banner-btn-icon { position: relative; display: flex; overflow: clip; }
 .hm-banner-btn-icon > .icon + .icon { position: absolute; inset: 0; }
 
@@ -1575,7 +1583,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
    accent 底在 scroll 層（JS inline，動畫 target，外盒保持透明不留殘色）。:empty＝無清單（MDES／API 失敗）整欄收掉。
    scrollbar 用 .list-scroll hook；mode3 見 color.css。 */
 .works-video-row { display: flex; align-items: stretch; }
-.works-video-row .works-player-box { flex: 1 1 auto; min-width: 0; }
+.works-video-row .works-player-box { flex: 1 1 auto; min-width: 0; position: relative; }   /* 換片預載的第二支 iframe 疊在裡面（about-data-loader renderPlaylist） */
 /* margin-left:-1px 蓋 flex sub-pixel rounding 在 player 右緣露出的 1px 縫 */
 .works-playlist-list { flex: 0 0 20%; position: relative; overflow: hidden; margin-left: -1px; }
 .works-playlist-list:empty { display: none; }
@@ -1630,7 +1638,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
   transform: rotate(var(--pl-rot, 0deg));
   transition: transform var(--dur-fast) ease;
 }
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .works-playlist-item:hover { transform: rotate(0deg); }
 }
 .works-playlist-item img {
