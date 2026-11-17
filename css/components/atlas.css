@@ -59,7 +59,8 @@ html:not(.mode-switching) body.mode-color #atlas-main { transition: none; }
   z-index: 0;
 }
 
-/* pathLength="1"（JS 設）+ dasharray/dashoffset 1：端點移動不影響 dash；d＝"M source L city"，dashoffset 1→0 從 source 畫向 city */
+/* pathLength="1"（JS 設）+ dasharray/dashoffset 1：端點移動不影響 dash；d＝"M 國家 L item"（atlas.js updateLineEndpoints），
+   dashoffset 1→0 從國家畫向 item、0→1 沿原路縮回國家 */
 /* ⚠️ 不用 vector-effect: non-scaling-stroke：Chromium 在祖先 zoom transform 動畫後可能拿過期 CTM 畫 stroke → 整組線視覺位移。
    改用 viewBox 幾何＋--atlas-line-scale（= 當前 zoom scale，applyTransform 同步）反向補償粗細 */
 .atlas-line {
@@ -67,8 +68,11 @@ html:not(.mode-switching) body.mode-color #atlas-main { transition: none; }
   stroke-width: calc(0.7px / var(--atlas-line-scale, 1));
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
-  transition: opacity var(--dur-fast) var(--ease-standard),
-              stroke-width var(--dur-base) var(--ease-standard),
+  /* 收（摘 .atlas-line-highlight）：線縮回國家、縮完才藏——不透明度與粗細等 dashoffset 走完才切（0s＋delay）。
+     原本 0.3s 就淡掉＝看起來是直接 fade out、看不到線在收（user 2026-11-16「線段往回收，不是直接 fade out」）；
+     時長同國家底下 item 名字滑出（--dur-slow）＝兩個同時收 */
+  transition: opacity 0s linear var(--dur-slow),
+              stroke-width 0s linear var(--dur-slow),
               stroke-dashoffset var(--dur-slow) cubic-bezier(0.25, 0, 0.2, 1);
 }
 
@@ -76,6 +80,9 @@ html:not(.mode-switching) body.mode-color #atlas-main { transition: none; }
   opacity: 1;
   stroke-width: calc(1.4px / var(--atlas-line-scale, 1));
   stroke-dashoffset: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard),
+              stroke-width var(--dur-base) var(--ease-standard),
+              stroke-dashoffset var(--dur-slow) cubic-bezier(0.25, 0, 0.2, 1);
 }
 
 /* 城市間常駐連線：stroke 由 JS 設、端點每幀重算（tickFloat）；view 切換動 dashoffset 1↔0 做點對點 draw / erase */
@@ -350,7 +357,7 @@ body.mode-color #atlas-detail-mask {
 }
 /* 真桌面：卡底 48＝左下當前頁卡（navigation.css #page-indicator bottom:48）同一條底線（user 2026-10-04）；
    mode3 鉛筆改圓鈕也是底 48（mode-color-panel.css .mcp-cap-mask）→ 三 mode 一致 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #atlas-detail-mask,
   body.mode-color #atlas-detail-mask {
     bottom: 48px;
@@ -424,6 +431,8 @@ body.mode-color #atlas-detail-mask {
   padding-top: 1px;
 }
 .atlas-detail-row-cat .cat-zh { display: block; }
+/* 同一家同時是就職＋合作單位：一列標兩個分類（atlas.js detailCats），第二個分類另起一段、比列距（xs）小一半＝讀作同一列 */
+.atlas-detail-row-cat .cat-more { display: block; margin-top: calc(var(--spacing-xs) / 2); }
 /* ZH 只在有中文時 render → 用 margin-top、不留尾距 */
 .atlas-detail-row-zh,
 .atlas-detail-row-cat .cat-zh {
@@ -591,7 +600,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   cursor: var(--cursor-pointer);
 }
 /* 手機／iPad／矮橫向：每半 44 正方（觸控標準）、icon 28＝四邊 8 同桌面 48／32（user 2026-10-28；11-05 補 iPad「手機鈕以 44 為主」） */
-@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .atlas-layout-opt { width: 44px; height: 44px; font-size: 28px; }
 }
 .atlas-layout-face {
@@ -657,7 +666,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
    list 左右由 atlas.js layoutListBox 寫（logo 右緣 → mode 鈕左緣）；
    list 底＝切換鈕頂（底 48＋鈕高 48）再上 md＝固定距離（user 2026-10-20，原「頁卡頂＋16」矮螢幕會壓到鈕；calcListPageSize 讀 list 底）。
    grid 列鎖在 list 高內：auto 列會被欄內容的最小高撐出 list 底（1440×600 實測欄底標題蓋到切換鈕） */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #atlas-layout-btn {
     left: 50%;
     translate: -50% 0;
@@ -666,16 +675,12 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   #atlas-list-view {
     bottom: calc(48px + 48px + var(--spacing-md));
     grid-template-rows: minmax(0, 1fr);
-    /* 主持↔就職同屬系友 → 欄距 xl、另外兩道 2xl（user 2026-10-20 120→96、10-26「再小一點」→64）；三道總和改了要同步 atlas.js LIST_TWO_SUBCOL_MIN_W */
-    grid-template-columns:
-      minmax(0, 1fr) var(--spacing-2xl)
-      minmax(0, 1fr) var(--spacing-xl)
-      minmax(0, 1fr) var(--spacing-2xl)
-      minmax(0, 1fr);
   }
-  /* 單列模式：四欄主標（名稱）一樣寬＝W、教師／合作單位的副標＝W/2（user 2026-10-26 末版；取代同日「系友欄＝標題卡寬＋讓出寬」各版）。
+  /* 真桌面一律單列模式（atlas.js layoutListBox 掛 .atlas-list-single；2026-11-16 起寬螢幕不再拆兩子欄）：
+     主持↔就職同屬系友 → 欄距 xl、另外兩道 2xl（user 2026-10-20 120→96、10-26「再小一點」→64）。
+     四欄主標（名稱）一樣寬＝W、教師／合作單位的副標＝W/2（user 2026-10-26 末版；取代同日「系友欄＝標題卡寬＋讓出寬」各版）。
      教師／合作單位欄＝W＋子欄距 sm＋W/2，主持／就職欄＝W → 2(1.5W＋sm)＋2W＝100% − 三道欄距 → W＝(100% − 三道欄距 − 2sm)/5。
-     欄內主標:副標＝2fr:1fr（.atlas-list-single .atlas-list-item）。兩子欄模式維持四欄等寬 */
+     欄內主標:副標＝2fr:1fr（.atlas-list-single .atlas-list-item） */
   #atlas-list-view.atlas-list-single {
     --list-main-w: calc((100% - 2 * var(--spacing-2xl) - var(--spacing-xl) - 2 * var(--spacing-sm)) / 5);
     grid-template-columns:
@@ -998,7 +1003,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   }
 }
 /* 矮橫向寬 ≥768 會誤落桌面 hover 區、觸控又無 hover → 併入自動捲；(hover: none)＝觸控的桌面排版（iPad 橫向，user 2026-10-31）同 */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (hover: none) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (hover: none) {
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1036,7 +1041,7 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   margin-top: 6px;
 }
 
-/* ── 單列模式（真桌面欄寬擺不下兩子欄，atlas.js layoutListBox 掛 .atlas-list-single；user 2026-10-20）──
+/* ── 單列模式（真桌面一律，atlas.js layoutListBox 掛 .atlas-list-single；user 2026-10-20，11-16 拿掉寬螢幕的兩子欄版）──
    每欄一子欄、每筆一列：教師＝名稱｜職稱、合作單位＝名稱（國家）｜類型 兩欄；主持／就職＝名稱（國家）一欄。
    國家副標（.atlas-sub-country）藏起、改由名稱內的 .atlas-list-cc 後綴顯示。星雲節點與 ghost 量高都吃這組（皆 .atlas-list-item） */
 .atlas-list-cc { display: none; }
@@ -1167,6 +1172,37 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
 
 .atlas-anchor.atlas-filtered-out {
   display: none;
+}
+/* 國家底下的 item（就職／合作單位；atlas.js gateHidden）：平常藏著、hover／點它的國家才出現。在星雲上不吃滑鼠＝
+   滑鼠一離開國家就收、自己不開卡，也不會浮到國家方塊上搶走 hover。list 形態的 span 已搬出 anchor＝不受影響 */
+.atlas-anchor.atlas-gated .atlas-name {
+  pointer-events: none;
+}
+/* 進退場（atlas.js setRevealedCountry 掛／摘 .atlas-gate-out＝藏好的那一態；user 2026-11-16）：連線先從國家 chip 長出去
+   （.atlas-line 的 dashoffset），線「到了」名字才在自己的盒內滑出來＝clip-reveal（遮罩＝名行；方向四向隨機、--gate-x／--gate-y 每次由 JS 重抽）。
+   --gate-lead＝線畫完的時間（跟 .atlas-line 的 dashoffset 時長同一個 token；user「線段到達之後再出場，不是同時結束」，別改回重疊）
+   ——寫在「出現」那一態的 transition-delay，退場（掛回 .atlas-gate-out）不等、原路滑回去。
+   沒掛 class＝正常顯示：別的路徑直接把它顯示出來也看得到，只是沒有動畫。list 形態的 span 不在 anchor 裡＝吃不到這幾條 */
+.atlas-anchor.atlas-gated {
+  --gate-lead: var(--dur-slow);
+}
+.atlas-anchor.atlas-gated .atlas-item-nameline {
+  overflow: clip;
+}
+.atlas-anchor.atlas-gated .atlas-item-nameblock {
+  transition: transform var(--dur-slow) cubic-bezier(0.165, 0.84, 0.44, 1) var(--gate-lead);   /* ≈ GSAP power3.out（EASE.enter） */
+}
+.atlas-anchor.atlas-gated.atlas-gate-out .atlas-item-nameblock {
+  transform: translate(var(--gate-x, 0%), var(--gate-y, 110%));
+  transition-delay: 0s;
+}
+/* 圓點星雲（手機）：圓點沒有字可滑 → 整顆淡入淡出，一樣等線；放大到出字的那幾顆名字照上面滑 */
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-gated {
+  transition: opacity var(--dur-fast) ease var(--gate-lead);
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor.atlas-gated.atlas-gate-out {
+  opacity: 0;
+  transition-delay: 0s;
 }
 
 /* ── Inverse mode ── */
@@ -1560,14 +1596,14 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 /* ── 矮橫向 gate（同 landscape.css）：圓點/zoom 規則在上方 .atlas-dot-mode；此處只放 list view 重排 + stage top；觸控手勢見 atlas.js isMobileAtlas ── */
 /* 橫排 tab（直向手機＋矮橫向）鈕距只有 xs 8：遮罩四邊放 12 時，左右滑的 inner 會越過鈕距蓋到隔壁（user 2026-10-29）
    → 左右只留旋轉餘裕 2（±3° 角外溢 ≈1px）、上下照留 12 */
-@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (orientation: portrait) and (min-width: 768px) {
   #atlas-filter .atlas-filter-btn {
     overflow: visible;
     clip-path: inset(-12px -2px);
   }
 }
 
-@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* dot 態 A/C/em label opacity:0 但仍佔位、蓋在 co chip 上偷走 elementFromPoint → 關 hit-test。
      直向不套（直向 tap label 直開卡需 hit-test） */
   #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
@@ -1683,7 +1719,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 /* ── 橫向手機（高 ≤500）專屬（user 2026-11-05）：版面線同 landscape.css --lp-*（起點＝logo 右＋sm、內容右緣＝header mode 鈕右緣、
    最右的鈕欄留空）。iPad（768–1023）維持上面 gate 段。本頁不捲動＝瀏覽器原生工具列常駐、可視高比模擬器矮 ~50
    → 高度一律吃 svh／實際盒高、list 列數跟著可視高增減（atlas.js calcListPageSize 讀這裡的 top／bottom／padding-bottom） ── */
-@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
+@media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none) {
   /* 星雲只畫在中間：最高到 header 帶（92）的一半＝logo 中線、左起 logo 右＋sm（logo／切換鈕那欄留空，user 2026-11-06）、
      最寬到 mode 鈕右緣；佈局吃 stage 盒（atlas.js W／H） */
   #atlas-stage {
