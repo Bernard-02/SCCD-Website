@@ -20,6 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="../css/output.css">
+  <script src="../js/utils/layout-mode.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
 </head>
 <body style="overflow-x: clip;">
@@ -125,7 +126,7 @@
          left 對齊 hero 標題 / sticky-info-card / logo 左緣（var(--container-padding)）
          顯隱由 setupStickyAndHeroChips 跟 sticky title chip 同節奏切（clip-path 由上往下 reveal） -->
     <!-- 直向手機：左下 44 黑方塊、過 hero 才滑上（.is-bar-hidden 出生就帶＝hero 上不閃；variables.css DSD 直向段＋bindMobileBottomBar） -->
-    <a id="degree-show-back-btn" href="/activities?section=degree-show"
+    <a id="degree-show-back-btn" href="activities.html?section=degree-show"
        class="sticky-chip hidden md:block is-bar-hidden"
        aria-label="返回 Degree Show">
       <span class="sticky-chip-inner">

@@ -220,7 +220,7 @@
 
 /* 真桌面 header：全部從 --header-logo-top 推（user 2026-10-20：logo 以縮小態為準、中線對齊 mode／menu 鈕，「標準一起調整」）。
    矮橫向／768–1023 走手機 header，nav line 維持 160 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   :root {
     /* header 幾何唯一來源：縮小態 logo（100）頂距螢幕頂。JS 讀這個值的：SCCDHelpers.headerGeom()（hero 禁區、footer 卡、library 灰卡）。
        改這裡＝logo、鈕、nav line、上下同錨框全站一起走 */
@@ -233,6 +233,9 @@
     --header-btn-top: calc(var(--header-logo-top) + (var(--logo-sm) - 48px) / 2);
     /* nav line＝縮小態 logo 底＋36（第一顆 nav btn、footer 卡頂、色卡上界對齊此線） */
     --nav-line: calc(var(--header-logo-top) + var(--logo-sm) + 36px);
+    /* menu 打開時 menu 鈕底到第一個選項（About）頂的距離＝鈕底與 nav line 的中點（視窗高 960＝31）。
+       右下 footer 鈕到 footer 卡、卡頂到 menu 鈕／logo 也是這個 gap（user 2026-11-16；footer-scatter.js menuGap() 同式） */
+    --menu-gap: calc((var(--nav-line) - var(--header-btn-top) - 48px) / 2);
     /* 縮小態 logo 中線：一屏區塊「上下同錨」框（about resources／program、legal、lists inner box、DSD 影片高）上下都對齊此線 */
     --header-logo-mid: calc(var(--header-logo-top) + var(--logo-sm) / 2);
   }
@@ -285,7 +288,7 @@
 /* DSD 桌面子展覽 tab 區（degree-show-data-loader buildDesktopEventTabs，2026-10-20 比照 about programs）：一屏。
    tab 列高＝programs 鈕列（--about-pill-row-h，scroll-snap.css）、tab 底對齊 programs 鈕底；tab 換行長高時 JS 寫 --dsd-tabs-row-h。
    卡頂＝列底＋2xl；圖容器／說明卡內捲高＝框內剩餘高（到 98 線）——蓋 scroll-snap.css .class-info-panel 那兩條（多一層 class） */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   .dsd-event-tabs-section {
     --dsd-area-h: calc(100svh - var(--dsd-tabs-row-h, var(--about-pill-row-h)) - var(--spacing-2xl) - var(--header-logo-mid));
     height: 100svh;
@@ -800,7 +803,7 @@
    每屏＝header 帶下 92 起、底讓出左下返回／分享列（--dsd-m-bottom＝24 底距＋44 鈕＋16）；子展覽那屏再讓出 tab 列（--dsd-m-tabs-h）。
    JS 分流＝degree-show-data-loader.js isPortraitPhone；矮橫向維持舊手機堆疊版（landscape.css 5j），但返回／分享鈕與子展覽 tab 列
    同本段底 bar 做法（下方 union 段，user 2026-10-30）。 */
-@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   :root {
     --dsd-m-bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm));   /* 返回鈕底（全站貼底界線）＋鈕 44＋sm；tab 列坐在這上面 */
   }
@@ -837,7 +840,7 @@
   }
 }
 
-@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {   /* 11-11：＋iPad 直拿＋橫向手機＝所有手機排版；橫向手機的左右排在 landscape.css 5j */
+@media (max-width: 767px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {   /* 11-11：＋iPad 直拿＋橫向手機＝所有手機排版；橫向手機的左右排在 landscape.css 5j */
   :root {
     --dsd-m-tabs-h: 60px;
     --dsd-m-frame: calc(100svh - 92px - var(--dsd-m-bottom));

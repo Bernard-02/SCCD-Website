@@ -53,18 +53,27 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   // @media（CSS 無法共用 media query，改這串要同步 CSS）。/create 例外：generate-app/js/utils.js 自有斷點。
   // 2026-11-10 改看方向（iPhone Duo 內螢幕橫拿 951×585 原本掉進 iPad 直向版、iPad Pro 13 直拿 1032 原本走桌面）：
   // 橫的且（高 ≤500 或寬 <1024）＝橫向手機；直的且寬 ≥768＝iPad；桌面＝橫的、≥1024、高 >500
-  Helpers.LANDSCAPE_GATE = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px)';
+  // 2026-11-16 iPad 不走桌面排版（user「iPad 不需要用 pc 的版面，都使用手機的」，推翻 10-31「版型看寬度」）：
+  // 桌面多一個條件＝有 hover（滑鼠／觸控板）；**沒 hover 的橫向不論多大都算橫向手機**（iPad 橫拿 1180×820、iPad Pro 1366×1024）。
+  // 用 hover 不用 pointer：hover 只有 hover／none 兩個值＝桌面與手機兩邊互補、不會有裝置兩邊都不是；
+  // iPad 接鍵盤觸控板 WebKit 仍回 hover: none＝照樣手機排版。CSS 真桌面那串同步多了 and (hover: hover)
+  // 同日再改：只有 library／atlas／create 三頁這樣判，其餘頁 iPad 看螢幕大小（橫拿 ≥1024＝桌面）。字串照舊寫「沒 hover＝手機」，
+  // 其餘頁由 layout-mode.js 的 SCCDLayout.mq() 還原成只看寬度（樣式表同一個換法）；JS 自己要寫版型 media 一律包 Helpers.mq()
+  Helpers.mq = function(q) { return window.SCCDLayout ? window.SCCDLayout.mq(q) : q; };
+  if (window.SCCDLayout) window.SCCDLayout.apply();   // body 裡的 <style>（404 頁）在 head 那次之後才讀到
+  Helpers.DESKTOP_MQ = Helpers.mq('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover)');
+  Helpers.LANDSCAPE_GATE = Helpers.mq('(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px)');
   // MediaQueryList 建一次重複讀：舊版讀 window.innerWidth＝強制 layout，在清單模板迴圈裡每筆一次（手機 activities 續建
   // 4x 降速實測 834ms，user 2026-10-29「marquee 特別卡」）。<768 用 media query 與 CSS 同式
   const _mqPortrait = window.matchMedia('(max-width: 767px)');
   const _mqGate = window.matchMedia(Helpers.LANDSCAPE_GATE);
   Helpers.isLandscapeGate = function() { return _mqGate.matches; };
-  // 橫向手機（橫的且高 ≤500 或寬 <1024）：nav／tab 回 header 帶、內容左右排（user 2026-10-30「底 bar 一屏頁空間不夠」）；
+  // 橫向手機（橫的且高 ≤500 或寬 <1024，或沒 hover 的橫向＝橫拿 iPad）：nav／tab 回 header 帶、內容左右排（user 2026-10-30「底 bar 一屏頁空間不夠」）；
   // iPad（直的、≥768）：維持直向同款底 bar。CSS 對應 landscape.css gate 段內 @media (orientation: landscape) 巢狀段
-  Helpers.LANDSCAPE_PHONE = '(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px)';
+  Helpers.LANDSCAPE_PHONE = Helpers.mq('(orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none)');
   const _mqPhoneLand = window.matchMedia(Helpers.LANDSCAPE_PHONE);
   Helpers.isLandscapePhone = function() { return _mqPhoneLand.matches; };
-  // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（橫的、≥1024 且高 >500）
+  // 手機排版＝直向手機（<768）或 gate；桌面排版＝其餘（橫的、≥1024、高 >500、有 hover）
   Helpers.isMobileLayout = function() { return _mqPortrait.matches || _mqGate.matches; };
   Helpers.isDesktopLayout = function() { return !Helpers.isMobileLayout(); };
   // 兩個常用組合（2026-11-02 收斂，取代散在各頁的布林式）：
@@ -72,7 +81,8 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   Helpers.isPortraitPhone = function() { return _mqPortrait.matches && !_mqGate.matches; };
   // 底 bar 排版＝直向手機＋iPad；橫向手機 nav／tab 回 header 帶、不算
   Helpers.isBottomBarLayout = function() { return Helpers.isMobileLayout() && !_mqPhoneLand.matches; };
-  // 輸入判斷，跟版型分開（user 2026-10-31 定案：iPad 橫向 ≥1024 走桌面排版，但 hover／滾輪類互動要看輸入方式）。
+  // 輸入判斷，跟版型分開（hover／滾輪類互動看輸入方式）。「桌面排版＋觸控」＝iPad 橫拿的其餘頁
+  // （library／atlas／create 以外）＋有 hover、主要輸入卻是觸控的混合裝置；下面兩個判斷給互動用。
   // iPad 不論接不接 Magic Keyboard 都回報 hover:none／pointer:coarse（WebKit 至今如此）→ 一律當觸控；
   // 觸控筆電主輸入仍是滑鼠＝桌面。勿拿 isMobileLayout() 兼判「是不是觸控」。
   const _mqHover = window.matchMedia('(hover: hover)');

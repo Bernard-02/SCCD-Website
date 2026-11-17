@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="../css/output.css">
+  <script src="../js/utils/layout-mode.js"></script>
 </head>
 <body>
 
@@ -86,7 +87,7 @@
         padding: 0.5rem;
       }
       /* 手機／iPad／矮橫向：同全站手機 icon 鈕 icon 28＋8＝44（footer／header 鈕；user 2026-11-05「手機 btn 以 44 為主」） */
-      @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+      @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
         .error-404-card.is-btn { font-size: 28px; }
       }
 

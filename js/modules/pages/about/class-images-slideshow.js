@@ -86,7 +86,7 @@ function buildImg(src, fixedWidth, onSized, capW) {
     // about 橫向手機／iPad 直拿（≥768 寬也算，11-06／11-10）：圖格＝內容頂到底部 tab 列之間的高，同手機 cap；DSD 照舊只 <768
     // DSD 子展覽 11-11 起所有手機排版同一套 → 一律吃容器高
     const phone = SCCDHelpers.isMobileLayout();
-    const capByBox = phone || window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
+    const capByBox = phone || window.matchMedia(SCCDHelpers.DESKTOP_MQ).matches;
     if (panel && capByBox) {
       const box = wrapper.parentElement;
       // --class-img-fill（CSS，預設 1）：只用容器高的幾成＝圖上下留白（DSD 直向 0.9：直圖別貼上方 92 線／說明 box，user 2026-10-29→30）

@@ -35,7 +35,7 @@
   }
   /* 手機排版＝非真桌面：標題欄不佔版位（display:contents＝欄框消失、隱藏的 h1 照留），內文滿欄。
      真桌面左欄照留＝內文從 col-4 起（同 activities / admission） */
-  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     .legal-title-col { display: contents; }
     .legal-page-section .legal-content-col { grid-column: 1 / -1; }
   }
@@ -74,7 +74,7 @@
   }
 
   /* 真桌面：內容欄＝col 4–18（HTML min-[1024px]:），左緣貼 col-4，同 activities / admission。 */
-  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     .legal-page-section .legal-content-col {
       --inner-box-top: var(--header-logo-mid);   /* 內文框頂＝logo 中線 98（同 curriculum/activities/admission） */
     }

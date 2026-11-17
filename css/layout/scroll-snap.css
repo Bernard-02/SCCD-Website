@@ -33,7 +33,7 @@ html {
     scroll-snap-stop: always;
   }
   /* 真桌面 footer 是 fixed 覆蓋卡（footer.css），不在捲動流裡＝不當 snap 點；#site-footer 容器 0 高留著＝吸到頁底 */
-  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+  @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
     html:is(.snap-mandatory, .snap-proximity) footer#site-footer-static.snap-zone {
       scroll-snap-align: none;
       scroll-snap-stop: normal;
@@ -166,7 +166,7 @@ html {
    不做比例 padding：top 有 header chrome 地板（鈕列底 96），扁螢幕無處可縮。Vision 例外：文字頂對齊 nav btn，放不下改上下同距置中。
    不分高度都套，取代上面 ≥900 gate。同框另兩處：resources（accordion.css）、學制樹（about-structure.css）。
    ⚠️ class-buttons-sticky.js 的 scrub 起點與此 gate 同步（'top top'） */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #overview, #class, #class-info-anchor, #works { scroll-margin-top: 0; }
 
   /* Vision／學制樹：上下 spacer 均分剩餘高；上 spacer 封頂 nav line − 98 → 內容矮時頂對齊第一顆 nav btn，
@@ -243,7 +243,7 @@ html {
    影片高＝欄寬 × 9/16，扁螢幕會戳出畫面 → 欄寬上限＝框高 × 16/9（等比縮、左緣仍 col-5）。
    位置不套 98/98：上方 98 大半被 header 鈕列（底 96）佔掉＝視覺偏上（user 2026-10-20）→ 維持 HTML 的
    md:pt-[92px]＋置中（header 帶下緣～屏底），被框高限住時頂 144／底 52。鎖欄不鎖影片：clip-reveal 遮罩跟著同寬 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #video-section > div,
   #documentary-video-section > div {
     max-width: calc((100svh - 2 * var(--header-logo-mid)) * 16 / 9);
@@ -261,6 +261,6 @@ html {
    → 首頁只有一屏也能捲（捲了才收工具列）、DSD hero 底部文字被切（user 2026-11-11）。桌機 vh＝svh 不變。
    min-height 歸零：四個 nav 頁的 hero／內容區另帶 min-h-screen（手機用的下限，activities 是 inline → !important）＝100vh，
    不歸零的話 svh 的高被撐回大視口、上面那條等於沒生效（11-12）。內容區 frame 的高在 lists.css 再改成 dvh */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   main > section:is(.h-screen, [class*="md:h-screen"]) { height: 100svh; min-height: 0 !important; }
 }
