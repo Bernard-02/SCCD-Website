@@ -4,7 +4,7 @@
  * 原本 nav 切換一次只顯示一類），nav＝scroll-spy＋點擊捲到該牆
  */
 
-import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden } from '../ui/scroll-animate.js';
+import { setupClipReveal, navChipHidden, pickNavDir, NAV_CHIP_SHOWN, revealHidden, CARD_SEQ, cardSeqStarts } from '../ui/scroll-animate.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, bindLandscapeNavGate, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
@@ -16,7 +16,7 @@ import { scrollWindowNoSnap, initColSnap, whenScrollSettles } from '../ui/snap-s
 // 卡片進場動畫（2026-08-16 圖片由 clip-path 擦除改 clip-reveal 滑入，user 指定全卡統一 clip-reveal 語彙）：
 //   圖片 → wrapper 整塊（灰底+照片+overlay）在 .faculty-card-image-mask（overflow:clip，template 內建
 //          非 runtime wrap）內依 data-img-dir 4 方向 x/yPercent 滑入；旋轉在 mask 上 → 滑動跟著旋轉角、角不被裁
-//   文字（name / title）→ Clip-Reveal Entrance（hero-style 由下而上，見 CLAUDE.md「共用動畫模式」）
+//   文字（name / title）→ Clip-Reveal Entrance（見 CLAUDE.md「共用動畫模式」）；name、title 各自上下隨機、每次進場重抽（user 2026-11-16）
 //   name 先進，title 略晚進；卡與卡之間再 stagger
 //   藏定位＝revealHidden(imgDir)（scroll-animate.js，±110 過衝防 dpr hairline）
 
@@ -39,48 +39,21 @@ function setupFacultyCardAnim(card) {
   // exit 用它分辨「這張該不該收」——只收已經露出來的，沒輪到的不強拉出來再收（user 2026-06-06）。
   delete card.dataset.revealStarted;
   if (imgWrapper) gsap.set(imgWrapper, revealHidden(imgDir));
-  // 文字用共用 clip-reveal helper：wrap 一層 overflow:clip + yPercent:100
-  if (name) setupClipReveal([name]);
-  if (title) setupClipReveal([title]);
+  // 文字用共用 clip-reveal helper 包一層 overflow:clip；藏在上或下各自隨機，方向記在 data-text-y＝退場沿原方向回去
+  [name, title].forEach(el => {
+    if (!el) return;
+    setupClipReveal([el], { hide: false });
+    el.dataset.textY = Math.random() < 0.5 ? '-110' : '110';
+    gsap.set(el, { yPercent: +el.dataset.textY });
+  });
 }
 
-// 進場時序：
-//   每張卡片內：image 揭露中，title 提前在 image 跑到 NAME_OFFSET/IMG_DUR 進度時就開始（跟 image 後半段重疊）
-//   卡與卡之間：image 跑到一半時下一張 image 起跑
-//   重要約束：NAME_OFFSET 必須 ≥ CARD_ADVANCE，否則 title 會搶在「下一張 image 出現」之前 → 違反使用者要求
-//   row 與 row 之間：上一 row 最後一張卡片動畫完整結束 + ROW_GAP 才換 row
+// 進場時序＝CARD_SEQ／cardSeqStarts（scroll-animate.js；library documents 共用同一份，改節拍去那邊改）：
+//   圖 0.8 → 圖跑到 0.5 時 name 起跑 → 再 0.1 title；同排隨機先後、圖跑一半下一張起跑；整排播完才換排
 //   卡片完整揭露（title 動畫結束）後才解除 pointer-events-none，重啟 hover
-const IMG_DUR = 0.8;         // 圖片 clip 揭露（user 2026-06-09 拍板 0.8：1.0 太慢、0.6 又太快；非 palette token 故字面值）
-const TEXT_DUR = DUR.medium; // name/title clip-reveal = 0.5（user 拍板）
-const CARD_ADVANCE = IMG_DUR / 2;     // image 一半時下一張 image 起跑 → 0.4（user 要的卡間隔）
-const NAME_OFFSET = CARD_ADVANCE + 0.1; // 下一張 image 起跑後 0.1s 才 name 開始（保證 title 不搶在下一張 image 之前）→ 0.5
-const TITLE_OFFSET = NAME_OFFSET + 0.1; // name 之後 0.1s 接 title（subtitle 內部小 stagger）→ 0.6
-const CARD_FULL_DURATION = TITLE_OFFSET + TEXT_DUR; // 0.6 + 0.5 = 1.1
-const ROW_GAP = 0.1;                  // row 與 row 之間的空檔
+const { IMG_DUR, TEXT_DUR, TEXT_OFFSET: NAME_OFFSET } = CARD_SEQ;
+const TITLE_OFFSET = NAME_OFFSET + CARD_SEQ.TEXT_STEP;
 const HOVER_UNLOCK_BUFFER = 0.05;     // 動畫結束到解鎖 hover 之間的緩衝
-
-// offsetTop 分 row（容忍 5px 誤差）
-function groupCardsByRow(cards) {
-  const sorted = [...cards].sort((a, b) => {
-    const dt = a.offsetTop - b.offsetTop;
-    return Math.abs(dt) > 5 ? dt : a.offsetLeft - b.offsetLeft;
-  });
-  const rows = [];
-  let currentRow = [];
-  let currentTop = -Infinity;
-  sorted.forEach(card => {
-    if (currentRow.length === 0 || Math.abs(card.offsetTop - currentTop) < 5) {
-      currentRow.push(card);
-      currentTop = card.offsetTop;
-    } else {
-      rows.push(currentRow);
-      currentRow = [card];
-      currentTop = card.offsetTop;
-    }
-  });
-  if (currentRow.length > 0) rows.push(currentRow);
-  return rows;
-}
 
 function playFacultyCard(card, startTime) {
   const imgWrapper = card.querySelector('.faculty-card-image-wrapper');
@@ -141,17 +114,8 @@ function unlockHoverWhenImageReady(card) {
 }
 
 function playFacultyCardsSerial(cards) {
-  // Row-aware serial：同 row 內用 CARD_ADVANCE 大幅重疊，row 結束等最後一張完整完成才換 row
-  const rows = groupCardsByRow(cards);
-  let cursor = 0;
-  rows.forEach(row => {
-    row.forEach((card, i) => {
-      playFacultyCard(card, cursor + i * CARD_ADVANCE);
-    });
-    // 下一 row start = 此 row 最後一張卡片 startTime + 完整動畫長度 + ROW_GAP
-    const lastCardStart = cursor + (row.length - 1) * CARD_ADVANCE;
-    cursor = lastCardStart + CARD_FULL_DURATION + ROW_GAP;
-  });
+  // 同一排內的先後隨機、每次重抽（user 2026-11-16：不一定由左到右）；排與排由上往下、整排播完才換排
+  cardSeqStarts(cards).forEach((t, card) => playFacultyCard(card, t));
 }
 
 // 進場 trigger＝ScrollTrigger.batch（每張卡各自 trigger）：同一批（同時進視窗的幾列）照列序接力；
@@ -263,11 +227,11 @@ function exitFacultyCards(cards, onComplete) {
 
     if (title) {
       gsap.killTweensOf(title);
-      gsap.to(title, { yPercent: 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay });
+      gsap.to(title, { yPercent: +title.dataset.textY || 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay });
     }
     if (name) {
       gsap.killTweensOf(name);
-      gsap.to(name, { yPercent: 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay + EXIT_INTERNAL_STEP });
+      gsap.to(name, { yPercent: +name.dataset.textY || 110, duration: EXIT_DUR, ease: EASE.exit, delay: cardDelay + EXIT_INTERNAL_STEP });
     }
     if (imgWrapper) {
       gsap.killTweensOf(imgWrapper);

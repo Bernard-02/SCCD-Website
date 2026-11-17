@@ -11,8 +11,10 @@
 import { getFacultyData, resetFacultyCache } from './faculty-source.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
-import { EASE } from '../ui/motion.js';
-import { randomRevealDir } from '../ui/scroll-animate.js';
+import { DUR, EASE } from '../ui/motion.js';
+import { randomRevealDir, revealHidden } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
+import { countryName } from '../../data/country-names.js';
 
 // 卡片職稱 marquee：hover 整張卡才跑（cards.css 的 hover 目標是 .faculty-card，不是個別 title-group）。
 // 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
@@ -148,6 +150,39 @@ export function syncPlaceholderCard(cardEl, hovering = false) {
   applyNaturalAspect(c.img);
 }
 
+// 詳情開著時，牆上那張卡的照片換成線框 logo、關卡換回（user 2026-11-16）。有真照片＋後台有線框版的卡才換
+//（代用 logo 卡本來就由上面 syncPlaceholderCard 換線框）。照片往隨機一向滑出、線框從對面同拍滑入（都在
+// .faculty-card-image-wrapper 的 overflow 內＝clip-reveal）；換回沿原路倒回＝換到一半又開也接得上。
+// 只在 ≥768：黑線框要襯卡片 .is-active 的 accent 底（cards.css 只有 ≥768 有），<768 的 slide-in 整屏蓋住卡片
+const _wfUrls = new WeakMap();   // card → 線框圖網址（renderFacultyList 登記）
+export function swapCardWireframe(cardEl, on) {
+  const url = _wfUrls.get(cardEl);
+  const img = /** @type {HTMLElement|null} */ (cardEl.querySelector('.faculty-card-image'));
+  if (!url || !img || !PH_HOVER_MQ.matches || typeof gsap === 'undefined') return;
+  let wf = /** @type {HTMLImageElement|null} */ (cardEl.querySelector('.faculty-card-wf'));
+  if (!wf) {
+    if (!on) return;
+    wf = document.createElement('img');
+    wf.className = 'faculty-card-wf';   // mode3 的黑白翻色掛這個 class（color.css）
+    wf.alt = '';
+    wf.setAttribute('aria-hidden', 'true');
+    wf.src = url;
+    Object.assign(wf.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' });
+    img.after(wf);
+    img.style.transition = 'none';   // cards.css 給圖的 transform transition 會追著 GSAP 每幀寫入跑（卡頓）；真照片用不到它
+  }
+  if ((wf.dataset.on === '1') === on) return;
+  wf.dataset.on = on ? '1' : '';
+  const midway = gsap.isTweening(wf);
+  if (on && !midway) wf.dataset.dir = randomRevealDir();   // 每次開重抽方向
+  const out = revealHidden(wf.dataset.dir);
+  const opposite = { xPercent: -out.xPercent, yPercent: -out.yPercent };
+  if (on && !midway) gsap.set(wf, opposite);
+  const t = { duration: prefersReducedMotion() ? 0 : DUR.medium, ease: EASE.enter, overwrite: true };
+  gsap.to(img, on ? { ...out, ...t } : { xPercent: 0, yPercent: 0, ...t, clearProps: 'transform' });
+  gsap.to(wf, on ? { xPercent: 0, yPercent: 0, ...t } : { ...opposite, ...t });
+}
+
 // 只處理「圖片變體」：animate=true（theme:changed）變體真的換才 cross-fade；animate=false（首次）直接套。
 // 卡片底色不在這裡動（wrapper 已設 transparent，頁面背景透過來＝平滑同步、無階梯閃爍）。
 function applyPlaceholderMode(animate = false) {
@@ -227,7 +262,14 @@ function applyNaturalAspect(img) {
  */
 function pickCardTitles(item) {
   const pairs = (item.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
-  return item.type === 'parttime' ? pairs.slice(0, 2) : pairs;
+  if (item.type !== 'parttime') return pairs;
+  // 兼任副標是單位＝後面加（國家），是職業＝不加（user 2026-11-16）。後台沒有「單位／職業」欄，分法同 atlas：
+  // occupations 同名那筆有填國家＝單位。格式同詳情學歷列（EN 半形帶空格＋ISO2、ZH 全形＋中文國名）
+  return pairs.slice(0, 2).map(p => {
+    const code = (item.occupations || []).find(o => o.country && (o.occupationEn || '') === p.en && (o.occupationZh || '') === p.zh)?.country;
+    if (!code) return p;
+    return { en: p.en && `${p.en} (${String(code).toUpperCase()})`, zh: p.zh && `${p.zh}（${countryName(code, 'zh')}）` };
+  });
 }
 
 // 多職稱 → 每 pair 一組（組間留 xs 間距）；en/zh 各一行，包 marquee inner 供溢出時 hover 跑動。
@@ -329,6 +371,14 @@ function renderFacultyList(containerId, items, eagerCount = 0, highPriority = fa
       }
     } else {
       applyNaturalAspect(img); // 真實照片依自然比例調框
+      // 詳情開著時換線框（swapCardWireframe）：兼任不開詳情＝不登記。滑到／focus 卡片先把線框圖暖進快取，點開時不會空著滑進來
+      const wfUrl = item.type !== 'parttime' && item.hasRealPhoto && item.placeholders?.wireframeBlack;
+      if (wfUrl) {
+        _wfUrls.set(cardEl, wfUrl);
+        const warm = () => { new Image().src = wfUrl; };
+        cardEl.addEventListener('pointerenter', warm, { once: true });
+        cardEl.addEventListener('focusin', warm, { once: true });
+      }
     }
   });
 
