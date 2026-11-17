@@ -223,18 +223,14 @@ function updateRotateIcon() {
     });
   }
 
-  // 更新手機版 icon
+  // 更新手機版 icon（換圖同桌面 clip-reveal；光學右移／❚❚ 遮罩的 class 一樣藏好時才切）
   if (mobileRotateIcon) {
-    mobileRotateIcon.attribute('src', mobileIconSrc);
-    // 添加或移除 play-icon class（手機版）
-    let mobileRotateButton = _p5.select('.mobile-rotate-btn');
-    if (mobileRotateButton) {
-      if (mobileIsPlayIcon) {
-        mobileRotateButton.addClass('play-icon');
-      } else {
-        mobileRotateButton.removeClass('play-icon');
-      }
-    }
+    const mobileRotateButton = _p5.select('.mobile-rotate-btn');
+    swapIconSrc(mobileRotateIcon.elt, mobileIconSrc, () => {
+      if (!mobileRotateButton) return;
+      mobileRotateButton.elt.classList.toggle('play-icon', mobileIsPlayIcon);
+      mobileRotateButton.elt.classList.toggle('pause-icon', desktopIsPauseIcon);
+    });
   }
 }
 
@@ -312,13 +308,14 @@ function updateColorWheelIcon() {
   // 更新手機版 Color Wheel Play icon
   const mobileColorWheelPlayIcon = _p5.select('#mobile-colorwheel-play-icon');
   if (mobileColorWheelPlayIcon) {
-    mobileColorWheelPlayIcon.attribute('src', iconSrc);
     // ▶／❚❚ 圖形在 viewBox 裡位置不同（create.css .mobile-colorwheel-play-btn：▶ 靠左、❚❚ 置中）→ 對齊同一格
-    mobileColorWheelPlayIcon.elt.parentElement.classList.toggle('is-play', !isColorWheelRotating);
+    const isPlay = !isColorWheelRotating;
+    const btn = mobileColorWheelPlayIcon.elt.closest('button');
+    swapIconSrc(mobileColorWheelPlayIcon.elt, iconSrc, () => btn?.classList.toggle('is-play', isPlay));
   }
 }
 
-// 桌面 icon 換圖（mode 鈕、色環 play/pause、▶❚❚）＝clip-reveal 滑出遮罩 → 換 src → 同向滑入
+// icon 換圖（mode 鈕、色環 play/pause、▶❚❚；手機底列同一套）＝clip-reveal 滑出遮罩 → 換 src → 同向滑入
 // （全站 clipRevealIconSwap，create-app.js 橋接；遮罩寫在 create.html；user 2026-10-21）。
 // 每幀都可能被叫：dataset.target 記目標，同目標不重跑；進頁第一次直接設（不播）。
 // onSwap＝藏好時一起做的事（play 光學右移 class：先切會看到舊 icon 跳一下才滑出）；連點＝前一輪被殺、只跑最新那次

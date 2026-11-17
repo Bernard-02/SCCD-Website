@@ -82,10 +82,12 @@ window.sccdPlayLandscapeHintEnter = () => {
 // ── 桌面 control bar 進退場共用 ──
 const desktopControlBoxes = () => Array.from(document.querySelectorAll('.control-panel > .control-box'))
   .filter(el => /** @type {HTMLElement} */ (el).offsetParent !== null);   // 非 mode3 的 colorpicker-box display:none
-// 手機：底部三顆（mode／custom＋旋轉／下載）＋mode3 色條膠囊（收起的色條＝列高 0，不算）
+// 手機：底部三顆（mode／custom＋旋轉／下載）＋mode3 色條膠囊＋開著的 custom 面板（桌面它在 rotation-box 裡一起退；
+// 收起的色條／面板＝列高 0，不算）
 const mobileControlBoxes = () => [
   ...document.querySelectorAll('.mobile-bottom-bar > *'),
   ...document.querySelectorAll('.mobile-colorpicker-bar:not(.hidden) > .colorpicker-bar-inner'),
+  ...document.querySelectorAll('.mobile-custom-angle-controls:not(.hidden) > .controls-inner'),
 ].filter(el => /** @type {HTMLElement} */ (el).offsetHeight > 0);
 
 // 每盒包一層自身形狀的遮罩（尺寸＋圓角；圓 mode 鈕圓遮罩、mode3 膠囊兩半拼回膠囊）：盒在自己的形狀裡滑出、
@@ -342,28 +344,25 @@ function playCreateExitAnimation(destinationRoute) {
   //     好處：mask 邊界 = 元素 bbox，yPercent ±110 一定剪乾淨；不會像 parent overflow:clip
   //     那樣讓元素在 parent 多餘空間裡「飄出去後才被剪」
   //   controlBarItems = control bar 拆成獨立元素，小幅 stagger 0.05s 視覺上接近同時收起
-  //     mask 用 parent overflow-y:clip（control box 本身大小跟 parent 接近、items 多用 wrap 較囉嗦）
-  let layoutItems, controlBarItems, controlBarParent;
+  //     mask＝每盒自己的形狀（wrapInShapeMasks，同進場）
+  let layoutItems, controlBarItems;
   // 進場還在跑（盒還包在進場遮罩裡、logo 還在滑）＝先收尾拆遮罩再量
   cancelControlBarEntrance?.();
   cancelLogoEntrance?.();
+  // 手機跟桌面同一套（user 2026-11-16）：包的是畫布盒本身、不是 .mobile-logo-container——包外層容器＝容器尺寸變、
+  // mobile.js 的 ResizeObserver 把 canvas 等比縮（退場時看到 logo 縮小）
   if (isMobile) {
     layoutItems = [
-      document.querySelector('.mobile-logo-container'),  // 繪製的 logo
+      document.getElementById('canvas-container'),       // 繪製的 logo
       document.querySelector('.mobile-input-area'),      // 輸入框
     ];
-    // mobile-bottom-bar 三個按鈕（mode / rotation-group / save）
-    controlBarParent = document.querySelector('.mobile-bottom-bar');
-    controlBarItems = controlBarParent
-      ? Array.from(controlBarParent.children)
-      : [];
+    controlBarItems = mobileControlBoxes();
   } else {
     layoutItems = [
       document.querySelector('.input-container'),          // 輸入框
       document.querySelector('#desktop-canvas-container'), // 繪製的 logo
     ];
     // control-panel 內 .control-box，filter 掉非 wireframe mode 隱藏的 #colorpicker-box
-    controlBarParent = document.querySelector('.control-panel');
     controlBarItems = desktopControlBoxes();
   }
   layoutItems = layoutItems.filter(Boolean);
@@ -383,7 +382,7 @@ function playCreateExitAnimation(destinationRoute) {
     //    解法：wrap 後對 wrapper 直接 set width/height 為 item 原 bbox，鎖住尺寸不變
     const preWrapSizes = layoutItems.map(item => {
       const r = item.getBoundingClientRect();
-      return { w: r.width, h: r.height };
+      return { w: r.width, h: r.height, m: getComputedStyle(item).margin };
     });
     setupClipReveal(layoutItems, { hide: false });
     layoutItems.forEach((item, i) => {
@@ -396,15 +395,14 @@ function playCreateExitAnimation(destinationRoute) {
         wrapper.style.height = `${preSize.h}px`;
         wrapper.style.flexShrink = '0';
       }
-      // 手機跳過 measureLayoutItemBbox 精準裁剪：
-      //   1. mirror div 用 pre-wrap + word-wrap:break-word 量出來會 wrap 成多行，但實際 textarea
-      //      在手機渲染 placeholder「TYPE AND ENTER」是單行（textarea 行為跟 mirror 不一致），
-      //      bbox.width 算錯導致 clip-path 把 placeholder 右半截斷（user 2026-05-31 反饋）
-      //   2. 手機 .mobile-input-area / .mobile-logo-container 都緊貼內容沒大空白要剪，
-      //      用整個 wrapper 範圍當 clip 區即可（= 等同 overflow-y:clip 行為）
-      // 桌面仍需精準 bbox：input-container 540×540 + textarea 內容只占一部分，必須剪到內容邊界
-      // 才不會在 textarea 大塊空白區也跑 yPercent 動畫看起來怪
-      if (isMobile) return;
+      // margin 搬到 wrapper：手機開 custom 時輸入區 margin-top −16（抵 flex gap），留在 wrapper 裡＝版面多出 16、
+      // logo 容器被擠矮 → canvas 跟著縮（user 2026-11-16「canvas 有縮小的動畫」）
+      if (preSize) { wrapper.style.margin = preSize.m; /** @type {HTMLElement} */ (item).style.margin = '0'; }
+      // 手機輸入框跳過 measureLayoutItemBbox 精準裁剪：mirror div 用 pre-wrap + word-wrap:break-word 量出來會 wrap 成多行，
+      // 但實際 textarea 在手機渲染 placeholder「TYPE AND ENTER」是單行（textarea 行為跟 mirror 不一致），
+      // bbox.width 算錯導致 clip-path 把 placeholder 右半截斷（user 2026-05-31 反饋）；.mobile-input-area 緊貼內容、整個 wrapper 當 clip 區即可。
+      // 畫布照桌面裁到繪圖範圍
+      if (isMobile && item.querySelector('textarea')) return;
       const bbox = measureLayoutItemBbox(/** @type {HTMLElement} */ (item));
       if (!bbox) return;
       const ww = wrapper.offsetWidth, wh = wrapper.offsetHeight;
@@ -416,17 +414,8 @@ function playCreateExitAnimation(destinationRoute) {
     });
   }
 
-  // 桌面 controlBar mask＝每個盒自己的形狀（wrapInShapeMasks）。SPA 隨即 innerHTML 替換 → 不需 restore
-  if (!isMobile && controlBarItems.length > 0) {
-    wrapInShapeMasks(controlBarItems);
-  }
-  // 手機：parent overflow-y:clip 攔截 yPercent 移出 box 的部分
-  // overflow-x:visible 保留 rotation-group 等 x 軸 expand 元素
-  // SPA 隨即 innerHTML 替換 → inline 樣式自動清掉，不需手動 restore
-  else if (controlBarParent && controlBarItems.length > 0) {
-    /** @type {HTMLElement} */ (controlBarParent).style.overflowY = 'clip';
-    /** @type {HTMLElement} */ (controlBarParent).style.overflowX = 'visible';
-  }
+  // controlBar mask＝每個盒自己的形狀（wrapInShapeMasks，手機同進場）。SPA 隨即 innerHTML 替換 → 不需 restore
+  if (controlBarItems.length > 0) wrapInShapeMasks(controlBarItems);
 
   // 防退場 anim 期間 user 還能點 control panel 觸發 sketch.js handler
   const createApp = document.getElementById('create-app');
@@ -456,7 +445,7 @@ function playCreateExitAnimation(destinationRoute) {
     }
 
     // 1a. controlBarItems（control bar 拆元素）y-reveal pattern（與 hero title 同形）：
-    //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，parent overflow-y:clip 當 mask
+    //    yPercent 0 → ±110 overshoot，相鄰 item 上下交替方向，各盒自己的形狀遮罩
     //    先退場：stagger 0.05s（接近同時）、dur 0.55s → 最後一個約 0.65s 結束
     if (controlBarItems.length > 0) {
       // mode3 mode 鈕＋色環＝同一 unit（controlBarMotion）；同 unit 同 delay → 同時起步

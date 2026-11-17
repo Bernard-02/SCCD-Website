@@ -20,6 +20,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Noto+Sans+TC:wght@400..600&family=Noto+Sans+JP:wght@400..600&family=Noto+Sans+SC:wght@400..600&display=swap">
   <link rel="stylesheet" href="../css/output.css">
+  <script src="../js/utils/layout-mode.js"></script>
   <link rel="stylesheet" href="../css/components/create.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
 </head>
@@ -215,7 +216,9 @@
                 <div class="colorpicker-bar-inner">
                     <div id="mobile-colorpicker-container"></div>
                     <button id="mobile-colorwheel-play-button" class="mobile-colorwheel-play-btn is-play">
-                        <img id="mobile-colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                        <span data-icon-clip-wrap="1" style="display:flex; overflow:clip; line-height:0;">
+                            <img id="mobile-colorwheel-play-icon" src="../website-icons/play_create.svg" alt="Play">
+                        </span>
                     </button>
                 </div>
             </div>
@@ -224,7 +227,10 @@
         <!-- 手機版：底部 4 按鈕列 -->
         <section class="mobile-bottom-bar">
             <button class="mobile-bottom-btn mobile-mode-btn">
-                <img id="mobile-mode-icon" src="../website-icons/mode_1.svg" alt="Mode">
+                <!-- 換圖 clip-reveal 遮罩（同桌面 #colormode-button）：icon 自己的圓；尺寸盒在這層（create.css） -->
+                <span data-icon-clip-wrap="1" style="clip-path:circle(46%);">
+                    <img id="mobile-mode-icon" src="../website-icons/mode_1.svg" alt="Mode">
+                </span>
             </button>
             <!-- Custom + Rotate 按鈕組（共用外框，順序對齊桌面 rotation-box：custom 在左、rotate 在右） -->
             <div class="mobile-rotation-group">
@@ -232,7 +238,10 @@
                     <img id="mobile-custom-icon" src="../website-icons/custom.svg" alt="Custom">
                 </button>
                 <button class="mobile-bottom-btn mobile-rotate-btn">
-                    <img id="mobile-rotate-icon" src="../website-icons/play_pause_create.svg" alt="Rotate">
+                    <!-- 換圖遮罩＝icon 自己的大小（同桌面 .custom-button-rotate；光學右移掛這層） -->
+                    <span data-icon-clip-wrap="1" style="display:flex; overflow:clip; line-height:0;">
+                        <img id="mobile-rotate-icon" src="../website-icons/play_pause_create.svg" alt="Rotate">
+                    </span>
                 </button>
             </div>
             <button id="save-button-mobile" class="mobile-bottom-btn mobile-save-btn">

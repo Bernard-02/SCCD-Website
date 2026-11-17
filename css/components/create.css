@@ -171,7 +171,7 @@
    display-area 置中於「SCCD 中線 → UI bar 頂」＝SCCD 中線到輸入區、輸入區到 bar 同距。bar 提高 N＝上下兩段 gap 各少 N/2。
    SCCD 中線＝--header-logo-mid（header.js GEN_LOGO_LAYOUT.SVG_TOP 置中字樣）；#create-app 頂＝中線，display-area margin-block:auto 吃剩餘高；
    gap 0 否則範圍底差 1rem。deskScale（generate-app utils.js updateDesktopScale 讀同一個 var）可用高從「字底」算＝範圍多出 35、上下各至少留 17.5，輸入字不會壓到 SCCD。 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   #create-app {
     --create-bar-bottom: 64px;
     margin-top: calc(var(--header-logo-mid) - var(--header-height, 96px));
@@ -1256,13 +1256,15 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     user-select: none;
   }
 
-  /* icon 欄寬＝icon 本身（不含 44 觸控框，user 2026-11-05「以 icon 本身寬度為主」）；兩顆分別對齊第一／三條 slider 那列 */
+  /* icon 欄寬＝icon 本身（不含 44 觸控框，user 2026-11-05「以 icon 本身寬度為主」）。
+     兩顆一組、在盒裡垂直置中（user 2026-11-16，原本 space-between 頂到上下）；兩個圖案之間看得到的距離＝色條→▶（--cp-pad＝sm）：
+     gap 扣掉 svg 自帶的留白——shuffle 圖案底在 viewBox 133.3/160（img 高 0.4 鈕）、reset 圖案頂在 16.5/160（img 0.44 鈕） */
   .mobile-custom-angle-controls .icon-buttons-wrapper {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    gap: 0;
+    gap: calc(var(--spacing-sm) - var(--mobile-btn-size) * (0.4 * 26.7 + 0.44 * 16.5) / 160);
     flex: none;
     width: auto;
   }
@@ -1271,7 +1273,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
   .mobile-custom-angle-controls .icon-buttons-wrapper .image-button {
     position: relative;
     width: auto;
-    height: var(--ca-row-h);
+    height: auto;
     align-items: center;
   }
   .mobile-custom-angle-controls .icon-buttons-wrapper .image-button::after {
@@ -1386,7 +1388,7 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     flex: none;
     object-fit: contain;
   }
-  .mobile-colorwheel-play-btn:not(.is-play) img {
+  .mobile-colorwheel-play-btn:not(.is-play) [data-icon-clip-wrap] {   /* 掛遮罩：掛 img 會在遮罩裡位移被切 */
     margin-left: calc(var(--cp-pad) / 2 - var(--cp-pad) / 1.6);
   }
 
@@ -1586,10 +1588,22 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     width: calc(40% * 1.07);
     height: calc(40% * 1.07);
   }
+  /* 換圖遮罩包著的 icon（create.html data-icon-clip-wrap）：% 會改成相對遮罩 → mode 尺寸盒掛遮罩、▶❚❚ 寫鈕寬換算
+     （遮罩貼 img 自己的大小，img 再寫 % 會互相依賴＝算成 0，同桌面 .custom-button-rotate img） */
+  .mobile-mode-btn [data-icon-clip-wrap] {
+    display: flex;
+    width: 40%;
+    height: 40%;
+    line-height: 0;
+  }
+  #mobile-mode-icon {
+    width: 100%;
+    height: 100%;
+  }
   #mobile-rotate-icon {
     width: auto;
-    height: calc(100% / 3);
-    max-width: 50%;
+    height: calc(var(--mobile-btn-size) / 3);
+    max-width: calc(var(--mobile-btn-size) / 2);
   }
 
   /* Save icon clip-reveal（升起／沉入＋自轉）由 sketch.js animateSaveButton GSAP 驅動 */
@@ -1624,13 +1638,19 @@ html:not(.mode-switching) body.mode-color #create-app.wireframe-mode #colormode-
     opacity: 0.5;
   }
 
-  /* 光學置中右移（同桌面換算）：▶❚❚ 3/120 盒高；▶ 單獨（JS .play-icon）＝glyph 寬 23.3%（glyph＝盒高 1/3） */
-  #mobile-rotate-icon {
+  /* 光學置中右移（同桌面換算）：▶❚❚ 3/120 盒高；▶ 單獨（JS .play-icon）＝glyph 寬 23.3%（glyph＝盒高 1/3）。
+     掛換圖遮罩上（掛 img 會被遮罩 overflow:clip 切掉右緣，同桌面） */
+  .mobile-rotate-btn [data-icon-clip-wrap] {
     position: relative;
     left: calc(var(--mobile-btn-size) * 3 / 120);
   }
-  .mobile-rotate-btn.play-icon #mobile-rotate-icon {
+  .mobile-rotate-btn.play-icon [data-icon-clip-wrap] {
     left: calc(var(--mobile-btn-size) / 3 * 0.233);
+  }
+  /* ❚❚ 遮罩裁到圖案自己的寬（同桌面 .pause-icon 那條） */
+  .mobile-rotate-btn.pause-icon [data-icon-clip-wrap],
+  .mobile-colorwheel-play-btn:not(.is-play) [data-icon-clip-wrap] {
+    clip-path: inset(0 24.375%);
   }
 
   /* 文字 icon 色＝--lib-fg（下方 scope remap 成頁面前景）；img 色由 invert filter 處理 */

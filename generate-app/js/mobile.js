@@ -102,7 +102,6 @@ let mobileElements = {
 
   // Rotate 面板內的元素
   bentoCustomIcon: null,
-  bentoPlayIcon: null,
 
   // Sliders (桌面版)
   rSlider: null,
@@ -185,7 +184,6 @@ function initMobileUI() {
   }
 
   mobileElements.bentoCustomIcon = _p5.select('#mobile-custom-icon');
-  mobileElements.bentoPlayIcon = _p5.select('#mobile-rotate-icon');
 
   mobileElements.rSlider = _p5.select('.mobile-r-slider');
   mobileElements.gSlider = _p5.select('.mobile-g-slider');
@@ -922,39 +920,12 @@ function updateMobileIcons() {
     mobileElements.bentoCustomIcon.attribute('src', panelIcon(`Custom${suffix}`));
   }
 
-  // Play/Pause 圖標（Bento 面板）
-  updateMobileBentoPlayIcon();
-
   // 更新邊框顏色
   const borderColor = isWireframe ? getWireframeBorderColor() : null;
   const elements = [
     ..._p5.selectAll('.mobile-bottom-btn'),
   ];
   updateElementsBorderColor(elements, borderColor);
-}
-
-// 更新 Bento Play 圖標
-function updateMobileBentoPlayIcon() {
-  if (!mobileElements.bentoPlayIcon) return;
-
-  const hasText = letters.length > 0;
-  const suffix = getIconSuffix();
-
-  let iconSrc = '';
-
-  if (!hasText) {
-    iconSrc = panelIcon(`Rotate${suffix}`);
-  } else if (isAutoRotateMode) {
-    if (autoRotate) {
-      iconSrc = panelIcon(`Pause${suffix}`);
-    } else {
-      iconSrc = panelIcon(`Play${suffix}`);
-    }
-  } else {
-    iconSrc = panelIcon(`Rotate${suffix}`);
-  }
-
-  mobileElements.bentoPlayIcon.attribute('src', iconSrc);
 }
 
 // 注意：getSuffixForMode 已移至 utils.js 的 getIconSuffix()
@@ -975,7 +946,7 @@ function syncDesktopSliders() {
 // 更新手機版 Mode 圖標（使用 utils.js 的共用函數）
 function updateMobileModeIcon() {
   if (!mobileElements.modeIcon) return;
-  mobileElements.modeIcon.attribute('src', getModeIconSrc());
+  swapIconSrc(mobileElements.modeIcon.elt, getModeIconSrc());   // 換圖 clip-reveal 同桌面（utils.js）
 }
 
 // ====================================
