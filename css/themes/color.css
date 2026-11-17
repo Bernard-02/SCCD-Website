@@ -66,35 +66,25 @@ body.mode-color .list-header.active {
   background-color: var(--theme-bg) !important;
 }
 
-/* Degree Show card hover：JS inline 設三原色 bg → strict B/W；[style*="background"] 只命中 hover 中（有 inline bg） */
-body.mode-color .degree-show-card-content[style*="background"] {
+/* Degree Show card hover：JS inline 設三原色 bg → strict B/W；.has-inline-bg（inline 有底色的鏡像標記，見 inverse.css）只命中 hover 中 */
+body.mode-color .degree-show-card-content.has-inline-bg {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color .degree-show-card-content[style*="background"] {
+body.mode-color .degree-show-card-content.has-inline-bg,
+body.mode-color .degree-show-card-content.has-inline-bg * {
   color: var(--theme-fg-inverse) !important;
-}
-/* 子孫字色：不寫 `[style…] *`（全站 inline style 寫入會變整棵子樹重算），兩支寫法與 --on-* 標記見 inverse.css「inline 有底色」段 */
-@supports not (container-type: scroll-state) {
-  body.mode-color .degree-show-card-content[style*="background"] * {
-    color: var(--theme-fg-inverse) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-dsd: 1) {
-    body.mode-color .degree-show-card-content.degree-show-card-content * { color: var(--theme-fg-inverse) !important; }
-  }
 }
 
 /* Degree Show detail Next Project hover：#prev/#next-clip 掃入色、#prev/#next-labels 內 <p> chip（JS inline 三原色）→ strict B/W
    ⚠️ chip 是 <p>（JS querySelectorAll('p')），別改回 h4/h2（抓不到＝accent 不翻黑白） */
-body.mode-color #prev-clip[style*="background"],
-body.mode-color #next-clip[style*="background"] {
+body.mode-color #prev-clip.has-inline-bg,
+body.mode-color #next-clip.has-inline-bg {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color #prev-labels p[style*="background"],
-body.mode-color #next-labels p[style*="background"] {
+body.mode-color #prev-labels p.has-inline-bg,
+body.mode-color #next-labels p.has-inline-bg {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -144,10 +134,10 @@ body.mode-color [data-hero-hl] {
   background: var(--theme-fg) !important;
 }
 
-/* Courses BFA label：active 用 :has(.active)、hover 用 [style*="background"]（JS inline 但 group 無 .active）捕捉；
+/* Courses BFA label：active 用 :has(.active)、hover 用 .has-inline-bg（JS inline 但 group 無 .active）捕捉；
    inactive 吃 courses.css base，不另寫 */
 body.mode-color .courses-program-group:has(.courses-program-btn.active) .courses-bfa-label,
-body.mode-color .courses-bfa-label[style*="background"] {
+body.mode-color .courses-bfa-label.has-inline-bg {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -349,49 +339,33 @@ body.mode-color .courses-grid-type-label {
 /* ===== Accordion ===== */
 /* Activities list hover/active：list-accordion.js 在 .list-item / .list-header / .list-content inline 設 accent → strict B/W。
    桌面手機都要：手機點開 accordion 也會設 inline bg */
-body.mode-color .list-item[style*="background"],
-body.mode-color .list-header[style*="background"],
-body.mode-color .list-header[style*="background"] + .list-content {
+body.mode-color .list-item.has-inline-bg,
+body.mode-color .list-header.has-inline-bg,
+body.mode-color .list-header.has-inline-bg + .list-content {
   background: var(--theme-fg) !important;
 }
-body.mode-color .list-item[style*="background"],
-body.mode-color .list-header[style*="background"],
-body.mode-color .list-header[style*="background"] + .list-content {
+body.mode-color .list-item.has-inline-bg,
+body.mode-color .list-item.has-inline-bg *,
+body.mode-color .list-header.has-inline-bg,
+body.mode-color .list-header.has-inline-bg *,
+body.mode-color .list-header.has-inline-bg + .list-content,
+body.mode-color .list-header.has-inline-bg + .list-content * {
   color: var(--theme-fg-inverse) !important;
 }
-/* 子孫字色（兩支寫法見 inverse.css「inline 有底色」段） */
-@supports not (container-type: scroll-state) {
-  body.mode-color .list-item[style*="background"] *,
-  body.mode-color .list-header[style*="background"] *,
-  body.mode-color .list-header[style*="background"] + .list-content * {
-    color: var(--theme-fg-inverse) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-li: 1) {
-    body.mode-color .list-item.list-item * { color: var(--theme-fg-inverse) !important; }
-  }
-  @container style(--on-lh: 1) {
-    body.mode-color .list-header.list-header * { color: var(--theme-fg-inverse) !important; }
-  }
-  @container style(--on-lh-next: 1) {
-    body.mode-color .list-content.list-content.list-content * { color: var(--theme-fg-inverse) !important; }
-  }
-}
 /* active 底為 fg → 分隔線改 fg-inverse（蓋過上方 .list-content .border-black 黑） */
-body.mode-color .list-header[style*="background"] + .list-content .border-black {
+body.mode-color .list-header.has-inline-bg + .list-content .border-black {
   border-color: var(--theme-fg-inverse) !important;
 }
 
 /* ===== Courses Grid Cards（mode3）=====
    rest：var(--list-zebra-strip) 白淡疊（theme-toggle.js 依 hue 設 alpha，同 activities list）；
    不用 transparent（卡片消失）、不用 rgba(fg)（會吃 hue）。hover/active（JS inline accent）→ strict B/W */
-body.mode-color .courses-grid-card:not([style*="background"]) {
+body.mode-color .courses-grid-card:not(.has-inline-bg) {
   background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .courses-grid-card[style*="background"] {
+body.mode-color .courses-grid-card.has-inline-bg {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -403,12 +377,12 @@ body.mode-color .legal-map-card.is-swap { --map-num-bg: var(--theme-fg); --map-b
 body.mode-color .legal-map-card.is-swap .legal-map-num { color: var(--theme-fg-inverse); }
 
 /* Alumni sponsor 卡：rest neutral-gray 底 + fg 字；hover/active（JS inline accent）→ strict B/W */
-body.mode-color .alumni-sponsor-card:not([style*="background"]) {
+body.mode-color .alumni-sponsor-card:not(.has-inline-bg) {
   background: var(--theme-neutral-gray) !important;
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .alumni-sponsor-card[style*="background"] {
+body.mode-color .alumni-sponsor-card.has-inline-bg {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -422,7 +396,7 @@ body.mode-color .list-ref-btn {
 }
 
 /* active list-content 內的 ref：用 inverse neutral-gray 跟本地 list-content bg (=theme-fg) 對比 */
-body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn {
+body.mode-color .list-header.has-inline-bg + .list-content .list-ref-btn {
   background: var(--theme-neutral-gray-inverse) !important;
   color: var(--theme-fg-inverse) !important;
 }
@@ -439,20 +413,13 @@ body.mode-color .list-ref-btn:hover * {
 }
 
 /* Override：active list-content 內的 ref hover 跟容器反向對比 */
-body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:hover {
+body.mode-color .list-header.has-inline-bg + .list-content .list-ref-btn:hover {
   background: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;
 }
 
-@supports not (container-type: scroll-state) {
-  body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
-    color: var(--theme-fg) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-lh-next: 1) {
-    body.mode-color .list-content.list-content.list-content .list-ref-btn:hover * { color: var(--theme-fg) !important; }
-  }
+body.mode-color .list-header.has-inline-bg + .list-content .list-ref-btn:hover * {
+  color: var(--theme-fg) !important;
 }
 
 /* legal 規章表列＝ref 同族，鏡像上方「active list-content 內 ref」：rest neutral-gray-inverse + fg-inverse 字、hover 反向（fg-inverse 底 + fg 字）。
@@ -592,7 +559,7 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
       scrollbar-color: var(--theme-fg-inverse) transparent;
     }
   }
-  /* curriculum 同款：底＝課程卡 hover 色（上方 .courses-grid-card[style*="background"]＝theme-fg） */
+  /* curriculum 同款：底＝課程卡 hover 色（上方 .courses-grid-card.has-inline-bg＝theme-fg） */
   body.mode-color #courses-detail-panel {
     background: var(--theme-fg) !important;
   }
@@ -608,13 +575,13 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
 
 /* activities/admission 展開列、about timeline、resources 捲軸：mode3 容器底為 theme-fg，lists.css 黑 thumb 在黑底上會消失 → fg-inverse
    （mode1/2 容器底為 accent，不受影響） */
-body.mode-color .list-header[style*="background"] + .list-content .list-scroll::-webkit-scrollbar-thumb,
+body.mode-color .list-header.has-inline-bg + .list-content .list-scroll::-webkit-scrollbar-thumb,
 body.mode-color .timeline-card-inner .list-scroll::-webkit-scrollbar-thumb,
 body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll::-webkit-scrollbar-thumb {
   background: var(--theme-fg-inverse) !important;
 }
 @supports (-moz-appearance: none) {
-  body.mode-color .list-header[style*="background"] + .list-content .list-scroll,
+  body.mode-color .list-header.has-inline-bg + .list-content .list-scroll,
   body.mode-color .timeline-card-inner .list-scroll,
   body.mode-color .colored-accordion .accordion-text-wrap > [data-resources-text].list-scroll {
     scrollbar-color: var(--theme-fg-inverse) transparent;
@@ -649,9 +616,9 @@ body.mode-color {
 
 /* 反色島：library 灰卡對比 page hue（亮 hue → 深灰卡白字、暗 hue → 淺灰卡黑字）。
    ⚠️ 只在 card subtree remap：atlas 借用 :root --lib-bg/fg 當中性灰 chip，全域翻會連 atlas 一起翻。
-   ⚠️ 用 [style*="--lib-bg"]（setAsGray 的 inline 標記）抓當前灰卡，不能只綁 #library-card-main：switchTab 會把內容搬進被點的色塊成為新灰卡 */
-body.mode-color #library-card-main[style*="--lib-bg"],
-body.mode-color #library-card-stack > div[style*="--lib-bg"],
+   ⚠️ 用 .lib-card-gray（setAsGray 寫 inline --lib-bg 時 library-card.js setCardBg 掛）抓當前灰卡，不能只綁 #library-card-main：switchTab 會把內容搬進被點的色塊成為新灰卡 */
+body.mode-color #library-card-main.lib-card-gray,
+body.mode-color #library-card-stack > div.lib-card-gray,
 body.mode-color #library-card-content,
 body.mode-color #lib-tools-btn,
 body.mode-color #library-card-main > .library-sort-btn {   /* 手機工具鈕／sort 鈕在 content 層外（卡上）：同吃反色，否則淺卡配白 icon */
@@ -677,49 +644,36 @@ body.mode-color #library-card-content {
 
 /* ===== Library color rect stack：三原色 → strict B/W =====
    !important 蓋 library-card.js inline bg；含 demote 成 color rect 的 #library-card-main（stack 外的 sibling）。
-   :not([style*="--lib-bg"]) 排除 setAsGray 升為主卡者。桌面限定：手機不跑 initLibraryCard、無標記可排除，會被蓋成純黑白 */
+   :not(.lib-card-gray) 排除 setAsGray 升為主卡者。桌面限定：手機不跑 initLibraryCard、無標記可排除，會被蓋成純黑白 */
 /* Hover 由 JS applyCardHover 寫 inline fg-inverse 底 + fg 字（箭頭預覽同一套）；
-   以 [style*="--theme-fg-inverse"] 標記放行 hover 中的卡，免被下面 !important 吃掉 */
+   以 .lib-card-fg-inv 標記（setCardBg 隨 inline --theme-fg-inverse 掛）放行 hover 中的卡，免被下面 !important 吃掉 */
 @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
-  body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]),
-  body.mode-color #library-card-main:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]) {
+  body.mode-color #library-card-stack > div:not(.lib-card-gray):not(.lib-card-fg-inv),
+  body.mode-color #library-card-main:not(.lib-card-gray):not(.lib-card-fg-inv) {
     background: var(--theme-fg) !important;
   }
 }
 
 /* color-rect-title：底已強制 theme-fg → 字 fg-inverse（hover 中的卡放行給 JS inline）。
    須含 demote 後的 #library-card-main，否則 title 停在 inline #000 */
-body.mode-color #library-card-stack > div:not([style*="--theme-fg-inverse"]) .color-rect-title,
-body.mode-color #library-card-main:not([style*="--theme-fg-inverse"]) .color-rect-title {
+body.mode-color #library-card-stack > div:not(.lib-card-fg-inv) .color-rect-title,
+body.mode-color #library-card-main:not(.lib-card-fg-inv) .color-rect-title {
   color: var(--theme-fg-inverse) !important;
 }
 
 /* ===== Press / Files / Album hover（mode3）=====
-   bindListItemHover（library-panels.js）inline accent → [style*="background"] 偵測，改「卡反色」：bg=--lib-fg、字=--lib-bg
+   bindListItemHover（library-panels.js）inline accent → .has-inline-bg 偵測，改「卡反色」：bg=--lib-fg、字=--lib-bg
    （對比反色島卡、非 page；用 theme-fg 會深 on 深）。不含 Awards（只改字色）；.album-panel-item 也是 .files-item */
-body.mode-color #library-card-content .press-item[style*="background"],
-body.mode-color #library-card-content .files-item[style*="background"] {
+body.mode-color #library-card-content .press-item.has-inline-bg,
+body.mode-color #library-card-content .files-item.has-inline-bg {
   background: var(--lib-fg) !important;
 }
 
-body.mode-color #library-card-content .press-item[style*="background"],
-body.mode-color #library-card-content .files-item[style*="background"] {
+body.mode-color #library-card-content .press-item.has-inline-bg,
+body.mode-color #library-card-content .press-item.has-inline-bg *,
+body.mode-color #library-card-content .files-item.has-inline-bg,
+body.mode-color #library-card-content .files-item.has-inline-bg * {
   color: var(--lib-bg) !important;
-}
-/* 子孫字色（兩支寫法見 inverse.css「inline 有底色」段） */
-@supports not (container-type: scroll-state) {
-  body.mode-color #library-card-content .press-item[style*="background"] *,
-  body.mode-color #library-card-content .files-item[style*="background"] * {
-    color: var(--lib-bg) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-press: 1) {
-    body.mode-color #library-card-content .press-item.press-item * { color: var(--lib-bg) !important; }
-  }
-  @container style(--on-files: 1) {
-    body.mode-color #library-card-content .files-item.files-item * { color: var(--lib-bg) !important; }
-  }
 }
 
 /* Awards ticker logo 跟反色島卡底對比（非 page）：--lib-invert-contrast（= --theme-invert-filter 相反） */
@@ -894,8 +848,14 @@ body.mode-color .atlas-list-nav-btn {
 
 /* ===== Homepage marquee（含最底 WATCH banner）===== */
 /* strict 黑白（floating items 同套） */
-body.mode-color .homepage-marquee-link {
+body.mode-color .homepage-marquee-link:not(.hm-watch) {
   background: var(--theme-fg) !important;
+}
+/* WATCH：mode3 不用 rgb → 每 1s 黑白互換（lists.css .hm-watch，user 2026-11-17） */
+body.mode-color .homepage-marquee-link.hm-watch { animation: hm-watch-bw 2s step-end infinite; }
+@keyframes hm-watch-bw {
+  0%  { background: var(--theme-fg); color: var(--theme-fg-inverse); }
+  50% { background: var(--theme-fg-inverse); color: var(--theme-fg); }
 }
 
 body.mode-color .homepage-marquee-text,
@@ -943,7 +903,7 @@ body.mode-color .class-group-label:has(+ .class-division-btn.active) {
 
 /* about 手機 pill 列 BFA label：inactive 走上方通用規則；active（JS inline accent）需這條——
    桌面的 :has(+ .class-division-btn.active) 對不到手機 .mobile-division-btn */
-body.mode-color #mobile-division-nav .class-group-label[style*="background"] {
+body.mode-color #mobile-division-nav .class-group-label.has-inline-bg {
   background: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }

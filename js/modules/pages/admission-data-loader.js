@@ -357,19 +357,25 @@ export function collapseOpenAccordionsInPanel(panel) {
 
       if (content) {
         /** @type {HTMLElement} */ (content).style.overflow = 'hidden';
+        content.classList.remove('is-overflow-visible');   // inline overflow 的鏡像標記（legal.css；list-accordion setContentOverflow）
         tl.to(content, {
           height: 0,
           duration: DUR.medium,
           ease: EASE.exitSoft,
           // 剛點開、還在展開的列：那支展開 tween 跑完會把 overflow 設回 visible（list-accordion doExpand）→ 收到一半內文整段溢出來、
           // 收完還留在標題上（user 2026-11-16 legal 換頁「閃一下」；legal 進頁自動展開那一秒內換頁就會中）。收合期間每幀釘回 hidden
-          onUpdate: () => { if (/** @type {HTMLElement} */ (content).style.overflow !== 'hidden') /** @type {HTMLElement} */ (content).style.overflow = 'hidden'; },
+          onUpdate: () => {
+            if (/** @type {HTMLElement} */ (content).style.overflow !== 'hidden') {
+              /** @type {HTMLElement} */ (content).style.overflow = 'hidden';
+              content.classList.remove('is-overflow-visible');
+            }
+          },
           onComplete: () => {
             header.classList.remove('active');
-            /** @type {HTMLElement} */ (header).style.background = '';
-            /** @type {HTMLElement} */ (content).style.background = '';
+            SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (header), '');
+            SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (content), '');
             if (item) {
-              /** @type {HTMLElement} */ (item).style.background = '';
+              SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (item), '');
               /** @type {HTMLElement} */ (item).style.removeProperty('--item-color');
               /** @type {HTMLElement} */ (item).style.removeProperty('--item-color-deep');
             }

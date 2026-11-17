@@ -14,10 +14,12 @@ import { prefersReducedMotion } from './reduce-motion.js';
 const visible = new WeakMap();      // container → 最近一次判定（還沒判過＝undefined，先照常跑）
 const pausedHere = new WeakSet();
 let io = null;
+// ?perf=nologo（實機效能診斷，helpers.js）：logo 停在第 0 格不轉，回到畫面也不放它跑
+const noLogo = SCCDHelpers.perf.has('nologo');
 
 function setRunning(anim, on) {
   if (on) {
-    if (!pausedHere.delete(anim)) return;
+    if (noLogo || !pausedHere.delete(anim)) return;
     anim.autoplay = true;
     anim.play();
   } else {
@@ -42,6 +44,12 @@ export function runLottieWhenVisible(anim) {
   const sync = () => { if (visible.get(el) === false) setRunning(anim, false); };
   sync();
   anim.addEventListener('DOMLoaded', sync);
+  if (noLogo) {
+    // autoplay 先關＝載完不自己跑；停在呼叫端 DOMLoaded（補 play／接角度）之後才停得住。換 mode 重載也經過這裡
+    anim.autoplay = false;
+    anim.addEventListener('DOMLoaded', () => { if (anim.renderer) anim.goToAndStop(0, true); });
+    return;
+  }
   // 排在呼叫端自己的 DOMLoaded（設 viewBox／接角度／換上畫面）之後：拆的是它們處理完的那張 SVG
   if (gpuLogo && !prefersReducedMotion()) anim.addEventListener('DOMLoaded', () => spinOnCompositor(anim));
 }

@@ -123,7 +123,7 @@ export async function loadDegreeShowDetail() {
     const data = current?.data;
 
     if (data) {
-      document.title = `Degree Show ${year} - SCCD`;
+      document.title = `Degree Shows 畢業展 ${year}`;
 
       // Text Content（hero chips：年份 + 英文名 + 中文名）；描述文字 2026-07-13 移除
       const titleEl = document.getElementById('text-title');
@@ -766,7 +766,7 @@ function setupNextProject(prev, next) {
         const el = /** @type {HTMLElement | null} */ (document.getElementById(`${key}-${id}`));
         if (!el) return;
         el.style.transition = 'none';
-        el.style.background = colors[i];
+        SCCDHelpers.setInlineBg(el, colors[i]);
         el.style.clipPath = 'inset(0 0 0 0)';
         el.style.translate = '0px 0px';
       }));
@@ -881,7 +881,7 @@ function setupNextProject(prev, next) {
         const chips = /** @type {NodeListOf<HTMLElement>} */ (myLabels.querySelectorAll('p'));
         chips.forEach((chip) => {
           chip.style.transform = `rotate(${labelRot()}deg)`;   // ±1~2°（原 localRot ±6° 是「可見 hover 態」真兇：寬標題 en/zh 疊，user 2026-08-17）
-          chip.style.background = myCardColor;
+          SCCDHelpers.setInlineBg(chip, myCardColor);
         });
         // 旋轉角每次 hover 重擲 → 每次都要重算 en↔zh 反疊 margin（init 那次是 clip-hidden 態、且原 hover 用
         // localRot ±6° 沒重算＝一直疊）。⚠️真兇二：clip-path **揭露中（inset 右側未收）getBoundingClientRect
@@ -920,7 +920,7 @@ function setupNextProject(prev, next) {
       otherClip.dataset.hiddenClip = dir.hidden;
       otherClip.style.transition = 'none';
       otherClip.style.clipPath = dir.hidden;
-      otherClip.style.background = color;
+      SCCDHelpers.setInlineBg(otherClip, color);
       void otherClip.offsetHeight;
       otherClip.style.transition = 'clip-path var(--dur-medium) var(--ease-wipe)';
       otherClip.style.clipPath = dir.shown;

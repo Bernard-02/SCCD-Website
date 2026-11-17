@@ -694,8 +694,10 @@
        slide-in 也掛 body.lightbox-open → 把上一條降下去的 z 蓋回來 */
     html.has-slide-in:not(.overlay-no-dim) .footer-btn-mask { z-index: 10002; }
     /* footer 藏起的頁（router 寫 inline display:none；SPA 容器整個藏、首頁靜態 footer 看兄弟；換頁時鈕先由 footer-scatter.js
-       setFooterBtnRouteHidden 滑出遮罩）＝不出現（menu 開著、首頁 WATCH 播放層由 syncFooterBtn 滑出） */
-    #site-footer-static[style*="display: none"] + .footer-btn-mask {   /* 別只比 "none"：GSAP 會在 footer 寫 inline translate: none */
+       setFooterBtnRouteHidden 滑出遮罩）＝不出現（menu 開著、首頁 WATCH 播放層由 syncFooterBtn 滑出）。
+       寫 display:none 的地方（router.js／main-modular.js renderComingSoon）同步掛 .is-footer-hidden：樣式表不寫 [style*=…]
+       （WebKit 只要有一條，全站 inline style 寫入都走慢路徑） */
+    #site-footer-static.is-footer-hidden + .footer-btn-mask {
       display: none;
     }
     .footer-btn {

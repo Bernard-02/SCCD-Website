@@ -377,7 +377,7 @@ export function initBFADivisionToggle() {
           const labelRot = label._pendingRot || randomRotation();
           label._baseRot = labelRot;
           label._pendingRot = null;
-          label.style.background = color;
+          SCCDHelpers.setInlineBg(label, color);
           label.style.color = 'var(--color-black)';
           label.style.transform = `rotate(${labelRot}deg)`;
         }
@@ -390,9 +390,9 @@ export function initBFADivisionToggle() {
         // transform 不動：角度常駐（hover 抽角後保持，回寫 _baseRot 會退角）
         if (label) {
           // mobile pill 列的 label 清 inline → 回 CSS 黑 chip（比照桌面；mode-color 靠
-          // [style*="background"] 偵測 active，inactive 不能留 inline bg）
+          // .has-inline-bg（inline 有底色的鏡像標記）偵測 active，inactive 不能留 inline bg）
           const isMobileLabel = !!label.closest('#mobile-division-nav');
-          label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
+          SCCDHelpers.setInlineBg(label, isMobileLabel ? '' : BTN_DEFAULT_BG);
           label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
         }
         btn._activeColor = null;
@@ -431,7 +431,7 @@ export function initBFADivisionToggle() {
       target.style.background = color;
       target.style.color = 'var(--color-black)';
       if (label) {
-        label.style.background = color;
+        SCCDHelpers.setInlineBg(label, color);
         label.style.color = 'var(--color-black)';
       }
       btn._pendingColor = color;
@@ -446,7 +446,7 @@ export function initBFADivisionToggle() {
       target.style.color = BTN_DEFAULT_TEXT;
       if (label) {
         const isMobileLabel = !!label.closest('#mobile-division-nav');
-        label.style.background = isMobileLabel ? '' : BTN_DEFAULT_BG;
+        SCCDHelpers.setInlineBg(label, isMobileLabel ? '' : BTN_DEFAULT_BG);
         label.style.color = isMobileLabel ? '' : BTN_DEFAULT_TEXT;
       }
       btn._pendingColor = null;
@@ -640,7 +640,7 @@ export function initBFADivisionToggle() {
     activeBtn.dataset.accentHex = color;
     const label = activeBtn.previousElementSibling?.classList.contains('class-group-label')
       ? /** @type {HTMLElement} */ (activeBtn.previousElementSibling) : null;
-    if (label) label.style.background = color;
+    if (label) SCCDHelpers.setInlineBg(label, color);
   };
 
   // ─── 首次滑進 works 的內容進場（class-buttons-sticky.js 呼叫）────────────────

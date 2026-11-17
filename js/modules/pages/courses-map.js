@@ -380,7 +380,7 @@ function closeCourseSlideIn(onClosed) {
   activeCard = null;
   const clearActiveBg = () => {
     if (!wasActive || wasActive === activeCard || wasActive.matches(':hover')) return;
-    wasActive.style.background = '';
+    SCCDHelpers.setInlineBg(wasActive, '');
     delete wasActive.dataset.currentColor;
     delete wasActive.dataset.hoverRot;
   };
@@ -455,7 +455,7 @@ let activeCard = null;
 //   hover 時 set，click 時讀（給 slide-in panel 同色），mouseleave/deselect 時清
 function applyHoverColor(card) {
   const color = pickAccent();
-  card.style.background = color;
+  SCCDHelpers.setInlineBg(card, color);
   card.dataset.currentColor = color;
 }
 
@@ -472,7 +472,7 @@ function applyHoverRot(card) {
  */
 function selectCard(card, onOpened) {
   if (activeCard && activeCard !== card) {
-    activeCard.style.background = '';
+    SCCDHelpers.setInlineBg(activeCard, '');
     delete activeCard.dataset.currentColor;
     delete activeCard.dataset.hoverRot;
   }
@@ -533,7 +533,7 @@ export function deselectActiveCard() {
   if (activeCard) {
     const card = activeCard;
     const wasHovered = card.matches(':hover');
-    card.style.background = '';
+    SCCDHelpers.setInlineBg(card, '');
     delete card.dataset.currentColor;
     activeCard = null;
     // 點 active 收回時 cursor 還在卡片上 → 立即重 roll hover 色 + 角度；否則角度保持
@@ -592,7 +592,7 @@ function bindCardHover(panelEl) {
     });
     card.addEventListener('mouseleave', () => {
       if (card === activeCard) return;
-      card.style.background = '';
+      SCCDHelpers.setInlineBg(card, '');
       delete card.dataset.currentColor;
       delete card.dataset.hoverRot;
     });

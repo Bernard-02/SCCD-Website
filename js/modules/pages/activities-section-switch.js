@@ -258,7 +258,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.accentHex = boxFlashColor;  // 開啟即帶 section 色（= highlight，同 smooth 路徑慣例）
-        header.style.background = boxFlashColor;
+        SCCDHelpers.setInlineBg(header, boxFlashColor);
         // deepOpen：proceedOpen ①對齊捲完才展開（不並行＝無 title 殘影）②自關留在對齊位不回 section 頂（user 2026-09-10）
         header.dataset.deepOpen = '1';
         clickOpenThenUnlock(header, unlock);  // 不設 skipOpenScroll → proceedOpen 捲 box 精準對齊
@@ -278,10 +278,11 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
       boxScroller.scrollTop = Math.max(0, Math.round(itemInBox - (Number.isNaN(stickyTopVal) ? 0 : stickyTopVal)));
       await waitForItemRevealed(target);
       target.style.transition = 'background var(--dur-fast)';
-      target.style.background = boxFlashColor;
+      SCCDHelpers.setInlineBg(target, boxFlashColor);
       setTimeout(() => {
         target.style.background = '';
-        target.style.transition = '';  // 清掉：殘留 transition 會被 mode-color [style*="background"] 規則誤判（同下方註解）
+        target.style.transition = '';  // 清掉：殘留 transition 也會留住 .has-inline-bg（syncInlineBg 看字串）→ mode-color 規則誤判（同下方註解）
+        SCCDHelpers.syncInlineBg(target);
         openViaAccordion();
       }, 600);
     }
@@ -342,12 +343,13 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
   const flashThenOpenAccordion = async () => {
     await waitForItemRevealed(target);
     target.style.transition = 'background var(--dur-fast)';
-    target.style.background = flashColor;
+    SCCDHelpers.setInlineBg(target, flashColor);
     setTimeout(() => {
       target.style.background = '';
-      // transition 也要清：留著 `transition: background` 會被 [style*="background"] 的 mode-color 翻譯規則
-      // 誤判此 item「仍有底色」→ 收合後永久翻成 theme-fg 白底（user 2026-06-24 報「hover 離開又變白」）。
+      // transition 也要清：留著 `transition: background` 會讓 .has-inline-bg 留著（syncInlineBg 看 style 字串含 background）→
+      // mode-color 翻譯規則誤判此 item「仍有底色」→ 收合後永久翻成 theme-fg 白底（user 2026-06-24 報「hover 離開又變白」）。
       target.style.transition = '';
+      SCCDHelpers.syncInlineBg(target);
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
@@ -357,7 +359,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
         // 設 dataset.accentHex → list-accordion proceedOpen 走 `self.dataset.accentHex || getRandomAccentColor()`
         // 會用這個色而非挑隨機，ACCENT_TO_DEEP 也對得上拿到對應 deep ref 色。
         header.dataset.accentHex = flashColor;
-        header.style.background = flashColor;
+        SCCDHelpers.setInlineBg(header, flashColor);
         clickOpenThenUnlock(header, unlock);
       } else unlock();
     }, 600);
@@ -381,7 +383,7 @@ export async function navigateToItem(section, itemId, { smooth = false, unlock =
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.skipOpenScroll = '1';
         header.dataset.accentHex = flashColor;
-        header.style.background = flashColor;
+        SCCDHelpers.setInlineBg(header, flashColor);
         clickOpenThenUnlock(header, unlock);
       } else unlock();
     };

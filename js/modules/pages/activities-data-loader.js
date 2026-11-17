@@ -2627,8 +2627,9 @@ export async function loadDegreeShowListInto(containerId, options = {}) {
         const h = /** @type {HTMLElement | null} */ (card.querySelector('.list-header'));
         if (h) h.dataset.accentHex = c;
         card.style.backgroundColor = c;
+        SCCDHelpers.syncInlineBg(card);
       });
-      card.addEventListener('mouseleave', () => { card.style.backgroundColor = ''; });
+      card.addEventListener('mouseleave', () => { card.style.backgroundColor = ''; SCCDHelpers.syncInlineBg(card); });
     });
   }
 }

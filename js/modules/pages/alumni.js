@@ -156,10 +156,10 @@ function renderSponsors(data) {
   const cards = container.querySelectorAll('.alumni-sponsor-card');
   cards.forEach(card => {
     card.addEventListener('mouseenter', () => {
-      /** @type {HTMLElement} */ (card).style.background = SCCDHelpers.getRandomAccentColor();
+      SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (card), SCCDHelpers.getRandomAccentColor());
     });
     card.addEventListener('mouseleave', () => {
-      /** @type {HTMLElement} */ (card).style.background = '';
+      SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (card), '');
     });
   });
 

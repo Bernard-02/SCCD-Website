@@ -105,9 +105,10 @@
       color: var(--theme-fg) !important;
     }
   }
-  /* 進退場中（GSAP 寫 inline clip-path）或 /create 隱藏態（clip-path 殘留）不吃 hover/click；
-     各動畫 onComplete 清 inline clip-path → 自動恢復 */
-  #mode-btn[style*="clip-path"] {
+  /* 進退場中（inline clip-path）或 /create 隱藏態（clip-path 殘留）不吃 hover/click：寫 inline clip-path 的地方同步掛 .is-clipping
+     （樣式表不寫 [style*=…]：WebKit 只要有一條，全站 inline style 寫入都走慢路徑）。2026-10-01 起收鈕改遮罩平移、目前沒有寫入點；
+     header.js updateNavActive 清殘留 clip-path 時一併拔 → 自動恢復 */
+  #mode-btn.is-clipping {
     pointer-events: none;
   }
 

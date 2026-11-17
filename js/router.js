@@ -272,6 +272,7 @@ async function loadPage(route, search = '', fromUserNav = false) {
     if (footerEl) {
       const shouldHide = noFooter;
       footerEl.style.display = shouldHide ? 'none' : '';
+      footerEl.classList.toggle('is-footer-hidden', shouldHide);   // footer.css 認 class 不認 inline 字串（[style…] 選擇器拖慢 WebKit）
       setFooterBtnRouteHidden(shouldHide);   // 從沒 footer 的頁回來＝鈕滑回；初始路由在沒 footer 的頁＝記下狀態
       document.body.classList.toggle('no-footer', shouldHide);   // 沒 footer＝沒右下 footer 鈕 → mode3 鉛筆回角落（mode-color-panel.css）
       swappedOnce = true;

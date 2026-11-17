@@ -16,6 +16,8 @@ interface SCCDHelpersAPI {
   // 輸入判斷（版型看寬度、互動看輸入；CLAUDE.md 規範 7）
   canHover(): boolean;
   isCoarsePointer(): boolean;
+  // 實機效能診斷開關（?perf=nologo,nomq…，同分頁有效）
+  perf: Set<string>;
 
   // DOM 操作
   scrollToElement(target: HTMLElement | string, offset?: number, behavior?: ScrollBehavior): void;
@@ -36,6 +38,9 @@ interface SCCDHelpersAPI {
   shuffle<T>(arr: T[]): T[];
   holdHover(el: HTMLElement | null | undefined): void;
   releaseHover(el: HTMLElement | null | undefined): void;
+  // inline 底色的鏡像標記 .has-inline-bg（themes 認它，取代 [style*="background"] 選擇器）
+  syncInlineBg(el: Element | null | undefined): void;
+  setInlineBg(el: HTMLElement, value: string): void;
 
   // 站台路徑
   siteBase: string;

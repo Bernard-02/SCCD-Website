@@ -54,15 +54,17 @@ async function navigateToAdmissionItem(itemId, unlock) {
   const flashThenOpen = async () => {
     await waitForItemRevealed(target);
     target.style.transition = 'background var(--dur-fast)';
-    target.style.background = flashColor;
+    SCCDHelpers.setInlineBg(target, flashColor);
     setTimeout(() => {
       target.style.background = '';
+      target.style.transition = '';   // 同 activities：留著 `transition: background` 會讓 .has-inline-bg 留著 → mode3 那列收合後一直黑白
+      SCCDHelpers.syncInlineBg(target);
       const header = /** @type {HTMLElement | null} */ (target.querySelector('.list-header'));
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);  // title marquee 即時量（目標豁免）
         header.dataset.skipOpenScroll = '1';     // 已捲齊 → accordion open 不要再自己捲
         header.dataset.accentHex = flashColor;    // highlight 色繼承成 accordion active 色
-        header.style.background = flashColor;
+        SCCDHelpers.setInlineBg(header, flashColor);
         header.addEventListener('list:opened', unlock, { once: true });  // 展開序列跑完才解除 deep-link 操作鎖
         header.click();
       } else unlock();
@@ -85,7 +87,7 @@ async function navigateToAdmissionItem(itemId, unlock) {
       if (header && !header.classList.contains('active')) {
         /** @type {any} */ (target.closest('[data-lazy-list]'))?._mqPrime?.(target);
         header.dataset.accentHex = flashColor;
-        header.style.background = flashColor;
+        SCCDHelpers.setInlineBg(header, flashColor);
         header.dataset.deepOpen = '1';
         header.addEventListener('list:opened', unlock, { once: true });
         header.click();

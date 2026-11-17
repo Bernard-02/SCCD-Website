@@ -23,7 +23,7 @@
      只有 logo、右側 mode/漢堡鈕、選單面板吃事件。
      「淡入完成才可互動」的開關＝--header-pe（showHeader 寫 inline auto；index.html 隱形期 none；lightbox 期 none）——
      不可給 <header> 寫 inline pointer-events:auto，否則整條全寬又攔回來。
-     只開最外層互動容器、內部靠繼承：#mode-btn[style*="clip-path"] 等外層 none 禁用才照樣往下傳。
+     只開最外層互動容器、內部靠繼承：#mode-btn.is-clipping 等外層 none 禁用才照樣往下傳。
      :where 零特異度＝下方 slide-in 例外與 #mobile-nav-panel 桌面 none 等規則照樣蓋得過。 */
   #site-header header {
     pointer-events: none;

@@ -269,6 +269,7 @@ function createBanner(item, squareColor) {
     text-decoration: none;
   `;
   if (isVideo) {
+    link.classList.add('hm-watch');   // bar 每 1s 換色循環（lists.css）
     link.style.cursor = 'var(--cursor-pointer)';
     makeActivatable(link);
   }

@@ -40,6 +40,15 @@ let createAppModule = null;
 let errorModule = null;
 let lazySeq = 0;
 
+// iOS 旋轉色塊反鋸齒（typography.css .ios-aa）：樣式表不能寫 [style*="rotate"]（WebKit 只要有任何 [style…] 選擇器，全站每次
+// inline style 寫入都走慢路徑）→ 帶 inline rotate 的元素由 JS 掛 class。抽角寫入點遍布全站（GSAP），逐點掛不完 → 輪詢補掛；非 iOS 不啟動
+// ponytail: 輪詢＝DOMContentLoaded 起每 1.5s＋每次換頁 init 各掃一次（只掛不拔：rotate 拿掉後留透明 outline 無害）；
+//   上限＝新轉起來的元素最晚 1.5s 才柔化。要即時＝改在抽角 helper（rerollAngle 等）寫入點直接掛
+const IOS_AA = typeof CSS !== 'undefined' && CSS.supports('-webkit-touch-callout', 'none');
+function scanIosAa() {
+  document.querySelectorAll('[style*="rotate"]:not(.ios-aa)').forEach(el => el.classList.add('ios-aa'));
+}
+
 // ── Cleanup（換頁前執行）────────────────────────────────────────
 // destPage 可選：router 切到同頁時帶入。same-page reentry to /create 時跳過 restoreHeaderLogo，
 // 讓 header SCCD typewriter 完成態完全保留（user 2026-05-31：header 不受影響、內容該退就退）
@@ -112,6 +121,15 @@ export function cleanupPageModules(destPage) {
   }
 }
 
+// 開場預覽開關：?intro=1＝這個分頁每次整頁重載都播開場（換完 AE 匯出的 SCCDLoader.json 看效果用），?intro=0 關；
+// 同 ?gpulogo=1 存 sessionStorage＝router 把網址收斂後重新整理仍有效。模組載入當下就讀（router 動網址之前）
+let alwaysIntro = false;
+try {
+  const q = new URLSearchParams(location.search).get('intro');
+  if (q !== null) sessionStorage.setItem('sccd-intro-always', q);
+  alwaysIntro = sessionStorage.getItem('sccd-intro-always') === '1';
+} catch (e) { /* 讀不到 storage＝照常只播第一次 */ }
+
 // ── 頁面模組初始化（router 每次換頁都會呼叫）──────────────────
 // fromUserNav：true=使用者點連結的 SPA 導航；false=初始載入 / refresh / 上一頁下一頁。
 // 給 curriculum 的 deep-link（?item= 自動捲到 section + 開 slide-in）判斷：只有從首頁卡片
@@ -159,7 +177,10 @@ function renderComingSoon() {
   // 所以 html 也鎖；下次換頁 cleanupPageModules 清 html inline overflow、router 依目標頁重設 body class
   document.body.classList.add('overflow-hidden');
   document.documentElement.style.overflow = 'hidden';
-  document.querySelectorAll('#site-footer, #site-footer-static').forEach(el => { /** @type {HTMLElement} */ (el).style.display = 'none'; });
+  document.querySelectorAll('#site-footer, #site-footer-static').forEach(el => {
+    /** @type {HTMLElement} */ (el).style.display = 'none';
+    el.classList.add('is-footer-hidden');   // footer.css：inline display:none 的鏡像標記（同 router.js）
+  });
   // 左下「當前頁」卡藏起：清空＝CSS :empty 不顯示；dataset.page 改掉，下次 updateNavActive 看 key 不同就重填＋揭露
   const indCard = /** @type {HTMLElement | null} */ (document.querySelector('#page-indicator .page-indicator-card'));
   if (indCard) { indCard.innerHTML = ''; indCard.dataset.page = 'coming-soon'; }
@@ -198,6 +219,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // 首次進站更早：main-modular 下載完之前 HTML 已畫出、chip 露在 hero 上（user 2026-11-05「hero 有時出現 nav btn」）
   // → landscape.css 用 html:not(.lnav-armed) 出生藏同一組 chip，這裡藏好才放行（之後換頁走上面同步藏）
   document.documentElement.classList.add('lnav-armed');
+  if (IOS_AA) scanIosAa();
 
   // Theme mode：每次切頁 re-evaluate
   // /generate 頁暫停 mode（移除 body class）+ 按鈕 disabled；其他頁恢復 sessionStorage 的 mode
@@ -233,8 +255,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // header 已抓過 ui_labels → 吃 single-flight 快取不多打請求；回來時 title 已被 router 換掉＝使用者已離頁，不蓋
   const staticTitle = document.title;
   loadUiLabels().then(map => {
-    const en = map[`nav.${page === 'generate' ? 'create' : page}`]?.en;
-    if (en && document.title === staticTitle) document.title = `${en} - SCCD`;
+    const row = map[`nav.${page === 'generate' ? 'create' : page}`];
+    if (row?.en && document.title === staticTitle) document.title = [row.en, row.zh].filter(Boolean).join(' ');
   });
 
   // Hero animation 所有頁面都跑（有 hero section 就會觸發）
@@ -271,7 +293,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Index Page ---
   if (page === 'index') {
-    const firstVisit = !sessionStorage.getItem('sccd-intro-shown');
+    // 開關只管整頁載入：SPA 從別頁點回首頁不重播（overlay 早就藏了）
+    const firstVisit = !sessionStorage.getItem('sccd-intro-shown') || alwaysIntro;
+    alwaysIntro = false;
     if (firstVisit) sessionStorage.setItem('sccd-intro-shown', '1');
     // 進場順序（user 2026-10-21）：logo／header、news 同時（stage1）→ floating 最後。
     // stage1＝news 開始進場那刻（資料＋海報量完；首訪再等 intro loader 播完、header 由 intro 自己淡入）。
@@ -730,9 +754,22 @@ document.addEventListener('DOMContentLoaded', function () {
   // 純觸控裝置（iPad／手機 Safari）工具列收展會發 resize：ScrollTrigger 每次都 refresh＝捲動中反覆重算、越過邊界的 callback 可能漏
   // （DSD sticky 卡 iPad 實測偶爾不現身，user 2026-11-02）。只在寬度變（轉向）才 refresh；桌面不受影響
   if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.config({ ignoreMobileResize: true });
+  // ScrollTrigger 一啟用就每個 vsync 自排一個空 rAF（_rafBugFix，修某些瀏覽器捲動時重繪不穩）。不捲動的頁（library／atlas／create
+  // ＝body.overflow-hidden）用不到它，卻讓主執行緒在完全沒動畫時也每幀被叫醒（library 四萬節點、每醒一次 ~2ms）→ 這類頁改 0.5 秒醒一次。
+  // 不是擋掉：換到可捲的頁，它下一輪自己就回到每幀，不用恢復。不用 ScrollTrigger.disable()：期間新建的 trigger 會永久失效
+  // ponytail: 認的是 CDN min 版保留的函式名（gsap@3.14.1 確認過），換版要重新確認；認不到＝照舊每幀
+  const nativeRaf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => {
+    if (cb && cb.name === '_rafBugFix' && document.body.classList.contains('overflow-hidden')) {
+      setTimeout(() => nativeRaf(cb), 500);
+      return 0;
+    }
+    return nativeRaf(cb);
+  };
   // 觸控＋桌面排版（iPad 橫向）才畫內捲框自繪 thumb（iOS overlay 捲軸只在捲動時閃現；user 2026-10-31）；
   // 手機排版不要（user 2026-11-01「手機上內容超過 box 高也不需要 scrollbar」）。轉向跨 gate 會整頁 reload，init 判一次即可
   if (SCCDHelpers.isCoarsePointer() && SCCDHelpers.isDesktopLayout()) import('./modules/ui/touch-box-thumb.js').then(m => m.initTouchBoxThumbs());
+  if (IOS_AA) setInterval(scanIosAa, 1500);   // 見檔頭 scanIosAa
   initShareModal();
   initModeColorPanel();      // mode3 背景色編輯浮動面板（右下鉛筆 → 展開色環）
   initOrientationReload();   // 手機轉向跨 landscape gate 自動 reload（/create 例外），免手動刷新

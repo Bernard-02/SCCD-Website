@@ -545,7 +545,7 @@ function syncCatBtns(catBtns, selectedCats, listEl, selYears, q) {
 function clearLibActive() {
   document.querySelectorAll('[data-lib-active]').forEach(el => {
     delete el.dataset.libActive;
-    if (!el.matches(':hover')) el.style.background = '';
+    if (!el.matches(':hover')) SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (el), '');
   });
 }
 
@@ -560,7 +560,7 @@ function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
       // coverPending 只有 files 卡會設（build 時標、封面 ready/失敗清），press/album 恆 undefined 不受影響
       if (item.dataset.coverPending) return;
       const color = SCCDHelpers.getRandomAccentColor();
-      item.style.background = color;
+      SCCDHelpers.setInlineBg(item, color);
       if (overlaySelector) {
         item.querySelectorAll(overlaySelector).forEach(overlay => {
           overlay.style.background = color;
@@ -570,7 +570,7 @@ function bindListItemHover(containerEl, itemSelector, overlaySelector = null) {
     item.addEventListener('mouseleave', () => {
       if (item.dataset.libActive && document.body.classList.contains('lightbox-open')) return;
       delete item.dataset.libActive;
-      item.style.background = '';
+      SCCDHelpers.setInlineBg(item, '');
     });
   });
 }
@@ -1363,7 +1363,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         delete item.dataset.refOpen;
         item.style.removeProperty('--item-color');
         item.style.removeProperty('--item-color-deep');
-        item.style.background = '';
+        SCCDHelpers.setInlineBg(item, '');
         delete item.dataset.accentHex;
       };
       if (instant || typeof gsap === 'undefined') {
@@ -1533,7 +1533,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     function bindAwardScope(scope, withMarquee = true) {
 
       // hover：整列 accent 底色（user 2026-06-22 改：對齊 activities list-item；原本是文字變色 highlight）。
-      // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css [style*=background] 規則翻 theme-fg。
+      // standard/inverse 隨機三原色 inline bg、mode-color 由 library.css .has-inline-bg 規則翻 theme-fg。
       // ⚠️ 只在桌面綁：手機 tap 會觸發 emulated mouseenter → 底色殘留（user 2026-06-10 #2：手機點 award 不變色）。
       // ref 展開中（data-ref-open）鎖定當下色：不重 roll、離開不清。
       if (SCCDHelpers.isDesktopLayout() && SCCDHelpers.canHover()) {   // 觸控的桌面排版（iPad 橫向）同手機不綁（user 2026-10-31）
@@ -1542,12 +1542,12 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             // 進場還沒揭完（藏著等捲入／文字滑動中＝掛 .award-cell-clip）不上色：accent 底會比內容先冒出來（user 2026-11-04）
             if (item.dataset.refOpen || item.classList.contains('award-cell-clip')) return;
             const color = SCCDHelpers.getRandomAccentColor();
-            item.style.background = color;
+            SCCDHelpers.setInlineBg(item, color);
             item.dataset.accentHex = color;
           });
           item.addEventListener('mouseleave', () => {
             if (item.dataset.refOpen) return;
-            item.style.background = '';
+            SCCDHelpers.setInlineBg(item, '');
             delete item.dataset.accentHex;
           });
         });
@@ -1582,7 +1582,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             item.dataset.refOpen = '1';
             const color = item.dataset.accentHex || SCCDHelpers.getRandomAccentColor();
             item.dataset.accentHex = color;
-            item.style.background = color;
+            SCCDHelpers.setInlineBg(item, color);
             item.style.setProperty('--item-color', color);
             item.style.setProperty('--item-color-deep', ACCENT_TO_DEEP[color] || color);
           }
@@ -1595,10 +1595,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
             item.style.removeProperty('--item-color-deep');
             if (SCCDHelpers.isDesktopLayout() && SCCDHelpers.canHover() && item.matches(":hover")) {   // 觸控的 :hover 點完會黏著＝收合後底色不退（user 2026-11-11 iPad）
               const color = SCCDHelpers.getRandomAccentColor();
-              item.style.background = color;
+              SCCDHelpers.setInlineBg(item, color);
               item.dataset.accentHex = color;
             } else {
-              item.style.background = '';
+              SCCDHelpers.setInlineBg(item, '');
               delete item.dataset.accentHex;
             }
           };
@@ -5073,20 +5073,20 @@ function handleLibraryHash(unlock) {
           // 四 panel 統一整列 accent 底色「單層」（2026-09-11 user：hover/highlight 都一層——撤 press/files/album
           // 的 4px box-shadow ring）：ring 畫在 box 外＝視覺第二層；且 mode3 翻色只攔 background 不攔 box-shadow
           // → 黑白底＋RGB 圈失配穿幫。當年 ring 是「縮圖蓋滿看不到底色」的保險，現 zebra 滿版底色恆可見、不需要。
-          // mode-color 由 color.css [style*=background] 規則翻色，不必分支。
+          // mode-color 由 color.css .has-inline-bg 規則翻色，不必分支。
           // coverPending（files 封面未 ready）不上色＝同 hover 閘（accent 疊空封面裸色塊）；dim class 照掛。
           el.style.transition = 'background var(--dur-fast)';
-          el.style.background = SCCDHelpers.getRandomAccentColor();
+          SCCDHelpers.setInlineBg(el, SCCDHelpers.getRandomAccentColor());
         }
         el.classList.add('is-hovered');   // 其餘列不再 dim（user 2026-10-02 撤 deep-link 落地 dim；hover dim 10-01 已撤）
         el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         setTimeout(() => {
-          if (!desktopHover) el.style.background = '';
+          if (!desktopHover) SCCDHelpers.setInlineBg(el, '');
           el.classList.remove('is-hovered');
           el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
           unlock();   // highlight 收尾＝deep-link 呈現完成 → 解除操作鎖
           // transition 等淡出跑完才還原（0.3s），避免殘留 inline transition 干擾之後的 hover
-          setTimeout(() => { el.style.transition = prevTransition; }, 350);
+          setTimeout(() => { el.style.transition = prevTransition; SCCDHelpers.syncInlineBg(el); }, 350);
         }, 1000);
       }
     });

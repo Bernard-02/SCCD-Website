@@ -73,13 +73,13 @@
 .lib-toolbar .sort-arrow { display: none; }
 .lib-toolbar .lib-sort-time { display: inline-block; font-size: var(--tool-icon); width: calc(1em * 204.12 / 184.06); }
 /* 內容 grid 收成單列：頂部 search cell 已空（search 搬進工具列、files/album 分類搬進年份欄）→ 年份欄與 list 同頂 */
-[id^="lib-panel-"].lib-desk-tools > div[style*="grid"] { grid-template-rows: 1fr !important; position: relative; }
-[id^="lib-panel-"].lib-desk-tools > div[style*="grid"] > div:first-child:empty,
-:is(#lib-panel-press, #lib-panel-files, #lib-panel-album).lib-desk-tools > div[style*="grid"] > div:nth-child(2) { display: none; }
+[id^="lib-panel-"].lib-desk-tools > div.lib-panel-grid { grid-template-rows: 1fr !important; position: relative; }
+[id^="lib-panel-"].lib-desk-tools > div.lib-panel-grid > div:first-child:empty,
+:is(#lib-panel-press, #lib-panel-files, #lib-panel-album).lib-desk-tools > div.lib-panel-grid > div:nth-child(2) { display: none; }
 /* awards：左欄 spacer、4px、底 padding 拿掉＝年份欄底與 list 底對齊。
    attachYearReset 讀這裡的 computed padding 對位 reset → 須在年份建置前生效（lib-desk-tools 早於 initLibraryPanels 掛） */
-#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
-#lib-panel-awards.lib-desk-tools > div[style*="grid"] > div:first-child > p { display: none; }
+#lib-panel-awards.lib-desk-tools > div.lib-panel-grid > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
+#lib-panel-awards.lib-desk-tools > div.lib-panel-grid > div:first-child > p { display: none; }
 /* files／album 分類選項＝年份欄最上方（main-modular.js 桌面把 cat-filter 搬進年份欄、欄掛 .lib-cat-col；
    user 2026-10-19 拿掉 filter icon＋右側滑板）。選項區最高＝欄高 2/3（放不下＝區內捲），年份 wrap 本來就 flex:1＝吃剩下的高。
    欄寬＝min-content＝最長英文單字寬（現 Contributions ~91px，約年份 2.7 倍）：user 提年份兩倍（68），但有 5 個單字比 68 寬、
@@ -593,7 +593,7 @@ main#page-content:where(:has(> section > #library-card-main)) { display: flow-ro
    ref 列底色交給共用 .list-ref-btn（lists.css / color.css）。.award-ref-row 用黑體（主表 serif） */
 
 /* 斑馬列：深格 .list-item-zebra＝rgba(--theme-fg-rgb) × --list-zebra-alpha，與 lists.css activities/admission 共用 class 與 alpha 變數（改 alpha 要同步）。
-   用 class 非 inline bg：避免誤觸 mode-color 的 [style*=background] 翻譯；hover/open 的 inline accent 仍蓋過它。
+   用 class 非 inline bg：避免誤觸 mode-color 的 .has-inline-bg 翻譯；hover/open 的 inline accent 仍蓋過它。
    album 是 .files-item（與 files 共用）→ 只在 #library-album-list 移 border */
 #library-awards-list .award-record-item.list-item-zebra,
 #library-press-list .press-item.list-item-zebra,
@@ -696,14 +696,14 @@ body.mode-color #library-awards-list .award-ref-wrap .list-ref-btn:hover * {
     animation: list-marquee var(--marquee-duration, 4s) linear infinite;
   }
 }
-/* mode-color：整列 inline accent 翻 strict B/W（對齊 color.css .list-item[style*=background]）。
+/* mode-color：整列 inline accent 翻 strict B/W（對齊 color.css .list-item.has-inline-bg；class＝inline 有底色的鏡像標記，見 inverse.css）。
    不加 *：ref 列文字色交給共用 .list-ref-btn mode-color 規則 */
-body.mode-color #library-awards-list .award-record-item[style*="background"] {
+body.mode-color #library-awards-list .award-record-item.has-inline-bg {
   background: var(--lib-fg) !important;   /* 反色島：開啟列＝卡反色高亮 */
   color: var(--lib-bg) !important;
 }
 /* mode-inverse：整列保留 accent 原色（同 activities），文字翻黑（accent 底配黑字）。 */
-body.mode-inverse #library-awards-list .award-record-item[style*="background"] {
+body.mode-inverse #library-awards-list .award-record-item.has-inline-bg {
   color: var(--color-black) !important;
 }
 
@@ -1261,7 +1261,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     background: var(--theme-bg);
   }
   /* Awards panel：right-col display:contents 拆掉 → search row＋list-scroll 升為直接子；search row 固定卡頂 */
-  #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+  #lib-panel-awards > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     order: 1 !important;
     flex-shrink: 0 !important;
     /* search→picker 間距同 press/files/album（只留 panel flex gap xs）：蓋 inline margin-bottom:sm＋padding-bottom:xs */
@@ -1270,7 +1270,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
 
   /* panel 內 inline grid → flex column 填滿卡片（list scroll 在內部 flex:1）；min-width:0＋box-sizing 免 inline padding 撐出 viewport */
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] {
+  #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid {
     display: flex !important;
     flex-direction: column !important;
     flex: 1 1 0 !important;
@@ -1443,11 +1443,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   /* Year picker 移到 search 下方。兩種結構分開處理：
      awards＝[year-col][right-col(search+list)]；press/files/album＝2×2 [Year標題][search+cat][year-picker-wrap][list-scroll]
      == AWARDS ==：只拆 right-col（contents），順序 search(1) → year-col(2) → list(3) */
-  #lib-panel-awards > div[style*="grid"] > div:nth-child(2) {
+  #lib-panel-awards > div.lib-panel-grid > div:nth-child(2) {
     display: contents !important;
   }
   /* year-col 固定在 search 下方；padding-bottom:0 → 年份→list 間距只剩 grid gap(xs) */
-  #lib-panel-awards > div[style*="grid"] > div:first-child {
+  #lib-panel-awards > div.lib-panel-grid > div:first-child {
     order: 2 !important;
     flex-shrink: 0 !important;
     display: flex !important;
@@ -1456,7 +1456,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-bottom: 0 !important;
   }
   /* awards「Year 年份」spacer：桌面撐高對齊 picker↔list 第一年份；手機 picker 橫排無此需求 → 拿掉 */
-  #lib-panel-awards > div[style*="grid"] > div:first-child > p[aria-hidden="true"] {
+  #lib-panel-awards > div.lib-panel-grid > div:first-child > p[aria-hidden="true"] {
     display: none !important;
   }
   /* award list 在卡片內部 scroll（flex:1）*/
@@ -1484,9 +1484,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 
   /* == PRESS / FILES / ALBUM ==
      JS 搬完剩 3 子：[Year標題(含picker)][search+cat-filter wrapper][list-scroll]；前兩者 flex-shrink:0 固定，list 在 *-scroll 內捲 */
-  #lib-panel-press > div[style*="grid"] > div:nth-child(2),
-  #lib-panel-files > div[style*="grid"] > div:nth-child(2),
-  #lib-panel-album > div[style*="grid"] > div:nth-child(2) {
+  #lib-panel-press > div.lib-panel-grid > div:nth-child(2),
+  #lib-panel-files > div.lib-panel-grid > div:nth-child(2),
+  #lib-panel-album > div.lib-panel-grid > div:nth-child(2) {
     order: 1 !important;
     flex-shrink: 0 !important;
     display: flex !important;
@@ -1501,9 +1501,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-bottom: 0 !important;
   }
   /* year-group 固定在 search 下方 */
-  #lib-panel-press > div[style*="grid"] > div:first-child,
-  #lib-panel-files > div[style*="grid"] > div:first-child,
-  #lib-panel-album > div[style*="grid"] > div:first-child {
+  #lib-panel-press > div.lib-panel-grid > div:first-child,
+  #lib-panel-files > div.lib-panel-grid > div:first-child,
+  #lib-panel-album > div.lib-panel-grid > div:first-child {
     order: 2 !important;
     flex-shrink: 0 !important;
     display: flex !important;
@@ -1515,16 +1515,16 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     gap: 0 !important; /* Year 標題 ↔ picker 不留 gap */
   }
   /* Year 標題 <p> 重置桌面 padding */
-  #lib-panel-press > div[style*="grid"] > div:first-child > p,
-  #lib-panel-files > div[style*="grid"] > div:first-child > p,
-  #lib-panel-album > div[style*="grid"] > div:first-child > p {
+  #lib-panel-press > div.lib-panel-grid > div:first-child > p,
+  #lib-panel-files > div.lib-panel-grid > div:first-child > p,
+  #lib-panel-album > div.lib-panel-grid > div:first-child > p {
     text-align: left !important;
     padding: 0 !important;
   }
   /* search row */
-  #lib-panel-press > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-files > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-album > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+  #lib-panel-press > div.lib-panel-grid > div > div.lib-search-row.lib-search-row,
+  #lib-panel-files > div.lib-panel-grid > div > div.lib-search-row.lib-search-row,
+  #lib-panel-album > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     order: 1 !important;
   }
   /* cat-filter：EN/ZH 兩行＋橫向 scroll */
@@ -1616,28 +1616,23 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   /* 「Year 年份」標籤在 picker 上方。⚠️selector 須限定 grid 直接子 div 內的 p（> div > p）：
      descendant 會誤中 #library-press-scroll 內的 .press-item-title-en <p> */
-  [id^="lib-panel-"] > div[style*="grid"] > div > p:first-child {
+  [id^="lib-panel-"] > div.lib-panel-grid > div > p:first-child {
     font-size: var(--font-size-xs) !important;
     padding-top: 0 !important;
   }
   /* year-col 拔掉桌面 inline padding-top */
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child[style*="padding-top"] {
+  #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child.lib-awards-yearcol {
     padding-top: 0 !important;
   }
   /* 「Year 年份」標題拔掉 inline padding-bottom */
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child > p:first-child {
+  #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child > p:first-child {
     padding-bottom: 0 !important;
   }
 
   /* search＋sort 同一列 full width：強制 nowrap；search container flex:1、sort flex-shrink:0 */
-  #library-card-content > [id^="lib-panel-"] [style*="align-items: flex-end"][style*="display: flex"] {
+  #library-card-content > [id^="lib-panel-"] .lib-search-row.lib-search-row {
     flex-wrap: nowrap !important;
     width: 100% !important;
-    min-width: 0 !important;
-  }
-  /* Search input wrapper（border-bottom 那層）flex:1 撐滿 */
-  #library-card-content > [id^="lib-panel-"] [style*="border-bottom: 2px solid var(--lib-fg)"] {
-    flex: 1 1 0 !important;
     min-width: 0 !important;
   }
   .library-sort-btn {
@@ -1759,9 +1754,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    ticker 搬進內容欄、award 收合列模板（portraitDetail）的 JS 判斷＝isMobileLayout（main-modular.js／library-panels.js） */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* search＋分類 wrapper 拆掉（同 awards right-col）：兩者才能各自排序、夾住年份 */
-  #lib-panel-press > div[style*="grid"] > div:nth-child(2),
-  #lib-panel-files > div[style*="grid"] > div:nth-child(2),
-  #lib-panel-album > div[style*="grid"] > div:nth-child(2) {
+  #lib-panel-press > div.lib-panel-grid > div:nth-child(2),
+  #lib-panel-files > div.lib-panel-grid > div:nth-child(2),
+  #lib-panel-album > div.lib-panel-grid > div:nth-child(2) {
     display: contents !important;
   }
   #library-awards-scroll,
@@ -1774,10 +1769,10 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     order: 2 !important;
     padding: calc(var(--spacing-sm) - var(--spacing-xs)) 0 0 !important;
   }
-  #lib-panel-awards > div[style*="grid"] > div:first-child,
-  #lib-panel-press > div[style*="grid"] > div:first-child,
-  #lib-panel-files > div[style*="grid"] > div:first-child,
-  #lib-panel-album > div[style*="grid"] > div:first-child { order: 3 !important; }
+  #lib-panel-awards > div.lib-panel-grid > div:first-child,
+  #lib-panel-press > div.lib-panel-grid > div:first-child,
+  #lib-panel-files > div.lib-panel-grid > div:first-child,
+  #lib-panel-album > div.lib-panel-grid > div:first-child { order: 3 !important; }
   #library-files-cat-filter,
   #library-album-cat-filter {
     order: 4 !important;
@@ -1788,23 +1783,23 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-files-cat-filter .lib-files-cat-btn,
   #library-album-cat-filter .lib-album-cat-btn { padding: var(--spacing-xs) 0; gap: 0 !important; }
   /* search 列：高 44、input 撐滿列高＝整列可點；margin 蓋 files／album inline mb:sm＋抵掉內容欄 gap */
-  #lib-panel-awards > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-press > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-files > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"],
-  #lib-panel-album > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+  #lib-panel-awards > div.lib-panel-grid > div > div.lib-search-row.lib-search-row,
+  #lib-panel-press > div.lib-panel-grid > div > div.lib-search-row.lib-search-row,
+  #lib-panel-files > div.lib-panel-grid > div > div.lib-search-row.lib-search-row,
+  #lib-panel-album > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     order: 5 !important;
     height: 44px;
     align-items: stretch !important;
     margin: calc(-1 * var(--spacing-xs)) 0 0 !important;
   }
-  #library-card-content [style*="align-items: flex-end"][style*="display: flex"] > div { padding-bottom: 0 !important; }
+  #library-card-content .lib-search-row.lib-search-row > div { padding-bottom: 0 !important; }
   #library-card-content input[id$="-search"] { align-self: stretch; }
   /* placeholder 字級 s（user 10-27 嫌 16 大）：只縮 placeholder，input 本身保 16＝iOS focus 不整頁放大（上面手機段） */
   #library-card-content input[id$="-search"]::placeholder { color: var(--lib-fg); font-size: var(--font-size-s); }
   /* 灰卡到 header：md→sm（user 10-27「再少一點」） */
   #library-card-main { margin-top: var(--spacing-sm) !important; }
   /* 卡底 padding 拿掉：search 列 44 自帶的上下空白（icon 距卡底 15）≈ 左右 padding sm */
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] { padding-bottom: 0 !important; }
+  #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid { padding-bottom: 0 !important; }
   /* 年份鈕：高＝44 本身，不再加 padding（原 sm 上下＝約 51） */
   [id^="library-"][id$="-year-picker"] button,
   #library-year-picker button { padding-top: 0 !important; padding-bottom: 0 !important; }
@@ -1835,25 +1830,25 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-card-main > .library-sort-btn { right: var(--spacing-sm); }
   #library-card-main > .library-sort-btn[hidden] { display: none; }
   .lib-tools-btn .icon { font-size: 20px; }
-  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child,
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child,
   #library-card-main:not(.lib-tools-open) :is(#library-files-cat-filter, #library-album-cat-filter),
-  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     display: none !important;
   }
   /* 收起時清單／ticker 變最後一列：補回卡底 sm（展開時 search 列 44 自帶上下空白，手機段把卡底 padding 拿掉了） */
-  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div[style*="grid"] {
+  #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid {
     padding-bottom: var(--spacing-sm) !important;
   }
   /* 展開＝整片蓋在清單之上（user 2026-11-04「覆蓋在原本的內容之上」，不擠清單＝不跳）：
      年份欄負 margin 吃回工具列佔掉的高（--lib-tools-h，JS bindToolsToggle 量），三列不透明底疊在清單上（z 高過 sticky 年份 5）；
      左右 box-shadow 補到卡緣（清單斑馬列出血到內容欄 padding）。內容欄 overflow-y clip＝整片從卡底滑上來的遮罩 */
-  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] { overflow-y: clip; }
-  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child {
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid { overflow-y: clip; }
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child {
     margin-top: calc(-1 * var(--lib-tools-h, 0px)) !important;
   }
   /* awards 有 ticker：負 margin 改掛 ticker＝ticker 被工具列頂上去、留在工具列正上方（user 2026-11-04「頂上去，不是被操作區覆蓋」），
      一起疊在清單上；滑動同工具列（library-panels.js bindToolsToggle） */
-  #library-card-main.lib-tools-open #library-card-content > #lib-panel-awards > div[style*="grid"] > div:first-child {
+  #library-card-main.lib-tools-open #library-card-content > #lib-panel-awards > div.lib-panel-grid > div:first-child {
     margin-top: 0 !important;
   }
   /* 上內距＋xs、負 margin 同步多 xs（logo 不動、底色往上多蓋 xs）：收著時看得到的上方空白＝清單框底→內容欄 gap xs→上內距，
@@ -1863,9 +1858,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     padding-top: var(--spacing-sm) !important;
   }
   #library-card-main.lib-tools-open #library-awards-ticker,
-  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child,
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child,
   #library-card-main.lib-tools-open :is(#library-files-cat-filter, #library-album-cat-filter),
-  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div > div[style*="align-items: flex-end"][style*="display: flex"] {
+  #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     position: relative;
     z-index: 6;
     background: var(--lib-bg);
@@ -2003,11 +1998,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   /* 清單頂到卡頂（user 2026-11-06「頂部不需要多一個 padding，直接讓第一個頂到頂部」：press、album 點名；awards 同款斑馬列一併）。
      files 是卡片 grid（封面貼卡緣太擠）維持上內距 sm */
-  #library-card-content > :is(#lib-panel-awards, #lib-panel-press, #lib-panel-album) > div[style*="grid"] {
+  #library-card-content > :is(#lib-panel-awards, #lib-panel-press, #lib-panel-album) > div.lib-panel-grid {
     padding-top: 0 !important;
   }
   /* 原年份欄（awards）／年份 wrapper（其餘三頁）：內容已搬進浮層、只剩空殼 */
-  #library-card-content > [id^="lib-panel-"] > div[style*="grid"] > div:first-child {
+  #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child {
     display: none !important;
   }
   /* 清單滿寬（左邊是自己的年份欄）；手機段 -sm 出血只留右側 */

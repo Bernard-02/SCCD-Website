@@ -1411,6 +1411,17 @@ body.mode-color .gallery-ph > span {
   100% { transform: translateX(-50%); }
 }
 
+/* WATCH（影片那則，index-marquee.js 掛 .hm-watch）：bar 每 1s 換一色循環——粉→綠→藍黑字；mode3 黑白互換（color.css；user 2026-11-17）。
+   inline 黑底是一般宣告＝動畫蓋得過；mode2／3 的 !important 底色規則排除 .hm-watch。字色跟著 link 走（inline 白字要 !important 才蓋得掉）。
+   寫在 .is-swap 前面＝hover 時 .is-swap 照舊蓋成三原色（!important 贏動畫） */
+.homepage-marquee-link.hm-watch { color: var(--color-black); animation: hm-watch-rgb 3s step-end infinite; }
+.homepage-marquee-link.hm-watch :is(.homepage-marquee-text, .homepage-marquee-clone) { color: inherit !important; }
+@keyframes hm-watch-rgb {
+  0%      { background: var(--color-pink); }
+  33.333% { background: var(--color-green); }
+  66.667% { background: var(--color-blue); }
+}
+
 /* hover 配色（index-marquee.js 桌面 hover 加 .is-swap）：bar 換成該條的 rgb（--hm-accent）＋黑字（前綴色塊 2026-10-26 拿掉）。
    bar／字色都是 JS inline → !important；mode2/mode3 見 inverse.css / color.css */
 .hm-banner-row.is-swap .homepage-marquee-link { background: var(--hm-accent) !important; }
@@ -1477,7 +1488,7 @@ body.mode-color :is(#activities-content-section, #admission-content-section, #al
    item 落在小數 px 時邊緣像素被畫兩次（125%／150% 縮放漏 1 裝置像素線）。非斑馬列沒有 --zb-color＝image 無效、照樣透明。
    長滿時上下各超出 1px（JS：--zb-h calc(100% + 2px)＋--zb-pos 往外 1px）：圖塊高度捨入會讓小數 px 邊緣少畫一列，
    拿掉 class 換回 background-color 時那列跳一下。
-   JS inline 只寫 --zb-*：字串不能含 "background"（color.css 的 .list-item[style*="background"] 會當成 hover 色翻譯）。 */
+   JS inline 只寫 --zb-*：字串不能含 "background"（syncInlineBg 看 style 字串，含了就掛 .has-inline-bg＝color.css 的 .list-item.has-inline-bg 會當成 hover 色翻譯）。 */
 .zb-cover {
   background-image: linear-gradient(var(--zb-color), var(--zb-color));
   background-repeat: no-repeat;

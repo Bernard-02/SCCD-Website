@@ -87,18 +87,31 @@
     }
     /* 說明文字 sticky 貼內捲框頂、卡片從底下捲過：下方留白用 padding＝底色連空白一起蓋；
        左右吃掉框的 24 clearance＝旋轉角捲過時兩側也蓋住。z-index 壓過帶 transform 的卡片 */
-    /* 不透明底只到 xl−md、再留 md 透明 margin：第一列卡片旋轉（含 hover 抽角）上角伸進這段不被蓋；文字到卡片總距仍＝xl */
+    /* 底色連 xl 留白整段不透明＝同 Donate／Regulations（捲動時內容一律在文字下 xl 處被切）；
+       卡片 ±2° 旋轉角最多抬 ~4px，落在斑馬組 sm 內距裡、不會伸進這段 */
     .legal-sitemap .legal-map-desc {
       position: sticky;
       top: 0;
       z-index: 2;
       background: var(--theme-bg);
-      margin: 0 calc(-1 * var(--spacing-md)) var(--spacing-md);
-      padding: 0 var(--spacing-md) calc(var(--spacing-xl) - var(--spacing-md));
+      margin: 0 calc(-1 * var(--spacing-md));
+      padding: 0 var(--spacing-md) var(--spacing-xl);
     }
     /* Donate／Regulations 說明段同樣 sticky 貼框頂：zebra 無旋轉卡＝底色連 xl 留白整段不透明；
        展開標題列釘在其下（loader 量高寫 --list-header-sticky-top）；z 6 壓過被推上來的 sticky 標題列（5） */
     .legal-zebra .legal-page-desc {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: var(--theme-bg);
+      margin-bottom: 0;
+      padding-bottom: var(--spacing-xl);
+    }
+  }
+  /* 手機排版說明段也 sticky（user 2026-11-17「跟 pc 同步」）：同上兩條、釘點另算——矮橫向 ≥768 frame＝box 頂 0；
+     stack flow（<768、iPad 直拿）見下方 stack 段（釘在常駐 blocker 下）。展開標題列釘點 loader setStickyTop 一起算 */
+  @media not all and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
+    :is(.legal-zebra .legal-page-desc, .legal-sitemap .legal-map-desc) {
       position: sticky;
       top: 0;
       z-index: 6;
@@ -123,12 +136,14 @@
     .legal-content-col > .list-mobile-header-blocker {
       height: var(--mobile-content-top);
       margin-top: calc(-1 * var(--mobile-content-top));
+      display: block !important;   /* 常駐（原本開列才顯示）：說明段 sticky 釘在它下面、捲過的內容由它擋；!important 蓋 HTML md:hidden（iPad 直拿） */
     }
+    :is(.legal-zebra .legal-page-desc, .legal-sitemap .legal-map-desc) { top: var(--mobile-content-top); }
   }
 
   /* ══ Zebra 手風琴（Regulations & Policy / Support / Site Map）══
      沿用 admission 的 list-item / list-header / list-content（legal-data-loader.js mountZebra）＋ initListAccordion。
-     斑馬底翻色、mode3 覆蓋、ref 深色走 lists.css / themes 全域規則（[style*=background] 等）；這裡只補 legal 專屬：
+     斑馬底翻色、mode3 覆蓋、ref 深色走 lists.css / themes 全域規則（.has-inline-bg 等）；這裡只補 legal 專屬：
      ①斑馬底 scope 到 .legal-zebra ②標題/副標排版 ③三種卡片 body。 */
 
   /* 桌面：展開 header 釘在 inner-scroll box 頂（var 未設時預設 200px 離頂太遠）；gate 同 frame 區塊。
@@ -138,7 +153,7 @@
   }
 
   /* 斑馬底＝複製 lists.css activities/admission 公式、改 scope 到 .legal-zebra。
-     open/hover 的 inline accent 與 mode3 theme-fg 覆蓋照吃全域 [style*=background] 規則。 */
+     open/hover 的 inline accent 與 mode3 theme-fg 覆蓋照吃全域 .has-inline-bg 規則。 */
   .legal-zebra .list-item.list-item-zebra {
     background-color: rgba(var(--theme-fg-rgb), var(--list-zebra-alpha, 0.05));
   }
@@ -259,8 +274,8 @@
     padding: var(--spacing-sm) 0;   /* 上＝對齊首列文字；下＝sticky 被組底推住時跟末列文字同底（同 cell 上下 padding，user 2026-11-05） */
   }
   /* sticky 只在 list-content overflow:visible（開合動畫完）時生效：動畫期間 content overflow:hidden＝變 scroll container
-     → sticky 改對 content 定位、類別被推離原位。overflow:visible 由 list-accordion 展開 onComplete 設 inline。 */
-  .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat {
+     → sticky 改對 content 定位、類別被推離原位。overflow:visible 由 list-accordion 展開 onComplete 設 inline、同步掛 .is-overflow-visible。 */
+  .legal-zebra .list-content.is-overflow-visible .legal-reg-cat {
     position: sticky;
     top: calc(var(--list-header-sticky-top, 0px) + var(--legal-reg-cat-top, 0px));   /* 標題列釘點（含頁面說明高）＋標題列高 */
   }
@@ -341,7 +356,7 @@
     margin-right: calc(-1 * var(--spacing-sm));
   }
   @media (hover: hover) and (min-width: 768px) {
-    /* !important：蓋過 mode2 `.list-header[style*=background] + .list-content *{color:black!important}` 級的強制字色 */
+    /* !important：蓋過 mode2 `.list-header.has-inline-bg + .list-content *{color:black!important}` 級的強制字色 */
     .legal-reg-item:hover .legal-reg-name,
     .legal-reg-item:hover .legal-reg-unit {
       background: black !important;
@@ -448,7 +463,7 @@
       justify-items: start;
     }
   }
-  /* 卡片＝首頁 news banner 同款：標題區黑底白字、編號 box 吃 --map-accent（JS 每組隨機三原色）黑字；hover（JS .is-swap）兩區對調、標題區吃每次 hover 重抽的 --map-hover。
+  /* 卡片＝首頁 news banner 同款：標題區黑底白字、編號 box 吃 --map-accent（JS 每組隨機三原色）黑字；hover（JS .is-swap）兩區顏色互換（編號 box 黑、標題區吃組色）。
      不借 .courses-grid-card（它三 mode 都有強制灰底 !important）。6/8/5 padding＝全站 nav btn；transform 過渡給 hover 抽角（底/字色不過渡）。
      mode2/3 見 inverse.css / color.css。max-width：JS 貼字寬（fitMapCardsToText 設固定 px）後視窗縮窄不外溢欄寬 */
   .legal-map-card {
@@ -482,7 +497,7 @@
     z-index: -1;                 /* 卡片帶 transform＝自成 stacking context，-1 仍在卡內、墊在編號框底下 */
     background: var(--map-body-bg);
   }
-  .legal-map-card.is-swap { --map-num-bg: var(--color-black); --map-body-bg: var(--map-hover, var(--map-accent)); color: var(--color-black); }
+  .legal-map-card.is-swap { --map-num-bg: var(--color-black); --map-body-bg: var(--map-accent); color: var(--color-black); }
   /* 編號（1 / 1-1 / 1-1-1…）：width 由 JS equalizeMapNumWidth 量最寬者回寫（border-box 等寬含 padding、標題左緣對齊）。
      box 貼齊卡片左緣並 stretch 撐滿卡高（負 margin 吃掉卡 6/8/5 padding）、自帶同款 padding → 數字行與 EN 標題行同高對齊。 */
   .legal-map-num {
@@ -509,7 +524,7 @@
   .legal-map-card .courses-grid-card-zh { white-space: normal; }
 
   /* ── iPad 直拿：stack flow 專屬補丁 ──（grid 欄佔滿已併進檔頭「手機排版」規則）
-     ① 展開 list header 釘點＝--mobile-content-top＝blocker 高（同手機；legal-data-loader 也寫同值給 getListStickyTop）。
+     ① 展開 list header 釘點＝loader 寫的 --list-header-sticky-top（blocker 高＋sticky 說明段高，同手機）。
      11-10 前釘 96、上面只有 92 白帶＝92–96 露內容、跟手機 108 不一致（lists.css 桌面段 fallback 200px 太低故必須蓋）
      ② 規章表類別欄 sticky 取消：--legal-reg-cat-top 是 box 內偏移語意，window flow 下釘點錯位 */
   @media (orientation: portrait) and (min-width: 768px) {
@@ -525,7 +540,7 @@
          比照其他頁的清單（user 2026-11-12）；右緣本來就同清單（container padding） */
       padding-left: 104px;
     }
-    .legal-zebra .list-header.active { top: var(--mobile-content-top); }
-    .legal-zebra .list-content[style*="overflow: visible"] .legal-reg-cat { position: static; }
+    .legal-zebra .list-header.active { top: var(--list-header-sticky-top, var(--mobile-content-top)); }
+    .legal-zebra .list-content.is-overflow-visible .legal-reg-cat { position: static; }
   }
 }

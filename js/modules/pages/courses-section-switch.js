@@ -757,12 +757,12 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
       : null;
     document.querySelectorAll('.courses-bfa-label').forEach(l => {
       if (l === activeLabel) return;
-      /** @type {HTMLElement} */ (l).style.background = '';
+      SCCDHelpers.setInlineBg(/** @type {HTMLElement} */ (l), '');
       /** @type {HTMLElement} */ (l).style.color = '';
     });
     if (activeLabel) {
       activeLabel._baseRot = pendingLabelRot != null ? pendingLabelRot : getRot();
-      activeLabel.style.background = color;
+      SCCDHelpers.setInlineBg(activeLabel, color);
       activeLabel.style.color = 'var(--color-black)';
       activeLabel.style.transform = `rotate(${activeLabel._baseRot}deg)`;
     }

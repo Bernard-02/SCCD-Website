@@ -292,8 +292,20 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
 
   // ── 矩形樣式設定 ─────────────────────────────────────────────
 
+  // 卡片底色一律經這裡寫：color.css／typography.css 靠 class 認「當前灰卡」（.lib-card-gray＝inline 帶 --lib-bg）與
+  //   「hover 中」（.lib-card-fg-inv＝帶 --theme-fg-inverse）。樣式表不寫 [style*=…]：WebKit 只要有一條，全站每次 inline style 寫入都走慢路徑
+  function setCardBg(el, bg) {
+    el.style.background = bg;
+    syncCardMarks(el);
+  }
+  function syncCardMarks(el) {
+    const s = el.getAttribute('style') || '';
+    el.classList.toggle('lib-card-gray', s.includes('--lib-bg'));
+    el.classList.toggle('lib-card-fg-inv', s.includes('--theme-fg-inverse'));
+  }
+
   function setAsGray(el, sw, sh) {
-    el.style.background     = 'var(--lib-bg)';
+    setCardBg(el, 'var(--lib-bg)');
     el.style.cursor         = 'var(--cursor-default)';
     el.style.zIndex         = '10';
     el.style.width          = `${MAIN_W}px`;
@@ -311,7 +323,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   }
 
   function setAsColor(el, color, config) {
-    el.style.background = color;
+    setCardBg(el, color);
     el.style.cursor     = 'var(--cursor-pointer)';
     el.style.width      = `${Math.round(config.w)}px`;
     el.style.height     = `${Math.round(config.h)}px`;
@@ -494,10 +506,10 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   function applyCardHover(el) {
     const titleEl = /** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
     const isInverse = document.body.classList.contains('mode-inverse');
-    // mode3：色塊平時被 color.css 蓋成 strict B/W（theme-fg 底），hover＝互換（fg-inverse 底＋fg 字）。寫 inline var＝color.css
-    //   `:not([style*="--theme-fg-inverse"])` 放行 → 箭頭預覽／解鎖補發跟 mode1/2 同一套 JS 觸發（原 CSS :hover 版預覽被 !important 吃掉，user 2026-09-28）
+    // mode3：色塊平時被 color.css 蓋成 strict B/W（theme-fg 底），hover＝互換（fg-inverse 底＋fg 字）。寫 inline var（setCardBg 掛 .lib-card-fg-inv）＝color.css
+    //   `:not(.lib-card-fg-inv)` 放行 → 箭頭預覽／解鎖補發跟 mode1/2 同一套 JS 觸發（原 CSS :hover 版預覽被 !important 吃掉，user 2026-09-28）
     const isMode3 = document.body.classList.contains('mode-color');
-    el.style.background = isMode3 ? 'var(--theme-fg-inverse)' : (isInverse ? '#fff' : '#000');
+    setCardBg(el, isMode3 ? 'var(--theme-fg-inverse)' : (isInverse ? '#fff' : '#000'));
     if (titleEl) titleEl.style.color = isMode3 ? 'var(--theme-fg)' : (isInverse ? '#000' : '#fff');
   }
   // §15.4：isSwitching 解鎖那刻補一輪——切換期間新色塊滑到**靜止游標**下，瀏覽器不（可靠）補發 mouseenter、就算 fire 也被
@@ -571,7 +583,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       // §26 bug 修：pending（縮小中/上色擦除前）的色塊必須維持灰——colorOf 在切換起手就已是新色，
       //   此處無 gate 時游標滑出＝直接把 RGB 寫進本體（「色塊變小自動填色」）。pending 中 hover 從沒套過、無需還原。
       if (exiting || el === activeEl || el.dataset.cardPending) return;
-      el.style.background = colorOf.get(el);
+      setCardBg(el, colorOf.get(el));
       titleEl.style.color = 'var(--color-black)';
       reflowCoveredMarquees(el);   // 放開不沉回、留在最前（raiseToTop）
       // #4：離開「不」再轉（user 二輪：避免一次 hover 轉兩次）——只 enter 轉；卡片維持 hover 那次的角度到下次 hover。
@@ -758,8 +770,8 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   共用 0.6s 會慢一倍（user 2026-09-28）。色塊穩態不 glide（resize＝hero 收/進、切 tab 各自顯式掛 TRANSITION/MORPH）＝不影響幾何同步
   const TRANSITION_IDLE = TRANSITION.replace('transform var(--dur-slow) var(--ease-standard)', 'transform var(--dur-fast) var(--ease-standard)');
   // v3「同一物件雙形態」morph 時窗用：幾何＋背景色同拍 0.6s（兩卡都套：被點卡 RGB→灰、舊灰卡 灰→RGB）。
-  // ⚠️mode3 靠 color.css `[style*="--lib-bg"]` 選擇器切黑白：setAsGray 寫 background:var(--lib-bg)（含此標記→neutral gray）、
-  //   setAsColor 寫 #RGB（無標記→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
+  // ⚠️mode3 靠 color.css `.lib-card-gray` 切黑白：setAsGray 寫 background:var(--lib-bg)（setCardBg 掛 class→neutral gray）、
+  //   setAsColor 寫 #RGB（無 class→theme-fg strict）；切換瞬間規則翻面但 CSS transition 補間 computed 值照樣平滑（若 snap→過場 class fallback）。
   // §36 req3（user 2026-09-09）：灰卡→小色塊「回去」的縮小改走專屬緩動——easeInOutCubic 起步輕、收尾軟，
   //   不再急衝（原共用 0.4,0,0.2,1 前段吃掉大半行程＝「急忙的縮小」）。時長維持 0.6s（HOLD/slab timer 都掛 MORPH_DUR，勿改長）。
   //   只縮小端用；被點卡放大仍走 TRANSITION（放大要即刻有感，縮小要優雅收）。CB_SHRINK＝調整鈕。
@@ -824,7 +836,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       const titleEl = /** @type {HTMLElement | null} */ (el.querySelector('.color-rect-title'));
       if (titleEl) titleEl.style.color = 'var(--color-black)';
       if (el !== activeEl) {
-        el.style.background = colorOf.get(el);
+        setCardBg(el, colorOf.get(el));
         if (baseZOf.has(el)) el.style.zIndex = String(baseZOf.get(el));
       }
     });
@@ -971,7 +983,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       // §17.1 打斷兜底：反向上色 overlay（host≠activeEl＝擦色中被打斷的色塊、本體此刻還是灰）→ 直寫最終色；
       //   正向去色 overlay（host＝大灰卡）bg 已是灰、不動。
       const host = /** @type {HTMLElement|null} */ (v.parentElement);
-      if (host && host !== activeEl) { host.style.transition = 'none'; host.style.background = colorOf.get(host); host.style.overflow = ''; }
+      if (host && host !== activeEl) { host.style.transition = 'none'; setCardBg(host, colorOf.get(host)); host.style.overflow = ''; }
       v.remove();
     });
     // v4.12 兜底：mode2 字色編排（黑↔白）被打斷時 timers 已作廢、inline 殘值會卡住錯色——共用節點跨輪重用、統一清
@@ -1067,7 +1079,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     if (contentEl) { contentEl.style.display = 'none'; clickedEl.appendChild(contentEl); }
     clickedEl.style.transition = TRANSITION;
     setAsGray(clickedEl, sw, sh);                       // 幾何目標（放大轉正）；bg 隨即覆寫回 RGB
-    clickedEl.style.background = clickedColor;          // ⚠️點擊當下 hover inline bg 可能是 #000/#fff，顯式寫回 RGB 原色（不能沿用現值）
+    setCardBg(clickedEl, clickedColor);                 // ⚠️點擊當下 hover inline bg 可能是 #000/#fff，顯式寫回 RGB 原色（不能沿用現值）
     // §39 req2（user 2026-09-09「有的色塊放大時永遠不會在頂部」）：⚠️setAsGray 內部寫 z:10——會蓋掉 t=0 抬的 15，
     //   與舊灰卡(z:10)打平＝DOM order 決勝負→放大中沉到灰卡下面。同 tick 補回 15（t=0.6 settle 才還原 10）。
     clickedEl.style.zIndex = '15';
@@ -1081,7 +1093,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     //   （進色塊頂層＝與飛行中的上下關係一致、零翻轉零 pop，見下 settle 區）。
     outgoingEl.style.transition = TRANSITION_MORPH;
     setAsColor(outgoingEl, clickedColor, newCfg);      // 縮到新色卡版位/尺寸（left/top/w/h/rotate glide）
-    outgoingEl.style.background = 'var(--lib-bg)';     // ← 覆寫回灰（縮小全程灰；落定+HOLD 才 overlay 擦除露 RGB）
+    setCardBg(outgoingEl, 'var(--lib-bg)');            // ← 覆寫回灰（縮小全程灰；落定+HOLD 才 overlay 擦除露 RGB）
 
     switchColorTimers.push(setTimeout(() => {
       // 舊灰卡＋others 還原 idle transition＋清殘留 clip（被點卡 clickedEl 留給下方 fade 段控制）。
@@ -1111,7 +1123,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         renderMarquee(outgoingEl);                       // 建色塊 marquee（先藏，上色收尾才揭）
         // (a) 卡本體 bg 直寫 var(--lib-bg)（transition:none；藏在去色滑板下不 paint 中間態）＝順帶消 mode3 bg 補間疑慮
         clickedEl.style.transition = 'none';
-        clickedEl.style.background = 'var(--lib-bg)';
+        setCardBg(clickedEl, 'var(--lib-bg)');
         void clickedEl.offsetHeight;                     // §15.1：commit bg **才**掛回 idle transition（否則 RGB→灰偷偷 fade）
         applyIdleTransition(clickedEl);
         // (b) 色彩 wipe 顏色（mode3=theme-fg）
@@ -1144,7 +1156,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
         slideColorWipe(outgoingEl, wipeColor, { inset: '-2px', z: '0', pe: 'none', slideIn: true, dir: dBack, delay: 0, dur: durBack,
           onDone: (/** @type {HTMLElement} */ wrap2) => {
             outgoingEl.style.transition = 'none';
-            outgoingEl.style.background = clickedColor;
+            setCardBg(outgoingEl, clickedColor);
             void outgoingEl.offsetHeight;
             applyIdleTransition(outgoingEl);
             outgoingEl.style.overflow = '';
@@ -1327,6 +1339,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       // ⚠️ 不設 cursor：inline `cursor:default` 是 keyword（系統箭頭），spec=1000 蓋掉全站自製 cursor 系統，
       //    害灰卡空白處變回系統游標（只有可點元素自套 pointer）。移除 → 繼承 html 的 var(--cursor-default) 自製圖。
       grayEl.style.cssText = `position:absolute;background:var(--lib-bg);z-index:10;display:flex;flex-direction:column;overflow:visible;width:${MAIN_W}px;height:${MAIN_H}px;left:${Math.round(grayCx(sw))}px;top:${Math.round(centerY())}px;transform:translate(-50%,-50%) rotate(0deg);opacity:0;`;
+      syncCardMarks(grayEl);
       initColorEls(sw, sh);
       positionNextBtn(sw, sh);
       colorEls.forEach(el => { el.style.opacity = '0'; });
@@ -1453,7 +1466,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
       const el = btnHoverTarget;
       btnHoverTarget = null;
       if (!el || el === activeEl || el.dataset.cardPending) return;
-      el.style.background = colorOf.get(el);
+      setCardBg(el, colorOf.get(el));
       const t =/** @type {HTMLElement|null} */ (el.querySelector('.color-rect-title'));
       if (t) t.style.color = 'var(--color-black)';
     });

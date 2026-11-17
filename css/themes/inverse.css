@@ -155,42 +155,19 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
   filter: invert(1) !important;
 }
 
-/* ===== 「inline 有底色 → 子孫字色一起翻」的寫法（本檔＋color.css 共用） =====
-   ⚠️ 別再寫 `X[style*="background"] *`：Chromium 只要樣式表裡有「[style…] 後面接 *」的選擇器，全站任何元素每改一次 inline style
-   就整棵子樹重算樣式（GSAP／atlas 漂浮每幀都在改＝atlas 每拍 180 個寫入變成 2300 個元素重算，2026-11-16 量到）。
-   改成：有 inline 底色的元素自己掛一個會繼承的標記（下面這段，選擇器只到元素本身），子孫用 @container style() 讀標記。
-   @supports (container-type: scroll-state)＝只有 Chromium 133+ 認得的條件，當「一定支援 style()」的保證（style() 本身沒辦法用
-   @supports 偵測）；其餘瀏覽器走 not 那支＝原本的寫法，畫面不變。兩支內容要一起改。
-   新寫法裡疊寫的 class（.list-header.list-header）＝補回原本 [style] 那一格特異度，蓋別人的順序才不變 */
-@supports (container-type: scroll-state) {
-  .list-item[style*="background"] { --on-li: 1; }
-  .list-header[style*="background"] { --on-lh: 1; }
-  .list-content[style*="background"] { --on-lc: 1; }
-  .list-header[style*="background"] + .list-content { --on-lh-next: 1; }
-  .press-item[style*="background"] { --on-press: 1; }
-  .files-item[style*="background"] { --on-files: 1; }
-  .degree-show-card-content[style*="background"] { --on-dsd: 1; }
-}
+/* ===== 「inline 有底色 → 本身＋子孫字色一起翻」（本檔＋color.css＋library.css 共用） =====
+   有 inline 底色的元素由 JS 掛 .has-inline-bg（SCCDHelpers.setInlineBg／syncInlineBg；語意＝style 字串含 background），這裡只認 class。
+   ⚠️ 樣式表別再寫 [style…] 選擇器：WebKit 只要有任何一條，全站每次 inline style 寫入都走慢路徑（atlas 100 個名字寫 inline＋重算：WebKit 36ms→4ms，2026-11-17）；
+   Chromium 則是「[style…] 後面接 *」讓每次 inline 寫入整棵子樹重算（2026-11-16）。class 版的 `.x.has-inline-bg *` 兩邊都沒這問題 */
 
-/* hover / active 時 JS 設 inline 亮三原色 bg（list-accordion.js）→ 字一律反黑；用 [style*="background"] 偵測：
+/* hover / active 時 JS 設 inline 亮三原色 bg（list-accordion.js）→ 字一律反黑；用 .has-inline-bg 偵測：
    收合動畫期間 .active 已移除但 inline bg 到 onComplete 才清 → 仍黑字、不閃白。
    .list-content * 需 !important：內含帶 .text-black 的 ref-link，會被廣域 .text-black→white 蓋掉 */
 @media (min-width: 768px) {
-  body.mode-inverse .list-header[style*="background"],
-  body.mode-inverse .list-header[style*="background"] + .list-content {
+  body.mode-inverse .list-header.has-inline-bg,
+  body.mode-inverse .list-header.has-inline-bg + .list-content,
+  body.mode-inverse .list-header.has-inline-bg + .list-content * {
     color: black !important;
-  }
-  @supports not (container-type: scroll-state) {
-    body.mode-inverse .list-header[style*="background"] + .list-content * {
-      color: black !important;
-    }
-  }
-  @supports (container-type: scroll-state) {
-    @container style(--on-lh-next: 1) {
-      body.mode-inverse .list-content.list-content.list-content * {
-        color: black !important;
-      }
-    }
   }
 
   /* list-ref-btn hover：白底黑字（base lists.css 的黑底 hover 在黑頁上會糊，且對齊 mode3）。
@@ -230,29 +207,17 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
 }
 
 /* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
-/* bindListItemHover（library-panels.js）hover 時 inline 設 accent bg → [style*="background"] 偵測，字全反黑（0.5 白 → 0.5 黑）；
+/* bindListItemHover（library-panels.js）hover 時 inline 設 accent bg → .has-inline-bg 偵測，字全反黑（0.5 白 → 0.5 黑）；
    .files-item 為 files + album 共用 */
 @media (min-width: 768px) {
-  body.mode-inverse .files-item[style*="background"],
-  body.mode-inverse .press-item[style*="background"] {
+  body.mode-inverse .files-item.has-inline-bg,
+  body.mode-inverse .files-item.has-inline-bg *,
+  body.mode-inverse .press-item.has-inline-bg,
+  body.mode-inverse .press-item.has-inline-bg * {
     color: black !important;
   }
-  @supports not (container-type: scroll-state) {
-    body.mode-inverse .files-item[style*="background"] *,
-    body.mode-inverse .press-item[style*="background"] * {
-      color: black !important;
-    }
-  }
-  @supports (container-type: scroll-state) {
-    @container style(--on-files: 1) {
-      body.mode-inverse .files-item.files-item * { color: black !important; }
-    }
-    @container style(--on-press: 1) {
-      body.mode-inverse .press-item.press-item * { color: black !important; }
-    }
-  }
 
-  body.mode-inverse .files-item[style*="background"] .files-item-subtitle-tag {
+  body.mode-inverse .files-item.has-inline-bg .files-item-subtitle-tag {
     color: rgba(0, 0, 0, 0.5) !important;
   }
 
@@ -260,18 +225,18 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
 }
 
 /* ===== Courses Grid Cards：inverse 深灰底白字 =====
-   :not([style*="background"]) 排除 hover/active：否則 !important 會蓋過 JS inline accent bg（跟 standard 不一致） */
-body.mode-inverse .courses-grid-card:not([style*="background"]) {
+   :not(.has-inline-bg) 排除 hover/active：否則 !important 會蓋過 JS inline accent bg（跟 standard 不一致） */
+body.mode-inverse .courses-grid-card:not(.has-inline-bg) {
   background: var(--dark-gray) !important;
   color: white !important;
 }
 
-body.mode-inverse .courses-grid-card[style*="background"] {
+body.mode-inverse .courses-grid-card.has-inline-bg {
   color: black !important;
 }
 /* Sitemap 卡（同首頁 news banner inverse）：標題區白底黑字、編號 box 維持 rgb；hover 對調＝標題區吃 rgb、box 白底黑字 */
 body.mode-inverse .legal-map-card { --map-body-bg: var(--color-white); color: var(--color-black); }   /* 兩區底色走 --map-*-bg var（legal.css） */
-body.mode-inverse .legal-map-card.is-swap { --map-num-bg: var(--color-white); --map-body-bg: var(--map-hover, var(--map-accent)); }
+body.mode-inverse .legal-map-card.is-swap { --map-num-bg: var(--color-white); --map-body-bg: var(--map-accent); }
 body.mode-inverse .legal-map-card.is-swap .legal-map-num { color: var(--color-black); }
 
 /* ===== About Anchor Nav ===== */
@@ -294,29 +259,14 @@ body.mode-inverse .anchor-nav-btn.active .anchor-nav-inner {
 }
 
 /* ===== List Accordion hover / active：保留三原色 accent，字強制黑 =====
-   list-accordion.js 在 hover / active 時 inline 設 accent bg（active 連 .list-content / .list-item）；[style*="background"] 只命中這兩態 */
-body.mode-inverse .list-header[style*="background"],
-body.mode-inverse .list-content[style*="background"],
-body.mode-inverse .list-item[style*="background"] {
+   list-accordion.js 在 hover / active 時 inline 設 accent bg（active 連 .list-content / .list-item）；.has-inline-bg 只命中這兩態 */
+body.mode-inverse .list-header.has-inline-bg,
+body.mode-inverse .list-header.has-inline-bg *,
+body.mode-inverse .list-content.has-inline-bg,
+body.mode-inverse .list-content.has-inline-bg *,
+body.mode-inverse .list-item.has-inline-bg,
+body.mode-inverse .list-item.has-inline-bg * {
   color: var(--color-black) !important;
-}
-@supports not (container-type: scroll-state) {
-  body.mode-inverse .list-header[style*="background"] *,
-  body.mode-inverse .list-content[style*="background"] *,
-  body.mode-inverse .list-item[style*="background"] * {
-    color: var(--color-black) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-lh: 1) {
-    body.mode-inverse .list-header.list-header * { color: var(--color-black) !important; }
-  }
-  @container style(--on-lc: 1) {
-    body.mode-inverse .list-content.list-content * { color: var(--color-black) !important; }
-  }
-  @container style(--on-li: 1) {
-    body.mode-inverse .list-item.list-item * { color: var(--color-black) !important; }
-  }
 }
 
 /* ===== Faculty Slide-in：inverse 模式下視覺等同 standard ===== */
@@ -351,7 +301,7 @@ body.mode-inverse .activities-search-input {
 
 /* ===== Homepage Marquee + YT Card：inverse 反轉成白底黑字 ===== */
 /* 標準為 inline 寫死黑底白字（需 !important）；canvas WATCH! 文字由 index-yt-card.js 讀 --theme-bg 重繪 */
-body.mode-inverse .homepage-marquee-link {
+body.mode-inverse .homepage-marquee-link:not(.hm-watch) {   /* WATCH 照 rgb 循環（lists.css .hm-watch） */
   background: white !important;
 }
 
@@ -368,18 +318,9 @@ body.mode-inverse [data-bar="mode"] .theme-toggle-btn {
 }
 
 /* Degree Show card hover：wrapper hover 把 .degree-show-card-content 設 accent bg，body 白字看不清 → 反黑 */
-body.mode-inverse .degree-show-card-content[style*="background"] {
+body.mode-inverse .degree-show-card-content.has-inline-bg *,
+body.mode-inverse .degree-show-card-content.has-inline-bg {
   color: var(--color-black) !important;
-}
-@supports not (container-type: scroll-state) {
-  body.mode-inverse .degree-show-card-content[style*="background"] * {
-    color: var(--color-black) !important;
-  }
-}
-@supports (container-type: scroll-state) {
-  @container style(--on-dsd: 1) {
-    body.mode-inverse .degree-show-card-content.degree-show-card-content * { color: var(--color-black) !important; }
-  }
 }
 
 /* ===== Atlas List View：inverse 反轉 =====

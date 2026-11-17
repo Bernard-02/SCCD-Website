@@ -94,6 +94,30 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
   document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') document.documentElement.classList.add('input-touch'); }, { capture: true, passive: true });
   document.addEventListener('keydown', () => document.documentElement.classList.remove('input-touch'), { capture: true, passive: true });
 
+  // 實機效能診斷開關（user 在 iPad 上一項一項關、親自感覺哪個差最多）：?perf=nologo,nocardmq（逗號分隔）存 sessionStorage
+  // ＝同分頁有效（換頁、整頁重載都在），?perf= 清掉；同 ?gpulogo=1 的做法。nologo＝lottie-visibility.js、nofloat＝atlas.js；
+  // nomq（全站無限循環，合成器版 logo 除外）／nocardmq（library 色卡・灰卡標題跑馬燈）／noticker（awards logo ticker）＝下面每秒巡一次停掉
+  // （CSS 動畫隨 DOM 重建會換新的，停一次不夠）。沒開任何開關＝空集合、什麼都不掛
+  Helpers.perf = new Set();
+  try {
+    const q = new URLSearchParams(location.search).get('perf');
+    if (q) sessionStorage.setItem('sccd-perf', q); else if (q !== null) sessionStorage.removeItem('sccd-perf');
+    Helpers.perf = new Set((sessionStorage.getItem('sccd-perf') || '').split(',').map(s => s.trim()).filter(Boolean));
+  } catch (e) { /* 讀不到 storage＝全關 */ }
+  if (Helpers.perf.size) {
+    console.info('[perf] 診斷開關：' + [...Helpers.perf].join(', '));
+    const all = Helpers.perf.has('nomq');
+    const sel = [Helpers.perf.has('nocardmq') && '.color-rect-title-inner, .lib-title-track',
+                 Helpers.perf.has('noticker') && '#library-awards-ticker'].filter(Boolean).join(', ');
+    // 只停無限循環：一刀切 animation-play-state 會把一次性的進場 keyframe 也卡住
+    if (all || sel) setInterval(() => document.getAnimations().forEach((a) => {
+      const fx = /** @type {KeyframeEffect} */ (a.effect);
+      if (a.playState !== 'running' || !fx || fx.getComputedTiming().iterations !== Infinity) return;
+      if (/** @type {CSSAnimation} */ (a).animationName === 'logo-spin') return;
+      if (all || (fx.target && fx.target.closest(sel))) a.pause();
+    }), 1000);
+  }
+
   Helpers.scrollToElement = function(target, offset, behavior) {
     offset = offset || 0;
     behavior = behavior || 'smooth';
@@ -172,6 +196,18 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     return { logoTop, mid, btnTop: mid - 24, btnBottom: mid + 24, logoLg, logoSm };
   };
 
+  // 「inline 有底色」的鏡像標記 .has-inline-bg：themes（inverse.css／color.css）與 library.css 認它翻字色／底色，不寫 [style*="background"]——
+  // WebKit 只要樣式表有任何 [style…] 選擇器，全站每次 inline style 寫入都走慢路徑（atlas 100 個名字寫 inline＋重算：WebKit 36ms→4ms，2026-11-17）。
+  // 語意刻意同舊選擇器（style 字串含 background，連 transition: background… 也算）：JS 寫完／清掉那幾類元素
+  // （list-header／list-item／list-content／press-item／files-item…，見 themes）的 inline 底色就呼叫；出生就帶的模板直接寫 class
+  Helpers.syncInlineBg = function(el) {
+    if (el) el.classList.toggle('has-inline-bg', (el.getAttribute('style') || '').includes('background'));
+  };
+  Helpers.setInlineBg = function(el, value) {
+    el.style.background = value;
+    Helpers.syncInlineBg(el);
+  };
+
   // 點了會退場的鈕／連結：退場途中保持 hover 樣子（user 2026-10-21，同 header menu 鈕）。退場起跑當下把 el＋子孫的
   // computed 底色／字色凍成 inline !important——鈕滑出游標底下、游標移開（:hover 與 mouseleave 拆色）都不掉色；
   // 收完 releaseHover 還原。svg 內部不凍（Lottie logo 節點上百、色走 fill）。已凍著再呼叫＝沿用第一次（退場中途又被
@@ -184,11 +220,15 @@ window.SCCDHelpers = window.SCCDHelpers || /** @type {SCCDHelpersAPI} */ ({});
     const frozen = nodes.map(n => { const cs = getComputedStyle(n); return HOLD_PROPS.map(p => cs.getPropertyValue(p)); });
     const saved = nodes.map(n => HOLD_PROPS.map(p => [n.style.getPropertyValue(p), n.style.getPropertyPriority(p)]));
     nodes.forEach((n, i) => HOLD_PROPS.forEach((p, j) => n.style.setProperty(p, frozen[i][j], 'important')));
-    el._hoverHold = () => nodes.forEach((n, i) => HOLD_PROPS.forEach((p, j) => {
-      if (n.style.getPropertyPriority(p) !== 'important' || n.style.getPropertyValue(p) !== frozen[i][j]) return;
-      const [v, pr] = saved[i][j];
-      if (v) n.style.setProperty(p, v, pr); else n.style.removeProperty(p);
-    }));
+    nodes.forEach(Helpers.syncInlineBg);
+    el._hoverHold = () => nodes.forEach((n, i) => {
+      HOLD_PROPS.forEach((p, j) => {
+        if (n.style.getPropertyPriority(p) !== 'important' || n.style.getPropertyValue(p) !== frozen[i][j]) return;
+        const [v, pr] = saved[i][j];
+        if (v) n.style.setProperty(p, v, pr); else n.style.removeProperty(p);
+      });
+      Helpers.syncInlineBg(n);
+    });
   };
   Helpers.releaseHover = function(el) {
     const release = el && el._hoverHold;

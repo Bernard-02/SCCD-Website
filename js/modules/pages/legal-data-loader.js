@@ -135,14 +135,13 @@ function mountZebra(contentEl, html) {
   });
   if (document.fonts?.ready) document.fonts.ready.then(() => { if (contentEl.isConnected) measureRegMarquee(); });
   // 展開標題列釘點＝inline var（getListStickyTop 只認 [style*=] 的 var＝開 item 捲動落點與 CSS 釘點同步；規章類別 sticky 也疊這值）：
-  // 桌面＝說明段高（說明 sticky 貼框頂，legal.css；沒說明段＝0）；<768 手機＝--mobile-content-top＝內容初始頂＝blocker 高
-  // （同 activities／admission；值是 px＝getListStickyTop 讀 computed 拿得到數字）
-  // iPad 直拿同手機（11-10 前釘 96）；矮橫向 ≥768 走桌面 frame（CSS 0）→ 移除交回 CSS
+  // ＝說明段頂＋說明段高（說明段全版型 sticky，legal.css；沒說明段＝只剩段頂）。段頂：真桌面／矮橫向 ≥768 frame＝box 頂 0；
+  // <768 與 iPad 直拿（window 捲）＝blocker 高 --mobile-content-top。寫 px＝getListStickyTop 讀 computed 拿得到數字
   const pageDesc = /** @type {HTMLElement|null} */ (contentEl.querySelector('.legal-page-desc'));
   const setStickyTop = () => {
-    if (SCCDHelpers.isDesktopLayout()) contentEl.style.setProperty('--list-header-sticky-top', `${pageDesc ? pageDesc.offsetHeight : 0}px`);
-    else if (window.innerWidth < 768 || !SCCDHelpers.isLandscapePhone()) contentEl.style.setProperty('--list-header-sticky-top', 'var(--mobile-content-top)');
-    else contentEl.style.removeProperty('--list-header-sticky-top');
+    const stack = window.innerWidth < 768 || (!SCCDHelpers.isDesktopLayout() && !SCCDHelpers.isLandscapePhone());
+    const top = stack ? parseFloat(getComputedStyle(contentEl).getPropertyValue('--mobile-content-top')) || 0 : 0;
+    contentEl.style.setProperty('--list-header-sticky-top', `${top + (pageDesc ? pageDesc.offsetHeight : 0)}px`);
   };
   setStickyTop();
   if (pageDesc && typeof ResizeObserver !== 'undefined') {
@@ -430,11 +429,10 @@ function layoutMapCards(root) {
   });
 }
 
-// hover：編號 box 與標題區配色對調（.is-swap，同首頁 news，user 2026-10-03）＋角度重抽（user 2026-09-12）
+// hover：編號 box 與標題區顏色互換（.is-swap；不另抽色，user 2026-11-17）＋角度重抽（user 2026-09-12）
 function bindMapCardHover(root) {
   root.querySelectorAll('.legal-map-card').forEach((card) => {
     card.addEventListener('mouseenter', () => {
-      card.style.setProperty('--map-hover', SCCDHelpers.getRandomAccentColor(card.style.getPropertyValue('--map-hover')));   // hover 色每次重抽（user 2026-11-04）；編號 box 平常仍是組色
       card.classList.add('is-swap');
       card.style.transform = `rotate(${pickCardRot()}deg)`;
     });

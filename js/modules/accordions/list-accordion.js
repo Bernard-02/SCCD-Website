@@ -221,6 +221,13 @@ function pickAccent(header, prefer) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// list-content 的 inline overflow 一律經這裡寫：legal.css 規章類別 sticky 只在展開完（overflow:visible）才生效，
+// 樣式表認 .is-overflow-visible 不認 inline 字串（[style*=…] 讓 WebKit 全站每次 inline style 寫入都走慢路徑）
+function setContentOverflow(content, value) {
+  content.style.overflow = value;
+  content.classList.toggle('is-overflow-visible', value === 'visible');
+}
+
 function listContentOf(header) {
   return /** @type {HTMLElement|null} */ (
     (header.nextElementSibling?.classList.contains('list-content')
@@ -230,7 +237,7 @@ function listContentOf(header) {
 
 // 打開某 item 後 hover 其他 item：把已展開 item 的 accent inline 色清掉 → 露出原本斑馬底色（減弱展開色）。
 // 全站 accent 外觀（inverse/mode-color 的文字翻色、album sticky cell、ref 深色）都靠這幾個 inline 值驅動，
-// 清掉即一次連動還原：文字自動回 theme-fg（[style*=background] 不再命中）、圖片無 inline 依賴故不受影響。
+// 清掉即一次連動還原：文字自動回 theme-fg（setInlineBg 拔掉 .has-inline-bg）、圖片無 inline 依賴故不受影響。
 // restore 從 dataset.accentHex（proceedOpen 存的）重建；rAF 去抖讓 hover A→B（mouseleave 先於 mouseenter）不閃。
 let dimRestoreRAF = 0;
 function dimOpenItemForHover(hoveredHeader) {
@@ -243,10 +250,10 @@ function dimOpenItemForHover(hoveredHeader) {
   const content = listContentOf(active);
   const item = /** @type {HTMLElement|null} */ (active.closest('.list-item'));
   active.dataset.dimmed = '1';
-  active.style.background = '';
-  if (content) content.style.background = '';
+  SCCDHelpers.setInlineBg(active, '');
+  if (content) SCCDHelpers.setInlineBg(content, '');
   if (item) {
-    item.style.background = '';
+    SCCDHelpers.setInlineBg(item, '');
     item.style.removeProperty('--item-color');
     item.style.removeProperty('--item-color-deep');
   }
@@ -260,10 +267,10 @@ function restoreDimmedOpenItem() {
     if (!color) return;
     const content = listContentOf(active);
     const item = /** @type {HTMLElement|null} */ (active.closest('.list-item'));
-    active.style.background = color;
-    if (content) content.style.background = color;
+    SCCDHelpers.setInlineBg(active, color);
+    if (content) SCCDHelpers.setInlineBg(content, color);
     if (item) {
-      item.style.background = color;
+      SCCDHelpers.setInlineBg(item, color);
       item.style.setProperty('--item-color', color);
       item.style.setProperty('--item-color-deep', ACCENT_TO_DEEP[color] || color);
     }
@@ -346,7 +353,7 @@ function instantCloseListHeader(header) {
 
   header.classList.remove('active');
   detachStickyPinObserver(header);
-  header.style.background = '';
+  SCCDHelpers.setInlineBg(header, '');
   delete header.dataset.accentHex;
   delete header.dataset.collapsing;
   delete header.dataset.dimmed;
@@ -354,7 +361,7 @@ function instantCloseListHeader(header) {
   snapSubtitleHeight(header);  // 移 .active 後副標會 0.3s 重新展開 → snap 定高，讓緊接的量測拿到真值
 
   if (workshopItem) {
-    workshopItem.style.background = '';
+    SCCDHelpers.setInlineBg(workshopItem, '');
     workshopItem.style.removeProperty('--item-color');
     workshopItem.style.removeProperty('--item-color-deep');
   }
@@ -362,7 +369,8 @@ function instantCloseListHeader(header) {
   if (content && typeof gsap !== 'undefined') {
     gsap.killTweensOf(content);
     gsap.set(content, { height: 0, overflow: 'hidden' });
-    content.style.background = '';
+    content.classList.remove('is-overflow-visible');   // inline overflow 的鏡像標記（見 setContentOverflow）
+    SCCDHelpers.setInlineBg(content, '');
     content.setAttribute('inert', ''); // 無障礙：收合內容移出 tab 順序
   }
 
@@ -616,7 +624,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
   // 收合動畫開始前先把 overflow 切回 hidden — 否則 open 階段設的 overflow:visible 還在，
   // tween height:0 時子元素（如 album 縮圖、gallery 圖）會因 visible 飄在自然位置不被裁切，
   // 視覺上「容器縮起來但內容卡在原位」直到 onComplete 才瞬間消失
-  content.style.overflow = 'hidden';
+  setContentOverflow(content, 'hidden');
 
   // 收合「靠底部的 item」會跳：footer-safe 開著的 item 必停在 ≈maxScroll，content 縮 → 文件變矮 → 新 maxScroll < 現 scrollY
   //   → 瀏覽器把 scrollY clamp 到新 maxScroll → 整個 section「跳」上來（user 2026-06-28）。
@@ -677,10 +685,10 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
       dispatchGalleryCheckWhenIdle(workshopItem, 320);
       // sticky-pin observer 跟著 active state 走：close 後不需偵測 pinned（header 已不 sticky）
       detachStickyPinObserver(header);
-      header.style.background = '';
-      content.style.background = '';
+      SCCDHelpers.setInlineBg(header, '');
+      SCCDHelpers.setInlineBg(content, '');
       if (workshopItem) {
-        workshopItem.style.background = '';
+        SCCDHelpers.setInlineBg(workshopItem, '');
         workshopItem.style.removeProperty('--item-color');
         workshopItem.style.removeProperty('--item-color-deep');
       }
@@ -693,7 +701,7 @@ function closeListHeader(header, { duration = DUR.medium, scrollFollow = false, 
       // cursor 若仍在 header 上補回 hover bg（mouseenter 不會 re-fire）
       if (header.matches(':hover')) {
         const refill = pickAccent(header);
-        header.style.background = refill;
+        SCCDHelpers.setInlineBg(header, refill);
         header.dataset.accentHex = refill;
       }
       resolveDone();
@@ -731,7 +739,7 @@ function initListHeaderAccordion() {
     // ⚠️ 出生即展開的 header（legal zebra 預設全開＝HTML 烙 .active + height:auto/overflow:visible）跳過：
     //   別把它強制收回，也不 inert（內容可見要進 tab 順序）。
     if (content && !header.classList.contains('active')) {
-      const c = /** @type {HTMLElement} */ (content); c.style.height = '0px'; c.style.overflow = 'hidden';
+      const c = /** @type {HTMLElement} */ (content); c.style.height = '0px'; setContentOverflow(c, 'hidden');
       // 無障礙：收合的 list-content 是 height:0 overflow:hidden（非 display:none）→ 內部 ref/share/gallery
       // 仍在 Tab 順序＝收合時 Tab 會落到看不見的元素。inert 把收合內容移出 tab 與 a11y 樹，open 時移除。
       content.setAttribute('inert', '');
@@ -747,14 +755,14 @@ function initListHeaderAccordion() {
       if (this.closest('#activities-content-section, #admission-content-section')?.classList.contains('hover-dim-suppress')) return;
       if (!this.classList.contains('active') && !this.dataset.collapsing && !this.dataset.opening) {
         const color = pickAccent(this);
-        this.style.background = color;
+        SCCDHelpers.setInlineBg(this, color);
         this.dataset.accentHex = color;
         dimOpenItemForHover(this);  // hover 別的 item → 已展開 item 退回斑馬底色
       }
     });
     header.addEventListener('mouseleave', function() {
       if (!this.classList.contains('active') && !this.dataset.collapsing && !this.dataset.opening) {
-        this.style.background = '';
+        SCCDHelpers.setInlineBg(this, '');
         delete this.dataset.accentHex;
         restoreDimmedOpenItem();  // 離開 → 還原展開 item 的 accent
       }
@@ -867,11 +875,11 @@ function initListHeaderAccordion() {
           // workshopItem 也染同色：sticky header 與 content 在 fractional pixel 位置會出現 1-2px paint 縫，父層 .list-item 連續底色蓋縫。
           const color = pickAccent(self, self.dataset.accentHex);
           self.dataset.accentHex = color;
-          self.style.background = color;
-          content.style.background = color;
+          SCCDHelpers.setInlineBg(self, color);
+          SCCDHelpers.setInlineBg(content, color);
           const deep = ACCENT_TO_DEEP[color] || color;
           if (workshopItem) {
-            workshopItem.style.background = color;
+            SCCDHelpers.setInlineBg(workshopItem, color);
             workshopItem.style.setProperty('--item-color', color);
             workshopItem.style.setProperty('--item-color-deep', deep);
           }
@@ -940,7 +948,7 @@ function initListHeaderAccordion() {
             gsap.to(content, {
               height: 'auto', duration: DUR.medium, ease: EASE.enterSoft,
               onComplete: () => {
-                content.style.overflow = 'visible';
+                setContentOverflow(content, 'visible');
                 // 開啟序列（含下方收齊補捲）整段跑完才發 list:opened：deep-link 導航等它解除操作鎖（deeplink-lock.js）
                 const opened = () => self.dispatchEvent(new Event('list:opened'));
                 let settling = false;
