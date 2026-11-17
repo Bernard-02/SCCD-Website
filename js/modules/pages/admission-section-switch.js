@@ -17,6 +17,7 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 import { snapRowsShown } from '../ui/list-row-reveal.js';
+import { readParams } from '../../config/slugs.js';
 
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
@@ -293,7 +294,7 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
   }));
 
   // ?section= / ?item= deep-link（首頁 floating camp 海報導航）：只有 fromUserNav 才套指定 section + 跑導航動畫。
-  const params = new URLSearchParams(window.location.search);
+  const params = readParams('admission');   // 分頁已換回內部代號（網址列是 slug，js/config/slugs.js）
   const hasDeepLink = params.has('section');
   if (hasDeepLink && fromUserNav) {
     const initialSection = params.get('section') || 'news';

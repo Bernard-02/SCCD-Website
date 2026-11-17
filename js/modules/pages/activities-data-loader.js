@@ -22,7 +22,8 @@ import { loadActivityCollection, loadPermanentExhibitions } from './activities-s
 import { loadDegreeShow } from './degree-show-source.js';
 // '/data/x.json' 字串在 activities 只當 section 識別字（deriveHostSection / _panelSelectorMap 等；檔案本身已刪，
 // 資料一律 Directus＋last-known-good，見 activities-source.js）；loadListInto 沒收到 data 時才 fetch url（alumni 本地資料用）
-import { sitePath } from '../ui/site-base.js';
+import { sitePath, SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { currentPage, tabSlug, publicUrl } from '../../config/slugs.js';
 
 // ── Marquee/chevron 量測合批佇列（2026-09-05 開/關卡頓修）─────────────────────
 // 開/關 item 時 content 內所有 marquee wrap 的 per-wrap ResizeObserver 同一批直發 fire，逐 wrap
@@ -728,7 +729,7 @@ function getLightboxMeta(elem) {
   // Share URL：跟外層 list-item 的 [data-share-btn] 同一份（複製 share-modal.js computeShareUrl 的 section+item 規則）
   const itemId = listItem?.id?.replace(/^item-/, '');
   const section = elem.closest('[id^="panel-"]')?.id?.replace(/^panel-/, '');
-  const shareUrl = (section && itemId) ? `${location.href.split('?')[0]}?section=${section}&item=${itemId}` : '';
+  const shareUrl = (section && itemId) ? `${location.href.split('?')[0]}?section=${tabSlug(currentPage(), section)}&item=${itemId}` : '';   // 網址上的分頁寫 slug
 
   return { title, color, shareUrl };
 }
@@ -1991,7 +1992,7 @@ export async function loadListInto(containerId, url, options = {}) {
   // 六輪 2-D：bar 量測快取。buildOneBatch 每批呼叫 updateStickyTop，若每次都讀 filterBar.offsetHeight＝
   //   剛被批次弄髒的 DOM 上 forced recalc（profiler self 8s）。bar 高只在「bar 自己 resize」時變（bar-hidden/
   //   搜尋收合/viewport），由下方 ResizeObserver 專責失效重量；批次只改 list DOM、bar 高不變 → 用快取零讀取。
-  let _barH = -1, _barTop = 0, _refreshTid = 0, _yearH = 0, _mobileTop = -1;
+  let _barH = -1, _barTop = 0, _refreshTid = 0, _yearH = 0, _yearPad = 0, _mobileTop = -1;
   const measureBar = () => { _barH = filterBar ? filterBar.offsetHeight : 0; _barTop = filterBar ? (parseFloat(getComputedStyle(filterBar).top) || 0) : 0; };
   const updateStickyTop = () => {
     if (!stickyActive) return;
@@ -2001,9 +2002,14 @@ export async function loadListInto(containerId, url, options = {}) {
       // 直向：年份釘 token、開啟的 title 釘年份正下方＝token＋年份高（user 2026-11-05「在年份之下打開、不要蓋到年份」）。
       // title 寫 px（getListStickyTop parseFloat 要讀得到）；量一次（結構固定），首批還沒年份／無年份組＝0、下批補量
       if (_mobileTop < 0) _mobileTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-content-top')) || 0;
-      if (yearAbove && !_yearH) _yearH = /** @type {HTMLElement | null} */ (container.querySelector('.list-year-label'))?.offsetHeight || 0;
-      yearTop = 'var(--mobile-content-top)';
-      top = `${_mobileTop + (yearAbove ? _yearH : 0)}px`;
+      if (yearAbove && !_yearH) {
+        const yl = /** @type {HTMLElement | null} */ (container.querySelector('.list-year-label'));
+        _yearH = yl?.offsetHeight || 0;
+        _yearPad = yl ? parseFloat(getComputedStyle(yl).paddingTop) || 0 : 0;
+      }
+      // 直向手機：年份的「字」對齊 token（同 curriculum 必修／選修標籤，user 2026-11-16）＝盒頂上移自己的 pt，那截底色疊在 blocker 下
+      yearTop = yearAbove ? `${_mobileTop - _yearPad}px` : 'var(--mobile-content-top)';
+      top = `${_mobileTop + (yearAbove ? _yearH - _yearPad : 0)}px`;
     } else {
       top = yearTop = `${filterBar ? _barTop + _barH - 1 : _barTop}px`;
     }
@@ -2580,8 +2586,8 @@ export async function loadDegreeShowListInto(containerId, options = {}) {
     panelSelector: '#panel-exhibitions', autoReveal: false,
     // degree-show-card-content＝下方整列 hover 上色＋themes 反色的掛點；accent＝hover／分享卡色
     linkRow: {
-      href: (it) => `/degree-show-detail?${dsQuery(it)}`,
-      shareUrl: (it) => sitePath('pages/degree-show-detail.html?' + dsQuery(it)),
+      href: (it) => `${SITE_BASE_PATHNAME}pages/degree-show-detail.html?${dsQuery(it)}`,   // 站內連結寫真實檔名（slug 由 router 換）
+      shareUrl: (it) => publicUrl('degree-show-detail', '?' + dsQuery(it)),
       top: dsCoverHtml,
       className: 'degree-show-card-content',
       accent: (it) => it._color,

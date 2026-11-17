@@ -19,6 +19,7 @@ import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap } from '../ui/snap-scroll.js';
 import { lockForDeepLink, deepLinkUnlocker } from '../ui/deeplink-lock.js';
+import { readParams } from '../../config/slugs.js';
 
 // 追蹤哪些 panel 已載入過資料
 const loaded = {};
@@ -762,7 +763,7 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
   window.__sccdNavigateToItem = (section, itemId) => { lockForDeepLink(); return navigateToItem(section, itemId); };
 
   // ?section= / ?item= deep-link：只有從首頁 floating 卡片點進來的 SPA 導航（fromUserNav）才套指定 section + 跑導航動畫。
-  const params = new URLSearchParams(window.location.search);
+  const params = readParams('activities');   // 分頁已換回內部代號（網址列是 slug，js/config/slugs.js）
   // 瀏覽器上一頁回到「從畢業展清單點卡離開」的那筆紀錄（initExhibitionsTypeFilter 寫進 history.state；refresh 由 router 清掉）
   // → 比照舊 ?section=degree-show 連結：開展演＋切畢業展子分頁、hero 後捲到清單（user 2026-10-20）
   const backToDegreeShow = !fromUserNav && history.state?.restore === 'degree-show';

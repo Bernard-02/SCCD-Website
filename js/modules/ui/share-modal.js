@@ -12,6 +12,7 @@ import { DUR, EASE } from './motion.js';
 import { ensureCardMask, revealHidden, randomRevealDir, navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from './scroll-animate.js';
 import { bindArrowSpin } from './arrow-spin.js';
 import { registerPageExit } from './page-exit.js';
+import { currentPage, tabSlug } from '../../config/slugs.js';
 
 let initialized = false;
 let shareOpen = false;
@@ -54,7 +55,7 @@ function computeShareUrl(btn) {
   const itemId   = listItem?.id?.replace(/^item-/, '');
   const panel    = btn.closest('[id^="panel-"]');
   const section  = panel?.id?.replace(/^panel-/, '');
-  if (section && itemId) return `${base}?section=${section}&item=${itemId}`;
+  if (section && itemId) return `${base}?section=${tabSlug(currentPage(), section)}&item=${itemId}`;   // 網址上的分頁寫 slug
   return base;
 }
 

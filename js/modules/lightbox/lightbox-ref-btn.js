@@ -24,6 +24,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
 import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 import { escapeHtml } from '../ui/escape-html.js';
+import { currentPage } from '../../config/slugs.js';
 
 // ⚠️ pathname 形式 + SITE_BASE_PATHNAME 前綴（同 library-panels ref row）：完整 http URL 會被 router
 // 當外部連結整頁重載；無前綴的根路徑在子路徑部署（GitHub Pages）會 404
@@ -342,8 +343,7 @@ export function createRefBtn(initialColor, onCloseLightbox) {
     //    a) 已在 activities 頁 + __sccdNavigateToItem 可用 → 直接 in-page 跳（同 list 內 ref btn 行為）
     //       避免「重 init 整頁 → 回 hero top → 再 scroll 到 item」的視覺鏈
     //    b) 其他頁（library/alumni/index 等）→ <a> click 走 router SPA 換頁
-    const onActivitiesPage = /\/(activities|pages\/activities)\.?html?$/i.test(location.pathname)
-      || location.pathname === '/pages/activities.html';
+    const onActivitiesPage = currentPage() === 'activities';
     if (onActivitiesPage && typeof window.__sccdNavigateToItem === 'function') {
       window.__sccdNavigateToItem(ref.section, ref.itemId || null);
       return;

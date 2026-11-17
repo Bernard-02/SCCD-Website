@@ -7,51 +7,22 @@ import { initPageModules, cleanupPageModules } from './main-modular.js';
 import { updateNavActive, clearNavActive, setNavActive, playPageIndicatorExit } from './header.js';
 import { runPageExit } from './modules/ui/page-exit.js';
 import { initFooter } from './footer.js';
-import { playFooterExit, closeFooter } from './modules/ui/footer-scatter.js';
+import { playFooterExit, closeFooter, setFooterBtnRouteHidden } from './modules/ui/footer-scatter.js';
+import { holdModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { SITE_BASE, SITE_BASE_PATHNAME, sitePath } from './modules/ui/site-base.js';
 import { releaseSnapHold } from './modules/ui/snap-scroll.js';
 import { lockForDeepLink, unlockDeepLink } from './modules/ui/deeplink-lock.js';
 import { CMS_API_BASE } from './config/api.js';
+import { PAGE_FILES, pageOfSlug, pagePath, toPublic, toInternal, slugsFresh } from './config/slugs.js';
 
 // ── 路由表 ────────────────────────────────────────────────────
-const routes = {
-  '/':                        { page: 'index',                   htmlFile: 'index.html' },
-  '/index.html':              { page: 'index',                   htmlFile: 'index.html' },
-  '/about':                   { page: 'about',                   htmlFile: 'pages/about.html' },
-  '/about.html':              { page: 'about',                   htmlFile: 'pages/about.html' },
-  '/faculty':                 { page: 'faculty',                 htmlFile: 'pages/faculty.html' },
-  '/faculty.html':            { page: 'faculty',                 htmlFile: 'pages/faculty.html' },
-  '/curriculum':              { page: 'curriculum',              htmlFile: 'pages/curriculum.html' },
-  '/curriculum.html':         { page: 'curriculum',              htmlFile: 'pages/curriculum.html' },
-  '/activities':              { page: 'activities',              htmlFile: 'pages/activities.html' },
-  '/activities.html':         { page: 'activities',              htmlFile: 'pages/activities.html' },
-  '/admission':               { page: 'admission',               htmlFile: 'pages/admission.html' },
-  '/admission.html':          { page: 'admission',               htmlFile: 'pages/admission.html' },
-  '/degree-show-detail':      { page: 'degree-show-detail',      htmlFile: 'pages/degree-show-detail.html' },
-  '/degree-show-detail.html': { page: 'degree-show-detail',      htmlFile: 'pages/degree-show-detail.html' },
-  '/donate':                  { page: 'support',                 htmlFile: 'pages/donate.html' },
-  '/donate.html':             { page: 'support',                 htmlFile: 'pages/donate.html' },
-  '/alumni':                  { page: 'alumni',                  htmlFile: 'pages/alumni.html' },
-  '/alumni.html':             { page: 'alumni',                  htmlFile: 'pages/alumni.html' },
-  '/library':                 { page: 'library',                 htmlFile: 'pages/library.html' },
-  '/library.html':            { page: 'library',                 htmlFile: 'pages/library.html' },
-  '/atlas':                   { page: 'atlas',                   htmlFile: 'pages/atlas.html' },
-  '/atlas.html':              { page: 'atlas',                   htmlFile: 'pages/atlas.html' },
-  '/create':                  { page: 'generate',                htmlFile: 'pages/create.html' },
-  '/create.html':             { page: 'generate',                htmlFile: 'pages/create.html' },
-  '/regulations':             { page: 'regulations',             htmlFile: 'pages/regulations.html' },
-  '/regulations.html':        { page: 'regulations',             htmlFile: 'pages/regulations.html' },
-  // 舊「政策及聲明」頁 2026-09-09 已併入 Regulations & Policy → 舊網址/書籤直接落規章頁（舊頁 2026-10-04 刪）
-  '/policy-and-statements':      { page: 'regulations', htmlFile: 'pages/regulations.html' },
-  '/policy-and-statements.html': { page: 'regulations', htmlFile: 'pages/regulations.html' },
-  // 舊 slug /accessibility（10-03 改名）不留 alias：冷載入走 tryShortLink → 後台 redirects 設一筆即可
-  '/sitemap':                 { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
-  '/sitemap.html':            { page: 'sitemap',                 htmlFile: 'pages/sitemap.html' },
-  '/404':                     { page: '404',                     htmlFile: 'pages/404.html' },
-  '/404.html':                { page: '404',                     htmlFile: 'pages/404.html' },
-};
+// 頁面清單與對外 slug 都在 js/config/slugs.js（PAGE_FILES／SLUG_DEFAULTS＋後台 site_slugs）。這裡只認兩種寫法：
+// 真實檔名（/about.html、/pages/about.html：站內連結、本機與預覽站的網址列）與 slug（/about：正式站的網址列）。
+// 舊 slug 一律不留 alias（user 2026-11-16）：要留的舊網址到後台 redirects 補一筆（冷載入走 tryShortLink）
+const ROUTES = Object.fromEntries(Object.entries(PAGE_FILES).map(([page, htmlFile]) => [page, { page, htmlFile }]));
+const FILE_ROUTES = Object.fromEntries(Object.values(ROUTES).map(r => ['/' + r.htmlFile.split('/').pop(), r]));
 
-const NOT_FOUND_ROUTE = routes['/404'];
+const NOT_FOUND_ROUTE = ROUTES['404'];
 
 // ── 頁面專屬 CSS 動態載入 ────────────────────────────────────
 const PAGE_CSS = {
@@ -137,24 +108,28 @@ function stripBase(pathname) {
 function resolveRoute(pathname) {
   // 移除 /pages/ 前綴（如果從 pages/ 子目錄點擊連結）
   const normalized = stripBase(pathname).replace(/^\/pages\//, '/').replace(/\/$/, '') || '/';
-  return routes[normalized] || null;
+  if (normalized === '/') return ROUTES.index;
+  if (normalized.endsWith('.html')) return FILE_ROUTES[normalized] || null;
+  return ROUTES[pageOfSlug(normalized.slice(1))] || null;
 }
 
-// ── pushState 網址：乾淨 URL vs 真實檔案路徑 ─────────────────────
-// 已設好 SPA fallback（CloudFront 403/404→index.html、或 nginx try_files）的正式網域，pushState 才
-// 輸出乾淨 URL（/about）；其餘（本地 dev server、還沒設 fallback 的站）一律用真實檔案路徑
-// （/pages/about.html）→ 任何 server 都找得到實體檔、refresh 不 404。resolveRoute 兩種寫法都吃，
-// 所以只有「網址列長相」不同，載入邏輯完全不受影響。
-// ⚠️ 把網域加進 CLEAN_URL_HOSTS「之前」，該站的 server fallback 必須先設好，否則乾淨 URL refresh 會 404。
-//    CloudFront fallback 設好後 → const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];（細節見 docs/前台上線流程-S3-CloudFront.md）
-const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];
-
-function pushPath(route) {
-  if (route.htmlFile === 'index.html') return SITE_BASE_PATHNAME; // 首頁兩種模式都是站台根
-  return CLEAN_URL_HOSTS.includes(window.location.hostname)
-    ? SITE_BASE_PATHNAME + route.htmlFile.replace(/^pages\//, '').replace(/\.html$/, '') // 正式站：/about
-    : SITE_BASE_PATHNAME + route.htmlFile;                                               // 本地/未設 fallback：/pages/about.html
+// 網址列（對外寫法）→ 這頁的內部 search／hash。乾淨網址只認 slug；真實檔案路徑（站內連結開新分頁、本機）內部代號也收
+function readLocation(route) {
+  const { pathname, search, hash } = window.location;
+  return toInternal(route.page, search, hash, !pathname.endsWith('.html'));
 }
+// 網址列換成這頁目前的對外寫法（不換頁）：舊寫法進來的、後台剛改了 slug 的，都收斂成同一個可分享的網址
+function canonicalize(route, internal) {
+  if (route.page === 'index' || route.page === '404') return;
+  const pub = toPublic(route.page, internal.search, internal.hash);
+  const url = pagePath(route.page) + pub.search + pub.hash;
+  const { pathname, search, hash } = window.location;
+  if (url !== pathname + search + hash) history.replaceState(history.state, '', url);
+}
+
+// ── pushState 網址 ─────────────────────
+// 正式站＝乾淨 slug（/about）、其餘＝真實檔案路徑（/pages/about.html）：判法與 CLEAN_URL_HOSTS 在 js/config/slugs.js pagePath
+const pushPath = (route) => pagePath(route.page);
 
 // ── Prefetch on intent（hover / touchstart）──────────────────────
 // 業界標準（Next.js <Link prefetch> / Remix loader / instant.page）：使用者一表現出導航意圖
@@ -213,6 +188,9 @@ function announceAndFocusMain(main) {
 //   若無 guard，B 先完成 swap+init 後 A 再完成又 swap 走 → user 點 /create 卻被 A 拉去 /about
 //   且 /create 的 p5 typewriter 被 A 的 cleanup 殺掉 → placeholder 消失
 let navSeq = 0;
+// 目前（或正在換過去）的頁：網址列要收斂成最新 slug 時用（canonicalize）
+let currentRoute = null;
+let swappedOnce = false;   // 換過頁了沒（body.no-footer 是否已反映當前頁，見 loadPage cornerSwap）
 
 // fromUserNav：true=使用者點連結的 SPA 導航（navigateTo）；false=初始載入 / refresh / popstate。
 // 往下傳到 initPageModules → curriculum deep-link 用它判斷要不要播「自動捲到 section + 開 slide-in」。
@@ -223,6 +201,7 @@ async function loadPage(route, search = '', fromUserNav = false) {
   if (!fromUserNav) unlockDeepLink();
 
   const mySeq = ++navSeq;
+  currentRoute = route;
   // 內部 helper：在每個 await 後檢查是否還是最新 nav，不是就 abort
   const isStale = () => mySeq !== navSeq;
 
@@ -234,10 +213,16 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 兩者平行省 0.3-0.5s 過場時間；await 兩個都完成才繼續 cleanup + DOM 替換。
     // playFooterExit：footer 卡開著就同拍沉下，沒開＝no-op。
     // playPageIndicatorExit：左下當前頁卡（header 內、不隨 main swap）在畫面內才跟頁面同拍沉出（user 2026-09-28）
+    // 目的頁沒 footer（generate／library／atlas）：右下 footer 鈕也同拍滑出（user 2026-11-16），swap 後 footer 容器才 display:none
+    // 有／沒有 footer 鈕的頁互換＝mode3 鉛筆的位置會跟著換（mode-color-panel.css 看 body.no-footer）：鉛筆也先收起，
+    // 下面換完 class 才放＝在新位置跟 footer 鈕一起進場，不會被 footer 鈕當場往左推（user 2026-11-16）
     const pageExit = runPageExit(route);
-    const [_exit, _fexit, _iexit, res] = await Promise.all([pageExit, playFooterExit(), playPageIndicatorExit(), fetch(fetchUrl)]);
+    const noFooter = route.page === 'generate' || route.page === 'library' || route.page === 'atlas';
+    // 直開內頁的第一次 loadPage 不算（body.no-footer 還沒設過、鉛筆也還沒進場）
+    const cornerSwap = (fromUserNav || swappedOnce) && noFooter !== document.body.classList.contains('no-footer');
+    const [res] = await Promise.all([fetch(fetchUrl), pageExit, playFooterExit(), playPageIndicatorExit(),
+      noFooter ? setFooterBtnRouteHidden(true) : null, cornerSwap ? holdModeColorPanel(true) : null]);
     if (isStale()) return; // 中途有新 nav，放棄這次（不 cleanup 不 swap，讓新 nav 接手）
-    void _exit; void _fexit; void _iexit;
     if (!res.ok) throw new Error(`Failed to load ${route.htmlFile}`);
     const html = await res.text();
     if (isStale()) return;
@@ -266,6 +251,7 @@ async function loadPage(route, search = '', fromUserNav = false) {
 
     // 替換內容
     main.innerHTML = newMain.innerHTML;
+    window.SCCDLayout?.apply();   // 新 <main> 裡的 <style>、剛載入的頁面 CSS：版型 media 照這份文件的判法換（layout-mode.js）
     main.className = newMain.className || '';
     main.removeAttribute('style');
     if (newMain.getAttribute('style')) {
@@ -284,9 +270,12 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // generate / library / atlas 頁不顯示 footer（404 顯示，使用者可 scroll 看到）
     const footerEl = document.getElementById('site-footer') || document.getElementById('site-footer-static');
     if (footerEl) {
-      const shouldHide = route.page === 'generate' || route.page === 'library' || route.page === 'atlas';
+      const shouldHide = noFooter;
       footerEl.style.display = shouldHide ? 'none' : '';
+      setFooterBtnRouteHidden(shouldHide);   // 從沒 footer 的頁回來＝鈕滑回；初始路由在沒 footer 的頁＝記下狀態
       document.body.classList.toggle('no-footer', shouldHide);   // 沒 footer＝沒右下 footer 鈕 → mode3 鉛筆回角落（mode-color-panel.css）
+      swappedOnce = true;
+      holdModeColorPanel(false);   // 位置換好了：鉛筆放回（跟上面的 footer 鈕同拍）
       // footer 容器換頁不換（只 swap <main>）＝永遠是「硬載入那頁」的 DOM。library/atlas/create/404 的
       // #site-footer 沒寫 .snap-zone → 從那些頁進站後全 session footer 都不是 snap 點 → mandatory 在
       // content section 以下找不到落點、一律彈回上一個 snap 點（user 報「捲不到 footer」）。router 補掛
@@ -380,6 +369,8 @@ async function loadPage(route, search = '', fromUserNav = false) {
     // 載入失敗且不是在載入 404 本身 → 嘗試載入 404 頁
     if (route.page !== '404' && NOT_FOUND_ROUTE) {
       loadPage(NOT_FOUND_ROUTE, search);
+    } else {
+      holdModeColorPanel(false);   // 換頁前收起的鉛筆別卡在藏起
     }
   }
 }
@@ -408,9 +399,8 @@ async function tryShortLink(logicalPath) {
 }
 
 export function reloadCurrentRoute() {
-  const { pathname, search } = window.location;
-  const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
-  loadPage(route, search);
+  const route = resolveRoute(window.location.pathname) || NOT_FOUND_ROUTE;
+  loadPage(route, readLocation(route).search);
 }
 
 // 會播 deep-link 呈現的頁與觸發條件（同各頁 init 判斷）：activities/admission/faculty 看 ?section、curriculum 看
@@ -424,9 +414,32 @@ function presentsDeepLink(page, search, hash) {
   return false;
 }
 
+// iPad（沒 hover 的大螢幕）：library／atlas／create 走手機排版、其餘頁看螢幕大小（user 2026-11-16）。版型判法整份文件定一次
+// （layout-mode.js；頁名同它的 MOBILE_PAGES）→ 目標頁跟這份文件不同組就不能 SPA 換
+const TOUCH_MOBILE_PAGES = ['library', 'atlas', 'generate'];
+const NAV_HANDOFF_KEY = 'sccd-nav-handoff';   // 跨組整頁載入是使用者點連結來的：新文件照 SPA 導航播 deep-link 呈現（冷載入不播）
+function crossesLayoutGroup(page) {
+  const L = window.SCCDLayout;
+  return !!L && L.capable && L.byWidth === TOUCH_MOBILE_PAGES.includes(page);
+}
+
 export function navigateTo(url) {
-  const { pathname, search, hash } = new URL(url, window.location.origin);
-  const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
+  const u = new URL(url, window.location.origin);
+  const route = resolveRoute(u.pathname) || NOT_FOUND_ROUTE;
+  // 連結帶的分頁可能是內部代號（程式組的 href）或 slug（貼進後台的對外網址）→ 先收成內部代號給頁面用，
+  // 寫進網址列的（pub）再換成 slug（js/config/slugs.js）
+  const { search, hash } = toInternal(route.page, u.search, u.hash, false);
+  const pub = toPublic(route.page, search, hash);
+  // ponytail: 跨組＝退場播完後整頁載入（直接開真實檔案，不經正式站的 SPA 殼）。要無縫換頁得讓 header／menu／鉛筆等
+  // 常駐模組手上的版型 MediaQueryList 能中途換判法，目前沒必要
+  if (route !== NOT_FOUND_ROUTE && crossesLayoutGroup(route.page)) {
+    clearNavActive(route.page);
+    setNavActive(route.page);
+    return Promise.allSettled([runPageExit(route), playFooterExit(), playPageIndicatorExit()]).then(() => {
+      sessionStorage.setItem(NAV_HANDOFF_KEY, '1');
+      window.location.assign(sitePath(route.htmlFile) + pub.search + pub.hash);
+    });
+  }
   // deep-link：點下去當下就擋使用者操作（本頁退場也蓋住），目標頁呈現完自己解鎖；一般換頁順手解掉殘留鎖
   if (presentsDeepLink(route.page, search, hash)) lockForDeepLink(); else unlockDeepLink();
 
@@ -441,7 +454,7 @@ export function navigateTo(url) {
   const realPath = pushPath(route);
 
   // 保留 hash 供 deep link 使用（如 library.html#a-2024-01）
-  window.history.pushState({ page: route.page }, '', realPath + search + hash);
+  window.history.pushState({ page: route.page }, '', realPath + pub.search + pub.hash);
   // fromUserNav=true：使用者主動點連結才會走這（refresh / popstate / 初始載入不經此）→ 准許 deep-link 導航動畫
   return loadPage(route, search, true);
 }
@@ -526,9 +539,8 @@ export function initRouter() {
 
   // 瀏覽器上一頁/下一頁
   window.addEventListener('popstate', () => {
-    const { pathname, search } = window.location;
-    const route = resolveRoute(pathname) || NOT_FOUND_ROUTE;
-    loadPage(route, search);
+    const route = resolveRoute(window.location.pathname) || NOT_FOUND_ROUTE;
+    loadPage(route, readLocation(route).search);
   });
 
   // history.state.restore（activities 畢業展子分頁的上一頁還原）只給 popstate 用：refresh／直接開＝全新頁面（user 2026-06-04）
@@ -538,15 +550,37 @@ export function initRouter() {
   }
 
   // 初始路由（頁面首次載入）；首頁判斷用剝掉子路徑前綴後的邏輯路徑
-  const { pathname, search } = window.location;
+  const { pathname } = window.location;
   const initRoute = resolveRoute(pathname);
   const logicalPath = stripBase(pathname);
+  const handoff = sessionStorage.getItem(NAV_HANDOFF_KEY) === '1';
+  sessionStorage.removeItem(NAV_HANDOFF_KEY);
+  // 從非首頁 URL 直接進入（例如書籤）
+  const start = (route) => {
+    const here = readLocation(route);
+    // head 的 layout-mode.js 把這份文件的版型組猜錯了（後台改過 slug、這台第一次來還不認得）→ 改開真實檔案，檔名一定認得
+    if (crossesLayoutGroup(route.page)) {
+      const pub = toPublic(route.page, here.search, here.hash);
+      window.location.replace(sitePath(route.htmlFile) + pub.search + pub.hash);
+      return;
+    }
+    canonicalize(route, here);
+    // 跨版型組換頁過來且帶 deep-link＝照使用者導航處理（同 navigateTo）
+    const userNav = handoff && presentsDeepLink(route.page, here.search, here.hash);
+    if (userNav) lockForDeepLink();
+    loadPage(route, here.search, userNav);
+  };
+  // 後台的 slug 表晚到、而且改過：網址列收斂成最新寫法（這台存的是舊表、照舊 slug 開進來的）
+  slugsFresh.then(() => { if (currentRoute) canonicalize(currentRoute, readLocation(currentRoute)); });
   if (initRoute && initRoute.page !== 'index') {
-    // 從非首頁 URL 直接進入（例如書籤）
-    loadPage(initRoute, search);
+    start(initRoute);
   } else if (!initRoute && logicalPath !== '/' && logicalPath !== '/index.html') {
-    // 找不到路由且非首頁 → 先查後台短網址，沒有才顯示 404
-    tryShortLink(logicalPath).then((hit) => { if (!hit) loadPage(NOT_FOUND_ROUTE, search); });
+    // 不認得的路徑：可能是後台剛改的 slug（這台還沒讀到）→ 等最新的表再認一次；還是沒有才查後台短網址，都沒有＝404
+    Promise.race([slugsFresh, new Promise(r => setTimeout(r, 3000))]).then(() => {
+      const late = resolveRoute(pathname);
+      if (late && late.page !== 'index') { start(late); return; }
+      tryShortLink(logicalPath).then((hit) => { if (!hit) loadPage(NOT_FOUND_ROUTE, window.location.search); });
+    });
   } else {
     // 首頁初載不跑 loadPage（內容已在 shell）→ 手動掛 snap 模式（mandatory）
     document.documentElement.classList.add('snap-mandatory');

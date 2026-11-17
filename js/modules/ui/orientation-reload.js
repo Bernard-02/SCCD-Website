@@ -20,6 +20,7 @@
 
 import { reloadCurrentRoute } from '../../router.js';
 import { resetInactiveHeaderChrome } from '../../header.js';
+import { currentPageFile } from '../../config/slugs.js';
 
 const GATE = SCCDHelpers.LANDSCAPE_GATE;
 
@@ -28,7 +29,7 @@ export function initOrientationReload() {
   // 兩條都聽：gate 內換版型（iPhone Duo 內螢幕橫向手機版 ↔ 直拿 iPad 版）gate 本身不變
   const onChange = () => {
     // /create（route 名 generate、URL /create 或 create.html）不重載：p5 畫作會丟，頁面自理轉向
-    if (/create(\.html)?\/?$/.test(location.pathname)) return;
+    if (currentPageFile() === 'create') return;
     // header 兩排鈕（桌面／手機）各收各的：翻面當下把換下去那排歸位（header.js）。不看觸控——桌面把視窗拉過斷點一樣會卡
     resetInactiveHeaderChrome();
     if (!window.matchMedia('(pointer: coarse)').matches) return;   // 重排只在觸控裝置（真手機/平板）

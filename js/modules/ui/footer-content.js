@@ -25,7 +25,7 @@ const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
 // 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations（規章與政策）／donate。
 // 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
-//   無障礙聲明移進 Site Map（sitemap.html）；舊 policy-and-statements 網址由 router 導到規章頁。
+//   無障礙聲明移進 Site Map（sitemap.html）。url 寫真實檔名：對外 slug 由 router 換（js/config/slugs.js）。
 const LEGAL = [
   { labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
   { labelEn: 'Regulations & Policy', labelZh: '規章與政策', url: 'regulations.html' },

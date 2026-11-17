@@ -25,6 +25,9 @@ import { bindNavBtnHover, bindNavBtnFit, bindMobileBottomBar } from '../ui/secti
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { makeTabsDraggable } from '../ui/footer-scatter.js';
 import { initAboutMobileSnap } from '../ui/snap-scroll.js';
+import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
+// 上下屆連結：站內連結寫真實檔名（對外 slug 由 router 換，js/config/slugs.js）
+const DSD_HREF = SITE_BASE_PATHNAME + 'pages/degree-show-detail.html?';
 
 // 直向手機（user 2026-10-29）：版面跟桌面同一套（子展覽 tab＋說明 box＋圖、海報影片一屏、無活動清單），尺寸／位置走 variables.css 檔尾 DSD 直向段；
 // 2026-11-11 起所有手機排版（直向手機／iPad 直拿／橫向手機）都走這套（user「舊排版應該全刪」「橫向手機先以直式的改一版」）
@@ -595,7 +598,7 @@ function setupNextProject(prev, next) {
     const titleEnEl = document.getElementById(`${key}-title-en-mobile`);
     const titleEl = document.getElementById(`${key}-title-mobile`);
     if (link) {
-      link.href = '/degree-show-detail?' + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
+      link.href = DSD_HREF + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
       link.style.transform = `rotate(${localRot()}deg)`;
       if (phoneCards) {
         const img = /** @type {HTMLImageElement | null} */ (link.querySelector('.dsd-next-img-m'));
@@ -655,7 +658,7 @@ function setupNextProject(prev, next) {
     const yearEl = document.getElementById(`${key}-year`);
     const titleEnEl = document.getElementById(`${key}-title-en`);
     const titleEl = document.getElementById(`${key}-title`);
-    if (link) link.href = '/degree-show-detail?' + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
+    if (link) link.href = DSD_HREF + new URLSearchParams({ year, ...(data.id ? { id: data.id } : {}) }).toString();
     // 上下屆卡片吃 list 封面（橫式 cover），非直式 poster（user 2026-08-17）。
     // 兩者皆空（新屆後台還沒傳圖）→ 比照 list 灰底 placeholder：藏 img（含 HTML 預設 src，
     // 否則 img.src='' 壞圖＝卡片高度歸零、標題 hover 不到也點不到），高度由 recompute 以同 ratio 補。

@@ -43,14 +43,14 @@ export const CMS_ASSETS_BASE = 'https://sccdadmin.usc.edu.tw/assets';
 ```
 > 這是唯一注入點，全站 fetch 都吃這兩個常數。憑證是 `*.usc.edu.tw` 萬用憑證，用子網域不用裸 IP。
 
-### ② 去掉 `/pages/` — `js/router.js` 的 `CLEAN_URL_HOSTS`
-機制已內建（`pushPath` helper + host 白名單），**只要改一行**。router.js 上方：
+### ② 去掉 `/pages/` — `js/config/slugs.js` 的 `CLEAN_URL_HOSTS`
+機制已內建（`pagePath` helper + host 白名單），**只要改一行**（2026-11-16 起從 router.js 搬到 slugs.js，跟 slug 表放一起）：
 ```js
-const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];   // 空 [] = 全部用 /pages/X.html；列名 host = 乾淨 URL
+export const CLEAN_URL_HOSTS = ['sccd.usc.edu.tw'];   // 空 [] = 全部用 /pages/X.html；列名 host = 乾淨 URL
 ```
-- 白名單內的 host（正式站）→ pushState 輸出 `/about`；其餘（本地 dev、GitHub Pages 預覽 `bernard-02.github.io`）→ 保留 `/pages/about.html`，任何 server 都找得到實體檔、refresh 不 404。
+- 白名單內的 host（正式站）→ pushState 輸出該頁的 slug（`/about`、`/world`…，slug 表同檔、後台 `site_slugs` 可改）；其餘（本地 dev、GitHub Pages 預覽 `bernard-02.github.io`）→ 保留 `/pages/about.html`，任何 server 都找得到實體檔、refresh 不 404。
 - ⚠️ **順序鐵則**：把正式網域加進白名單「之前」，CloudFront SPA fallback（§2）必須**先設好並驗證通過**，否則乾淨 URL refresh 直接 404。
-> `resolveRoute` 本來就同時吃 `/about`、`/about.html`、`/pages/about.html` 三種寫法，所以直接輸入 `sccd.usc.edu.tw/about` 進來也能正確載入。
+> `resolveRoute` 同時吃 slug（`/about`）與真實檔名（`/about.html`、`/pages/about.html`），所以直接輸入 `sccd.usc.edu.tw/about` 進來也能正確載入。
 
 ---
 

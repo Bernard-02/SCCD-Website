@@ -28,6 +28,7 @@ import { registerPageExit } from '../ui/page-exit.js';
 import { waitForHeroAnimDone } from './hero-animation.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { scrollWindowNoSnap, clampBelowFooter, initColSnap, whenScrollSettles } from '../ui/snap-scroll.js';
+import { readParams } from '../../config/slugs.js';
 
 // 矮橫向（橫向手機）走手機 window-scroll 路徑：landscape.css 5d 已把 curriculum 的 inner-scroll
 // frame 拆掉（section 自然高、box 不捲），gate 同 footer-scatter usesMobileFooter()
@@ -182,15 +183,14 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
 
   // ?program= deep-link：只有從首頁 floating course card 點進來的 SPA 導航（fromUserNav）才套指定 program + 跑導航動畫。
   // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）→ 清掉 query、回 default program（= 直接點 curriculum 的樣子，user 2026-06-04）。
-  const params = new URLSearchParams(window.location.search);
+  const params = readParams('curriculum');   // program 已換回內部代號（網址列是 slug，js/config/slugs.js）
   const hasQueryDeepLink = params.has('program');
   const DEFAULT_PROGRAM = 'bfa-animation';
 
   let initialProgram = DEFAULT_PROGRAM;
   let itemSlug = null;
   if (hasQueryDeepLink && fromUserNav) {
-    const rawProgram = params.get('program');           // ?program= 兼容：bfa → bfa-animation
-    initialProgram = (rawProgram === 'bfa') ? 'bfa-animation' : (rawProgram || DEFAULT_PROGRAM);
+    initialProgram = params.get('program') || DEFAULT_PROGRAM;
     itemSlug = params.get('item');
   } else if (hasQueryDeepLink) {
     history.replaceState(history.state, '', window.location.pathname);

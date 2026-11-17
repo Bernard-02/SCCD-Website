@@ -16,7 +16,7 @@ import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { installReducedMotionGsap, prefersReducedMotion } from './modules/ui/reduce-motion.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
-import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from './modules/ui/scroll-animate.js';
+import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN, ensureIconClipWrap } from './modules/ui/scroll-animate.js';
 import { initHeroAnimation, resetHeroDone } from './modules/pages/hero-animation.js';
 import { initHeroMobileSync } from './modules/pages/hero-mobile-sync.js';
 import { loadHero, prefetchHeroes } from './modules/pages/hero-source.js';
@@ -29,6 +29,7 @@ import { deepLinkUnlocker } from './modules/ui/deeplink-lock.js';
 import { runPageCleanups } from './modules/ui/page-cleanup.js';
 import { registerPageExit } from './modules/ui/page-exit.js';
 import { DUR, EASE } from './modules/ui/motion.js';
+import { currentPageFile, tabSlug } from './config/slugs.js';
 
 // ── 頁面專屬模組一律動態載入：進該頁才 import（user 2026-10-04；原本 52 個靜態 import＝每頁都載全站 ~2MB JS）。
 // 瀏覽器 module cache 共用一份（各頁 / idle-standby 待機星雲重複 import 不重下載）。
@@ -44,7 +45,7 @@ let lazySeq = 0;
 // 讓 header SCCD typewriter 完成態完全保留（user 2026-05-31：header 不受影響、內容該退就退）
 /** @param {string} [destPage] */
 export function cleanupPageModules(destPage) {
-  const isSameGenerateReentry = destPage === 'generate' && window.location.pathname.includes('create');
+  const isSameGenerateReentry = destPage === 'generate' && currentPageFile() === 'create';
   // 各模組註冊的 page-level cleanup（window/document listener、interval、observer）
   // 必須早於後續 ScrollTrigger.kill / gsap.killTweensOf — 那些只清 DOM 內 trigger，window 級無感
   runPageCleanups();
@@ -342,7 +343,7 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   if (page === 'admission') {
     // fromUserNav 傳入：首頁 floating camp 海報 deep-link（?section=summer-camp&item=）才跑導航動畫
     Promise.all([
-      import('./modules/pages/admission-data-loader.js').then(m => m.loadAdmissionData()),
+      import('./modules/pages/admission-data-loader.js').then(m => m.loadAdmissionData(fromUserNav ? searchParams.get('item') : null)),
       import('./modules/pages/admission-section-switch.js'),
       import('./modules/ui/activities-search.js'),
     ]).then(([, sw, search]) => {
@@ -501,9 +502,15 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
       // → tab 鈕 hero 式 clip-reveal（同 activities section nav，translate＋同步 clip 滑動）→ panel chip/內容 wipe（playPanelReveal）
       // → 完成才 onEntranceDone + handleHash（deep-link 等進場完才捲，對齊桌面 onEntranceDone 時序）
       const librarySection = /** @type {HTMLElement | null} */ (document.querySelector('main#page-content > section'));
-      // ＋灰卡右上工具鈕的 icon（user 2026-11-04「也要做進出場」）：同 tab 鈕一起 clip-reveal 進場、離頁反向收（遮罩＝icon 自己的框）
+      // 直向／iPad：date sort 移出工具列、常駐在 filter 鈕右邊（user 2026-11-16「它不需要在 filter 裏面」；樣式 library.css、
+      //   只顯當前分頁那顆＝library-panels.js showLibPanel）。橫向手機本來就在浮層外（下面 .lib-land-tools）
+      const card = document.getElementById('library-card-main');
+      if (card && !SCCDHelpers.isLandscapePhone()) card.append(...document.querySelectorAll('.library-sort-btn'));
+      // ＋灰卡上工具鈕的 icon（user 2026-11-04「也要做進出場」）：同 tab 鈕一起 clip-reveal 進場、離頁反向收。
+      //   動的是 icon 的貼身遮罩（＝icon 自己的框）、不動 icon：icon 本身要留給換圖（clipRevealIconSwap），同一元素兩支 tween 會互相 overwrite
       const tabInners = /** @type {HTMLElement[]} */ ([...(tabsRoot ? tabsRoot.querySelectorAll('.anchor-nav-inner') : []),
-        ...document.querySelectorAll('#lib-tools-btn > .icon')]);
+        ...[...document.querySelectorAll('#lib-tools-btn > .icon, #library-card-main > .library-sort-btn > .lib-sort-time')]
+          .map(ic => ensureIconClipWrap(/** @type {HTMLElement} */ (ic)))]);
       const LIB_CLIPS = ['inset(0% 0% 100% 0%)', 'inset(0% 0% 0% 100%)', 'inset(100% 0% 0% 0%)', 'inset(0% 100% 0% 0%)'];
       const pickLibClip = () => LIB_CLIPS[Math.floor(Math.random() * LIB_CLIPS.length)];
       // tab 鈕：每顆固定一個隨機方向（2026-07-17 全站四方向隨機），進場 set 與離頁 exit 共用同一份
@@ -625,9 +632,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         const mySeq = ++libTabSeq;
         setActiveNavBtn(tabBtns, tab, 'data-tab');
         centerTab(tab);
-        const currentHash = window.location.hash.slice(1);
-        if (currentHash !== tab) {
-          history.replaceState(null, '', window.location.pathname + '#' + tab);
+        const tabHash = '#' + tabSlug('library', tab);   // 網址列寫 slug（js/config/slugs.js）
+        if (window.location.hash !== tabHash) {
+          history.replaceState(null, '', window.location.pathname + tabHash);
         }
         const doSwap = () => {
           libTabExiting = false;
@@ -673,9 +680,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
         if (!entranceDone) return; // 自動切換（進場動畫）→ 保留現有 hash
 
         // 使用者手動切換 tab → 更新 URL hash
-        const currentHash = window.location.hash.slice(1);
-        if (currentHash !== tab) {
-          history.replaceState(null, '', window.location.pathname + '#' + tab);
+        const tabHash = '#' + tabSlug('library', tab);   // 網址列寫 slug（js/config/slugs.js）
+        if (window.location.hash !== tabHash) {
+          history.replaceState(null, '', window.location.pathname + tabHash);
         }
       },
       onEntranceDone: () => {
@@ -766,9 +773,7 @@ document.addEventListener('DOMContentLoaded', function () {
   initRouter();
 
   // 首頁初始化（router 判斷非 index 才會自行 fetch，index 由這裡處理）
-  const path = window.location.pathname;
-  const page = path.split('/').pop().replace('.html', '') || 'index';
-  const isIndex = page === 'index' || page === '';
+  const isIndex = currentPageFile() === 'index';
 
   if (isIndex) {
     initPageModules('index');
