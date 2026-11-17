@@ -11,6 +11,7 @@
  */
 import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
+import { POOL_COLLECTIONS, POOL_GUEST_FIELDS, poolGuests } from './guest-orgs.js';
 
 const CMS_COLLECTION = 'activities_degree_show';
 const LKG_KEY = 'degree-show';
@@ -24,6 +25,8 @@ const ACTIVITY_COLLECTIONS = [
 const _activityDeep = ACTIVITY_COLLECTIONS.flatMap(c => [
   `events.activity.item:${c}.*`,
   `events.activity.item:${c}.images.directus_files_id`,
+  // 講者已改從人名庫選的活動：深取 people（collectActivityGuests 攤回 guests shape）
+  ...(POOL_COLLECTIONS.has(c) ? POOL_GUEST_FIELDS.split(',').map(f => `events.activity.item:${c}.${f}`) : []),
 ]).join(',');
 // top-level references M2A（user「後台設的 ref」）：可連活動 collection（→ ref popover 跳轉）
 // 或 library_documents（→ ref popover 原地開 PDF lightbox）。deep-fetch 各型 item 拿 title / pdf。
@@ -176,7 +179,8 @@ function mapEvent(ev) {
 function collectActivityGuests(a) {
   if (!a) return [];
   const out = [];
-  if (Array.isArray(a.guests)) out.push(...a.guests);
+  if (Array.isArray(a.people)) out.push(...poolGuests(a.people));  // 人名庫（取代舊 guests）
+  else if (Array.isArray(a.guests)) out.push(...a.guests);
   if (Array.isArray(a.sessions)) a.sessions.forEach(s => { if (Array.isArray(s.guests)) out.push(...s.guests); });
   return cleanGuests(out);
 }

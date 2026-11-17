@@ -12,6 +12,7 @@ import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '.
 import { pdfOpenUrl } from './pdf-url.js';
 import { videoMediaFromUrl } from '../ui/video-player.js';
 import { SITE_BASE_PATHNAME } from '../ui/site-base.js';
+import { POOL_COLLECTIONS, POOL_GUEST_FIELDS, poolGuests } from './guest-orgs.js';
 
 // 抓取一律 fetchCmsJson（config/api.js）：弱機會 hang，無逾時 fetch 會吊住 switchToSection 的 switching 鎖；
 // 逾時 abort → throw 進三層失敗鏈（記憶體快取 → sessionStorage last-known-good → 錯誤態）。
@@ -142,6 +143,8 @@ function mapRow(r, category, stamp) {
     references: remapRefs(r.references),
     ...(locWithCity ? { cityEn: locWithCity.cityEn || '', cityZh: locWithCity.cityZh || '' } : {}),
     ...(sessions !== undefined ? { sessions } : {}),
+    // 已改從人名庫選的 collection：people 一律是陣列（可為空）→ 取代舊 guests JSON（那欄後台已藏、只留回退）
+    ...(Array.isArray(r.people) ? { guests: poolGuests(r.people), people: undefined } : {}),
   };
 }
 
@@ -214,7 +217,8 @@ async function _loadActivityCollection(collection, opts = {}) {
     // sessions（conference 每日場次 o2m）：fields=* 只回 session id 陣列 → 必須 sessions.* 深取才拿到 titleEn/guests；
     //   只有 activities_conferences 有此欄，其他 collection 帶上會 400（未知欄）整包 fetch fail → 只對 conferences 加。
     const sessionsField = collection === 'activities_conferences' ? ',sessions.*' : '';
-    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height${sessionsField},${REF_FIELDS}`);
+    const poolField = POOL_COLLECTIONS.has(collection) ? `,${POOL_GUEST_FIELDS}` : '';  // 同上：沒這欄的 collection 帶了會 400
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=*,poster.filename_disk,poster.width,poster.height,images.directus_files_id.filename_disk,images.directus_files_id.width,images.directus_files_id.height${sessionsField}${poolField},${REF_FIELDS}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const mapped = rows.map(r => mapRow(r, opts.category, opts.stamp));
     // industry：前台依單一日期排序（新→舊），不吃後台 sort 欄。groupByYear 保留組內順序＝月日新→舊。
