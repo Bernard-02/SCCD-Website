@@ -4,7 +4,7 @@
  * 媒體順序：海報 → videos → images
  */
 
-import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance } from './lightbox-shell.js';
+import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, wheelZoomFactor, bindPinchZoom } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
@@ -215,11 +215,15 @@ function ensureLightbox() {
     if (e.target === lightboxEl) closeLightbox();
   });
 
+  // ctrl+滾輪／觸控板 pinch：lightbox 任何位置都縮放圖片（影片時 zoomAt 自己不動作）、不讓瀏覽器縮整頁（user 2026-11-16）
+  bindPinchZoom(lightboxEl, (x, y, f) => zoomAt(x, y, f), () => zoom.scale);
+
   // 鍵盤：
   //  - Esc / + - 0：縮放控制（0 = 回 fit-to-window）
-  //  - Arrow keys 雙模式：
-  //    · 圖未超出 stage (scale <= fit)：上/左 = 上一張、下/右 = 下一張（4 鍵都導航）
-  //    · 圖已超出 stage (scale > fit)：pan — scroll direction（按右往右看 / 按下往下看，圖往反方向移）
+  //  - 左／右：一律上一張／下一張，放大中也是（user 2026-11-16；原本放大時改成平移）
+  //  - 上／下雙模式：
+  //    · 圖未超出 stage (scale <= fit)：上 = 上一張、下 = 下一張
+  //    · 圖已超出 stage (scale > fit)：pan — scroll direction（按下往下看，圖往反方向移）
   //      跟 PDF viewer / scroll convention 一致；mouse drag 仍維持「圖跟手」方向
   document.addEventListener('keydown', e => {
     if (lightboxEl.style.display === 'none') return;
@@ -231,8 +235,8 @@ function ensureLightbox() {
 
     const canPan = zoomImg && zoom.scale > fitScale() + 0.001;
     const PAN_STEP = 80;
-    if (e.key === 'ArrowLeft')  { if (canPan) { zoom.tx += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
-    if (e.key === 'ArrowRight') { if (canPan) { zoom.tx -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
+    if (e.key === 'ArrowLeft')  { navigate(-1); return; }
+    if (e.key === 'ArrowRight') { navigate(1);  return; }
     if (e.key === 'ArrowUp')    { if (canPan) { zoom.ty += PAN_STEP; clampPan(); applyZoom(true); } else navigate(-1); return; }
     if (e.key === 'ArrowDown')  { if (canPan) { zoom.ty -= PAN_STEP; clampPan(); applyZoom(true); } else navigate(1);  return; }
 
@@ -530,11 +534,11 @@ function renderMain(index) {
     // 切換到 image 時同步 zoom UI（尺寸未知＝顯示留空，不猜 100%）
     updateZoomUI();
 
-    // 滾輪：游標中心縮放（仿 Windows Photos，不需 Ctrl）
+    // 滾輪：游標中心縮放（仿 Windows Photos，不需 Ctrl）。帶 ctrl 的（含觸控板 pinch）交給 lightbox 層那支（bindPinchZoom）
     zoomStage.addEventListener('wheel', e => {
+      if (e.ctrlKey) return;
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      zoomAt(e.clientX, e.clientY, factor, false);
+      zoomAt(e.clientX, e.clientY, wheelZoomFactor(e), false);
     }, { passive: false });
 
     // 拖曳平移（只在圖填滿 stage 時啟動，scale > fit）

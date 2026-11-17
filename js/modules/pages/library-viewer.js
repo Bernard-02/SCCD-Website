@@ -5,7 +5,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance } from '../lightbox/lightbox-shell.js';
+import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, bindPinchZoom } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_FONTS, PDFJS_WASM } from '../ui/pdf-cover.js';
@@ -242,13 +242,14 @@ export function initPdfViewer() {
   modal.appendChild(refUi.popoverEl);                 // popover 仍掛 modal（full overlay；positionPopover 用 viewport rect 算）
   // 鈕 hover 抽角（全站 arrow-spin：hover 抽新角、離開保持；user 2026-10-21）：角度寫在會轉的那層（pill 鈕＝內層 pill、
   // zoom／chevron＝鈕本身）；開檔時的初始角走 _arrowSpin.commit（renderBackPill）。aria-disabled 不轉
-  // 翻頁 chevron 點擊不重抽角（user 2026-11-05：連點翻頁不用每下都轉；11-04「每點換角」撤回），只剩桌面 hover 抽角
+  // 翻頁 chevron：有 hover 的裝置點擊不重抽角（user 2026-11-05：連點翻頁不用每下都轉；11-04「每點換角」撤回）、只剩 hover 抽角；
+  // 沒 hover 的（手機／iPad）沒有那一下 hover＝永遠不轉 → 點了就抽新角（user 2026-11-16「PC 點擊之後有旋轉，手機及 iPad 也要」）
   [[backBtn, backPill], [shareBtnEl, sharePillEl], [refUi.btnEl, refUi.btnEl.querySelector('.lightbox-ref-btn-pill')],
     [zoomOutBtn], [zoomInBtn], [fitToggleBtn], [prevBtn], [nextBtn]].forEach(([btn, rot = btn]) => {
     if (!btn || !rot) return;
     const off = () => navDisabled(btn);
     const pager = btn === prevBtn || btn === nextBtn;
-    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !pager && !off() });
+    bindArrowSpin(btn, (d) => { rot.style.transform = `rotate(${d}deg)`; }, { ignoreEnter: off, clickReroll: () => !off() && (!pager || !SCCDHelpers.canHover()) });
   });
 
   let pdfDoc   = null;
@@ -1331,10 +1332,13 @@ export function initPdfViewer() {
     });
   }
 
+  // ctrl+滾輪／觸控板 pinch：viewer 任何位置都以游標為焦點縮放文件、不讓瀏覽器縮整頁（user 2026-11-16）
+  bindPinchZoom(modal, (x, y, f) => { if (pdfDoc) zoomAt(x, y, f); }, () => zoom.scale);
+
   // Wheel：在 fit 時翻頁；放大到「圖填滿 stage」後 pan within viewport
   // touchpad 一次手勢會丟多 events → 翻頁加 cooldown，pan 不需要（連續 delta 直接累加）
   stageEl.addEventListener('wheel', (e) => {
-    if (!pdfDoc) return;
+    if (!pdfDoc || e.ctrlKey) return;   // 帶 ctrl＝縮放，上面那支處理
     e.preventDefault();
     const canPan = zoom.scale > fitScale() + 0.001;
     if (!canPan) {
@@ -1410,23 +1414,20 @@ export function initPdfViewer() {
     // Esc（含點 logo 補發的那顆）載入中也要能關：pdfDoc 還沒到；closeModal 的 openToken++ 會作廢還在路上的開場
     if (e.key === 'Escape') { closeModal(); return; }
     if (!pdfDoc) return;
-    // 上下左右：圖未填滿 stage 時翻頁；可 pan 時 pan（scroll direction：按右=往右看，圖往左移）
+    // 左右：一律翻頁，放大中也是（user 2026-11-16；原本放大時改成平移＝右下縮圖的框在動、頁不翻）。
+    // 上下：圖未填滿 stage 時翻頁；可 pan 時 pan（scroll direction：按下=往下看，圖往上移）
     const isArrow = e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp';
     const canPan = zoom.scale > fitScale() + 0.001;
     if (isArrow) {
       e.preventDefault();
-      if (canPan) {
+      if (e.key === 'ArrowRight') turnPage( 1);
+      else if (e.key === 'ArrowLeft') turnPage(-1);
+      else if (canPan) {
         const STEP = 80;
-        if (e.key === 'ArrowRight') zoom.tx -= STEP;
-        if (e.key === 'ArrowLeft')  zoom.tx += STEP;
-        if (e.key === 'ArrowDown')  zoom.ty -= STEP;
-        if (e.key === 'ArrowUp')    zoom.ty += STEP;
+        zoom.ty += e.key === 'ArrowDown' ? -STEP : STEP;
         clampPan();
         applyZoom(true);
-      } else {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') turnPage( 1);
-        if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   turnPage(-1);
-      }
+      } else turnPage(e.key === 'ArrowDown' ? 1 : -1);
     }
     if (e.key === '+' || e.key === '=') zoomAtStageCenter(1.5, true);
     if (e.key === '-' || e.key === '_') zoomAtStageCenter(1 / 1.5, true);

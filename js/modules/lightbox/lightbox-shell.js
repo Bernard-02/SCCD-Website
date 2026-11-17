@@ -5,9 +5,9 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
  * Lightbox Shell（共用 utility）
  * 提供所有全螢幕 lightbox/modal 統一的 enter/exit 行為：
  *   - body.lightbox-open class + overflow:hidden
- *   - header bars clip-reveal 退場/進場動畫（logo 不動）
+ *   - header mode／menu 鈕：只有手機 slide-in 收（clip-reveal）；lightbox／PDF／share／桌面色卡留在原位、壓在 overlay 下（user 2026-11-16，見 enterLightboxMode）
  *   - 把 logo <a> portal 出 header 到 #site-header 頂層、z=10000 浮在 overlay z-[9999] 上；header 本體（含 bars）
- *     留在原 z-50 沉在 overlay 底下 → bars 在 overlay 底下收起（user 2026-09-08，見 portalLogoAboveOverlay）
+ *     留在原 z 沉在 overlay 底下（user 2026-09-08，見 portalLogoAboveOverlay）
  *
  * **原則：lightbox 不 mutate 底下 page 渲染**
  *   - 不染 html bg / 不碰 body bg / 不 toggle scrollbar-gutter（會讓 page/header 抖 10px）
@@ -15,7 +15,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
  *
  * **header 區域處理**：
  *   - lightbox `fixed inset-0` 從 top:0 蓋滿 viewport（含 header 區）
- *   - header bars 由 clip-reveal 收掉且沉在 overlay 底下（dim 蓋住）、只有 portal 出來的 logo z=10000 浮在上 + X → 視覺只剩 logo + X 浮在黑底
+ *   - header bars 沉在 overlay 底下（跟頁面一起被 dim 蓋暗）、只有 portal 出來的 logo z=10000 浮在上
  *   - 容器加 inline `padding-top: 1.5rem` 把內部 flex 子元素（image / canvas / thumbs）下推一點，避免貼到浮在上方的 logo / X；數值對齊內部 main `py-xl`(3rem) + thumbs `py-md`(1.5rem) → 上方 gap ≈ poster 到 thumbnail gap 都 4.5rem 對稱；X 按鈕 absolute 相對 padding box top edge → padding 不影響 X 位置
  *   - （舊版曾把 lightbox top 偏移 header-height 露出 page bg，2026-05-17 移除：mode-color 下 page bg 跟 lightbox 黑底色差太大、使用者覺得「沒蓋到 header」）
  *
@@ -273,14 +273,16 @@ function installScrollLock() {
 // slide-in（faculty / courses，容器 z-[9999]）與全螢幕 lightbox（activities / library / share，z-[9999]）
 // 共用同一套行為：① freeze 底層捲動 ② 凍結在當下畫面、不跳頂部、頁內 sticky 不動 ③ 關閉還原。統一不分流。
 // （footer 也是 z-9999，slide-in 開啟時靠 css/layout/footer.css 的 html.has-slide-in .footer-shell{z-index:40} 讓位。）
-// keepHeader（faculty 桌面色卡不 dim，user 2026-10-20）：header mode／menu 鈕不收（點擊放行由 CSS html.overlay-no-dim 管）、
-// logo 連結不拔＝點 logo 照常回首頁（卡片的收場由 caller 掛 page exit）
+// keepHeader（faculty 桌面色卡不 dim，user 2026-10-20）：logo 連結不拔＝點 logo 照常回首頁（卡片的收場由 caller 掛 page exit）
 // menuBack（手機 slide-in，user 2026-11-04）：menu 鈕不收、換成返回箭頭，點了呼叫 menuBack 關閉；exit 時換回漢堡。
 //   panel 從鈕下方滑入＝navigation.css html.has-slide-in 把 header 抬過 slide-in
-let headerBarsKept = false;
+// header mode／menu 鈕只有手機 slide-in（＝有 menuBack：header 抬到 panel 上、mode 鈕會壓在 panel 內容上）才收；
+// lightbox／PDF viewer／share／桌面色卡一律留在原位（user 2026-11-16「不需要消失，保持在畫面上即可」）：
+// 它們在 overlay 下面（同 z、DOM 在前）＝跟頁面一起被蓋暗、點不到；右下 footer 鈕與 mode3 鉛筆同理（footer.css／mode-color-panel.css）
+let headerBarsHidden = false;
 export function enterLightboxMode({ keepHeader = false, menuBack = null } = {}) {
   if (openCount === 0) {
-    headerBarsKept = keepHeader;
+    headerBarsHidden = !!menuBack;
     savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦
     // freeze 底層捲動：純擋輸入，完全不碰 body/html overflow（保住頁內 sticky 不跳、也不跳頂部）。
     // ⚠️ 連 body.overflow:hidden 都不能設：clip 頁（faculty/activities，html inline overflow-x:clip）html overflow
@@ -298,7 +300,7 @@ export function enterLightboxMode({ keepHeader = false, menuBack = null } = {}) 
     if (!keepHeader) disableLogoLinks();
     padLightboxTops();
     if (menuBack) window.__sccdMenuBtnBack?.(menuBack);   // 要在收鈕之前：收鈕才會跳過返回態的 menu 鈕
-    if (!keepHeader) animateHeaderHide(getHeaderTargets());
+    if (headerBarsHidden) animateHeaderHide(getHeaderTargets());
   }
   openCount++;
 }
@@ -319,7 +321,7 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     //   全螢幕 lightbox（fade out）傳 false＝立即，維持「header 與 lightbox 同步淡回」的原設計。
     const revealHeader = () => {
       if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 portal logo + hide）→ 放棄還原
-      if (!headerBarsKept) animateHeaderShow(getHeaderTargets());
+      if (headerBarsHidden) animateHeaderShow(getHeaderTargets());
       // logo 搬回 header 延到 overlay 300ms 淡出結束：logo portal 期間浮在 overlay 之上，overlay 仍在淡出時就把
       //   logo 搬回 header（沉回 overlay 底下）會讓 logo 閃一下（同 2026-09-07 z 還原太早的問題）。待 overlay
       //   淡完再搬回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
@@ -380,4 +382,35 @@ export function playLightboxEntrance({ bars = [], fades = [], item = null, onIte
   if (item) reveal(item, itemAt);
   if (onItem) tl.call(onItem, undefined, itemAt);
   return { kill: () => { tl.kill(); live.forEach(t => t.kill()); } };
+}
+
+// ── 縮放手勢（圖片 lightbox＋PDF viewer 共用，user 2026-11-16）──
+// 滾輪 → 縮放倍率。滑鼠滾輪一格（deltaY 上百，或以「行」計）＝固定 1.15 倍；觸控板送的是細碎的 delta：
+// pinch（Chrome／Edge／Firefox 送成帶 ctrlKey 的 wheel，deltaY＝−100×ln(手勢倍率)）照手勢倍率跟手，兩指滑＝每 100px 抵滑鼠一格
+/** @param {WheelEvent} e */
+export function wheelZoomFactor(e) {
+  if (e.deltaMode || Math.abs(e.deltaY) >= 50) return e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  return Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0014));
+}
+/** root 內任何位置 ctrl+滾輪／觸控板 pinch＝縮放內容，不讓瀏覽器縮整頁。
+ *  @param {HTMLElement} root @param {(x: number, y: number, factor: number) => void} zoomAt 以 (clientX, clientY) 為焦點縮放
+ *  @param {() => number} getScale 當下倍率 */
+export function bindPinchZoom(root, zoomAt, getScale) {
+  root.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, wheelZoomFactor(e));
+  }, { passive: false });
+  // Safari 桌面的觸控板 pinch 不發 wheel、發 gesture*（e.scale＝相對手勢起點的倍率）。觸控螢幕的 pinch 不走這：各 viewer 自己的 touch 流程
+  let start = 1;
+  root.addEventListener('gesturestart', (/** @type {any} */ e) => {
+    if (SCCDHelpers.isCoarsePointer()) return;
+    e.preventDefault();
+    start = getScale();
+  });
+  root.addEventListener('gesturechange', (/** @type {any} */ e) => {
+    if (SCCDHelpers.isCoarsePointer()) return;
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, start * e.scale / getScale());
+  });
 }
