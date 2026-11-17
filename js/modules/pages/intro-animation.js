@@ -44,7 +44,7 @@ export function initIntroAnimation() {
 
   // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑；
   // header 是非同步 fetch 注入的：還沒到就等 header:ready 再播，不擋白幕淡出。
-  // ⚠️ 白幕淡出不能等 header：Lottie 的 complete 只發一次，監聽晚於 header:ready 掛上＝header 比 loader（3.7s）慢到
+  // ⚠️ 白幕淡出不能等 header：Lottie 的 complete 只發一次，監聽晚於 header:ready 掛上＝header 比 loader（5s）慢到
   //    或載入失敗時事件已過、白幕永遠停在最後一格（user 2026-10-31「intro 跑完卡在畫面上」）
   const enterHeader = () => {
     const header = document.querySelector('header');
