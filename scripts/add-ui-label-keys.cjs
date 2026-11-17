@@ -1,6 +1,6 @@
 // 把指定的 ui_labels key 補進 Directus（新 nav btn / 新標籤用）。安全版：只 POST 缺的 key、已存在跳過，
 // 絕不 PATCH 其他 row（舊 setup-ui-labels.cjs 是全量重推、會蓋掉老師的線上編輯，已刪；加新 key 只用本檔）。
-// en/zh 取自 data-source/ui-labels.json（單一來源，先把 key 加進那份）；group 依 categorize-ui-labels.cjs 同規則。
+// en/zh 取自 data-source/ui-labels.json（單一來源，先把 key 加進那份）；category 依 categorize-ui-labels.cjs 同規則。
 //
 // 跑（repo 根目錄）：node scripts/add-ui-label-keys.cjs about.structure [more.keys ...]
 // token：scripts/.directus-token（gitignore）或環境變數 DIRECTUS_TOKEN。
@@ -22,10 +22,14 @@ const api = async (path, opts = {}) => {
 };
 
 // ponytail: 只複製 categorize-ui-labels.cjs 裡會用到的幾條；新 prefix 到那邊補完再同步這裡
+const FOOTER_NAV = ['nav.support', 'nav.regulations', 'nav.sitemap']; // footer 法務連結那三頁（分頁標題＋連結字）
 function groupOf(k) {
+  if (FOOTER_NAV.includes(k)) return 'footer';
+  if (k.startsWith('nav.')) return 'header';
   if (k === 'curriculum.group.bfa' || k.startsWith('curriculum.program.')) return 'curriculum programs';
   if (k === 'about.group.bfa' || k.startsWith('about.program.')) return 'about programs detail';
   if (k.startsWith('about.')) return 'about';
+  if (k.startsWith('error.')) return '404';
   return k.split('.')[0];
 }
 
@@ -43,10 +47,10 @@ async function main() {
   let created = 0, skipped = 0;
   for (const row of rows) {
     if (existing.has(row.key)) { console.log(`↷ 已存在，跳過：${row.key}`); skipped++; continue; }
-    const body = { key: row.key, en: row.en, zh: row.zh, group: groupOf(row.key) };
+    const body = { key: row.key, en: row.en, zh: row.zh, category: groupOf(row.key) };
     const r = await api(`/items/${COLLECTION}`, { method: 'POST', body: JSON.stringify(body) });
     if (!r.ok) { console.error(`✗ ${row.key}`, r.status, r.json); continue; }
-    console.log(`✓ 新增：${row.key}  |  ${row.en} / ${row.zh}  (group: ${body.group})`);
+    console.log(`✓ 新增：${row.key}  |  ${row.en} / ${row.zh}  (category: ${body.category})`);
     created++;
   }
   console.log(`\n完成：新增 ${created}、跳過 ${skipped}。之後老師可在 Directus 後台 ui_labels 改 en/zh（key 唯讀）。`);

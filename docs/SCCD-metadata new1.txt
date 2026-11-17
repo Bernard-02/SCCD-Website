@@ -1,0 +1,98 @@
+﻿SCCD 網站各頁 metadata（2026-11-17 從 repo HTML <head> 擷取）
+寫在各頁 HTML 的 <head>，改了要重新出包上傳。og:description 每頁都跟 description 相同，不另列。
+分頁標題：header 9 頁＋Donate／Regulations／Site Map 開頁後會換成後台 ui_labels 的 nav 名；下面是 HTML 原始值（Google 與分享預覽看這份）。
+
+【首頁】  index.html
+網址（canonical）：https://sccd.usc.edu.tw/
+分頁標題 title：SCCD - Department of Communications Design, Shih Chien University 實踐大學媒體傳達設計學系
+分享標題 og:title：SCCD - Department of Communications Design, Shih Chien University 實踐大學媒體傳達設計學系
+說明 description：SCCD - Department of Communications Design, Shih Chien University 實踐大學媒體傳達設計學系
+
+【About】  pages/about.html
+網址（canonical）：https://sccd.usc.edu.tw/about
+分頁標題 title：About 關於
+分享標題 og:title：About 關於
+說明 description：SCCD - Department of Communications Design, Shih Chien University 實踐大學媒體傳達設計學系
+
+【Faculty】  pages/faculty.html
+網址（canonical）：https://sccd.usc.edu.tw/faculty
+分頁標題 title：Faculty 師資
+分享標題 og:title：Faculty 師資
+說明 description：SCCD - Faculty 實踐大學媒體傳達設計學系 - 師資
+
+【Curriculum】  pages/curriculum.html
+網址（canonical）：https://sccd.usc.edu.tw/curriculum
+分頁標題 title：Curriculum 課程
+分享標題 og:title：Curriculum 課程
+說明 description：SCCD - Curriculum 實踐大學媒體傳達設計學系 - 課程
+
+【Activities】  pages/activities.html
+網址（canonical）：https://sccd.usc.edu.tw/activities
+分頁標題 title：Activities 動態
+分享標題 og:title：Activities 動態
+說明 description：SCCD - Activities 實踐大學媒體傳達設計學系 - 動態
+
+【Admissions】  pages/admission.html
+網址（canonical）：https://sccd.usc.edu.tw/admissions
+分頁標題 title：Admissions 入學
+分享標題 og:title：Admissions 入學
+說明 description：SCCD - Admissions 實踐大學媒體傳達設計學系 - 入學
+
+【畢業展內頁】  pages/degree-show-detail.html
+網址（canonical）：（無）
+分頁標題 title：Degree Shows 畢業展
+分享標題 og:title：Degree Shows 畢業展
+說明 description：SCCD - Degree Shows 實踐大學媒體傳達設計學系 - 畢業展
+
+【Library】  pages/library.html
+網址（canonical）：https://sccd.usc.edu.tw/library
+分頁標題 title：Library 檔案館
+分享標題 og:title：Library 檔案館
+說明 description：SCCD - Library 實踐大學媒體傳達設計學系 - 檔案館
+
+【World】  pages/atlas.html
+網址（canonical）：https://sccd.usc.edu.tw/world
+分頁標題 title：World 世界
+分享標題 og:title：World 世界
+說明 description：SCCD - World 實踐大學媒體傳達設計學系 - 世界
+
+【Create】  pages/create.html
+網址（canonical）：https://sccd.usc.edu.tw/create
+分頁標題 title：CREATE! 創造！
+分享標題 og:title：CREATE! 創造！
+說明 description：SCCD - Create! 實踐大學媒體傳達設計學系 - 創造！
+
+【Alumni】  pages/alumni.html
+網址（canonical）：https://sccd.usc.edu.tw/alumni-association
+分頁標題 title：SCCD Alumni Association 實踐大學媒體傳達設計學系系友會
+分享標題 og:title：SCCD Alumni Association 實踐大學媒體傳達設計學系系友會
+說明 description：SCCD Alumni Association 實踐大學媒體傳達設計學系系友會
+
+【Donate】  pages/donate.html
+網址（canonical）：https://sccd.usc.edu.tw/donate
+分頁標題 title：Donate 捐贈
+分享標題 og:title：Donate 捐贈
+說明 description：Donate SCCD 捐贈實踐大學媒體傳達設計學系
+
+【Regulations】  pages/regulations.html
+網址（canonical）：https://sccd.usc.edu.tw/regulations-and-policies
+分頁標題 title：Regulations & Policies 規章與政策
+分享標題 og:title：Regulations & Policies 規章與政策
+說明 description：SCCD - Regulations & Policies 實踐大學媒體傳達設計學系 - 規章與政策
+
+【Site Map】  pages/sitemap.html
+網址（canonical）：https://sccd.usc.edu.tw/site-map
+分頁標題 title：Site Map 網站導覽
+分享標題 og:title：Site Map 網站導覽
+說明 description：SCCD - Site Map 實踐大學媒體傳達設計學系 - 網站導覽
+
+【404】  pages/404.html
+網址（canonical）：（無）
+分頁標題 title：Page Not Found
+分享標題 og:title：（無）
+說明 description：（無）
+robots：noindex（不給搜尋引擎收錄）
+
+【全站共用】
+網站名 og:site_name：SCCD - Department of Communications Design, Shih Chien University 實踐大學媒體傳達設計學系
+分享圖 og:image：https://sccd.usc.edu.tw/images/og-image.png

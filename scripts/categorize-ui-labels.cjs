@@ -13,13 +13,14 @@ const CHOICES = [
   'header', 'about', 'about programs tree', 'about programs detail', 'about works',
   'curriculum programs', 'faculty programs', 'faculty types',
   'activities', 'activities exhibitions', 'activities visits', 'admissions',
-  'library', 'atlas', 'atlas alumni', 'alumni', 'index', 'common',];
+  'library', 'atlas', 'atlas alumni', 'alumni', 'index', 'common', 'footer', '404',];
 
 // key → 資料夾
 function catOf(k) {
   // 組別/BFA 已照頁面拆開（curriculum ↔ about 各一份、內容相同、獨立編輯）
   if (k === 'curriculum.group.bfa' || k.startsWith('curriculum.program.')) return 'curriculum programs';
   if (k === 'about.group.bfa' || k.startsWith('about.program.')) return 'about programs detail';
+  if (['nav.support', 'nav.regulations', 'nav.sitemap'].includes(k)) return 'footer';   // footer 法務連結三頁
   if (k.startsWith('nav.')) return 'header';
   if (k.startsWith('about.')) return 'about';
   if (k.startsWith('faculty.dept.')) return 'faculty programs';
@@ -34,6 +35,7 @@ function catOf(k) {
   if (k.startsWith('atlas.')) return 'atlas';
   if (k.startsWith('alumni.')) return 'alumni';   // 系友會頁 nav（非 atlas 的 alumni chip）
   if (k.startsWith('common.')) return 'common';   // 多頁共用（旋轉提示：atlas／create）
+  if (k.startsWith('error.')) return '404';       // 404 頁大字卡
   return null;
 }
 

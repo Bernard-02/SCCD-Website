@@ -6,8 +6,8 @@
  *   footer_items    — 各分頁項目（tab-first：在分頁詳情內拖曳）；type = social（社群圖示）／text（文字：標題＋內文＋選填連結）
  *                     （2026-10-01 由 info/phone/address/link/social 收斂；舊值仍相容＝當 text 渲染）。連結一律後台自填，前台不再自動生成
  *   footer_settings — 單例：copyright＝自訂文字 或 自動年份（二選一；「Copyright ©」前綴固定）
- * 右下法務連結＝3 個固定站內頁（Donate/規章/政策），標籤固定 → 前台寫死 LEGAL const，不進 CMS
- *   （對應內容在 Directus regulations（規章與政策）／donate；那些是頁面內文，標題與 footer 標籤不同）。
+ * 右下法務連結＝3 個固定站內頁（Donate/規章/網站導覽）：標籤＝ui_labels nav.<route 名>（同時是分頁標題），
+ *   LEGAL const＝後台掛時的 fallback（頁面內文在 Directus regulations／donate，跟標籤無關）。
  * 圖示（tab 標誌 + 社群 icon）＝Directus Files「Site Icons」資料夾的 SVG，前台以 CSS mask 依 mode 上色。
  *
  * 前台：single-flight cache；後台是唯一來源，CMS 掛/空 → 空 tabs（不再退本地 JSON，user 2026-10-04）。
@@ -17,19 +17,20 @@
 
 import { CMS_API_BASE, cdnUrl, fetchCmsJson } from '../../config/api.js';
 import { sitePath, SITE_BASE_PATHNAME } from './site-base.js';
+import { loadUiLabels } from './ui-labels.js';
 
 // 圖示檔案欄位深取 filename_disk（<uuid>.svg）→ 組 CloudFront URL 繞過弱機 /assets 逾時（見 CMS_CDN_BASE）。
 const TAB_FIELDS = 'key,nameZh,nameEn,note,markIcon.filename_disk,items.type,items.itemKey,items.labelZh,items.labelEn,' +
   'items.textZh,items.textEn,items.phoneCountry,items.phoneNumber,items.phoneExt,items.iconFile.filename_disk,items.url';
 const DEEP = encodeURIComponent(JSON.stringify({ items: { _sort: ['sort'] } }));
 
-// 右下法務連結：固定站內頁、標籤固定 → 寫死（不進 CMS）。頁面內文在 Directus regulations（規章與政策）／donate。
+// 右下法務連結：固定站內頁；標籤吃後台 ui_labels（key 同 main-modular 分頁標題的 nav.<route 名>），這裡的字＝後台掛時的 fallback。
 // 2026-09-09：regulations 與 policy 合併為「Regulations & Policy」一頁（隱私政策併入 regulations.html）；
 //   無障礙聲明移進 Site Map（sitemap.html）。url 寫真實檔名：對外 slug 由 router 換（js/config/slugs.js）。
 const LEGAL = [
-  { labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
-  { labelEn: 'Regulations & Policy', labelZh: '規章與政策', url: 'regulations.html' },
-  { labelEn: 'Site Map', labelZh: '網站導覽', url: 'sitemap.html' },
+  { key: 'nav.support', labelEn: 'Donate', labelZh: '捐贈', url: 'donate.html' },
+  { key: 'nav.regulations', labelEn: 'Regulations & Policies', labelZh: '規章與政策', url: 'regulations.html' },
+  { key: 'nav.sitemap', labelEn: 'Site Map', labelZh: '網站導覽', url: 'sitemap.html' },
 ];
 
 let _dataPromise = null;
@@ -205,7 +206,7 @@ function buildTabButton(tab, active, markRatio) {
   return btn;
 }
 
-function renderLegal(footerRoot, legal) {
+function renderLegal(footerRoot, legal, labels) {
   if (!legal || !legal.length) return;
   const privacy = footerRoot.querySelector('.footer-privacy > div');
   if (!privacy) return;
@@ -216,7 +217,8 @@ function renderLegal(footerRoot, legal) {
     //    → 整頁重載、footer/頁面退場動畫全不播）；SITE_BASE_PATHNAME 前綴讓子路徑部署也成立
     const a = link(SITE_BASE_PATHNAME + 'pages/' + (lg.url || ''), { external: false });
     a.dataset.footerLegal = '1';
-    a.append(el('span', 'footer-legal-en mb-en-zh-s', `${lg.labelEn || ''} `), el('span', 'footer-legal-zh', lg.labelZh || ''));
+    const row = labels[lg.key] || {};
+    a.append(el('span', 'footer-legal-en mb-en-zh-s', `${row.en || lg.labelEn} `), el('span', 'footer-legal-zh', row.zh || lg.labelZh));
     privacy.insertBefore(a, anchor);
   });
 }
@@ -228,7 +230,8 @@ export async function renderFooterContent(footerRoot) {
   const tabsBox = footerRoot.querySelector('.footer-tabs');
   if (!area || !tabsBox) return;
 
-  const { tabs, copyright } = await getFooterData();
+  // ui_labels 失敗回 {}（不 reject）；header 已抓過＝吃 single-flight 快取
+  const [{ tabs, copyright }, labels] = await Promise.all([getFooterData(), loadUiLabels()]);
   if (!tabs || !tabs.length) return;
 
   // tab 標誌 viewBox 比例先量好（wordmark 才需要；社群 icon 走方框）
@@ -264,6 +267,6 @@ export async function renderFooterContent(footerRoot) {
     if (note) { note.dataset.footerRendered = '1'; frag.appendChild(note); }
   });
   area.appendChild(frag);
-  renderLegal(footerRoot, LEGAL);
+  renderLegal(footerRoot, LEGAL, labels);
   renderCopyright(footerRoot, copyright);
 }

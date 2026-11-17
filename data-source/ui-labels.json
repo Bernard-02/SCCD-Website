@@ -22,6 +22,9 @@
     { "key": "nav.library",    "en": "Library",            "zh": "檔案館" },
     { "key": "nav.atlas",      "en": "World",              "zh": "世界" },
     { "key": "nav.create",     "en": "CREATE!",            "zh": "創造！" },
+    { "key": "nav.support",     "en": "Donate",               "zh": "捐贈" },
+    { "key": "nav.regulations", "en": "Regulations & Policies", "zh": "規章與政策" },
+    { "key": "nav.sitemap",     "en": "Site Map",             "zh": "網站導覽" },
 
     { "key": "about.vision",     "en": "Vision",    "zh": "理念" },
     { "key": "about.structure",  "en": "Structure", "zh": "架構" },
@@ -93,6 +96,8 @@
     { "key": "lib.doctype.contributions", "en": "Contributions",       "zh": "收錄" },
     { "key": "lib.doctype.booklets",      "en": "Booklets & Leaflets", "zh": "冊頁" },
     { "key": "lib.doctype.other",         "en": "Other",               "zh": "其他" },
-    { "key": "common.rotate",             "en": "ROTATE FOR BEST EXPERIENCE", "zh": "旋轉設備以獲取最佳體驗" }
+    { "key": "common.rotate",             "en": "ROTATE FOR BEST EXPERIENCE", "zh": "旋轉設備以獲取最佳體驗" },
+
+    { "key": "error.title",               "en": "ERROR",                      "zh": "未知" }
   ]
 }

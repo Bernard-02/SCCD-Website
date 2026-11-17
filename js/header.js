@@ -871,14 +871,14 @@ export function restoreHeaderLogo() {
 // ── Active Nav State（Router 換頁時呼叫）──────────────────────
 // detail 頁對應到父層高亮（degree-show-detail 隸屬 activities.html 的 panel → 高亮 Activities）
 const NAV_PAGE_MAPPINGS = { 'degree-show-detail': 'activities' };
-// menu 沒有的頁 → 左下「當前頁」卡文字（legal 同 footer-content.js 法務連結標籤）。
+// menu 沒有的頁 → 左下「當前頁」卡文字＝後台 ui_labels（同 footer 法務連結、分頁標題的 key），這裡的字＝後台掛時 fallback。
 // donate 兩個名：SPA route＝support、冷載入檔名＝donate。首頁不放卡（user 2026-09-27）＝不列
-/** @type {Record<string, [string, string]>} */
+/** @type {Record<string, [string, string, string]>} */
 const PAGE_CARD_LABELS = {
-  regulations: ['Regulations & Policy', '規章與政策'],
-  sitemap: ['Site Map', '網站導覽'],
-  support: ['Donate', '捐贈'],
-  donate: ['Donate', '捐贈'],
+  regulations: ['nav.regulations', 'Regulations & Policies', '規章與政策'],
+  sitemap: ['nav.sitemap', 'Site Map', '網站導覽'],
+  support: ['nav.support', 'Donate', '捐贈'],
+  donate: ['nav.support', 'Donate', '捐贈'],
   // 404 不放卡（user 2026-09-28 改口；原先有「404 找不到頁面」）——查不到 label 又無 active nav link ＝ 留空、:empty 藏
 };
 // page → nav-link href（比對 href 屬性；index 沒 nav-link 故給 ''）
@@ -962,8 +962,10 @@ export function updateNavActive(page) {
     indCard.dataset.page = cardKey;
     const label = PAGE_CARD_LABELS[activePage];
     indCard.innerHTML = cardKey === 'degree-show-detail' ? ''
-      : label ? `<span>${label[0]}</span> <span>${label[1]}</span>`
+      : label ? `<span data-label-key="${label[0]}">${label[1]}</span> <span data-label-key="${label[0]}" data-label-part="zh">${label[2]}</span>`
       : header.querySelector('a.mobile-nav-link.active')?.innerHTML || '';
+    // menu 頁抄的選項字已被 applyUiLabels 填過；legal 卡是新建的 → 自己套一次（ui_labels 已快取＝下個 microtask 就到）
+    if (label) loadUiLabels().then(map => applyUiLabels(map, indCard));
     // 只抄字不抄樣式：點選項換頁時 router holdLinkUntil 把選項連子孫凍成 inline !important hover 色（黑字），
     // 此刻正凍著 → 抄過來＝黑底黑字、看不到字（user 2026-10-21）
     indCard.querySelectorAll('[style]').forEach(n => n.removeAttribute('style'));
@@ -1000,7 +1002,10 @@ export function updateNavActive(page) {
   document.body.classList.toggle('page-alumni', isAlumniActive);   // alumni.css 用
   // mode-btn 在 /create (generate) 頁需保留 hide 狀態（updateToggleBtnVisualState 隱藏的 clipPath inline）
   // 不加 gate 的話 same-page reentry 時 hide 狀態被清掉、edge-detection 又不會 re-fire hide → 視覺凍結現身
-  if (modeBtnEl && !isGenerateActive) /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
+  if (modeBtnEl && !isGenerateActive) {
+    /** @type {HTMLElement} */ (modeBtnEl).style.clipPath = '';
+    modeBtnEl.classList.remove('is-clipping');   // buttons.css：inline clip-path 的鏡像標記
+  }
 
   // Logo 尺寸：library / atlas 頁是小的（--logo-sm）；一般頁是大的（--logo-lg）會 scroll shrink（兩者依視窗高等比，1920×960＝180／100）
   // /create 由 triggerGenerateLogo 自己管 size（shrink 大→小 是 typewriter 進場敘事的一部分），

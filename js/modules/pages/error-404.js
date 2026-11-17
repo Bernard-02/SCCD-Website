@@ -1,7 +1,7 @@
 /**
  * 404 Page
  *
- * 三張卡（ERROR / 未知 / 回首頁 btn）— 同色、隨機旋轉、collision-based 隨機放置
+ * 兩張大字卡（ERROR / 未知）— 同色、隨機旋轉、collision-based 隨機放置；回首頁鈕固定左下（.error-404-back，不排位、不重排）
  * 每張卡 = anchor wrapper（負責 abs 定位 + 旋轉 + overflow:clip）+ 內層 card（負責 yPercent reveal）
  *
  * 放置策略：
@@ -87,6 +87,13 @@ function randomizeAllPlacements(stage) {
 
   /** @type {{x:number,y:number,w:number,h:number}[]} */
   const placedRects = [];
+  // 左下固定的回首頁鈕當障礙（stage 座標）：大字卡不壓到它
+  const back = document.querySelector('.error-404-back');
+  if (back) {
+    const sr = stage.getBoundingClientRect();
+    const br = back.getBoundingClientRect();
+    placedRects.push({ x: br.left - sr.left, y: br.top - sr.top, w: br.width, h: br.height });
+  }
   /** @type {{anchor:HTMLElement, topPct:number, leftPct:number, rot:number}[]} */
   const results = [];
 
@@ -190,28 +197,26 @@ export function init404() {
 
   // Y reveal 進場：anchor 已 overflow:clip → setupClipReveal 偵測 parent.overflowY=clip 會 skip wrap，
   // 只 set yPercent:100；playClipReveal tween 到 0 完成後啟動 shuffle loop
-  const cards = stage.querySelectorAll('.error-404-card');
+  // 回首頁鈕跟大字卡同一批進退場（同一套 yPercent clip-reveal），但不在 stage 內＝shuffle 不動它
+  const back = /** @type {HTMLElement|null} */ (document.querySelector('.error-404-back'));
+  const cards = [...stage.querySelectorAll('.error-404-card'), ...(back ? back.querySelectorAll('.error-404-back-inner') : [])];
   setupClipReveal(cards);
   playClipReveal(cards, {
     onComplete: () => startShuffleLoop(stage),
   });
 
-  // 回首頁鈕 hover＝黑方塊 icon 鈕家族（user 2026-10-26「跟其他 btn 一個樣式」）：換成另一個三原色底（CSS 在 404.html）
-  // ＋抽新角、離開保持。轉 anchor 不轉 card：anchor 的 overflow:clip 是進場遮罩，轉 card 會被切角；角度本來就由 GSAP rotation 持有
-  const back = /** @type {HTMLElement|null} */ (stage.querySelector('[data-error-card="back"]'));
+  // 回首頁鈕 hover：底色＝標題卡的顏色（user 2026-11-17；預設黑方塊在 404.html CSS）＋抽新角、離開保持。
+  // 轉 anchor 不轉 inner：anchor 的 overflow:clip 是進場遮罩，轉 inner 會被切角
   if (back && typeof gsap !== 'undefined') {
-    bindNavBtnHover(back, { pick: () => {
-      const others = SCCDHelpers.ACCENT_COLORS.filter(c => c !== color);
-      return others[Math.floor(Math.random() * others.length)];
-    } });
+    bindNavBtnHover(back, { pick: () => color });
     bindArrowSpin(back, (/** @type {number} */ d) => gsap.to(back, { rotation: d, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' }),
-      { initial: Number(gsap.getProperty(back, 'rotation')) });
+      { initial: 0 });
   }
 
   // 離頁退場：先停 5s shuffle 不跟退場搶 tween，再 yPercent 反向沉出（anchor overflow:clip 當 mask）
   registerPageExit(() => {
     stopShuffleLoop();
-    return playRevealExit(stage.querySelectorAll('.error-404-card'));
+    return playRevealExit(cards);
   });
 }
 
@@ -221,5 +226,6 @@ export function cleanup404() {
   if (typeof gsap !== 'undefined') {
     const stage = document.getElementById('error-404-stage');
     if (stage) gsap.killTweensOf(stage.querySelectorAll('.error-404-card'));
+    gsap.killTweensOf('.error-404-back, .error-404-back-inner');
   }
 }

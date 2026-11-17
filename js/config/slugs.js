@@ -48,7 +48,7 @@ export const SLUG_DEFAULTS = {
   'page.generate': 'create',
   'page.alumni': 'alumni-association',
   'page.support': 'donate',
-  'page.regulations': 'regulations-and-policy',
+  'page.regulations': 'regulations-and-policies',
   'page.sitemap': 'site-map',
   'faculty.fulltime': 'full-time-professors',
   'faculty.parttime': 'part-time-professors',

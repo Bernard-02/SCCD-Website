@@ -201,12 +201,14 @@
     {
       "labelEn": "Donate",
       "labelZh": "捐贈",
+      "labelKey": "nav.support",
       "url": "donate.html",
       "subs": []
     },
     {
-      "labelEn": "Regulations & Policy",
+      "labelEn": "Regulations & Policies",
       "labelZh": "規章與政策",
+      "labelKey": "nav.regulations",
       "url": "regulations.html",
       "subs": []
     }
