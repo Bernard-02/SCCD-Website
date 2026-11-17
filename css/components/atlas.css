@@ -396,9 +396,10 @@ body.mode-color #atlas-detail-mask {
   gap: 12px;
 }
 .atlas-detail-row-main { flex: 1 1 auto; min-width: 0; }  /* min-width:0 才允許子欄 overflow→marquee */
-/* 單語 title 在列內垂直置中，對齊右欄類別兩行；直向手機列改 column 時 align-self 會變水平置中 → gate 排除 */
+/* title 在列內垂直置中：單語對齊右欄類別兩行、同一家標兩個分類（detailCats）時落在兩個分類中間（user 2026-11-17）；
+   一般列兩欄同高＝不動。直向手機列改 column 時 align-self 會變水平置中 → gate 排除 */
 @media (min-width: 768px), (orientation: landscape) {
-  .atlas-detail-row-main:has(> :only-child) { align-self: center; }
+  .atlas-detail-row-main { align-self: center; }
 }
 .atlas-detail-row-en,
 .atlas-detail-row-zh {

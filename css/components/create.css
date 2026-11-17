@@ -273,7 +273,9 @@ body.create-kb-open #site-header {
   position: relative; /* 假游標／鏡像的定位框 */
 }
 /* 桌面假游標：滑鼠鍵盤裝置輸入框設 readonly（input-handling.js initDesktopKeyMap，免輸入法接管），
-   readonly 不畫原生游標 → 補一條（currentColor）；只在輸入框 focus 時顯示 */
+   Safari 不在 readonly 畫原生游標 → 補一條（currentColor）；只在輸入框 focus 時顯示。
+   Chrome 在 readonly 照樣畫原生游標（headless 實測，user 2026-11-17「游標重複繪製」）→ 原生的一律透明、只留假游標 */
+:is(#input-box, #mobile-input-box):read-only { caret-color: transparent; }
 .create-fake-caret {
   position: absolute;
   width: 1.5px;

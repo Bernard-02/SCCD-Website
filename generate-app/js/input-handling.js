@@ -217,7 +217,7 @@ function handleInput(event) {
 // --- 實體鍵盤：輸入法開著（中文等）也能直接打英文（user 2026-10-04；10-28 手機版面同一套）---
 // 網頁關不掉作業系統輸入法，但輸入法只接管「可編輯」欄位 → 滑鼠鍵盤裝置把輸入框設 readonly（輸入法不啟動），
 // 字母依實體鍵位 e.code（KeyA–KeyZ，與輸入法／鍵盤配置無關）自己填；Backspace／Delete／貼上／剪下同理自處理，
-// 再發 input 事件走原本 handleInput（大寫／過濾／40 字／彩蛋）。Chrome／Safari 不在 readonly 畫游標 → 補假游標。
+// 再發 input 事件走原本 handleInput（大寫／過濾／40 字／彩蛋）。Safari 不在 readonly 畫游標 → 補假游標（Chrome 會畫＝create.css 把 readonly 的原生游標設透明）。
 // 桌面 #input-box 與手機版面 #mobile-input-box 都套（窄視窗／平板接鍵盤走手機版面也一樣）。
 // ponytail: 游標固定字尾（方向鍵不動、點字中間不插入；反白選取可整段取代）——這欄只會往後打，要中間編輯再做游標位置模型
 // 觸控（手機／iPad 螢幕鍵盤）不套：readonly 叫不出螢幕鍵盤，維持原生輸入框——中文輸入法擋不掉，讓使用者自己切英文
