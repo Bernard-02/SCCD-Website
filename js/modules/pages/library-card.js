@@ -46,7 +46,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   const DESK_BOTTOM_GAP = 48, DESK_COLOR_PAD_X = 60;
   const deskLeft = () => 60 + SCCDHelpers.headerGeom().logoSm + 32;
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
-  const isDesk = () => window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px)').matches;
+  const isDesk = () => window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應
   // （user 2026-08-24 approach 2，取代舊「寬度固定比」＝底距隨螢幕忽大忽小）。Math.max 保底＝極矮視窗不算出負高。
   function layoutMain(sw, sh) {
@@ -857,7 +857,13 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   // §38（user 2026-09-09）拆兩顆鈕：
   //   CONTENT_EXIT＝灰卡內容退場窗（rows stagger 波長）＋ morph 起跑等待（§37「內容先消失、那一刻才變小」不變）
   //   MARQ_EXIT＝被點色塊 marquee 滑出時長——§38 req1 改在 morph 起跑那刻才滑出（不再一點下去就消失）；§44 再快一點 0.35→0.25
-  const CONTENT_EXIT = 0.5, MARQ_EXIT = 0.25, MARQ_ENTER = 0.3;
+  // §48（user 2026-11-16「色塊 marquee 退場跟灰卡的內容退場一起，整體時間再縮短一點」，撤 §39「排在退場窗尾端」）：
+  //   兩者點下去同時起跑、同一個時長 EXIT_PIECE，收完才放大（§37「內容先消失、那一刻才變小」、§39「放大之前就要先出場」都還成立）。
+  //   原本是接力——內容 0～0.22、marquee 0.25～0.5、放大 0.5 起——現在並排＝退場窗 0.5→0.25；兩邊各自的速度沒變。
+  //   ⚠️ t=0 剛好是 fadeToFront 複本交叉淡化那一段：複本上也有一份字條，要跟本體同拍滑出（marqueeWipeExit），不然疊成兩份＝鬼影
+  //   （第一版漏了、user 當天抓到）
+  const EXIT_PIECE = 0.22;
+  const CONTENT_EXIT = 0.25, MARQ_EXIT = EXIT_PIECE, MARQ_ENTER = 0.3;
 
   // §24.2 clip-reveal 位移版（取代 §22 純 clip 收合）：keyframe 元素用 CSS **個別 translate 屬性**沿「垂直字條」方向滑動——
   //   個別 translate 與 marquee keyframe 的 transform 各自獨立、不互踩（＝免加 wrapper DOM 也不踩「gsap 動 transform 清 CSS 動畫」坑），外層 overflow:hidden 裁切＝位移揭露。
@@ -899,12 +905,20 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     if (!inner) return null;
     const dir = Math.random() < 0.5 ? 'up' : 'down';
     src.style.visibility = 'visible';                        // 兜底：title 若被前輪 setAsGray/refreshMarquees 藏掉，翻回可見才看得到滑出
-    inner.style.transition = 'none';
-    inner.style.translate = '0 0';
+    // 換深度的複本（crossfadeZ 的 .lib-z-ghost，點擊抬到最前那 DUR.fast 還墊在原深度）上也有一份字條：跟本體同拍滑出，
+    //   不然本體滑走、複本那份還在原位跑＝疊成兩份（鬼影，user 2026-11-16）
+    const ghostInner = /** @type {HTMLElement|null} */ (ghostOf.get(cardEl)?.querySelector('.color-rect-title-inner') || null);
+    const inners = ghostInner ? [inner, ghostInner] : [inner];
+    inners.forEach(n => { n.style.transition = 'none'; n.style.translate = '0 0'; });
     void inner.offsetHeight;                                 // §8.1 commit 起點才掛 transition
-    inner.style.transition = `translate ${MARQ_EXIT}s ${CB_EXIT}`;
-    inner.style.translate = marqueeExitShift(dir, isVertTitle(inner));
-    switchColorTimers.push(setTimeout(() => { src.style.visibility = 'hidden'; inner.style.transition = ''; inner.style.translate = ''; }, MARQ_EXIT * 1000));
+    const shift = marqueeExitShift(dir, isVertTitle(inner));
+    inners.forEach(n => { n.style.transition = `translate ${MARQ_EXIT}s ${CB_EXIT}`; n.style.translate = shift; });
+    switchColorTimers.push(setTimeout(() => {
+      src.style.visibility = 'hidden'; inner.style.transition = ''; inner.style.translate = '';
+      // 複本的字條同一刻收掉（它比本體晚被移除；不收＝本體藏了、複本那份還多露幾幀）
+      const gt = /** @type {HTMLElement|null} */ (ghostInner && ghostInner.closest('.color-rect-title'));
+      if (gt) gt.style.visibility = 'hidden';
+    }, MARQ_EXIT * 1000));
     return dir;
   }
 
@@ -983,15 +997,14 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     // §38 req1（user 2026-09-09）：點擊當下被點色塊 z 即刻抬到最前（原在 morph 起跑才抬）——內容退場窗它就浮最上；
     //   marquee **不**在此刻退場（原 t=0 marqueeWipeExit 被打回「一點下去就消失」）。
     fadeToFront(clickedEl);
-    // §39 req1（user 2026-09-09「marquee 在放大之前就要先出場」，撤 §38「morph 起跑那刻才滑出」）：
-    //   排在退場窗**尾端**＝起點 CONTENT_EXIT−MARQ_EXIT、滑 MARQ_EXIT、恰在 morph 起跑前收完——
-    //   點擊後仍先捲一小段（req1 保留）、又完全不騎放大（§29 精神回歸）。timer 進 switchColorTimers＝連點作廢。
-    switchColorTimers.push(setTimeout(() => marqueeWipeExit(clickedEl), (CONTENT_EXIT - MARQ_EXIT) * 1000));
+    // §48（user 2026-11-16）：被點色塊的 marquee 跟灰卡內容同一拍退場（t=0 起跑、同 EXIT_PIECE），放大起跑前收完＝不騎放大。
+    //   （§39 原本排在退場窗尾端、§38 更早是 morph 起跑那刻；都撤）。要排在 fadeToFront 之後：它要連複本的字條一起帶
+    marqueeWipeExit(clickedEl);
     // §32/§38（user 2026-09-08→09）：t=0 舊灰卡內容退場（CONTENT_EXIT 窗）：標題 chip 直接消失（hidePanelTitleInstant，
     //   §38 req2「不需要 ease」）＋ body 拆件退場（chrome 直接消失、zebra rows 逐列 clip reveal，§38 req5）；
     //   切 panel/搬移/隱藏延到下方 setTimeout（此 window 卡片靜止）。
     const oldPanel = document.getElementById('lib-panel-' + tabOf.get(outgoingEl));
-    if (oldPanel) { hidePanelTitleInstant(oldPanel); playPanelBodyExit(oldPanel, CONTENT_EXIT); }
+    if (oldPanel) { hidePanelTitleInstant(oldPanel); playPanelBodyExit(oldPanel, CONTENT_EXIT, EXIT_PIECE); }
 
     // clickedEl → 中央灰卡；舊灰卡 → 隨機重擲新版位/尺寸（user 2026-08-23：不接手空位，每次切換要有變化）。
     // §41（user 2026-09-09「定位之後 z 突然跳成下一個色塊、剩下的卡 z 怎麼決定」）＝z 改「**依落地新舊排**」（recency）：

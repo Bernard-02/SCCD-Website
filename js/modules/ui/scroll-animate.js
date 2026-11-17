@@ -403,3 +403,39 @@ export function playClipPathExit(elements, { stagger = 0.04, fromEnd = true, dur
     });
   });
 }
+
+// ── 卡片牆逐卡進場的節拍：faculty 卡牆＋library documents 共用同一份（user 2026-11-16「document 的出場方式跟 faculty 一致」）──
+//   每張卡：圖先滑入（IMG_DUR）→ 圖跑到 TEXT_OFFSET 時第一段文字起跑 → 之後每段文字再晚 TEXT_STEP
+//   同一排：先後隨機、每次重抽，圖跑到一半（ADVANCE）下一張的圖起跑
+//   排與排：由上往下，上一排最後一張整張播完＋ROW_GAP 才換排
+//   ⚠️ TEXT_OFFSET 必須 ≥ ADVANCE，否則文字會搶在「下一張的圖出現」之前
+const SEQ_IMG = 0.8;   // user 2026-06-09 拍板：1.0 太慢、0.6 太快（非 palette token 故字面值）
+export const CARD_SEQ = Object.freeze({
+  IMG_DUR: SEQ_IMG,
+  TEXT_DUR: DUR.medium,
+  ADVANCE: SEQ_IMG / 2,
+  TEXT_OFFSET: SEQ_IMG / 2 + 0.1,
+  TEXT_STEP: 0.1,
+  ROW_GAP: 0.1,
+});
+/**
+ * 一批卡各自的起播秒數（Map：卡 → 秒）。排＝畫面上同一個 top（容忍 5px）
+ * @param {Element[]} cards
+ * @param {number} [texts] 每張卡有幾段文字（決定「整張播完」多久）
+ */
+export function cardSeqStarts(cards, texts = 2) {
+  const top = new Map(cards.map(c => [c, c.getBoundingClientRect().top]));
+  const rows = [];
+  [...cards].sort((a, b) => top.get(a) - top.get(b)).forEach(c => {
+    const row = rows[rows.length - 1];
+    if (row && top.get(c) - top.get(row[0]) < 5) row.push(c); else rows.push([c]);
+  });
+  const full = CARD_SEQ.TEXT_OFFSET + (texts - 1) * CARD_SEQ.TEXT_STEP + CARD_SEQ.TEXT_DUR;
+  const starts = new Map();
+  let cursor = 0;
+  rows.forEach(row => {
+    SCCDHelpers.shuffle(row).forEach((c, i) => starts.set(c, cursor + i * CARD_SEQ.ADVANCE));
+    cursor += (row.length - 1) * CARD_SEQ.ADVANCE + full + CARD_SEQ.ROW_GAP;
+  });
+  return starts;
+}
