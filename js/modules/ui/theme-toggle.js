@@ -3,6 +3,7 @@ import { sitePath } from './site-base.js';
 import { runLottieWhenVisible } from './lottie-visibility.js';
 import { prefersReducedMotion } from './reduce-motion.js';
 import { cycleHeaderBtn, rerollMobileBtnRot } from '../../header.js';
+import { currentPageFile } from '../../config/slugs.js';
 /**
  * Theme Toggle Module
  * 切換 standard / inverse / color 模式（影響整個網站的 body class）
@@ -168,7 +169,7 @@ function applyColorVars() {
   //    同 hue（手機 panel w-full 蓋住 logo、桌面 panel 在右），logo 要對比那個 hue。因 hue 不因 slide-in 改變 →
   //    開 slide-in 當下對比結果不變 → logo 不翻＝零跳動；mode3 也不換 wireframe-inverse JSON（換 JSON 會 Lottie reload 跳一下）。
   const logo = document.getElementById('header-logo');
-  if (logo) {
+  if (logo && !logoXfading) {   // 交叉淡入中 filter 在新舊兩層各自身上，淡完才還給外層（switchHeaderLogo settle）
     if (logo.dataset.logoType === 'wireframe') {
       // overlay（slide-in / 全螢幕 lightbox）開啟時 wireframe 一律翻白：桌面 logo 浮在 #faculty-overlay 黑底 dim
       // 上（panel 在右 79%、logo 落在左側黑 dim），恆需白 logo（user 2026-09-08：mode3 slide-in 也要白線框，對齊
@@ -257,10 +258,8 @@ function pauseColorLoop() {
   cancelColorLoopRAF();
 }
 
-function getCurrentPage() {
-  const path = window.location.pathname;
-  return path.split('/').pop().replace('.html', '') || 'index';
-}
+// 回檔名（atlas／create…）：網址列在正式站是 slug、後台可改，一律經 slugs.js 換回
+const getCurrentPage = currentPageFile;
 
 let isSlideInOpen = false;
 // overlay logo「該不該套白線框」的唯一旗標（取代直接讀 class）：mode3 filter 由 applyColorVars 依此翻，
@@ -555,7 +554,7 @@ function applyMode(mode, opts) {
 
 /** 換 mode 的實際 DOM 更新（class／icon／color loop／theme:changed／header logo）。
  *  View Transition 路徑在 update callback 內呼叫＝新快照含這些變更。
- *  @param {string} mode @param {boolean} autoStartColorLoop @param {boolean} [animateIcon] 使用者切換＝桌面 mode 鈕整顆出場再帶新 icon 進場 */
+ *  @param {string} mode @param {boolean} autoStartColorLoop @param {boolean} [animateIcon] 使用者切換＝桌面 mode 鈕整顆出場再帶新 icon 進場、logo 交叉淡入 */
 function commitMode(mode, autoStartColorLoop, animateIcon = false) {
   // Header mode btn icon: 跟 mode 切換同步換 mode_1/2/3 SVG（.icon mask 系統，currentColor 跟 .theme-toggle-btn 走）。
   // 桌面／手機鈕＝整顆出場 → 換 → 進場（header.js cycleHeaderBtn，user 2026-10-20；手機 10-30 對齊桌面、原直接換）；
@@ -607,7 +606,7 @@ function commitMode(mode, autoStartColorLoop, animateIcon = false) {
   else logoType = 'standard';
 
   if (document.getElementById('header-logo')) {
-    switchHeaderLogo(logoType);
+    switchHeaderLogo(logoType, { xfade: animateIcon });
   } else {
     document.addEventListener('header:ready', () => switchHeaderLogo(logoType), { once: true });
   }
@@ -624,7 +623,7 @@ function canModeViewTransition() {
 
 // 具名 group 各自擷取、畫在整頁快照之上（依原元素繪製順序排）：
 // - header logo、鉛筆（#mode-color-panel）全站命名，只顯示即時新畫面（typography.css）＝過渡中 logo 照轉、
-//   換檔不消失（舊 logo 一直轉到新的載好，見 switchHeaderLogo），鉛筆照常滑進滑出（user 2026-10-01）
+//   換檔不消失（舊 logo 一直轉到新的載好；新舊的交叉淡入是 switchHeaderLogo 自己在這層裡做的），鉛筆照常滑進滑出（user 2026-10-01）
 // - library 三原色卡切 mode 要 snap（user 2026-08-11）＝卡單獨成 group 不淡 → 平常疊在色卡上面的灰卡、next 鈕、header、
 //   左下當前頁卡、開著的 menu 也都要命名，否則被色卡 group 蓋掉。⚠️別命名 #site-header：0 高的 static 殼，
 //   擷取不含裡面的 fixed header／sticky 頁卡（10-01 實測過渡中整個消失）→ 逐一命名實際元素
@@ -696,8 +695,8 @@ function nameModeVtElements() {
 
 /** @type {any} */
 let modeVT = null;
-// mode 切換中新 logo 換上的時機＝大背景亮暗過中點（交叉淡入 ease 曲線約 30% 時間走到一半）：太早換＝新 logo 疊在
-// 還沒變的底色上（白 logo 壓白底＝看起來閃一下不見），太晚反之。switchHeaderLogo 載好後等它
+// mode 切換中新 logo 開始交叉淡入的時機＝大背景開始淡的那刻（VT ready），兩邊同長同曲線＝logo 跟頁面上的字一起淡
+// （user 2026-11-16「logo 要真的 fade」；原本是背景過中點那格硬切）。switchHeaderLogo 載好後等它
 /** @type {Promise<void> | null} */
 let logoSwapGate = null;
 // VT 期間凍住的 GSAP（舊快照是靜態圖、新畫面即時 → 過渡中還在動＝殘影，user 2026-10-03）。連點時新 VT 接手整包，
@@ -721,7 +720,7 @@ function runModeViewTransition(update) {
   }
   const vt = document.startViewTransition(update);
   modeVT = vt;
-  const gate = logoSwapGate = vt.ready.then(() => new Promise(r => setTimeout(r, MODE_FADE_MS * 0.3)), () => {});
+  const gate = logoSwapGate = vt.ready.then(() => {}, () => {});
   // VT 期間真人點擊的 target 一律是 <html>（Chrome 行為，09-28 實測）＝連點 mode 鈕循環會被吞 →
   //   點擊座標落在 mode 鈕上就轉交（新的 VT 會自動中止舊的）
   /** @param {MouseEvent} e */
@@ -777,8 +776,15 @@ function runHeaderLogoReveal(logo) {
 let logoLoadGeneration = 0;
 // fade 換檔已開始淡出、還沒換上（淡出中／載入中）
 let logoFading = false;
+// 每次真的換上（硬切，或開始交叉淡入）遞增：交叉淡入淡完那刻比對，已被後面的換上接手就不收尾
+let logoSwapSeq = 0;
+// 交叉淡入中：新舊兩層各帶自己的 filter、外層清空 → applyColorVars 先別寫外層（寫了＝跟層上的疊成兩次 invert）
+let logoXfading = false;
 
-export function switchHeaderLogo(type, { fade = false } = {}) {
+/** @param {string} type
+ *  @param {{ fade?: boolean, xfade?: boolean }} [opts] fade＝先淡出再淡入（overlay 開關，共 ~0.2s）；
+ *    xfade＝新的疊在舊的上面交叉淡入、跟 mode 切換的背景同長同曲線（切 mode 用，user 2026-11-16） */
+export function switchHeaderLogo(type, { fade = false, xfade = false } = {}) {
   const logo = document.getElementById('header-logo');
   if (!logo || typeof lottie === 'undefined') return;
 
@@ -852,23 +858,59 @@ export function switchHeaderLogo(type, { fade = false } = {}) {
     });
     const swap = () => {
       if (myGeneration !== logoLoadGeneration) { anim.destroy(); layer.remove(); return; }
-      layer.remove();   // 先拿出來：舊 anim destroy 會清空它的容器（header.js 初載那支的容器就是 logo 本身）
-      otherAnims().forEach((a) => a.destroy());
+      const seq = ++logoSwapSeq;
+      // 換上這刻畫面上的東西：舊 logo（交叉淡入被接手時＝淡到一半的那幾層）跟它們的 Lottie。走到這＝自己是最新的請求，其他的都算舊
+      const olds = /** @type {HTMLElement[]} */ ([...logo.children].filter((c) => c !== layer));
+      const oldAnims = otherAnims();
       logoFading = false;
       logo.dataset.logoType = type;
       // wireframe（mode3）filter＝當前 --theme-fg 對比（同手機 logo「初值讀當前 --theme-fg」招式），後續逐幀翻轉交 applyColorVars；
       // 其他 type 不帶 filter。換上這刻才設：載入期間畫面上還是舊 logo，提早設／清會先把舊的翻色（離開 mode3 白線框
       // 先變黑線框）；wireframe 也不能等 applyColorVars（RAF 首拍在 MODE_FADE_MS 後 → 暗 hue 先露黑線框再跳白，user 09-08）
+      let filter = '';
       if (type === 'wireframe') {
         const fgNow = getComputedStyle(document.documentElement).getPropertyValue('--theme-fg').trim().toLowerCase();
-        logo.style.filter = (overlayLogoActive || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';   // 條件同 applyColorVars wireframe 分支
-      } else {
-        logo.style.filter = '';
+        filter = (overlayLogoActive || fgNow === '#ffffff' || fgNow === '#fff') ? 'invert(1)' : 'none';   // 條件同 applyColorVars wireframe 分支
       }
-      // filter 翻黑白走 CSS transition 平滑（mode3 overlay 開關 + hue 過門檻；user 2026-09-08）
-      logo.style.transition = 'filter var(--dur-base) ease';
-      layer.style.cssText = 'width:100%;height:100%';
-      logo.replaceChildren(layer);
+      // 舊的清掉、新的落定（硬切＝當下；交叉淡入＝淡完）
+      const settle = () => {
+        // 自己＋更後面還在載的隱形層先拿出來：舊 anim destroy 會清空它的容器（header.js 初載那支的容器就是 logo 本身）
+        const keep = [...logo.children].filter((c) => !olds.includes(/** @type {HTMLElement} */ (c)));
+        keep.forEach((c) => c.remove());
+        oldAnims.forEach((a) => a.destroy());
+        logoXfading = false;
+        // filter 先落定再開 transition：同一拍一起設＝外層從沒 filter「淡」到 invert，剛淡進來的白線框先閃成黑的再淡回白
+        logo.style.transition = 'none';
+        logo.style.filter = filter;
+        void logo.offsetWidth;
+        // filter 翻黑白走 CSS transition 平滑（mode3 overlay 開關 + hue 過門檻；user 2026-09-08）
+        logo.style.transition = 'filter var(--dur-base) ease';
+        layer.getAnimations().forEach((a) => a.cancel());
+        layer.style.cssText = 'width:100%;height:100%';
+        logo.replaceChildren(...keep);
+      };
+      // 交叉淡入：新的疊在舊的上面淡進來、舊的同時淡掉，兩支 Lottie 照轉（上面已對過 frame）。WAAPI 跑在合成器
+      // ＝不吃 html.mode-vt 的 transition:none／animation paused，主執行緒忙也不掉格
+      if (xfade && !needsReveal && !fading && olds.length && logo.getClientRects().length) {
+        logoXfading = true;
+        // 外層的 filter 是舊 logo 的（mode3 線框翻白）→ 搬到舊層上、新層帶自己的，淡完才還給外層；
+        // 接手淡到一半的那次外層已是空的＝各層沿用自己身上的
+        const outer = logo.style.filter;
+        if (outer) olds.forEach((o) => { o.style.filter = outer; });
+        logo.style.transition = 'none';
+        logo.style.filter = '';
+        logo.style.opacity = '1';
+        const timing = /** @type {KeyframeAnimationOptions} */ ({ duration: MODE_FADE_MS, easing: 'ease', fill: 'both' });
+        olds.forEach((o) => {
+          const from = +getComputedStyle(o).opacity;   // 淡到一半被接手＝從當下的值繼續淡掉
+          o.getAnimations().forEach((a) => a.cancel());
+          o.animate({ opacity: [from, 0] }, timing);
+        });
+        layer.style.cssText = `position:absolute;inset:0;filter:${filter}`;
+        layer.animate({ opacity: [0, 1] }, timing).finished.then(() => { if (seq === logoSwapSeq) settle(); }, () => {});
+        return;
+      }
+      settle();
       // **不能用 gsap.killTweensOf(logo)**：會把 header.js 的 scroll-shrink ScrollTrigger
       // (180→100 scrub) 一起殺掉，logo 卡在 180 永遠不收縮
       if (needsReveal) runHeaderLogoReveal(logo);

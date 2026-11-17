@@ -12,6 +12,7 @@ import { bindArrowSpin, randomSpinAngle } from './modules/ui/arrow-spin.js';
 import { loadUiLabels, applyUiLabels } from './modules/ui/ui-labels.js';
 import { runLottieWhenVisible } from './modules/ui/lottie-visibility.js';
 import { revealHidden } from './modules/ui/scroll-animate.js';
+import { currentPageFile } from './config/slugs.js';
 
 function getFooterHideTargets() {
   // bars only：logo 改走 hero clip-reveal 滑動（見 footerHideLogo/footerShowLogo），不再跟 bars 一起 clip-path wipe
@@ -86,8 +87,9 @@ function footerShowLogo(opts = {}) {
 // play：revealHeaderWhenReady／intro 到了「要顯示 header」的時點呼叫＝header opacity 直接開 1（內容都藏著、看不出）、
 //   等 logo Lottie DOMLoaded（封頂 800ms，不然 Lottie 晚到會先露空框）再 logo＋鈕一起滑入（logo 隨機四向、鈕隨機四向／手機一致往上）。
 // 不走：/create（logo 由 typewriter 接管、mode 鈕收著）、reduced-motion；
-// lightbox 開著（deep-link）只放 logo、鈕由 lightbox 關閉時展。SPA 換頁 header 不重載＝只有進站這一次。
+// 手機 slide-in 開著（deep-link）只放 logo、鈕由 slide-in 關閉時展。SPA 換頁 header 不重載＝只有進站這一次。
 let _entrancePrepared = false;
+let _entranceWaiting = false;   // 等 logo Lottie 的那段：這期間重複呼叫不搶先掛 header-entered
 /** @type {(() => void) | null} */
 let _logoReadyResolve = null;
 let _logoReady = Promise.resolve();
@@ -107,13 +109,21 @@ export function playHeaderEntrance() {
   header.style.opacity = '1';
   header.style.setProperty('--header-pe', 'auto');
   requestAnimationFrame(() => { header.style.transition = ''; });
-  if (!_entrancePrepared) return;
+  // html.header-entered＝header 鈕進場那一拍：右下 footer 鈕跟著同拍進場（footer-scatter.js syncFooterBtn 看這個 class）
+  const entered = () => document.documentElement.classList.add('header-entered');
+  if (!_entrancePrepared) { if (!_entranceWaiting) entered(); return; }   // 沒預藏（/create、reduced-motion）＝當下就算進場
   _entrancePrepared = false;
+  _entranceWaiting = true;
   Promise.race([_logoReady, new Promise(r => setTimeout(r, 800))]).then(() => {
     footerShowLogo({ snapOnInterrupt: true });
-    if (!document.body.classList.contains('lightbox-open')) footerShowBars({ snapOnInterrupt: true });
+    // 手機 slide-in 開著（deep-link）才不放鈕、等它關閉時展；lightbox 不收 header 鈕（lightbox-shell.js）
+    if (!slideInCoversHeader()) footerShowBars({ snapOnInterrupt: true });
+    _entranceWaiting = false;
+    entered();
   });
 }
+const slideInCoversHeader = () => document.documentElement.classList.contains('has-slide-in')
+  && !document.documentElement.classList.contains('overlay-no-dim');
 
 // bars 的 footer-near 收/展：2026-07-15 改成完全比照 hero 字卡 clip-reveal（hero-animation.js offsetFor）：
 // **遮罩(wrapper)負責 rotate + overflow，child 平移剛好 ±100% 自身尺寸滑出遮罩**。
@@ -183,9 +193,10 @@ function lendCssRotToMask(bar, mask) {
   mask.dataset.lentRot = '1';
   gsap.set(bar, { rotation: 0 });
 }
+// opts.bars：指定要收／放的鈕（預設＝這排全部，返回態的 menu 鈕除外）
 function footerHideBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
-  const bars = getFooterHideTargets();
+  const bars = opts.bars || getFooterHideTargets();
   if (!bars.length) return;
   bars.forEach(settleBtnCycle);   // 換 icon 中被收起：先把 cycle 收尾，否則 onComplete 永遠不跑＝鈕卡在凍色、icon 不換（user 2026-10-20）
   gsap.killTweensOf(bars);
@@ -210,7 +221,7 @@ function footerShowBars(opts = {}) {
   if (typeof gsap === 'undefined') return;
   // 換 icon 中的鈕本來就沒收著（cycleHeaderBtn 只對顯示中的鈕跑）：砍它的 tween＝換 icon 被截斷、鈕跳回原位
   // （slide-in 關閉：menu 鈕正從返回箭頭換回漢堡，mode 鈕延後展開會撞上）
-  const bars = getFooterHideTargets().filter(b => !btnCycles.has(b));
+  const bars = (opts.bars || getFooterHideTargets()).filter(b => !btnCycles.has(b));
   if (!bars.length) return;
   gsap.killTweensOf(bars);
   gsap.to(bars, {
@@ -414,7 +425,11 @@ if (typeof window !== 'undefined') {
   // clip-reveal 收/展（比照 footer-near hide，user 2026-08-31）——lightbox-shell.animateHeaderHide/Show 經此
   // hook 委派（避免與 lightbox-shell 循環 import）；桌面隨機四方向、手機一致上滑由 footerHideBars 內部 gate 決定。
   window.__sccdHideHeaderBars = footerHideBars;   // 皆接受 { duration, ease }
-  window.__sccdShowHeaderBars = footerShowBars;
+  // 非桌面整屏 footer 開著＝鈕由下面的 footer:progress 管（關 footer 才放）：slide-in 收到一半就開 footer，它延後的放鈕別把鈕放到 footer 上
+  window.__sccdShowHeaderBars = (o) => {
+    if (!SCCDHelpers.isDesktopLayout() && document.body.classList.contains('footer-card-open')) return;
+    footerShowBars(o);
+  };
   // 真桌面覆蓋卡 footer（footer-scatter.js）開卡＝關桌面 menu（面板在 header 層、會蓋在卡上）；logo／mode／menu 鈕都不收
   //（user 2026-10-19 第二輪），點 logo 照常回首頁、卡同拍退場。
   // logo 尺寸跟卡的升起比例 p 同步（footer:progress，user 2026-10-29「跟著滑鼠同步縮小」；原本推到頂才整段縮）：
@@ -442,7 +457,10 @@ if (typeof window !== 'undefined') {
   document.addEventListener('footer:progress', (e) => {
     const d = /** @type {CustomEvent} */ (e).detail;
     if (SCCDHelpers.isDesktopLayout()) { footerLogoSize(d.p, d.duration, d.ease); return; }
-    (d.p ? footerHideBars : footerShowBars)({ duration: DUR.fast });
+    // 手機 slide-in 上開 footer（footer 鈕留在 slide-in 上，user 2026-11-16）：mode 鈕本來就收著、footer 收了也不放回來；
+    // 返回鍵（返回態的 menu 鈕，平常不收）跟著 footer 收／放＝footer 開著時只剩 logo＋footer 鈕、關了 footer 才能返回
+    const bars = isMenuBtnBack() ? getHeaderTargets().filter(el => el.querySelector('.mobile-menu-btn')) : undefined;
+    (d.p ? footerHideBars : footerShowBars)({ duration: DUR.fast, bars });
   });
   const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
   // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
@@ -594,31 +612,9 @@ function restoreMobileGenerateLogo() {
     delete sccdAnchor.dataset.logoType;
     if (lottieAnchor) lottieAnchor.classList.remove('hidden');
     if (typeof lottie === 'undefined') return;
-    // 跟 initHeader 內 loadMobileLogo 同邏輯：依當前 mode 載對應檔案
-    const isInverseM = document.body.classList.contains('mode-inverse');
-    const isColorM = document.body.classList.contains('mode-color');
-    let logoFileM;
-    if (isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
-    else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
-    else logoFileM = 'SCCDLogoStandard.json';
-    const logoPathM = sitePath(`data/${logoFileM}`);
-    const anim = lottie.loadAnimation({
-      container: mobileLogo,
-      renderer: 'svg',
-      loop: true,
-      autoplay: true,
-      name: 'header-logo-mobile-anim',
-      path: logoPathM,
-      rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
-    });
-    anim.addEventListener('DOMLoaded', () => {
-      const svg = mobileLogo.querySelector('svg');
-      if (svg) {
-        svg.style.overflow = 'visible';
-        svg.setAttribute('viewBox', '0 0 1080 1080');
-      }
-    });
-    runLottieWhenVisible(anim);
+    // 走 initHeader 那支 loadMobileLogo：原本這裡另抄一份只換 JSON，mode3 沒設黑白對比追蹤（filter／logoContrast='auto'）
+    // ＝離開 /create 後暗色 hue 上留黑線框（user 2026-11-16）
+    /** @type {any} */ (window).__sccdReloadMobileLogo?.();
   };
 
   if (typeof gsap === 'undefined') { swap(); return; }
@@ -1081,7 +1077,7 @@ export function initHeader() {
     window.addEventListener('resize', setHeaderHeight);
 
     // 2. Active Nav State（初次載入）
-    let currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'index';
+    let currentPage = currentPageFile();   // 檔名（網址列是 slug 也換回檔名，js/config/slugs.js）
     prepareHeaderEntrance(currentPage);   // 進站進場：首繪前先把 logo／鈕藏進遮罩（見 playHeaderEntrance）
 
     // Generate page 初次載入時觸發 logo 動畫
