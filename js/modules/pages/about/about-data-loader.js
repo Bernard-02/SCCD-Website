@@ -22,6 +22,7 @@ import { setupClipReveal, playClipReveal, playRevealExit, tiltCardMask, revealHi
 import { escapeHtml } from '../../ui/escape-html.js';
 import { prefersReducedMotion } from '../../ui/reduce-motion.js';
 import { DUR, EASE } from '../../ui/motion.js';
+import { pauseVideosOffscreen, pauseVideoEl } from '../../ui/pause-offscreen-video.js';
 
 // ── Hero 中英系名（後台 about_vision.heroNamesEn／heroNamesZh，各可多筆）：第一筆蓋 HTML 預設、其餘疊進同一格（.about-hero-stack）等輪播 ──
 function fillHeroNames(lang, names) {
@@ -227,39 +228,51 @@ function renderPlaylist(box, iframe, listId, vids) {
   // 出生就框住當前播放那支（user 2026-10-26）：watch URL 帶 v= 的那支，videoseries 沒初始影片＝第一支
   const curVid = iframe.src.match(/\/embed\/([^?]+)/)?.[1];
   (inner.querySelector(`[data-vid="${curVid}"]`) || inner.firstElementChild)?.classList.add('is-active');
-  // 換片＝播放器 clip-reveal 退場 → 換 src → iframe load 才進場（user 2026-11-05：直接換 src 會閃一下空白）。
-  // 遮罩＝.works-player-box overflow-hidden；進退方向各自重抽。plSeq 作廢連點：被取代的 src 不一定會發 load。
-  // 等載入那段播放框不留空（user 2026-11-05 晚「新的還沒出來」）：遮罩底墊該支的縮圖（退場露出、進場蓋回去，落定才撤；
-  //   切走 division 由 bfa-division-toggle 撤）；YouTube 遲遲不回＝PL_LOAD_WAIT 後照樣進場、它自己的轉圈接手（原本會永遠空著）
+  // 換片＝同切 tab 的 cross slide（user 2026-11-16）：新影片先在遮罩外另開一支 iframe 預載（.works-iframe-pending，
+  // bfa-division-toggle 不搬它），load 後新舊同方向推移、舊的移除。iframe 載完前畫不出東西，所以舊片留在原位等，
+  // 不墊縮圖（原本先退場再載＝中間露出墊底縮圖、YT UI 晚一拍蓋上）。YouTube 遲遲不回＝PL_LOAD_WAIT 後照樣推進來、它自己的轉圈接手。
+  // plSeq 作廢連點：載入中再點＝同一支預載 iframe 改 src；推移中的點擊忽略（同切 tab 的 isWorksAnimating）。
   const PL_LOAD_WAIT = 3000;
   const playerBox = /** @type {HTMLElement} */ (iframe.parentElement);
-  let plSeq = 0, plHidden = false;
+  let plSeq = 0, pending = null, sliding = false;
   scroll.addEventListener('click', e => {
     const btn = e.target.closest('.works-playlist-item');
-    if (!btn) return;
+    if (!btn || sliding) return;
     // enablejsapi=1 必帶：換片重設 src 會丟掉 pauseVideosOffscreen 補的參數 → 之後捲走/換 tab 的 pauseVideo postMessage 全失效
     const src = `https://www.youtube.com/embed/${btn.dataset.vid}?list=${listId}&autoplay=1&enablejsapi=1`;
     scroll.querySelectorAll('.works-playlist-item').forEach(x => x.classList.toggle('is-active', x === btn));
     if (typeof gsap === 'undefined' || prefersReducedMotion()) { iframe.src = src; return; }
     const seq = ++plSeq;
-    // hqdefault 480×360＝4:3 帶上下黑邊，cover 進 16:9 框剛好裁掉黑邊（每支都有；maxres 不一定有）
-    playerBox.style.background = `url(https://i.ytimg.com/vi/${btn.dataset.vid}/hqdefault.jpg) center / cover no-repeat`;
-    const reveal = () => {
-      if (seq !== plSeq || !plHidden || !iframe.isConnected) return;   // 被新的點擊取代／load 與逾時只走先到的／已換頁
-      plHidden = false;
-      const settle = () => { if (seq === plSeq) playerBox.style.background = ''; };
-      // 載入中切走 tab＝panel 已藏：留在藏位，切回時 bfa-division-toggle 會定位
-      if (iframe.closest('.class-works-panel')?.style.pointerEvents === 'none') return settle();
-      gsap.fromTo(iframe, revealHidden(), { xPercent: 0, yPercent: 0, duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: settle });
+    const next = pending || iframe.cloneNode(false);
+    next.src = src;   // 插入前設好＝clone 帶的舊 src 不會先載一次
+    if (!pending) {
+      pending = next;
+      next.classList.add('works-iframe-pending');
+      next.style.cssText = 'position:absolute;inset:0';
+      gsap.set(next, { xPercent: 0, yPercent: 110 });   // 停放遮罩外（同 tab 藏起位）
+      playerBox.appendChild(next);
+      pauseVideosOffscreen([next]);
+    }
+    const go = () => {
+      if (seq !== plSeq || pending !== next || !next.isConnected) return;   // 被新的點擊取代／load 與逾時只走先到的／已換頁
+      pending = null;
+      const old = iframe;
+      iframe = next;
+      next.classList.remove('works-iframe-pending');
+      const done = () => { old.remove(); next.style.position = next.style.inset = ''; sliding = false; };
+      // 載入中切走 tab＝panel 已藏：舊的也在藏位，直接換掉
+      if (next.closest('.class-works-panel')?.style.pointerEvents === 'none') return done();
+      sliding = true;
+      pauseVideoEl(old);
+      // 方向／時長／曲線＝bfa-division-toggle 切 tab 的 WORKS_VIDEO_DIRS／VIDEO_DUR／WORKS_VIDEO_EASE
+      const ax = Math.random() < 0.5 ? 'xPercent' : 'yPercent', s = Math.random() < 0.5 ? 1 : -1;
+      const tw = { duration: 1, ease: 'power3.inOut' };
+      gsap.set(next, { xPercent: 0, yPercent: 0, [ax]: 100 * s });
+      gsap.to(old, { [ax]: -100 * s, ...tw });
+      gsap.to(next, { [ax]: 0, ...tw, onComplete: done, onInterrupt: done });   // 推移中切 tab 被 kill 也要收掉舊片
     };
-    const swap = () => {
-      plHidden = true;
-      iframe.addEventListener('load', reveal, { once: true });
-      setTimeout(reveal, PL_LOAD_WAIT);
-      iframe.src = src;
-    };
-    if (plHidden) return swap();   // 上一支還在載（已藏著）＝直接換，不再退場
-    gsap.to(iframe, { ...revealHidden(), duration: DUR.medium, ease: EASE.enter, overwrite: true, onComplete: swap });
+    next.addEventListener('load', go, { once: true });
+    setTimeout(go, PL_LOAD_WAIT);
   });
   if (typeof gsap !== 'undefined') {
     gsap.set(scroll, {

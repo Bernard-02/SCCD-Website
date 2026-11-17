@@ -136,9 +136,10 @@ export function initBFADivisionToggle() {
   }
 
   // 影片滑動的共同 target：iframe + playlist 縮圖層（.works-playlist-scroll 由 data-loader 晚建，
-  // 出生時自行同步 iframe 當前 x/yPercent，見 about-data-loader renderPlaylist；尚未建時 NodeList 只含 iframe）
+  // 出生時自行同步 iframe 當前 x/yPercent，見 about-data-loader renderPlaylist；尚未建時 NodeList 只含 iframe）。
+  // 換片預載中的 iframe（.works-iframe-pending）停在遮罩外等 load，不跟著切 tab 動
   function worksVideoParts(panel) {
-    return panel.querySelectorAll('iframe, .works-playlist-scroll');
+    return panel.querySelectorAll('iframe:not(.works-iframe-pending), .works-playlist-scroll');
   }
 
   // 設置 panel 為 active（顯示）或 inactive（隱藏在下方等待）；無動畫
@@ -155,7 +156,6 @@ export function initBFADivisionToggle() {
     } else {
       panel.style.pointerEvents = 'none';
       panel.style.zIndex = '0';
-      panel.querySelector('.works-player-box')?.style.removeProperty('background');   // 換片等載入時墊在播放框的縮圖（about-data-loader renderPlaylist）：panel 藏起就撤
       if (text && typeof gsap !== 'undefined') gsap.set(text, revealHidden());
       if (video && typeof gsap !== 'undefined') gsap.set(video, { yPercent: 110, xPercent: 0 });
       // 換 tab 藏起的 panel 影片要停：panel 只是 transform 移走、沒 display:none → pauseVideosOffscreen 的 IO 不會觸發
@@ -220,7 +220,6 @@ export function initBFADivisionToggle() {
     newPanel.style.zIndex = '2';
     oldPanel.style.zIndex = '1';
     oldPanel.style.pointerEvents = 'none';
-    oldPanel.querySelector('.works-player-box')?.style.removeProperty('background');
     pauseVideoEl(oldPanel.querySelector('iframe'));   // 動畫切 tab 不經 setWorksPanelState → 滑出起跑就停
 
     // 影片自己跑全程 cross slide（文字時序與影片脫鉤，見下）
