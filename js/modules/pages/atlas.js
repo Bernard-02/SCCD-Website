@@ -2067,7 +2067,8 @@ export async function initAtlas(options = {}) {
   function refreshFloatRunning() {
     // 減少動態：定位一次後凍結，不持續 rAF 漂浮（WCAG 2.3.3 / 2.2.2）。tickFloat 用絕對時間算位置、
     // floatRunning 維持 false → 跑一幀即完整定位且不自排下一幀；display/visibility 變動時再補定位一次。
-    if (prefersReducedMotion()) {
+    // ?perf=nofloat（實機效能診斷，helpers.js）走同一條：畫面靜止、位置照算
+    if (prefersReducedMotion() || SCCDHelpers.perf.has('nofloat')) {
       if (!document.hidden && stage.style.display !== 'none') tickFloat(performance.now());
       return;
     }
@@ -2758,10 +2759,17 @@ export async function initAtlas(options = {}) {
   // ── 桌面切 list：國家底下的 item 先全部在星雲上淡入、再跟大家一起跑轉場（這頁的飛去 list、其餘往所屬欄靠攏）；
   // 回星雲＝這頁的那幾顆邊飛回邊淡出、落地就藏回去，其餘不出來（switchToMap）。user 2026-11-16～17「先讓原本隱藏的 item 出現
   // （fade），然後做動畫…回來的過程中淡出，不用定位之後再淡出」；原本這批不飛、只在 list 端跟副標一起進出。
-  // gateOpenAll 開著的期間（切 list 起、回星雲那刻收）gateHidden 放行＝篩選／去程轉場把它們當一般 item。回傳有沒有東西要等（淡入窗）
-  function openGateForMorph() {
+  // gateOpenAll 開著的期間（切 list 起、回星雲那刻收）gateHidden 放行＝篩選／去程轉場把它們當一般 item。
+  // 這裡只把那批「隱形地顯示出來」、等畫面跟上後呼叫 ready(那批 anchor)；淡入由呼叫端排（switchToList，跟前兩拍同拍）。
+  // ⚠️ 別沿用篩選那支 fadeFilterItem（0.4s power2.out＋逐顆隨機起跑），也別一顯示就開始淡（user 2026-11-17 三輪：「全部一起出來，
+  // 不是一個個 stagger」→「少了 fade」→「是 instant 的出現」）：這批每顆是一個合成層（.atlas-layered 的 will-change），
+  // 第一次出現要先 raster，那 0.1～0.25s 畫面出不來、補間卻照走——等第一格畫出來，ease-out 已經六～九成＝看起來直接出現
+  // （實機合成器逐幀截圖量過；主執行緒讀到的 opacity 是連續的，看不出來）
+  /** @param {(shown: HTMLElement[]) => void} ready */
+  function openGateForMorph(ready) {
     gateOpenAll = true;
-    let fading = false;
+    /** @type {HTMLElement[]} */
+    const shown = [];
     items.forEach(it => {
       if (!it._gated || !it._anchor) return;
       const a = it._anchor;
@@ -2772,10 +2780,24 @@ export async function initAtlas(options = {}) {
       }
       if (!a.classList.contains('atlas-filtered-out')) return;
       placeGatedNow(it);          // 藏著時位置只算不寫
-      fadeFilterItem(it, true);   // 同篩選的淡入（隨機起跑、同時結束，FILTER_FADE_TOTAL）
-      fading = true;
+      flushZFade(it);
+      a.style.opacity = '0.01';   // 看不見、但瀏覽器會畫＝會先 raster 好；寫 0 它不畫，等於沒準備
+      a.classList.remove('atlas-filtered-out');
+      (itemLines.get(it.id) || []).forEach(syncLineDisplay);
+      shown.push(a);
     });
-    return fading;
+    // 等畫面跟上才起跑：raster 期間下一幀會被擋住（幀間隔拉長）→ 頭兩幀不算，之後連兩幀間隔正常（<25ms）＝這批已經畫上去了；最多等 0.4s。
+    // 沒東西要顯示也照等（呼叫端剛做完 list 預渲染，一樣要等它落定）
+    const t0 = performance.now();
+    let prev = t0, calm = 0, n = 0;
+    const wait = (/** @type {number} */ now) => {
+      if (destroyed || !gateOpenAll) return;
+      calm = ++n > 2 && now - prev < 25 ? calm + 1 : 0;
+      prev = now;
+      if (calm < 2 && now - t0 < 400) { requestAnimationFrame(wait); return; }
+      ready(shown);
+    };
+    requestAnimationFrame(wait);
   }
 
   function showDetail(item, ids, lineSet) {
@@ -5754,19 +5776,21 @@ export async function initAtlas(options = {}) {
   // 分階段節奏（user 2026-08-18；08-19 修=飛行合併同一波；08-27 修=靠攏也併同波）：
   // 不會出現的先消失（城市+線）→ 非第一頁靠攏+fade 與 filter、第一頁起飛**全同一波**
   // （user 08-27：靠攏 item 不需要先離開）→ chevron 最後；反向＝鏡像倒放
-  const M_CITY_DUR   = 0.5;    // 正向 stage A：城市方塊掃出（也＝褪黑/擦色塊窗長）
-  const M_LINE_DUR   = 0.35;   // 正向 stage A 前半：城市線先收完，方塊才掃出（user 10-01「先線後點」；原本線跟方塊同時起跑、線還比方塊晚 0.2s 收完）
-  // 線先收（10-01「先線後點」）→ 城市方塊跟 host 色塊同拍掃出（user 2026-11-04：國家 box 不必比 hosting chip 早）＝同 decolorize 窗
-  const M_CITY_LEAD  = M_LINE_DUR;
-  const M_FADE_START = M_CITY_LEAD + M_CITY_DUR;   // 非第一頁 chip 靠攏+fade＝Phase C（城市→decolorize→才位移，與 item 同波）
+  const M_CITY_DUR   = 0.5;    // 正向：城市方塊掃出（也＝褪黑/擦色塊窗長）
+  const M_LINE_DUR   = 0.35;   // 正向：城市線收完的時長（比方塊短＝線不會比方塊晚收完，10-01 嫌過的那個）
+  // ⚠️ 2026-11-17：線、城市方塊、host 色塊（＋全體變黑）**同一刻起跑**（user「item 先出現，綫段、城市還有 chip 的底色一起 run 動畫」；
+  // 取代 10-01「先線後點」＝線先收 0.35s 城市才動、11-04 城市併入變黑擦塊窗）。這一拍不在 morphToList 的時間軸裡：
+  // buildMapPreExitTl，排在國家底下那批淡完之後、跑完（M_CITY_DUR）才配對建時間軸 → 下面三個「位移這拍」的起點從 0 算
+  const M_FADE_START = 0;      // 非第一頁 chip 靠攏+fade＝Phase C（城市→decolorize→才位移，與 item 同波）
   const M_FADE_DUR   = 0.45;
   const M_FADE_RANGE = 0.25;   // fade 微 stagger 散開
-  const M_NAV_START  = M_CITY_LEAD + M_CITY_DUR;   // 正向 Phase C：filter + item 同波起飛（同 M_ITEM_START＝城市→decolorize 後才動）
+  const M_NAV_START  = 0;      // 正向 Phase C：filter + item 同波起飛（同 M_ITEM_START＝城市→decolorize 後才動）
   const M_NAV_STEP   = 0;      // user 08-31 選 B：nav btn 不階梯、同一刻起飛＝同時到位（0.12 階梯拉開 ~0.48s 跟 option C 俐落感不搭）
-  // 起飛波演進：1.0→0.3(option C 重疊)→M_CITY_DUR(緊接 decolorize)→M_CITY_LEAD+M_CITY_DUR(user 08-31 三拍：
+  // 起飛波演進：1.0→0.3(option C 重疊)→M_CITY_DUR(緊接 decolorize)→線收完+M_CITY_DUR(user 08-31 三拍：
   // 城市/線先走[0,0.5]→全體變黑+擦色塊[0.5,1.0]→全黑無底色才位移[1.0,]；paired 起飛時已全黑＝flipFlyNode 補色 no-op）
-  // 10-01 加「先線後點」後整體後移 M_LINE_DUR；11-04 城市併入變黑擦塊窗：線[0,0.35]→城市＋變黑擦塊[0.35,0.85]→位移[0.85,]
-  const M_ITEM_START = M_CITY_LEAD + M_CITY_DUR;   // 位移等 城市離開 + decolorize+erase 都完成（user 08-31）
+  // 10-01 加「先線後點」後整體後移 M_LINE_DUR；11-04 城市併入變黑擦塊窗：線[0,0.35]→城市＋變黑擦塊[0.35,0.85]→位移[0.85,]；
+  // 11-17 線也併進同一拍、整拍搬出時間軸（見上）
+  const M_ITEM_START = 0;      // 位移等 城市離開 + decolorize+erase 都完成（user 08-31）＝前兩拍跑完才建時間軸，見上
   const M_ITEM_RANGE = 0.3;
   const M_COLOR_FADE = M_CITY_DUR;   // 彩→theme-fg 褪黑窗＝對齊 host 色塊掃除（user 08-31：item 變黑要跟色塊消失「同時同 ease」＝EASE.exitSoft，否則黑 item 夾雜殘留色塊很突兀）；paired 起飛後由 flipFlyNode --atlas-fly-c 續完
   // 反向 stage1：只在 list 出現的元素（item 副標 / 箭頭 / 未配對標題 / career）先清乾淨（user 08-30、09-01 副標併入）；
@@ -6145,29 +6169,18 @@ export async function initAtlas(options = {}) {
     };
   }
 
-  /** 星雲分階段退場（morph 正向；spanItems=未被 clone 接管者）：
-   *  Stage 1（t=0）：list 不會出現的先消失＝城市連線物理 retract（M_LINE_DUR）→ 線收完 D 城市方塊才掃出（ring 由 hideCareer erase）
-   *  Stage 2（t=M_FADE_START）：非第一頁的 A/B/C chip 往所屬欄位靠攏＋途中 fade（user 08-26）
-   *  ⚠️ opacity 掛 _anchor 不掛 span：.atlas-name 有 CSS opacity transition，掛 span 會跟 GSAP 每幀打架；
-   *  位移掛 span 的 gsap transform（xPercent/yPercent 代管 CSS 置中、wobble individual props 不衝突、收尾清掉）
-   *  cityLines onUpdate 直呼 updateCityLineEndpoints → float 暫停時線仍會動（正向 float 在跑、重複無害）
-   * @param {any[]} spanItems */
-  function buildMapExitTl(spanItems) {
-    const dItems = spanItems.filter(i => i.category === 'D' && i._anchor);
-    const others = spanItems.filter(i => i.category !== 'D' && i._anchor);
+  /** 正向 morph 位移前的那一拍（都在星雲上、跟 list 配對無關）：career／主持環收＋城市連線物理 retract（M_LINE_DUR）＋
+   *  城市方塊掃出＋全體文字褪成 theme-fg＋host 色塊擦掉（M_CITY_DUR；變黑要跟擦色塊同時同 ease＝user 08-31）**全部同一刻起跑**
+   *  ——user 2026-11-17「item 先出現，綫段、城市還有 chip 的底色一起 run 動畫」（原本線先收完城市才動）。
+   *  11-17 從 morphToList 的時間軸搬出來：switchToList 排在國家底下那批淡完之後，跑完才配對起飛。
+   *  cityLines onUpdate 直呼 updateCityLineEndpoints → float 暫停時線仍會動 */
+  function buildMapPreExitTl() {
     const tl = gsap.timeline();
-    // Stage 1：城市方塊 clip-reveal 掃出（user：收起用 clip reveal 移除，取代 opacity fade；四向隨機、
-    // 同 applyCountriesGate/map filter 的節點收合語彙）＋線 retract（點→點收縮，見下）
-    dItems.forEach(i => {
-      const n = /** @type {HTMLElement} */ (i._span);
-      n.style.clipPath = COVER_SHOWN_M;   // 起點全顯（idle 無 clip）
-      tl.to(n, {
-        clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
-        duration: M_CITY_DUR, ease: EASE.enterSoft,
-        onComplete: () => { i._anchor.style.opacity = '0'; n.style.clipPath = ''; },   // 藏住後清 clip（回程 fade in 顯全塊）
-      }, M_CITY_LEAD + Math.random() * 0.1);   // 線先收完方塊才掃出＝跟 host 色塊同拍（同起跑式）
-    });
-    // overwrite:true 防止 clearDetail() 觸發的 setCityLineRetract 反向 tween 拉扯
+    tl.call(() => {
+      if (destroyed) return;
+      if (mapCareerCtrl) mapCareerCtrl.hide();
+      animateRingEllipse(false);
+    }, null, 0);
     cityLines.forEach(cl => {
       cl.hoveredEnd = Math.random() < 0.5 ? 'a' : 'b';
     });
@@ -6178,12 +6191,62 @@ export async function initAtlas(options = {}) {
         ease: EASE.enterSoft,
         // 'auto' 不能改回 true：true 是「建立當下」殺同 target 全部 tween，會把 restore-first
         // （applyCountriesGate）剛排的還原 tween 秒殺在半路（線停在殘值、切 list 時「還沒回復就被收起」）；
-        // 'auto' 等 timeline 播到 restoreDelay 首次 render 才清衝突 tween，還原早已跑完、clearDetail 反向 tween 也照樣被清
+        // 'auto' 等首次 render 才清衝突 tween，clearDetail() 觸發的 setCityLineRetract 反向 tween 也照樣被清
         overwrite: 'auto',
         onUpdate: () => updateCityLineEndpoints(cl),
       }, 0);
     });
-    // Stage 2：非第一頁內容往所屬欄位靠攏＋邊位移邊 fade out（微 stagger 散開）
+    // 城市方塊 clip-reveal 掃出（user：收起用 clip reveal 移除，取代 opacity fade；四向隨機、
+    // 同 applyCountriesGate/map filter 的節點收合語彙）
+    items.forEach(i => {
+      if (i.category !== 'D' || !i._span || !i._anchor) return;
+      const n = /** @type {HTMLElement} */ (i._span);
+      n.style.clipPath = COVER_SHOWN_M;   // 起點全顯（idle 無 clip）
+      tl.to(n, {
+        clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
+        duration: M_CITY_DUR, ease: EASE.enterSoft,
+        onComplete: () => { i._anchor.style.opacity = '0'; n.style.clipPath = ''; },   // 藏住後清 clip（回程 fade in 顯全塊）
+      }, Math.random() * 0.1);
+    });
+    // 全 map item 文字統一漸變到 theme-fg（黑／inverse 白／mode3 前景）；dur＝M_COLOR_FADE、ease exitSoft 對齊 host 色塊掃除。
+    // ⚠️ gsap 不能 interp CSS var 目標 → 先用隱形 probe 把 var(--theme-fg) 解成 concrete 色。
+    // 回程各自還原 item.color（paired 靠 flipFlyNode 飛行補色、unpaired A/C 靠 buildMapEnterTl、unpaired B 靠 fade onComplete）
+    tl.call(() => {
+      if (destroyed) return;
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--theme-fg)';
+      document.body.appendChild(probe);
+      const fg = getComputedStyle(probe).color;
+      probe.remove();
+      const fadeSpans = items.filter(i => i._span && i.category !== 'D').map(i => i._span);
+      if (fadeSpans.length) gsap.to(fadeSpans, { color: fg, duration: M_COLOR_FADE, ease: EASE.exitSoft });   // 單一 tween 控全部
+    }, null, 0);
+    // host 色塊（不論這頁飛不飛）：底色不溶——anchor 內墊同位 ghost 色塊接手（spawnBChipBgGhost），clip-reveal 隨機四向掃掉
+    // （user 09-03：同城市方塊；色塊靜態、clip wipe 不像「先位移才消失」），留裸文字（已轉 theme-fg）在原地等位移那拍
+    items.forEach(i => {
+      if (i.category !== 'B' || !i._span || !i._anchor) return;
+      tl.call(() => {
+        if (destroyed) return;
+        const g = spawnBChipBgGhost(i);   // ghost 先抄白底再加 class（否則抄到 transparent＝色塊沒得 clip）
+        i._span.classList.add('atlas-b-exit');   // mode3：釋放本體白底黑字 !important＝ghost clip 掉時露白字（見 color.css）
+        gsap.to(g, {
+          clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
+          duration: M_CITY_DUR, ease: EASE.enterSoft, onComplete: () => g.remove(),
+        });
+      }, null, Math.random() * 0.1);
+    });
+    return tl;
+  }
+
+  /** 星雲退場的位移這拍（morph 正向；spanItems=這頁沒配對到的 A/B/C；前兩拍見 buildMapPreExitTl）：
+   *  非第一頁的 chip 往所屬欄位靠攏＋途中 fade（user 08-26）
+   *  ⚠️ opacity 掛 _anchor 不掛 span：.atlas-name 有 CSS opacity transition，掛 span 會跟 GSAP 每幀打架；
+   *  位移掛 span 的 gsap transform（xPercent/yPercent 代管 CSS 置中、wobble individual props 不衝突、收尾清掉）
+   * @param {any[]} spanItems */
+  function buildMapExitTl(spanItems) {
+    const others = spanItems.filter(i => i.category !== 'D' && i._anchor);
+    const tl = gsap.timeline();
+    // 非第一頁內容往所屬欄位靠攏＋邊位移邊 fade out（微 stagger 散開）
     // ⚠️ 此處 convergeDelta 只用來 gate「有沒有對應欄」（null 判定＝結構性、跟 zoom 無關）；實際位移量由
     //    scheduleDrift 執行時（restore 後 scale 已回 0.78）重算——build 時 restore 的 zoom tween 還沒縮完
     //    （scale ~3），此刻讀的螢幕位移是放大態殘值，÷scale 後會讓 item 暴衝堆到角落（user 09-08：放大後切換飛錯位置）。
@@ -6211,17 +6274,7 @@ export async function initAtlas(options = {}) {
     moves.forEach(({ i, d }) => {
       const at = M_FADE_START + Math.random() * M_FADE_RANGE;
       if (i.category === 'B') {
-        // 未配對 B：Phase B 底色 ghost clip-reveal 掃除（隨機四向、同城市方塊＋paired host；M_CITY_LEAD＝線收完、跟城市方塊同拍擦、dur 對齊 M_CITY_DUR）。
-        // ghost 起點 clipPath=COVER_SHOWN_M（全顯）→掃到隨機 hide inset；裸文字（theme-fg）Phase C 才位移＝不與色塊分離。
-        tl.call(() => {
-          if (destroyed) return;
-          const g = spawnBChipBgGhost(i);   // ghost 先抄白底再加 class（否則抄到 transparent＝色塊沒得 clip）
-          i._span.classList.add('atlas-b-exit');   // mode3：釋放本體白底黑字 !important＝ghost clip 掉時露白字（見 color.css）
-          gsap.to(g, {
-            clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
-            duration: M_CITY_DUR, ease: EASE.enterSoft, onComplete: () => g.remove(),
-          });
-        }, null, M_CITY_LEAD + Math.random() * 0.1);
+        // 未配對 B：底色已在前兩拍擦掉（buildMapPreExitTl），這裡是裸文字（theme-fg）位移＋淡出
         tl.to(i._anchor, {
           opacity: 0, duration: UNPAIRED_FADE_DUR, ease: 'none',
           onComplete: () => {
@@ -6236,7 +6289,6 @@ export async function initAtlas(options = {}) {
       if (!d) return;   // 無對應欄（如 ec 佔位）→ 只 fade（無位移）
       scheduleDrift(i, at, 0, () => inlineRotDeg(i._span));   // A/C CSS 只 translateY(-50%)＝xPercent 0；保留凍結 wobble 角
     });
-    // companyRingEllipse 的 erase 由 caller 的 hideCareer() → animateRingEllipse(false) 處理
     if (!tl.duration()) tl.to({}, { duration: 0.01 });   // 空集合保底（onComplete / then 正常走）
     return tl;
   }
@@ -6385,26 +6437,37 @@ export async function initAtlas(options = {}) {
       restoreDelay = Math.max(restoreDelay, RESTORE_ZOOM_DUR);
     }
 
-    // 預渲染 list（defer：只建 slot 殼＋配對 ref，節點留星雲等吞）；等 2 個 rAF 讓 pre-measure ghost
-    // （首次會實測 item 高後同步重渲染）落定，配對才查 live DOM
+    // ── 重活先做完、等畫面跟上，才開始動（2026-11-17 定案；user 連三輪「stagger／少了 fade／instant 的出現」的結論）──
+    // renderList 的預量是一個 0.2～0.5s 的長幀；國家底下那批每顆是合成層、第一次顯示還要 raster（0.1～0.25s 畫不出新的一格）。
+    // 補間排在這些上面＝只畫得出兩三格、看起來直接出現。所以順序＝（有篩選／zoom 先還原完）→ 預渲染 list＋把那批隱形地顯示出來
+    // → 幀間隔回穩 → 那批淡入 → 淡完，線・城市方塊・chip 底色（＋全體變黑）一起跑（buildMapPreExitTl）→ 跑完才配對起飛（morphToList）。
+    // 節奏＝user 2026-11-17「item 先出現，綫段、城市還有 chip 的底色一起 run 動畫」。
+    // 篩選還原在上面已排好（那時還沒放行＝還原只管一般 item）
     deferListNodes = true;
-    renderList();
-    applyListFilter();
-    listView.classList.add('visible');
-    listView.style.visibility = 'hidden';
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    const proceed = () => {
       if (destroyed) return;
-      morphToList(restoreDelay);
-    }));
+      // 預渲染 list（defer：只建 slot 殼＋配對 ref，節點留星雲等吞）；pre-measure ghost（首次會實測 item 高後同步重渲染）
+      // 要兩幀才落定、配對才查得到 live DOM——openGateForMorph 等的幀數已經超過
+      renderList();
+      applyListFilter();
+      listView.classList.add('visible');
+      listView.style.visibility = 'hidden';
+      openGateForMorph(shown => {
+        const pre = gsap.timeline();
+        const fade = shown.length ? DUR.medium : 0;
+        // 整批同起同落、線性：一起跑時 ease-out 0.1s 就到六成，看起來還是跳出來
+        if (fade) pre.to(shown, { opacity: 1, duration: fade, ease: 'none', overwrite: true, clearProps: 'opacity' }, 0);
+        pre.add(buildMapPreExitTl(), fade);
+        pre.call(() => { if (!destroyed) morphToList(0); }, null, fade + M_CITY_DUR);
+        introTween = /** @type {any} */ (pre);   // 離頁/中斷 kill 用（morphToList 會換成它的時間軸）
+      });
+    };
+    if (restoreDelay) gsap.delayedCall(restoreDelay, proceed); else proceed();
   }
 
   /** 正向 morph（單一節點遮罩三段）
-   * @param {number} restoreDelay restore-first 前置窗（0＝無篩選/zoom） */
+   * @param {number} restoreDelay 時間軸開頭多留的前置窗；目前一律 0（前置窗改在 switchToList 點擊當下跑完，見那邊） */
   function morphToList(restoreDelay) {
-    // 國家底下的 item（平常藏著）先全部淡入、淡入那段也算進前置窗（同 restore-first：星雲先補齊、再跑轉場）。
-    // ⚠️ 排在這裡、不在 switchToList 點擊當下：renderList 的預量會卡一個 ~0.3s 的長幀，先起跑的淡入整段被吃掉＝看起來直接出現
-    // （headless 逐幀量過）。篩選還原在點擊當下已跑完（那時還沒放行＝還原只管一般 item）
-    if (openGateForMorph()) restoreDelay = Math.max(restoreDelay, FILTER_FADE_TOTAL);
     // ── 配對：defer build 掛在 wrapper 上的 _atlasItem（pre-measure rebuild 後查 live DOM 仍最新）──
     /** @type {{item:any, wrapper:HTMLElement, cat:string}[]} */
     const pairs = [];
@@ -6489,62 +6552,26 @@ export async function initAtlas(options = {}) {
     });
     introTween = /** @type {any} */ (master);   // 離頁/中斷 kill 用
 
-    // Phase A（restore 窗之後、restoreDelay）：career/ring 收 + 城市/線退場（buildMapExitTl 內含 city clip-out
-    // ＋line retract＋layout icon 收）。user 08-31：城市/線「先離開」＝這一拍只走 map 裝飾，item 不動不變色。
-    master.call(() => {
-      if (destroyed) return;
-      if (mapCareerCtrl) mapCareerCtrl.hide();
-      animateRingEllipse(false);
-    }, null, restoreDelay);
+    // 前兩拍（收線 → 城市方塊・全體變黑・擦 host 色塊）這時已在星雲上跑完（buildMapPreExitTl，switchToList 排的）：
+    // 進到這裡全體已是 theme-fg 裸文字、城市與線都走了 → 時間軸從位移這拍開始。
     const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
     master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
-    // Phase B（restoreDelay + M_CITY_LEAD）：線收完、城市方塊同拍「全體變黑 + 擦色塊」。全 map item 文字統一漸變到 theme-fg
-    // （黑／inverse 白／mode3 前景）；dur＝M_COLOR_FADE、ease exitSoft 對齊 host 色塊掃除（見 buildMapExitTl / paired 分支）。
-    // ⚠️ gsap 不能 interp CSS var 目標 → 先用隱形 probe 把 var(--theme-fg) 解成 concrete 色。
-    // 回程各自還原 item.color（paired 靠 flipFlyNode 飛行補色、unpaired A/C 靠 buildMapEnterTl、unpaired B 靠 fade onComplete）
-    master.call(() => {
-      if (destroyed) return;
-      const probe = document.createElement('span');
-      probe.style.cssText = 'position:absolute;visibility:hidden;color:var(--theme-fg)';
-      document.body.appendChild(probe);
-      const fg = getComputedStyle(probe).color;
-      probe.remove();
-      const fadeSpans = items.filter(i => i._span && i.category !== 'D').map(i => i._span);
-      if (fadeSpans.length) gsap.to(fadeSpans, { color: fg, duration: M_COLOR_FADE, ease: EASE.exitSoft });   // 單一 tween 控全部
-    }, null, restoreDelay + M_CITY_LEAD);
 
-    // stage3：第一頁 item + chrome 同波起飛（chrome 沿 NAV_ORDER 階梯、item 隨機散開）
+    // 第一頁 item + chrome 同波起飛（chrome 沿 NAV_ORDER 階梯、item 隨機散開）
     // A/C 無底色文字（user 08-26）：本體直飛（flipFlyNode）
-    // B host 卡（user 08-28）：底色不溶——anchor 內墊同位 ghost 色塊接手（spawnBChipBgGhost），
-    // 起飛前等待窗內沿飛行方向 clip 掃出、文字再直飛（字色交給 flipFlyNode 飛行中補間）；
+    // B host 卡（user 08-28）：底色已在前兩拍擦掉，裸文字直飛（字色交給 flipFlyNode 飛行中補間，from＝theme-fg＝無縫）；
     // 反向鏡像＝文字先飛回、落地後底色沿來向 clip 進場（見 switchToMap）
     // （09-02：item 改直線 A→B，不再算欄頭弧線控制點 headerCtr）
     pairs.forEach(p => {
       const flyAt = M_ITEM_START + Math.random() * M_ITEM_RANGE;
       // 副標＋右箭頭都改「全體同刻」批次揭露（見下方 SUB_REVEAL_AT）＝不跟各欄落地分波（user 09-04：副標要跟箭頭那批一起出現）
-      if (p.item.category === 'B') {
-        // host 底色塊移除排在 Phase B（restoreDelay + M_CITY_LEAD，跟 decolorize 同波、城市方塊同拍）＝與
-        // 「全體變黑」同一拍擦色塊；色塊掃除、留裸文字（已轉 theme-fg）在原地，Phase C（flyAt）才直飛歸列。
-        master.call(() => {
-          if (destroyed) return;
-          const g = spawnBChipBgGhost(p.item);
-          p.item._span.classList.add('atlas-b-exit');   // mode3：釋放本體白底黑字 !important＝ghost clip 掉時露白字（見 color.css；ghost 已抄白底）
-          // 裸文字字色已由上方 Stage-1 統一 loop 轉 theme-fg（inverse 黑底黑字才不隱形；flipFlyNode 飛行補色 from=此值＝無縫）
-          // user 09-03：色塊掃除＝clip-reveal（隨機四向、同城市方塊＋unpaired host 統一，不論是否在 list）——色塊靜態、clip wipe 不再像「先位移才消失」
-          gsap.to(g, {
-            clipPath: NODE_HIDE_INSETS[Math.floor(Math.random() * 4)],
-            duration: M_CITY_DUR, ease: EASE.enterSoft,
-            onComplete: () => g.remove(),
-          });
-        }, null, restoreDelay + M_CITY_LEAD + Math.random() * 0.1);
-      }
       master.add(flipFlyNode(p.item, restoreDelay + flyAt,   // 08-31：拿掉 +SWALLOW_DUR 前導（host ghost 已移 Phase B、不再需要起飛前導窗）＝再省 0.3s 停頓
         // ctrlPt=null＝直線 A→B（user 09-02 撤回 08-31 弧線 bow「有的 item 到位轉 curve」，flipFlyNode 弧線分支保留但不啟用）
         () => toListForm(p.item, p.wrapper, p.cat), undefined, true, null), 0);
     });
     // 副標＋右箭頭全體同刻統一揭露＝**對齊 title tab reveal 文字的時刻**（user 09-04：副標要跟 title tab 文字揭露＋箭頭同時，
     // 不是等所有 item 落地的最晚時刻）。title 文字在 maskFlyChrome onComplete 揭露＝chrome delay(M_NAV_START，STEP 0 同刻)
-    // ＋CHROME_TEXT_OUT＋flyDurC(FLY_DUR+1)。此刻 ≥ 全 item 起飛完(M_ITEM_START+M_ITEM_RANGE=1.3)＝副標 yPercent 已被 flipFlyNode 藏好、無 race。
+    // ＋CHROME_TEXT_OUT＋flyDurC(FLY_DUR+1)。此刻 ≥ 全 item 起飛完(M_ITEM_START+M_ITEM_RANGE=0.3)＝副標 yPercent 已被 flipFlyNode 藏好、無 race。
     const SUB_REVEAL_AT = restoreDelay + M_NAV_START + CHROME_TEXT_OUT + (FLY_DUR + 1);
     const subDirs = randomSubDirs(pairs.map(p => p.item));
     const allSubs = [...subDirs.keys()];
