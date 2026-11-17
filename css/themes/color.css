@@ -21,7 +21,7 @@ html.mode-color {
 
 /* Footer scatter 文字卡：JS inline 三原色底（footer-scatter.js）→ mode3 strict B/W（!important 蓋 inline）：
    底 fg-contrast、字 fg-inverse-contrast（對比互補 hue footer）。只限桌面 scatter；較窄版型無 scatter、維持透明底 + var(--footer-fg) */
-@media (orientation: landscape) and (min-width: 1024px) {
+@media (orientation: landscape) and (min-width: 1024px) and (hover: hover) {
   body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit) {
     background: var(--theme-fg-contrast) !important;
   }
@@ -31,7 +31,7 @@ html.mode-color {
   }
 }
 /* 散佈卡 hover（真桌面才有散佈）：mode3 不上 rgb、黑白對調（mode1/2 在 footer.css） */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body.mode-color .footer-random :is(.footer-fax, .footer-tel, .footer-office, .footer-email, .footer-info, .footer-unit):hover {
     background: var(--theme-fg-inverse-contrast) !important;
   }
@@ -71,9 +71,19 @@ body.mode-color .degree-show-card-content[style*="background"] {
   background: var(--theme-fg) !important;
 }
 
-body.mode-color .degree-show-card-content[style*="background"],
-body.mode-color .degree-show-card-content[style*="background"] * {
+body.mode-color .degree-show-card-content[style*="background"] {
   color: var(--theme-fg-inverse) !important;
+}
+/* 子孫字色：不寫 `[style…] *`（全站 inline style 寫入會變整棵子樹重算），兩支寫法與 --on-* 標記見 inverse.css「inline 有底色」段 */
+@supports not (container-type: scroll-state) {
+  body.mode-color .degree-show-card-content[style*="background"] * {
+    color: var(--theme-fg-inverse) !important;
+  }
+}
+@supports (container-type: scroll-state) {
+  @container style(--on-dsd: 1) {
+    body.mode-color .degree-show-card-content.degree-show-card-content * { color: var(--theme-fg-inverse) !important; }
+  }
 }
 
 /* Degree Show detail Next Project hover：#prev/#next-clip 掃入色、#prev/#next-labels 內 <p> chip（JS inline 三原色）→ strict B/W
@@ -156,7 +166,7 @@ body.mode-color .colored-accordion .accordion-text-wrap p {
   color: var(--theme-fg-inverse) !important;
 }
 
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body.mode-color .colored-accordion .accordion-item:hover:not(.active),
   body.mode-color .colored-accordion .accordion-item:hover:not(.active) :is(.accordion-label, .accordion-text-wrap, .accordion-img-wrap) {
     background-color: var(--theme-fg-inverse) !important;
@@ -345,12 +355,28 @@ body.mode-color .list-header[style*="background"] + .list-content {
   background: var(--theme-fg) !important;
 }
 body.mode-color .list-item[style*="background"],
-body.mode-color .list-item[style*="background"] *,
 body.mode-color .list-header[style*="background"],
-body.mode-color .list-header[style*="background"] *,
-body.mode-color .list-header[style*="background"] + .list-content,
-body.mode-color .list-header[style*="background"] + .list-content * {
+body.mode-color .list-header[style*="background"] + .list-content {
   color: var(--theme-fg-inverse) !important;
+}
+/* 子孫字色（兩支寫法見 inverse.css「inline 有底色」段） */
+@supports not (container-type: scroll-state) {
+  body.mode-color .list-item[style*="background"] *,
+  body.mode-color .list-header[style*="background"] *,
+  body.mode-color .list-header[style*="background"] + .list-content * {
+    color: var(--theme-fg-inverse) !important;
+  }
+}
+@supports (container-type: scroll-state) {
+  @container style(--on-li: 1) {
+    body.mode-color .list-item.list-item * { color: var(--theme-fg-inverse) !important; }
+  }
+  @container style(--on-lh: 1) {
+    body.mode-color .list-header.list-header * { color: var(--theme-fg-inverse) !important; }
+  }
+  @container style(--on-lh-next: 1) {
+    body.mode-color .list-content.list-content.list-content * { color: var(--theme-fg-inverse) !important; }
+  }
 }
 /* active 底為 fg → 分隔線改 fg-inverse（蓋過上方 .list-content .border-black 黑） */
 body.mode-color .list-header[style*="background"] + .list-content .border-black {
@@ -418,8 +444,15 @@ body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:
   color: var(--theme-fg) !important;
 }
 
-body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
-  color: var(--theme-fg) !important;
+@supports not (container-type: scroll-state) {
+  body.mode-color .list-header[style*="background"] + .list-content .list-ref-btn:hover * {
+    color: var(--theme-fg) !important;
+  }
+}
+@supports (container-type: scroll-state) {
+  @container style(--on-lh-next: 1) {
+    body.mode-color .list-content.list-content.list-content .list-ref-btn:hover * { color: var(--theme-fg) !important; }
+  }
 }
 
 /* legal 規章表列＝ref 同族，鏡像上方「active list-content 內 ref」：rest neutral-gray-inverse + fg-inverse 字、hover 反向（fg-inverse 底 + fg 字）。
@@ -486,13 +519,15 @@ body.mode-color #courses-detail-panel .list-scroll::-webkit-scrollbar-thumb {
     color: var(--theme-fg-inverse);
   }
   /* 代用 logo hover：卡底翻 theme-fg → 在 base filter 上再 invert(1) 才對比 */
-  body.mode-color .faculty-card-placeholder:is(:hover, .is-active) .faculty-card-image {
+  body.mode-color .faculty-card-placeholder:is(:hover, .is-active) .faculty-card-image,
+  body.mode-color .faculty-card:is(:hover, .is-active) .faculty-card-wf {   /* .faculty-card-wf＝詳情開著時換上的線框（faculty-data-loader.js swapCardWireframe） */
     filter: var(--theme-invert-filter, invert(0)) invert(1);
   }
 }
 
 /* mode3 代用 logo：黑線框圖 + var(--theme-invert-filter)（theme-toggle 每幀設），跟文字同 var 同幀翻色、零延遲（不用 JS 換圖）；手機桌面都套 */
-body.mode-color .faculty-card-placeholder .faculty-card-image {
+body.mode-color .faculty-card-placeholder .faculty-card-image,
+body.mode-color .faculty-card-wf {
   filter: var(--theme-invert-filter, invert(0));
 }
 
@@ -525,7 +560,7 @@ body.mode-color #faculty-panel .list-scroll::-webkit-scrollbar-thumb {
 /* 真桌面色卡（faculty-slide-in.js openDeskCard）：mode3 底色＝卡片 hover 那個色（上方 .faculty-card:hover＝theme-fg 黑/白），
    字／scrollbar 翻 theme-fg-inverse、代用 logo 線框再 invert 一次（同卡片 hover 的 placeholder 規則）（user 2026-10-20）。
    手機／矮橫向 slide-in 照舊跟 hue */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body.mode-color #faculty-panel {
     --faculty-panel-bg: var(--theme-fg) !important;
     background-color: var(--theme-fg) !important;
@@ -618,7 +653,8 @@ body.mode-color {
 body.mode-color #library-card-main[style*="--lib-bg"],
 body.mode-color #library-card-stack > div[style*="--lib-bg"],
 body.mode-color #library-card-content,
-body.mode-color #lib-tools-btn {   /* 手機工具鈕在 content 層外（卡上）：同吃反色，否則淺卡配白 icon */
+body.mode-color #lib-tools-btn,
+body.mode-color #library-card-main > .library-sort-btn {   /* 手機工具鈕／sort 鈕在 content 層外（卡上）：同吃反色，否則淺卡配白 icon */
   --lib-bg: var(--lib-bg-contrast);
   --lib-fg: var(--theme-fg-inverse);
   --lib-fg-rgb: var(--theme-fg-inverse-rgb);
@@ -633,7 +669,7 @@ body.mode-color #library-card-content {
 /* 手機：initLibraryCard 只在桌面跑 → 無 inline --lib-bg 標記，直接 remap main，否則淺卡配白字。
    桌面不套（會蓋掉 demote 成 color rect 的情境）。media＝非真桌面（原 max-width:767 漏 iPad 直拿／橫向手機：
    卡底沒 remap 又被下面那條蓋成 theme-fg，卡內 sticky 年份標題的 --lib-bg 跟卡底不同色＝年份有色底，user 2026-11-11） */
-@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
+@media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (orientation: portrait) and (min-width: 768px) {
   body.mode-color #library-card-main {
     --lib-bg: var(--lib-bg-contrast);
   }
@@ -644,7 +680,7 @@ body.mode-color #library-card-content {
    :not([style*="--lib-bg"]) 排除 setAsGray 升為主卡者。桌面限定：手機不跑 initLibraryCard、無標記可排除，會被蓋成純黑白 */
 /* Hover 由 JS applyCardHover 寫 inline fg-inverse 底 + fg 字（箭頭預覽同一套）；
    以 [style*="--theme-fg-inverse"] 標記放行 hover 中的卡，免被下面 !important 吃掉 */
-@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) {
+@media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   body.mode-color #library-card-stack > div:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]),
   body.mode-color #library-card-main:not([style*="--lib-bg"]):not([style*="--theme-fg-inverse"]) {
     background: var(--theme-fg) !important;
@@ -667,10 +703,23 @@ body.mode-color #library-card-content .files-item[style*="background"] {
 }
 
 body.mode-color #library-card-content .press-item[style*="background"],
-body.mode-color #library-card-content .press-item[style*="background"] *,
-body.mode-color #library-card-content .files-item[style*="background"],
-body.mode-color #library-card-content .files-item[style*="background"] * {
+body.mode-color #library-card-content .files-item[style*="background"] {
   color: var(--lib-bg) !important;
+}
+/* 子孫字色（兩支寫法見 inverse.css「inline 有底色」段） */
+@supports not (container-type: scroll-state) {
+  body.mode-color #library-card-content .press-item[style*="background"] *,
+  body.mode-color #library-card-content .files-item[style*="background"] * {
+    color: var(--lib-bg) !important;
+  }
+}
+@supports (container-type: scroll-state) {
+  @container style(--on-press: 1) {
+    body.mode-color #library-card-content .press-item.press-item * { color: var(--lib-bg) !important; }
+  }
+  @container style(--on-files: 1) {
+    body.mode-color #library-card-content .files-item.files-item * { color: var(--lib-bg) !important; }
+  }
 }
 
 /* Awards ticker logo 跟反色島卡底對比（非 page）：--lib-invert-contrast（= --theme-invert-filter 相反） */
