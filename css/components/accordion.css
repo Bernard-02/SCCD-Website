@@ -258,6 +258,8 @@
      EN vertical-rl + sideways＝字頭朝右由上往下讀；ZH upright＝直排字正；sep 隱藏、英中距吃 lg token
      span 帶 writing-mode 會 blockify、寬＝1 行＝原 inner 同寬 → horizontal-accordion.js getLabelWidth 量到的寬不變 */
   @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
+    /* 標題左右 12（xs 太擠、sm 太鬆，user 2026-11-17）；右 padding＝標題到圖的距離，圖斜角最多伸進 ~10 仍不碰字 */
+    .colored-accordion .accordion-label { padding-inline: 0.75rem; }
     .colored-accordion .accordion-label-inner {
       writing-mode: horizontal-tb;
       transform: none;
