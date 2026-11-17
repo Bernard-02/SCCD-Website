@@ -5,7 +5,7 @@
  */
 
 import { openLightbox } from '../lightbox/activities-lightbox.js';
-import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, bindPinchZoom } from '../lightbox/lightbox-shell.js';
+import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, bindPinchZoom, swapSides } from '../lightbox/lightbox-shell.js';
 import { createRefBtn } from '../lightbox/lightbox-ref-btn.js';
 import { applyScreenWatermark, repositionScreenWatermark } from '../lightbox/screen-watermark.js';
 import { peekPdfCover, ensurePdfjsLoaded, PDFJS_WORKER, PDFJS_CMAPS, PDFJS_STD_FONTS, PDFJS_WASM } from '../ui/pdf-cover.js';
@@ -807,6 +807,11 @@ export function initPdfViewer() {
     buf.width  = vp.width;
     buf.height = vp.height;
     await page.render({ canvasContext: buf.getContext('2d'), viewport: vp }).promise;
+    // 換頁動畫：舊頁要在 canvas 被清掉、縮放被改掉之前拍下來
+    const turning = shownPage > 0 && shownPage !== pageNum && modal.style.display !== 'none'
+      && typeof gsap !== 'undefined' && !prefersReducedMotion();
+    let oldSnap = null;
+    if (turning) { endPageTurn(); oldSnap = snapPage(1); }
     canvasL.width  = vp.width;
     canvasL.height = vp.height;
     canvasL.style.width  = fitDims.w + 'px';
@@ -834,13 +839,18 @@ export function initPdfViewer() {
       else { zoom.scale = fitScale(); zoom.tx = 0; zoom.ty = 0; }
     }
     applyZoom(false);
+    if (turning) {
+      if (wantWatermark) repositionScreenWatermark(watermarkEl);   // 新頁的浮水印位置要在拍新頁之前換好（下面 rAF 那支跳過）
+      playPageTurn(oldSnap, pageNum > shownPage ? 1 : -1);
+    }
+    shownPage = pageNum;
 
     pageInfo.textContent = `${pageNum} / ${totalPages}`;
     setNavDisabled(prevBtn, pageNum <= 1);
     setNavDisabled(nextBtn, pageNum >= totalPages);
     rendering = false;
-    // 等新 canvas 已繪製後才換水印位置，避免翻頁時先動一次水印、再出新頁面。
-    if (wantWatermark) {
+    // 等新 canvas 已繪製後才換水印位置，避免翻頁時先動一次水印、再出新頁面。翻頁動畫已在拍快照前換好＝不再換
+    if (wantWatermark && !turning) {
       requestAnimationFrame(() => {
         if (curPage === pageNum) repositionScreenWatermark(modal.querySelector('.pdf-watermark'));
       });
@@ -856,6 +866,60 @@ export function initPdfViewer() {
     }
     // 成功：rendering 已在 try 內（recovery 之前）設回 false，這裡別再動，否則會在遞迴補渲染 in-flight 時誤清
     return true;
+  }
+
+  // 翻頁＝media lightbox 換張同款（user 2026-11-17；about resources 輪播）：新頁 clip-reveal 蓋上來、舊頁同時同向
+  // clip-reveal 退場、墊在新頁底下（不論大小）；方向＝swapSides（下一頁往下或往右、上一頁往上或往左）。
+  // 頁面只有一張 canvas 又帶縮放 → 動畫跑在快照上：新舊各拷一張「頁面在 stage 裡看得到的那塊」，播完拿掉、露出真 canvas
+  let shownPage = 0;       // canvas 上現在畫的是第幾頁（resize 重渲同一頁＝不播；開關檔歸 0）
+  let turnTweens = [];
+  let turnFrames = [];
+  function endPageTurn() {
+    turnTweens.forEach(t => t.kill()); turnTweens = [];
+    turnFrames.forEach(f => f.remove()); turnFrames = [];
+    rowEl.style.visibility = '';
+    if (watermarkClipEl) watermarkClipEl.style.visibility = '';
+  }
+  // 頁面（canvasL，含縮放）跟 stage 的交集拷成同位置的方塊；z 在色塊(15)／浮水印(20)之下。
+  // 浮水印也複製一份放進方塊＝跟頁面一起進退場（不然只能藏著、揭完才蓋上去，user 2026-11-17）
+  function snapPage(z) {
+    const s = stageEl.getBoundingClientRect(), p = canvasL.getBoundingClientRect();
+    const l = Math.max(s.left, p.left), t = Math.max(s.top, p.top);
+    const r = Math.min(s.right, p.right), b = Math.min(s.bottom, p.bottom);
+    if (r - l < 1 || b - t < 1 || !canvasL.width) return null;
+    const f = document.createElement('div');
+    f.style.cssText = `position:absolute;left:${l - s.left}px;top:${t - s.top}px;width:${r - l}px;height:${b - t}px;`
+      + `z-index:${z};pointer-events:none;overflow:hidden;background:var(--color-white);`;
+    const dpr = window.devicePixelRatio || 1;
+    const c = document.createElement('canvas');
+    c.width = Math.round((r - l) * dpr); c.height = Math.round((b - t) * dpr);
+    c.style.cssText = 'display:block;width:100%;height:100%;';
+    const kx = canvasL.width / p.width, ky = canvasL.height / p.height;
+    c.getContext('2d').drawImage(canvasL, (l - p.left) * kx, (t - p.top) * ky, (r - l) * kx, (b - t) * ky, 0, 0, c.width, c.height);
+    f.appendChild(c);
+    if (wantWatermark && watermarkClipEl) {
+      // 原本那層是 stage 全幅（inset:0）＋clip 裁成頁框 → 複製品改成 stage 大小、對回 stage 原點，裁切交給方塊的 overflow
+      const wm = /** @type {HTMLElement} */ (watermarkClipEl.cloneNode(true));
+      wm.style.clipPath = ''; wm.style.visibility = ''; wm.style.inset = 'auto';
+      wm.style.left = `${s.left - l}px`; wm.style.top = `${s.top - t}px`;
+      wm.style.width = `${s.width}px`; wm.style.height = `${s.height}px`;
+      f.appendChild(wm);
+    }
+    stageEl.appendChild(f);
+    turnFrames.push(f);
+    return f;
+  }
+  function playPageTurn(old, dir) {
+    const neu = snapPage(2);
+    if (!neu) { endPageTurn(); return; }
+    rowEl.style.visibility = 'hidden';   // 播完才露真 canvas（播放中拖曳／縮放照常作用在它身上）
+    if (watermarkClipEl) watermarkClipEl.style.visibility = 'hidden';   // 播放中由快照裡的複製品代班
+    const sides = swapSides(dir);
+    const hidden = navChipHidden(neu, sides.enter);
+    neu.style.clipPath = hidden.clipPath; neu.style.translate = hidden.translate;   // to 補間第一幀才寫＝先烙隱藏態，不閃整頁
+    turnTweens.push(navChipTween(neu, hidden, NAV_CHIP_SHOWN, { duration: DUR.slow, ease: EASE.enter, onComplete: endPageTurn }));
+    if (old) turnTweens.push(navChipTween(old, NAV_CHIP_SHOWN, navChipHidden(old, sides.exit),
+      { duration: DUR.slow, ease: EASE.enter }));
   }
 
   // 上一/下一頁（一頁一頁翻，邊界自動 clamp）
@@ -1127,6 +1191,7 @@ export function initPdfViewer() {
   function closeModal() {
     openToken++;   // 作廢還在路上的開場（close 後才回來的 getDocument 不得畫上）
     stopColorLoader();   // 停載入色塊循環 + 揭露 tween
+    shownPage = 0; endPageTurn();
     // 點返回／ref 鈕關＝淡出途中保持它的 hover 色（user 2026-10-21，同 header menu 鈕）；收完才放
     heldBtn = /** @type {HTMLElement | null} */ (modal.querySelector(':is(button, a):hover'));
     SCCDHelpers.holdHover(heldBtn);
@@ -1183,6 +1248,7 @@ export function initPdfViewer() {
     curMaxDim = maxCanvasDim || MAX_CANVAS_DIM;   // press 帶更高上限 → 高倍更清晰；其他維持預設
     curPdfUrl = pdfUrl;
     curPage = 1;
+    shownPage = 0; endPageTurn();   // 第一頁走開場色塊、不播翻頁
     // 重置內部狀態：naturalDims=0 讓 renderPage 視為「初次 render」自動套 actual size
     zoom = { scale: 1, tx: 0, ty: 0 };
     fitDims = { w: 0, h: 0 };

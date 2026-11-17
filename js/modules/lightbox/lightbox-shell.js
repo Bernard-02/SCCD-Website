@@ -384,6 +384,14 @@ export function playLightboxEntrance({ bars = [], fades = [], item = null, onIte
   return { kill: () => { tl.kill(); live.forEach(t => t.kill()); } };
 }
 
+// ── 換張／翻頁方向（圖片 lightbox＋PDF viewer 共用，user 2026-11-17）：下一張＝新的從右（或下）進來、把舊的推往左（或上）；
+// 上一張反過來（新的從左／上進來、舊的推往右／下）。橫直兩組裡隨機。enter＝新的藏在哪一側（navChipHidden 進場起點）、exit＝舊的退往哪一側
+export function swapSides(dir) {
+  const i = Math.random() < 0.5 ? 0 : 1;
+  return dir > 0 ? { enter: ['right', 'bottom'][i], exit: ['left', 'top'][i] }
+    : { enter: ['left', 'top'][i], exit: ['right', 'bottom'][i] };
+}
+
 // ── 縮放手勢（圖片 lightbox＋PDF viewer 共用，user 2026-11-16）──
 // 滾輪 → 縮放倍率。滑鼠滾輪一格（deltaY 上百，或以「行」計）＝固定 1.15 倍；觸控板送的是細碎的 delta：
 // pinch（Chrome／Edge／Firefox 送成帶 ctrlKey 的 wheel，deltaY＝−100×ln(手勢倍率)）照手勢倍率跟手，兩指滑＝每 100px 抵滑鼠一格

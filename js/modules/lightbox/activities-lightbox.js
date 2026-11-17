@@ -4,13 +4,16 @@
  * 媒體順序：海報 → videos → images
  */
 
-import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, wheelZoomFactor, bindPinchZoom } from './lightbox-shell.js';
+import { enterLightboxMode, exitLightboxMode, hideLightboxEntrance, playLightboxEntrance, wheelZoomFactor, bindPinchZoom, swapSides } from './lightbox-shell.js';
 import { createRefBtn } from './lightbox-ref-btn.js';
 import { createLightboxVideo } from './lightbox-video.js';
 import { applyScreenWatermark, clearScreenWatermark, repositionScreenWatermark } from './screen-watermark.js';
 import { grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { prepDualCopy, playCssMarquee } from '../ui/marquee-overflow.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
+import { DUR, EASE } from '../ui/motion.js';
+import { navChipHidden, navChipTween, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
+import { prefersReducedMotion } from '../ui/reduce-motion.js';
 
 let lightboxEl = null;
 // 防 double-open（user 2026-06-22 報「打開 press lightbox 有時 header 整個消失」）：openLightbox 是 async，
@@ -40,6 +43,15 @@ let currentColor = null;   // openLightbox opts.color，renderMain 建 hls playe
 
 let mediaList = [];   // [{ type: 'image'|'video', src, thumb, videoKind?: 'yt'|'hls'|'file' }]
 let currentIndex = 0;
+
+// 中間 item 進場（開場＋換張共用）。換張＝about resources 圖片輪播同款（user 2026-11-17）：新的從隨機一側 clip-reveal
+// 蓋上來、舊的同時往同方向 clip-reveal 退場（墊在底下＝oldLayer），揭完才拿掉
+let itemTweens = [];    // 進行中的補間（navChipTween proxy，不在 el 上＝自留 ref 收）
+let itemSeq = 0;        // 換張／開關 ++：還在等圖 decode 的進場作廢
+let oldLayer = null;    // 被蓋的舊 item 外框（搬出 mainEl，renderMain 清不到它）
+let oldItem = null;     // 外框裡要裁的那層（圖＝img；影片＝player）
+let oldWm = null;       // 舊圖的浮水印複製品（跟舊圖一起墊著／退場）
+let oldPlayer = null;   // 舊 item 是自架影片時的 player：蓋完才 destroy（先 destroy＝被蓋的變黑框）
 
 let zoomControlsEl = null;
 let zoomInBtn = null;
@@ -568,7 +580,24 @@ function renderMain(index) {
     });
   }
 
-  // 更新 thumbnails active 狀態
+  syncThumbs(index);
+
+  // 更新 chevron 狀態：只 1 個 media 時整顆隱藏（disabled+opacity 視覺上仍可見會誤導點擊）
+  const singleMedia = mediaList.length <= 1;
+  prevBtn.style.display = singleMedia ? 'none' : '';
+  nextBtn.style.display = singleMedia ? 'none' : '';
+  // infinity loop（user 2026-08-28）：到底再往右回第一張、到頭往左跳最後一張 → chevron 恆可點、不再標 disabled
+  prevBtn.setAttribute('aria-disabled', 'false');
+  nextBtn.setAttribute('aria-disabled', 'false');
+  // 即使 single media 也顯示 thumbs row（含單張 thumb）：thumbs-wrap 是 flex-shrink-0 + py-md，
+  // 隱藏會讓 wrap 縮 60px → main flex:1 撐大 → image 變大、topbar/zoom controls 因 top:50% 跟著上移，
+  // 跟 multi-media 版面對不上。chevron 仍隱藏（無處可導航）足以表達「只有一張」
+  thumbsEl.style.display = '';
+  currentIndex = index;
+}
+
+// 縮圖 active 框＋置中：換張時點下去當下就跟（不等舊圖退場）
+function syncThumbs(index) {
   // 用 outline + outline-offset 在圖片「外層」畫 2px 白 border（不佔 layout 空間，不會推擠相鄰 thumb）
   // outline-offset:2px 讓 border 跟圖邊緣有 2px gap，視覺上明顯獨立框出來
   thumbsEl.querySelectorAll('.alb-thumb').forEach((th, i) => {
@@ -587,30 +616,90 @@ function renderMain(index) {
   if (lightboxEl.style.display !== 'none') {
     requestAnimationFrame(() => centerActiveThumb(index, true));
   }
-
-  // 更新 chevron 狀態：只 1 個 media 時整顆隱藏（disabled+opacity 視覺上仍可見會誤導點擊）
-  const singleMedia = mediaList.length <= 1;
-  prevBtn.style.display = singleMedia ? 'none' : '';
-  nextBtn.style.display = singleMedia ? 'none' : '';
-  // infinity loop（user 2026-08-28）：到底再往右回第一張、到頭往左跳最後一張 → chevron 恆可點、不再標 disabled
-  prevBtn.setAttribute('aria-disabled', 'false');
-  nextBtn.setAttribute('aria-disabled', 'false');
-  // 即使 single media 也顯示 thumbs row（含單張 thumb）：thumbs-wrap 是 flex-shrink-0 + py-md，
-  // 隱藏會讓 wrap 縮 60px → main flex:1 撐大 → image 變大、topbar/zoom controls 因 top:50% 跟著上移，
-  // 跟 multi-media 版面對不上。chevron 仍隱藏（無處可導航）足以表達「只有一張」
-  thumbsEl.style.display = '';
-  currentIndex = index;
 }
 
 // ── 切換 ────────────────────────────────────────────────────────
 function navigate(dir) {
   if (mediaList.length <= 1) return;
   // infinity loop（user 2026-08-28）：取餘環狀，到底往右回第一張、到頭往左跳最後一張
-  const next = (currentIndex + dir + mediaList.length) % mediaList.length;
-  if (next !== currentIndex) {
-    if (iframeEl) iframeEl.src = '';
-    renderMain(next);
+  switchTo((currentIndex + dir + mediaList.length) % mediaList.length, dir);
+}
+
+const clearItem = (el) => { el.style.translate = ''; el.style.clipPath = ''; };
+const canAnimate = () => typeof gsap !== 'undefined' && !prefersReducedMotion();
+function killItemTweens() { itemTweens.forEach(t => t.kill()); itemTweens = []; }
+function dropOld() {
+  oldLayer?.remove(); oldLayer = null; oldItem = null; oldWm = null;
+  oldPlayer?.destroy(); oldPlayer = null;
+}
+// 浮水印（document 來源）跟著圖一起進退場（user 2026-11-17）：它的框＝圖的框，套同一組 clip-reveal 就會跟圖貼在一起
+const wmShown = () => wantWatermark && !!watermarkClipEl && watermarkClipEl.style.display !== 'none';
+function hideWm() { if (watermarkClipEl) { watermarkClipEl.style.translate = ''; watermarkClipEl.style.clipPath = 'inset(0% 0% 100% 0%)'; } }
+// 圖載完（initZoomForLoadedImg 已把浮水印框對好）且 decode 完才揭
+const imgReady = (img) => (img.complete ? Promise.resolve() : new Promise(r => {
+  img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true });
+})).then(() => img.decode());
+
+// 中間 item clip-reveal 進場：圖等 decode 完才揭＝不會揭到一半才冒出圖。換張（sides＝swapSides，方向跟著上／下一張）：
+// 舊的同時往同方向 clip-reveal 退場、墊在新的底下（user 2026-11-17：不論大小都要退場）。開場沒 sides＝沿短邊隨機
+function showItem(dur, sides) {
+  const seq = itemSeq;
+  const el = /** @type {HTMLElement | null} */ (zoomImg || mainEl.firstElementChild);
+  if (!el) return;
+  const go = () => {
+    if (seq !== itemSeq || !el.isConnected) return;
+    const wm = wmShown() ? watermarkClipEl : null;
+    if (!canAnimate()) { clearItem(el); if (wm) clearItem(wm); dropOld(); return; }
+    const d = sides ? sides.enter : pickNavDir(el);
+    const reveal = (x, onComplete) => itemTweens.push(navChipTween(x, navChipHidden(x, d), NAV_CHIP_SHOWN,
+      { duration: dur, ease: EASE.enter, onComplete }));
+    reveal(el, () => { clearItem(el); dropOld(); itemTweens = []; });
+    if (wm) reveal(wm, () => clearItem(wm));
+    if (sides) [oldItem, oldWm].forEach(x => x && itemTweens.push(navChipTween(x, NAV_CHIP_SHOWN, navChipHidden(x, sides.exit),
+      { duration: dur, ease: EASE.enter })));
+  };
+  if (el === zoomImg) imgReady(zoomImg).then(go, go); else go();
+}
+
+// 換張（resources 圖片輪播的進場＋舊的同向退場：DUR.slow、EASE.enter；dir＝+1 下一張／−1 上一張，點縮圖＝看在前還在後）。
+// 連按＝當下這張（揭到一半就直接定位）變成退場的那張；還沒開始揭（等圖 decode／開場還沒輪到）＝沒畫出來過，丟掉、底下原本那張繼續墊著
+function switchTo(index, dir = index > currentIndex ? 1 : -1) {
+  if (index === currentIndex) return;
+  itemSeq++;
+  const midReveal = itemTweens.length > 0;
+  killItemTweens();
+  syncThumbs(index);
+  const stage = /** @type {HTMLElement | null} */ (mainEl.firstElementChild);
+  const cur = /** @type {HTMLElement | null} */ (zoomImg || stage);
+  // iframe 不墊：搬動 iframe＝重新載入（影片從頭播）
+  if (!canAnimate() || stage?.tagName === 'IFRAME') dropOld();
+  else if (stage && cur && (!cur.style.clipPath || midReveal)) {
+    dropOld();
+    clearItem(cur);
+    oldItem = cur;
+    // 搬出 mainEl（renderMain 會清空它）、原位疊在新的底下：z -1＝lightbox 底色之上、新 item（positioned）之下
+    oldLayer = document.createElement('div');
+    oldLayer.style.cssText = `position:absolute;left:${mainEl.offsetLeft}px;top:${mainEl.offsetTop}px;width:${mainEl.offsetWidth}px;height:${mainEl.offsetHeight}px;`
+      + 'display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:-1;';
+    oldLayer.appendChild(stage);
+    if (wmShown()) {   // 浮水印框是對 mainContainer 定位的 → 複製品換算成 oldLayer 座標
+      clearItem(watermarkClipEl);
+      oldWm = /** @type {HTMLElement} */ (watermarkClipEl.cloneNode(true));
+      oldWm.style.left = `${parseFloat(watermarkClipEl.style.left) - mainEl.offsetLeft}px`;
+      oldWm.style.top = `${parseFloat(watermarkClipEl.style.top) - mainEl.offsetTop}px`;
+      oldLayer.appendChild(oldWm);
+    }
+    mainContainerEl.appendChild(oldLayer);
+    oldPlayer = hlsPlayer; hlsPlayer = null;   // renderMain 不 destroy 它；蓋完 dropOld 才收
+    oldPlayer?.el.querySelector('video')?.pause();   // 聲音不陪被蓋
   }
+  if (iframeEl) iframeEl.src = '';
+  renderMain(index);
+  if (!canAnimate()) return;
+  const el = /** @type {HTMLElement | null} */ (zoomImg || mainEl.firstElementChild);
+  if (el) el.style.clipPath = 'inset(0% 0% 100% 0%)';   // 先藏、等圖可畫再揭
+  hideWm();
+  showItem(DUR.slow, swapSides(dir));
 }
 
 // ── Image 可載入性 probe（檔案 404 / 跨域擋 → 不要進 mediaList）─────
@@ -710,10 +799,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
       if (lightboxEl.style.display !== 'none') centerActiveThumb(currentIndex, false);
     });
     btn.appendChild(img);
-    btn.addEventListener('click', () => {
-      if (iframeEl) iframeEl.src = '';
-      renderMain(i);
-    });
+    btn.addEventListener('click', () => switchTo(i));
     thumbsEl.appendChild(btn);
   });
 
@@ -730,6 +816,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
     watermarkClipEl.style.display = wantWatermark ? '' : 'none';
     if (wantWatermark) applyScreenWatermark(watermarkClipEl.querySelector('.alb-watermark'));
     else clearScreenWatermark(watermarkClipEl.querySelector('.alb-watermark'));
+    if (wantWatermark && canAnimate()) hideWm();   // 跟開場的中間 item 一起揭（showItem）
   }
   // 標題 pill：仿 activities-section-btn active 樣式（vertical en+zh + 隨機旋轉 + accent bg）
   renderTitle(opts.title, opts.color);
@@ -745,6 +832,7 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   // 量 logo 底邊位置 → 同步 close btn top + main padding-top（避免 zoom image 蓋到 logo）
   positionUIRelativeToLogo();
 
+  itemSeq++; killItemTweens(); dropOld();   // 上一次開著時還在跑的換張作廢
   renderMain(startIndex);
 
   clearTimeout(closeHideTimer);  // fadeout 中重開：取消舊 close 的隱藏 timer，否則 300ms 後把新內容藏掉
@@ -757,7 +845,9 @@ export async function openLightbox(media, startIndex = 0, opts = {}) {
   const item = zoomImg || mainEl.firstElementChild;   // 圖＝img 本身（object-fit 框＝圖）；影片＝player／iframe
   hideLightboxEntrance([...bars, item], fades);
   lightboxEl.style.display = 'flex';
-  entranceTl = playLightboxEntrance({ bars, fades, item });
+  // 中間 item 交給 showItem（跟換張同一套）；輪到它之前已換過張＝switchTo 已揭新的那張，這裡不再重揭
+  const openItemSeq = itemSeq;
+  entranceTl = playLightboxEntrance({ bars, fades, onItem: () => { if (itemSeq === openItemSeq) showItem(DUR.reveal); } });
   requestAnimationFrame(() => {
     lightboxEl.style.opacity = '1';
     // 開啟即把起始縮圖定位到中央（instant，不動畫）；renderMain 當下 lightbox 還 display:none 量不到 rect
@@ -918,6 +1008,7 @@ function closeLightbox() {
   if (!lbOpen) return;  // 已關閉/關閉中 → 不重複 exit（避免 openCount 過度遞減把 header 提早顯示）
   openSeq++;  // 讓 probe 中的 in-flight open 過期：否則它 resume 後把剛關掉的 lightbox 又顯示出來（且 lbOpen 已 false → 卡死關不了）
   lbOpen = false;
+  itemSeq++; killItemTweens(); dropOld();   // 換張到一半關掉：等圖中的進場作廢、墊著的舊 item（含影片）收掉
   if (iframeEl) iframeEl.src = '';
   // 立即 destroy（不等 300ms fadeout）：影片聲音不能陪淡出
   if (hlsPlayer) { hlsPlayer.destroy(); hlsPlayer = null; }
