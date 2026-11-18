@@ -232,7 +232,8 @@
     /* mode／menu 鈕（48）置中於 logo 中線 */
     --header-btn-top: calc(var(--header-logo-top) + (var(--logo-sm) - 48px) / 2);
     /* nav line＝縮小態 logo 底＋36（第一顆 nav btn、footer 卡頂、色卡上界對齊此線） */
-    --nav-line: calc(var(--header-logo-top) + var(--logo-sm) + 36px);
+    --nav-logo-gap: 36px;   /* 小 logo 底到 nav line（第一顆 nav 的頂）；桌面 nav 清單溢出時盒底到左下當前頁卡也吃它（user 2026-11-18「跟上面距離 logo 的 gap 一樣」） */
+    --nav-line: calc(var(--header-logo-top) + var(--logo-sm) + var(--nav-logo-gap));
     /* menu 打開時 menu 鈕底到第一個選項（About）頂的距離＝鈕底與 nav line 的中點（視窗高 960＝31）。
        右下 footer 鈕到 footer 卡、卡頂到 menu 鈕／logo 也是這個 gap（user 2026-11-16；footer-scatter.js menuGap() 同式） */
     --menu-gap: calc((var(--nav-line) - var(--header-btn-top) - 48px) / 2);
