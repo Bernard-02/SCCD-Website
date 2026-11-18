@@ -85,6 +85,31 @@ function relativeLuminance(r, g, b) {
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 }
 
+// mode3 底色跨過亮暗門檻時，黑↔白對比色不瞬翻、用 --dur-base 淡過去（user 2026-11-17「調色從白底變黑底時那些鈕要 fade，
+// 跟 mode2 去 mode3 一樣」）：直接把 --theme-fg 系列在黑白之間插值——掛 CSS transition 不行：mode3 穩態的鈕都 transition:none
+//（color.css，不然 --theme-bg 每幀在變會落後 body），而且 VT 在 atlas／create 不跑。var() 的那幾個（gray token）用 color-mix 插。
+// v＝0 亮底（黑字）、1 暗底（白字）；null＝還沒定過（進 mode3 第一次直接落定，離開時歸 null）。page 與 footer 互補色各一組
+const fgMixState = { v: /** @type {number|null} */ (null), target: /** @type {number|null} */ (null), tw: /** @type {any} */ (null) };
+const cMixState  = { v: /** @type {number|null} */ (null), target: /** @type {number|null} */ (null), tw: /** @type {any} */ (null) };
+/** @param {{ v: number|null, target: number|null, tw: any }} st @param {number} target @returns {number} */
+function mixToward(st, target) {
+  if (st.target === target && st.v !== null) return st.v;
+  st.target = target;
+  if (st.v === null || typeof gsap === 'undefined' || prefersReducedMotion()) { st.v = target; return target; }
+  if (st.tw) st.tw.kill();
+  st.tw = gsap.to(st, {
+    v: target, duration: DUR.base, ease: 'power1.inOut',   // ≈ mode 切換 fade 的 CSS ease
+    onUpdate: applyColorVars,
+    onComplete: () => { st.tw = null; lastThemeDispatch = 0; applyColorVars(); },   // 收尾補發一次 theme:changed＝帶正好的黑／白
+  });
+  return st.v;
+}
+/** 兩個端值之間依 t 混色（端點回傳原字串＝穩態跟以前一字不差，var() 也照用） */
+function mixCss(a, b, t) {
+  return t <= 0 ? a : t >= 1 ? b : `color-mix(in srgb, ${a} ${((1 - t) * 100).toFixed(1)}%, ${b})`;
+}
+const grayHex = (/** @type {number} */ v) => `#${v.toString(16).padStart(2, '0').repeat(3)}`;
+
 function applyColorVars() {
   const { r, g, b } = hsbToRgb(colorHue, 80, 100);
   const lum = relativeLuminance(r, g, b);
@@ -93,10 +118,12 @@ function applyColorVars() {
   else if (lum < 0.45) _lastIsLightBg = false;
   else if (_lastIsLightBg === null) _lastIsLightBg = lum > 0.5;
   const isLightBg = _lastIsLightBg; // WCAG threshold（同 wireframe getContrastColor）+ 遲滯
-  const fgRgb = isLightBg ? '0, 0, 0' : '255, 255, 255';
-  const fgInverseRgb = isLightBg ? '255, 255, 255' : '0, 0, 0';
-  const fgHex = isLightBg ? '#000000' : '#ffffff';
-  const fgInverseHex = isLightBg ? '#ffffff' : '#000000';
+  const m = mixToward(fgMixState, isLightBg ? 0 : 1);   // 0 黑字 … 1 白字（翻門檻時 0.4s 走過去）
+  const fgV = Math.round(255 * m), fgIV = 255 - fgV;
+  const fgRgb = `${fgV}, ${fgV}, ${fgV}`;
+  const fgInverseRgb = `${fgIV}, ${fgIV}, ${fgIV}`;
+  const fgHex = grayHex(fgV);          // 端點＝'#000000'／'#ffffff'（header.js 有拿它比對）
+  const fgInverseHex = grayHex(fgIV);
 
   const root = document.documentElement;
   root.style.setProperty('--theme-bg', `rgb(${r}, ${g}, ${b})`);
@@ -110,7 +137,7 @@ function applyColorVars() {
   // lists.css body.mode-color 用 var(--list-zebra-strip)。user 2026-06-22。
   // 2026-09-18 起直接算成「白疊 bg」的實色 rgb（同 alpha 合成數學、視覺不變）：半透明白會透出
   // 後方內容（atlas host/employ subchip 透星雲、create control-box），實色化杜絕。
-  const stripA = isLightBg ? 0.4 : 0.15;
+  const stripA = 0.4 + (0.15 - 0.4) * m;
   const stripMix = (c) => Math.round(255 * stripA + c * (1 - stripA));
   root.style.setProperty('--list-zebra-strip', `rgb(${stripMix(r)}, ${stripMix(g)}, ${stripMix(b)})`);
 
@@ -120,48 +147,49 @@ function applyColorVars() {
   const { r: cr, g: cg, b: cb } = hsbToRgb(compHue, 80, 100);
   const cLum = relativeLuminance(cr, cg, cb);
   const cIsLightBg = cLum > 0.5;
-  const cFgHex = cIsLightBg ? '#000000' : '#ffffff';
-  const cFgInverseHex = cIsLightBg ? '#ffffff' : '#000000';
+  const cm = mixToward(cMixState, cIsLightBg ? 0 : 1);
+  const cFgHex = grayHex(Math.round(255 * cm));
+  const cFgInverseHex = grayHex(255 - Math.round(255 * cm));
   root.style.setProperty('--theme-bg-contrast', `rgb(${cr}, ${cg}, ${cb})`);
   root.style.setProperty('--theme-bg-contrast-rgb', `${cr}, ${cg}, ${cb}`);
   root.style.setProperty('--theme-fg-contrast', cFgHex);
   // fg-contrast 的對比色（strict B/W）：footer 上的 chip 用 fg-contrast 當底時，文字用此維持純黑白對比
   root.style.setProperty('--theme-fg-inverse-contrast', cFgInverseHex);
   // Footer logo Lottie 是黑色版（SCCDLogoStandard.json）；亮 footer bg = 不翻、暗 footer bg = invert(1) 翻白
-  root.style.setProperty('--footer-invert-filter', cIsLightBg ? 'none' : 'invert(1)');
+  root.style.setProperty('--footer-invert-filter', cm <= 0 ? 'none' : `invert(${cm.toFixed(3)})`);
   // .theme-invert（黑色靜態 SVG/PNG）對比翻色：page bg 亮時不 invert（保留黑），暗時 invert(1) 變白
   // 用 invert(0) 不用 none：invert(0) 同樣「不反轉」但是合法 filter 函式，可被 faculty placeholder hover 規則
   // 疊加成 `invert(0) invert(1)`（none 不能跟函式並列會讓整條 filter 無效）；視覺等同 none，既有 .theme-invert 不受影響。
-  root.style.setProperty('--theme-invert-filter', isLightBg ? 'invert(0)' : 'invert(1)');
+  root.style.setProperty('--theme-invert-filter', `invert(${m.toFixed(3)})`);
   // 中性灰浮層（card/chip 想在 vivid hue 上顯純灰不帶 hue tint）：對齊 mode1 #F0F0F0 / mode2 var(--gray-2)
   // 亮 hue → gray-9 (#E6E6E6 最淺灰)、暗 hue → gray-2 (#333333，跟 inverse 卡片底一致)
-  root.style.setProperty('--theme-neutral-gray', isLightBg ? 'var(--gray-9)' : 'var(--gray-2)');
+  root.style.setProperty('--theme-neutral-gray', mixCss('var(--gray-9)', 'var(--gray-2)', m));
   // 反向中性灰：給「在 active list-content 等本地容器內」的元件用，本地容器 bg = theme-fg（亮頁=黑、暗頁=白），
   // ref/chip 在容器內要跟 theme-fg 同側才能襯托而非合體 → 亮 hue → gray-2 深灰、暗 hue → gray-9 淺灰
-  root.style.setProperty('--theme-neutral-gray-inverse', isLightBg ? 'var(--gray-2)' : 'var(--gray-9)');
+  root.style.setProperty('--theme-neutral-gray-inverse', mixCss('var(--gray-2)', 'var(--gray-9)', m));
 
   // --lib-bg 兩階切換（mode3）：對齊 mode1/2 的固定灰值，依 page bg luminance 翻
   // 亮 page → #f2f2f2（同 mode1 standard）/ 暗 page → #333333（同 mode2 inverse）
-  root.style.setProperty('--lib-bg', isLightBg ? '#f2f2f2' : '#333333');
+  root.style.setProperty('--lib-bg', mixCss('#f2f2f2', '#333333', m));
   // --lib-zebra-alpha：library 斑馬 mode3 alpha。library 卡片 mode3 是兩階固定灰（非 cycling hue，見上 --lib-bg）→
   // 斑馬跟著灰底走、不套 activities 的 hue-aware 白 strip：亮 card(#f2f2f2) 黑疊 0.05（同 mode1）/ 暗 card(#333) 白疊 0.15（同 mode2）。
   // 配 CSS 的 rgba(var(--theme-fg-rgb), var(--lib-zebra-alpha))，theme-fg 已亮黑暗白 → 方向自動對。user 2026-06-23
-  root.style.setProperty('--lib-zebra-alpha', isLightBg ? '0.05' : '0.15');
+  root.style.setProperty('--lib-zebra-alpha', (0.05 + 0.1 * m).toFixed(3));
   // --lib-ref-bg：awards ref 展開列底色「比 --lib-bg 灰卡再深一階」，依 hue 亮暗跟著切
   // 亮 card(#f2f2f2) → gray-9(#E6E6E6)（同 standard）/ 暗 card(#333333) → gray-1(#1A1A1A)（同 inverse）；
   // ref 文字直接吃 var(--lib-fg)（=theme-fg，亮黑暗白）→ 不需另設 ref-fg var
-  root.style.setProperty('--lib-ref-bg', isLightBg ? 'var(--gray-9)' : 'var(--gray-1)');
+  root.style.setProperty('--lib-ref-bg', mixCss('var(--gray-9)', 'var(--gray-1)', m));
 
   // --lib-*-contrast：library 主卡 mode3 改「反色島」（卡片對比 page hue：亮 hue→深卡白字 / 暗 hue→淺卡黑字，
   // user 2026-06-27「淺 hue 灰卡要用深灰底邏輯才對」）。⚠️ atlas 也借用上面的 --lib-bg/--lib-fg 當中性灰 chip
   // （亮 hue 淺灰匹配 page）→ 不能全域翻，故另開 contrast 變數、只在 color.css 的 #library-card subtree remap。
   // 值＝上面 --lib-bg/--lib-zebra-alpha/--lib-ref-bg 的左右對調；卡內文字色直接用既有 --theme-fg-inverse。
-  root.style.setProperty('--lib-bg-contrast', isLightBg ? '#333333' : '#f2f2f2');
-  root.style.setProperty('--lib-zebra-alpha-contrast', isLightBg ? '0.15' : '0.05');
-  root.style.setProperty('--lib-ref-bg-contrast', isLightBg ? 'var(--gray-1)' : 'var(--gray-9)');
+  root.style.setProperty('--lib-bg-contrast', mixCss('#333333', '#f2f2f2', m));
+  root.style.setProperty('--lib-zebra-alpha-contrast', (0.15 - 0.1 * m).toFixed(3));
+  root.style.setProperty('--lib-ref-bg-contrast', mixCss('var(--gray-1)', 'var(--gray-9)', m));
   // 反色島上的黑色 PNG（awards ticker 桂冠 logo）要跟「卡底」對比，不是跟 page：卡深(亮 hue)→翻白、卡淺(暗 hue)→不翻。
   // = --theme-invert-filter 的相反（後者跟 page：暗 page 才翻）。
-  root.style.setProperty('--lib-invert-contrast', isLightBg ? 'invert(1)' : 'invert(0)');
+  root.style.setProperty('--lib-invert-contrast', `invert(${(1 - m).toFixed(3)})`);
 
   // Header logo（wireframe）對比翻色：wireframe-standard base 黑色，亮 hue → filter:none(黑) / 暗 hue → invert(1)(白)。
   // 直接比對 style.filter（cheap read）避免維護 lastIsLightBg 狀態 + 處理 logo async load 的 race
@@ -235,6 +263,7 @@ function cancelColorLoopRAF() {
  */
 function stopColorLoop() {
   cancelColorLoopRAF();
+  [fgMixState, cMixState].forEach(st => { if (st.tw) st.tw.kill(); st.tw = null; st.v = null; st.target = null; });   // 下次進 mode3 第一次直接落定
   const root = document.documentElement;
   // applyColorVars 設過的所有 inline CSS vars 一次清掉，讓 :root / body.mode-* default 規則重新生效
   [
