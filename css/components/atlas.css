@@ -1129,7 +1129,8 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   font-size: 15px;
   line-height: 1;
   transform: rotate(var(--nav-rot, 0deg));   /* 隨機角度由 JS 寫 --nav-rot（初始 + arrow-spin hover/click） */
-  transition: transform var(--dur-base) ease;
+  /* disabled ↔ 可點＝透明度淡過去（user 2026-11-18；翻頁 build 那拍切 disabled，原本只過渡 transform＝直接跳） */
+  transition: transform var(--dur-base) ease, opacity var(--dur-fast) var(--ease-standard);
 }
 
 .atlas-list-nav-btn:disabled {

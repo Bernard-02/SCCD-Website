@@ -181,6 +181,22 @@
   body.mode-color :is([data-nav-hover-bound], .atlas-filter-btn[data-nav-hover-bound]):not(.active) .anchor-nav-inner {
     transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard) !important;
   }
+  /* atlas 分類 tab：遮罩＝inner 自己的 clip-path、跟 translate 同一條 transition（atlas.css；2026-11-17）→ 白名單要多 clip-path，
+     漏了＝clip 直接跳、inner 沒遮罩整顆滑進來（桌面 11-18 抓到；手機段早有同一條）。:not／雙 class 把特異度拉到跟上面
+     :is 那條同級 (0,4,0)、後寫者勝；duration／ease 照 atlas.css 的位置對位（transform 0.3 → translate、clip-path 0.9/0.5 → opacity 繞回 0.3）。
+     mode3 inactive 同理另寫一條（上面那條 !important 只留 transform／opacity） */
+  .atlas-filter-btn:not(.atlas-filter-revealed)[data-nav-hover-bound] .anchor-nav-inner,
+  .atlas-filter-btn.atlas-filter-revealed[data-nav-hover-bound] .anchor-nav-inner {
+    transition-property: transform, translate, clip-path, opacity;
+  }
+  body.mode-color .atlas-filter-btn[data-nav-hover-bound]:not(.active) .anchor-nav-inner {
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard),
+                translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19), clip-path 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) !important;
+  }
+  body.mode-color .atlas-filter-btn.atlas-filter-revealed[data-nav-hover-bound]:not(.active) .anchor-nav-inner {
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard),
+                translate 0.9s cubic-bezier(0.215, 0.61, 0.355, 1), clip-path 0.9s cubic-bezier(0.215, 0.61, 0.355, 1) !important;
+  }
   .courses-program-group:has(> [data-nav-hover-bound]) .courses-bfa-label {
     transition: transform var(--dur-fast) var(--ease-standard);
   }

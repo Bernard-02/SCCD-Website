@@ -6,7 +6,7 @@ import { DUR, EASE } from '../ui/motion.js';
 import { navChipHidden, NAV_CHIP_SHOWN, navChipTween, pickNavDir, revealHidden } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { loadAtlasData } from './atlas-source.js';
-import { countryName } from '../../data/country-names.js';
+import { countryName, countrySuffixPair, withCountry } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
 import { loadUiLabels, applyUiLabels } from '../ui/ui-labels.js';
 import { isColorLoopRunning, stopSiteColorLoop, startSiteColorLoop } from '../ui/theme-toggle.js';
@@ -619,9 +619,8 @@ export async function initAtlas(options = {}) {
       // 職稱是「單位/機構名稱」且後台有填 country 時，名稱後面用（國家）標註（純職稱如「藝術家」country 留空不標）
       item._listSubEn = item._titleEn || '';
       item._listSubZh = item._titleZh || '';
-      if (item._countryCode) {
-        if (item._listSubEn) item._listSubEn += ` (${item._countryCode.toUpperCase()})`;
-        if (item._listSubZh) item._listSubZh += `（${countryName(item._countryCode, 'zh')}）`;
+      if (item._countryCode) {   // 全站同一表示法（country-names.js withCountry）：只有一種語言的職稱＝國碼國名並排
+        ({ en: item._listSubEn, zh: item._listSubZh } = withCountry(item._countryCode, item._listSubEn, item._listSubZh));
       }
     } else if (cat === 'alumni') {
       // co-* (橢圓 ring 企業) → host（Hosting subchip 點掉 = 整圈消失）
@@ -670,7 +669,7 @@ export async function initAtlas(options = {}) {
   const cx = W / 2, cy = H / 2;
   const srand = mulberry32(LAYOUT_SEED);
   // 教師以外的 item 左右往內收（user 2026-11-16，只給桌面、同人名收成圓；上下不動）：
-  // ① 國家方塊＋主持環：左右邊界＝library 灰卡的左緣（logo 右緣＋32，library-card.js deskLeft 同式）、右邊對稱
+  // ① 國家方塊＋主持環：左右邊界＝logo 右緣＋32（11-16 定案時＝library 灰卡左緣；11-18 起 library 改成左右同距、這裡沒跟）、右邊對稱
   //    ＝本頁 list 框的左右（layoutListBox）。SIDE_REACH＝畫面中線到那條線的距離，換回佈局座標（整層 ×defaultScaleAtlas）；
   //    手機 null＝各自原本的算法。桌面 stage 吃滿視窗＝stage 座標就是螢幕座標
   // ② 國家底下的 item（C）：離中線的 x 乘 SIDE_SHRINK（要再收／放回去改這一個數）
@@ -1228,7 +1227,14 @@ export async function initAtlas(options = {}) {
   let revealedCountry = null;
   // gateOpenAll：桌面切 list 起、回星雲那刻為止全部放行（先在星雲上淡入才跟大家一起跑轉場，見 openGateForMorph／switchToMap）
   let gateOpenAll = false;
-  const gateHidden = (/** @type {any} */ it) => !!it._gated && !gateOpenAll && it._country !== revealedCountry;
+  // gateByFilter：桌面 filter 只剩就職／合作單位這兩類開著（老師關、主持關、至少一類開）＝不用點國家、全部放出來（user 2026-11-18；
+  //   syncGateByFilter 維護；進退場同點國家＝gateShow／gateHide）。切 list 的篩選還原（switchToList）時它還是 true＝已經在畫面上的
+  //   那批不收、只把其餘的 clip-reveal 補出來（user 11-18「不需要再讓它們隱藏又出現」）；回星雲時 apply() 先重算＝全開→false→照舊全藏
+  let gateByFilter = false;
+  // 同一家就職＋合作（_twin）兩邊都放行＝星雲只出合作那顆、就職那顆算藏著（同 setRevealedCountry 的 coming 規則）
+  const twinShadowed = (/** @type {any} */ it) => !!(it._twin && String(it.id).startsWith('em-') && catAllowsItem(it._twin));
+  const gateHidden = (/** @type {any} */ it) => !!it._gated && !gateOpenAll
+    && !(gateByFilter && !twinShadowed(it)) && it._country !== revealedCountry;
 
   const itemNeighbors = new Map(items.map(i => [i.id, new Set()]));
   const itemLines = new Map(items.map(i => [i.id, []]));
@@ -2732,64 +2738,84 @@ export async function initAtlas(options = {}) {
     if (it._float && !it._asList) floatWobble(it, performance.now() / 1000 - floatStart);   // list 形態的 span 不在 anchor 裡、不 wobble
   }
   let gateSeq = 0;   // 退場收尾的序號：收到一半又被點開（或再收一次）＝舊的計時作廢
+  // 退場：名字原路滑回盒內（掛 .atlas-gate-out）、走完才 display:none。點國家離開／filter 收回／subchip 關掉共用
+  function gateHide(/** @type {any[]} */ list) {
+    const seq = ++gateSeq;
+    const leaving = list.filter(it => !it._anchor.classList.contains('atlas-filtered-out'));
+    leaving.forEach(it => { it._gateOut = seq; it._anchor.classList.add('atlas-gate-out'); });
+    if (leaving.length) setTimeout(() => {
+      if (destroyed) return;
+      leaving.forEach(it => {
+        if (it._gateOut !== seq) return;
+        it._gateOut = 0;
+        it._anchor.classList.add('atlas-filtered-out');
+        it._anchor.classList.remove('atlas-gate-out');   // 藏好就摘：之後別的路徑把它顯示出來＝正常看得到
+        it._anchor.classList.remove('atlas-as-text');    // 手機：收完回圓點態，下次出來再決定（滑出的過程留著字，見 syncTextRegion）
+        (itemLines.get(it.id) || []).forEach(l => { l.style.display = 'none'; });
+      });
+    }, DUR.slow * 1000 + 50);   // 名字滑出、線縮回都是 --dur-slow
+    if (isMobileAtlas) syncTextRegion();   // 其他 item 的出字名額回來（收合中的那批留著字滑出去）
+  }
+  // 進場：以藏好的那一態顯示 → 強制算一次樣式 → 摘 class＝名字在自己的盒內四向隨機滑進來（clip-reveal）。
+  //   noLead＝沒有線要等（filter／subchip 放出來的沒 highlight 線；點國家的要等線到：--gate-lead）
+  function gateShow(/** @type {any[]} */ coming, noLead = false) {
+    coming.forEach(it => {
+      const a = it._anchor;
+      it._gateOut = 0;
+      placeGatedNow(it);
+      // 篩選鈕剛好在它收到一半時按下＝那邊排的淡出（fadeFilterItem）別在這之後把它再藏掉
+      if (typeof gsap !== 'undefined') gsap.killTweensOf(a, 'opacity');
+      a.style.opacity = '';
+      it._fadingOut = false;
+      if (!a.classList.contains('atlas-filtered-out')) return;   // 收到一半又回來：從當下位置滑回去
+      const from = revealHidden();   // 四向隨機、每次重抽（scroll-animate.js，±110）
+      a.style.setProperty('--gate-x', `${from.xPercent}%`);
+      a.style.setProperty('--gate-y', `${from.yPercent}%`);
+      if (noLead) a.style.setProperty('--gate-lead', '0s');
+      a.classList.add('atlas-gate-out');   // 顯示出來的那一刻就是藏好的
+      a.classList.remove('atlas-filtered-out');
+      (itemLines.get(it.id) || []).forEach(syncLineDisplay);
+    });
+    // 手機：這個國家底下的 item 一律是字（不看 zoom；user 2026-11-17「連線的 item 直接是字就好」）——在摘 .atlas-gate-out 之前掛好，
+    // 「之前的樣式」就是文字態的藏法（名字在盒內滑進來，同桌面）
+    if (isMobileAtlas) syncTextRegion();
+    // ⚠️ display:none → 顯示的同一刻換 class＝沒有「之前」的樣式＝不起 transition（名字直接出現、線直接整條亮）
+    // → 先顯示、強制算一次樣式，再摘 class（線的 .atlas-line-highlight 由緊接著的 showDetail 掛，也在這之後）
+    if (coming.length) void getComputedStyle(coming[0]._anchor).opacity;
+    coming.forEach(it => it._anchor.classList.remove('atlas-gate-out'));
+    if (noLead && coming.length) setTimeout(() => coming.forEach(it => it._anchor.style.removeProperty('--gate-lead')), DUR.slow * 1000 + 50);
+  }
   function setRevealedCountry(/** @type {any} */ next) {
     if (next === revealedCountry) return;
     const prev = revealedCountry;
     revealedCountry = next;
     const members = (/** @type {any} */ d) => [...(itemNeighbors.get(d.id) || [])]
       .map(id => itemMap.get(id)).filter(it => it && it._gated && it._anchor && !it._asList);
-    if (prev) {
-      const seq = ++gateSeq;
-      const leaving = members(prev).filter(it => !it._anchor.classList.contains('atlas-filtered-out'));
-      leaving.forEach(it => { it._gateOut = seq; it._anchor.classList.add('atlas-gate-out'); });
-      if (leaving.length) setTimeout(() => {
-        if (destroyed) return;
-        leaving.forEach(it => {
-          if (it._gateOut !== seq) return;
-          it._gateOut = 0;
-          it._anchor.classList.add('atlas-filtered-out');
-          it._anchor.classList.remove('atlas-gate-out');   // 藏好就摘：之後別的路徑把它顯示出來＝正常看得到
-          it._anchor.classList.remove('atlas-as-text');    // 手機：收完回圓點態，下次出來再決定（滑出的過程留著字，見 syncTextRegion）
-          (itemLines.get(it.id) || []).forEach(l => { l.style.display = 'none'; });
-        });
-      }, DUR.slow * 1000 + 50);   // 名字滑出、線縮回都是 --dur-slow
-      if (isMobileAtlas) syncTextRegion();   // 其他 item 的出字名額回來（收合中的那批留著字滑出去）
-    }
+    if (prev && !gateByFilter) gateHide(members(prev));   // filter 放行中離開國家不收（本來就該在）
     if (next) {
       const allowed = new Set(members(next).filter(it => isMobileAtlas || catAllowsItem(it)));
       // 同一家的就職＋合作單位（_twin）兩邊都該出＝只出合作單位那顆；只剩一邊被篩選留下＝出那一邊
-      const coming = [...allowed].filter(it => !(it._twin && allowed.has(it._twin) && String(it.id).startsWith('em-')));
-      coming.forEach(it => {
-        const a = it._anchor;
-        it._gateOut = 0;
-        placeGatedNow(it);
-        // 篩選鈕剛好在它收到一半時按下＝那邊排的淡出（fadeFilterItem）別在這之後把它再藏掉
-        if (typeof gsap !== 'undefined') gsap.killTweensOf(a, 'opacity');
-        a.style.opacity = '';
-        it._fadingOut = false;
-        if (!a.classList.contains('atlas-filtered-out')) return;   // 收到一半又回來：從當下位置滑回去
-        const from = revealHidden();   // 四向隨機、每次重抽（scroll-animate.js，±110）
-        a.style.setProperty('--gate-x', `${from.xPercent}%`);
-        a.style.setProperty('--gate-y', `${from.yPercent}%`);
-        a.classList.add('atlas-gate-out');   // 顯示出來的那一刻就是藏好的
-        a.classList.remove('atlas-filtered-out');
-        (itemLines.get(it.id) || []).forEach(syncLineDisplay);
-      });
-      // 手機：這個國家底下的 item 一律是字（不看 zoom；user 2026-11-17「連線的 item 直接是字就好」）——在摘 .atlas-gate-out 之前掛好，
-      // 「之前的樣式」就是文字態的藏法（名字在盒內滑進來，同桌面）
-      if (isMobileAtlas) syncTextRegion();
-      // ⚠️ display:none → 顯示的同一刻換 class＝沒有「之前」的樣式＝不起 transition（名字直接出現、線直接整條亮）
-      // → 先顯示、強制算一次樣式，再摘 class（線的 .atlas-line-highlight 由緊接著的 showDetail 掛，也在這之後）
-      if (coming.length) void getComputedStyle(coming[0]._anchor).opacity;
-      coming.forEach(it => it._anchor.classList.remove('atlas-gate-out'));
+      gateShow([...allowed].filter(it => !(it._twin && allowed.has(it._twin) && String(it.id).startsWith('em-'))));
     }
   }
+  // ── filter 只剩就職／合作單位開著＝國家底下的 item 全部放出來；開回老師／主持＝收回去（user 2026-11-18；桌面限定，手機星雲不吃篩選）──
+  //   apply()／subchip 切換／回星雲落定後呼叫；idempotent（已出的不重播、已藏的不重收）。正被點開的國家那批歸 setRevealedCountry
+  function syncGateByFilter() {
+    const alumniOn = selected.has('alumni');
+    gateByFilter = !isMobileAtlas && !selected.has('faculty') && !(alumniOn && subchipActive.host !== false)
+      && ((alumniOn && subchipActive.employ !== false) || selected.has('partners'));
+    if (viewMorphing) return;   // 回星雲的 morph 中只重算旗標（切 list 已把篩選還原＝false，接著的 applyMapFilter 瞬間全藏）
+    const pool = items.filter(it => it._gated && it._anchor && !it._asList && it._country !== revealedCountry);
+    // 只放分類篩選留下的（catAllowsItem；關掉那類的正由 applyMapFilter／setSubchipVisibility 收，別在這裡又拉回來）
+    if (gateByFilter) gateShow(pool.filter(it => filterAllowsItem(it) && (it._gateOut || it._anchor.classList.contains('atlas-filtered-out'))), true);
+    else gateHide(pool);
+  }
 
-  // ── 桌面切 list：國家底下的 item 先全部在星雲上淡入、再跟大家一起跑轉場（這頁的飛去 list、其餘往所屬欄靠攏）；
+  // ── 桌面切 list：國家底下的 item 先全部在星雲上 clip-reveal 出現（四向隨機；user 2026-11-18，11-17 是淡入）、再跟大家一起跑轉場（這頁的飛去 list、其餘往所屬欄靠攏）；
   // 回星雲＝這頁的那幾顆邊飛回邊淡出、落地就藏回去，其餘不出來（switchToMap）。user 2026-11-16～17「先讓原本隱藏的 item 出現
   // （fade），然後做動畫…回來的過程中淡出，不用定位之後再淡出」；原本這批不飛、只在 list 端跟副標一起進出。
   // gateOpenAll 開著的期間（切 list 起、回星雲那刻收）gateHidden 放行＝篩選／去程轉場把它們當一般 item。
-  // 這裡只把那批「隱形地顯示出來」、等畫面跟上後呼叫 ready(那批 anchor)；淡入由呼叫端排（switchToList，跟前兩拍同拍）。
+  // 這裡只把那批以「藏好的那一態」顯示出來、等畫面跟上後呼叫 ready(那批 anchor)；揭露由呼叫端排（switchToList，摘 .atlas-gate-out）。
   // ⚠️ 別沿用篩選那支 fadeFilterItem（0.4s power2.out＋逐顆隨機起跑），也別一顯示就開始淡（user 2026-11-17 三輪：「全部一起出來，
   // 不是一個個 stagger」→「少了 fade」→「是 instant 的出現」）：這批每顆是一個合成層（.atlas-layered 的 will-change），
   // 第一次出現要先 raster，那 0.1～0.25s 畫面出不來、補間卻照走——等第一格畫出來，ease-out 已經六～九成＝看起來直接出現
@@ -2807,10 +2833,22 @@ export async function initAtlas(options = {}) {
         a.classList.add('atlas-filtered-out');
         a.classList.remove('atlas-gate-out');
       }
+      // 同一家就職＋合作（_twin）：星雲上永遠只出合作那顆，就職那顆連這裡也不出（user 2026-11-18「三星在做動畫時出現了…只需要渲染一個，
+      //   包含所有的 item 秀出時也是」）→ 留在藏著；它在 list 那列由 morphToList 原地滑入（不飛）、回程原地收（不飛回）
+      it._twinHidden = twinShadowed(it);
+      if (it._twinHidden) return;
       if (!a.classList.contains('atlas-filtered-out')) return;
       placeGatedNow(it);          // 藏著時位置只算不寫
       flushZFade(it);
-      a.style.opacity = '0.01';   // 看不見、但瀏覽器會畫＝會先 raster 好；寫 0 它不畫，等於沒準備
+      // 以「藏好的那一態」顯示出來（名字移出名行遮罩，同 hover 國家的 .atlas-gate-out；方向四向隨機、每次重抽）＝anchor 層先 raster 好；
+      // 名行先提成合成層＝等會的 transition 不用再為第一格 raster（156 顆同時起跑、少一格就看起來跳出來）。--gate-lead 歸零＝不等線
+      //（線在下一拍 buildMapPreExitTl 才動）；兩個暫掛的 inline 由 switchToList 在 transition 跑完時清掉
+      const from = revealHidden();
+      a.style.setProperty('--gate-x', `${from.xPercent}%`);
+      a.style.setProperty('--gate-y', `${from.yPercent}%`);
+      a.style.setProperty('--gate-lead', '0s');
+      a.classList.add('atlas-gate-out');
+      if (it._nameBlock) it._nameBlock.style.willChange = 'transform';
       a.classList.remove('atlas-filtered-out');
       (itemLines.get(it.id) || []).forEach(syncLineDisplay);
       shown.push(a);
@@ -4169,6 +4207,7 @@ export async function initAtlas(options = {}) {
           c.setAttribute('aria-pressed', String(subchipActive[kk])); // 無障礙：報讀 toggle 狀態
         });
         setSubchipVisibility(changed, subchipActive[changed]);
+        syncGateByFilter();   // 主持關掉／開回＝國家底下的 item 全放／全收（user 2026-11-18）；放在 setSubchipVisibility 後＝它先照舊狀態算
         // employment 開關會影響國家節點 gate（employment/partners 皆 inactive → D 藏起）——
         // 此路徑不跑 applyMapFilter，gate 要在這裡補（user 2026-07-16）
         if (changed === 'employ') applyCountriesGate(true);
@@ -4240,11 +4279,18 @@ export async function initAtlas(options = {}) {
       });
       return;
     }
+    const show = [], hide = [];
     targets.forEach(item => {
       const want = visible && !gateHidden(item);
       if (!want && item._anchor.classList.contains('atlas-filtered-out')) return;
-      fadeFilterItem(item, want);
+      (want ? show : hide).push(item);
     });
+    // host（B）＝clip-reveal、employ（C＝國家底下的 item）歸閘門＝名字在盒內 clip-reveal（同點國家；user 2026-11-18，原本是淡）
+    const byGate = (/** @type {any} */ it) => it._gated && !gateOpenAll;
+    filterItemsVis(show.filter(it => !byGate(it)), true);
+    filterItemsVis(hide.filter(it => !byGate(it)), false);
+    gateShow(show.filter(byGate), true);
+    gateHide(hide.filter(byGate));
   }
 
   // ── List view career chip 由 renderList 動態建立、destroy 由 cleanup / renderList 自己管 ──
@@ -4469,8 +4515,8 @@ export async function initAtlas(options = {}) {
     return (sign * (1 + Math.random() * 2)).toFixed(1);
   }
 
-  // 翻頁鈕點擊定案的角度（arrow-spin）：切頁 build 會重建新鈕，用這個變數把定案角帶過去
-  let listNavRot = null;
+  // 翻頁鈕點擊定案的角度（arrow-spin）：切頁 build 會重建新鈕，用這個變數把定案角帶過去（[左, 右]）
+  const listNavRot = /** @type {(number|null)[]} */ ([null, null]);
   let listNavReparenting = false;   // build 重造 nav 箭頭鈕時豎旗，壓下 re-parent 補發的假 mouseenter（同 footer tab）
 
   function getItemCat(item) {
@@ -4490,9 +4536,8 @@ export async function initAtlas(options = {}) {
     const always = cat === 'faculty';
     const code = always ? item._nameCountry : item._countryCode;
     if (!code || (!always && cat !== 'alumni' && cat !== 'partners')) return null;
-    const up = String(code).toUpperCase(), zh = countryName(code, 'zh');
-    const hasEn = !!item.textEn, hasZh = !!(item.textZh && item.textZh !== item.textEn);
-    return { en: hasZh ? ` (${up})` : ` (${up} ${zh})`, zh: hasEn ? `（${zh}）` : `（${up} ${zh}）`, always };
+    // 全站的（國家）表示法以這裡為準、共用 country-names.js countrySuffixPair（user 2026-11-18；中文名同英文＝當沒有，同 mkNameSpan）
+    return { ...countrySuffixPair(code, item.textEn, item.textZh), always };
   }
   /** 外層＝遮罩、內層滑動：換形飛行時藏著，落地跟副標同刻揭露（user 2026-10-20）
    * @param {string} text @param {boolean} [always] 不限單列模式（老師） */
@@ -4847,38 +4892,35 @@ export async function initAtlas(options = {}) {
       // 手機往下捲：先建一批、快捲到才續建（下方 sentinel）。整份一次建＝教師 258 筆每排版一趟 ~50ms（桌機），進 list 連排五趟
       addRows(listScrolls ? pageItems.slice(0, LIST_BATCH) : pageItems);
 
-      // 09-01（user）：只留右箭頭＝單顆循環翻頁鈕（到最後一頁 wrap 回第 0 頁，一顆仍能看完全部）；
-      // icon 用 arrow-right 實心箭頭（非 chevron）。只有一頁時 disable。頁碼／頁數存在 col 上，沿用的鈕點擊時讀當下值
-      // 手機往下捲沒有翻頁鈕
-      /** @type {any} */ (col)._listMaxPage = maxPage;
+      // 左右箭頭並排（user 2026-11-18；09-01～11-17 是單顆右箭頭循環翻頁）：第一頁左鈕 disable、最後一頁右鈕 disable（只有一頁＝兩顆都 disable）。
+      // icon 用 arrow 實心箭頭（非 chevron）。頁碼讀點擊當下的 listPageState（renderListPage 自己夾在 0～maxPage）。手機往下捲沒有翻頁鈕
       const isNewNav = !navItem && !listScrolls;
       if (isNewNav) {
         navItem = document.createElement('div');
         navItem.className = 'atlas-list-nav-item';
-        const btn = document.createElement('button');
-        btn.className = 'atlas-list-nav-btn';
-        // 隨機微傾斜存成 CSS var；hover/click 隨機角度改由 arrow-spin 接手（user 2026-09-10，取代舊 CSS :hover +8°）
-        const navRot = listNavRot ?? parseFloat(randDeg());
-        btn.style.setProperty('--nav-rot', `${navRot}deg`);
-        btn.innerHTML = '<span class="icon icon-arrow-right"></span>';
-        bindArrowSpin(btn, d => btn.style.setProperty('--nav-rot', `${d}deg`),
-          { initial: navRot, onCommit: d => { listNavRot = d; }, ignoreEnter: () => listNavReparenting });
-        btn.addEventListener('click', () => {
-          const cur = listPageState[cat] || 0, max = /** @type {any} */ (col)._listMaxPage || 0;
-          renderListPage(col, cat, cur >= max ? 0 : cur + 1);
+        [['left', -1], ['right', 1]].forEach(([dir, step], i) => {
+          const btn = document.createElement('button');
+          btn.className = 'atlas-list-nav-btn';
+          // 隨機微傾斜存成 CSS var；hover/click 隨機角度改由 arrow-spin 接手（user 2026-09-10，取代舊 CSS :hover +8°）
+          const navRot = listNavRot[i] ?? parseFloat(randDeg());
+          btn.style.setProperty('--nav-rot', `${navRot}deg`);
+          btn.innerHTML = `<span class="icon icon-arrow-${dir}"></span>`;
+          bindArrowSpin(btn, d => btn.style.setProperty('--nav-rot', `${d}deg`),
+            { initial: navRot, onCommit: d => { listNavRot[i] = d; }, ignoreEnter: () => listNavReparenting });
+          btn.addEventListener('click', () => renderListPage(col, cat, (listPageState[cat] || 0) + Number(step)));
+          /** @type {HTMLElement} */ (navItem).appendChild(btn);
         });
-        navItem.appendChild(btn);
       }
-      const nextBtn = /** @type {HTMLButtonElement|null} */ (navItem && navItem.querySelector('.atlas-list-nav-btn'));
-      if (nextBtn) nextBtn.disabled = maxPage <= 0;
+      const navBtns = /** @type {HTMLButtonElement[]} */ (navItem ? [...navItem.querySelectorAll('.atlas-list-nav-btn')] : []);
+      if (navBtns.length === 2) { navBtns[0].disabled = safePage <= 0; navBtns[1].disabled = safePage >= maxPage; }
 
-      // nav 在 .atlas-list-col-items（position:relative）→ 跨整欄、< 頂左緣 / > 頂右緣（CSS space-between）；子欄插在它前面
+      // nav 在 .atlas-list-col-items（position:relative）→ 跨整欄、貼欄左緣；子欄插在它前面
       itemsEl.insertBefore(sc, navItem && navItem.parentElement === itemsEl ? navItem : null);
-      if (isNewNav && navItem && nextBtn) {
+      if (isNewNav && navItem) {
         itemsEl.appendChild(navItem);
         // 新鈕（首次建欄）可能就位於游標下：等假 mouseenter 補發過去（次幀）才落旗、才綁 hover 隨機三原色
         listNavReparenting = true;
-        requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; bindNavBtnHover(nextBtn); }));
+        requestAnimationFrame(() => requestAnimationFrame(() => { listNavReparenting = false; navBtns.forEach(b => bindNavBtnHover(b)); }));
       }
 
       // 主標 marquee：DOM 進入 layout 後（次幀）量寬決定是否需要 marquee
@@ -5024,7 +5066,7 @@ export async function initAtlas(options = {}) {
     // partners 3 行 / 其餘 (faculty/employ/host) 2 行
     const linesPerItem = cat === 'partners' ? 3 : 2;
     const lines = linesInView(/** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-line-clip > *')]));
-    const navBtn = /** @type {HTMLElement|null} */ (col.querySelector('.atlas-list-nav-item .atlas-list-nav-btn'));
+    const navBtns = /** @type {HTMLElement[]} */ ([...col.querySelectorAll('.atlas-list-nav-item .atlas-list-nav-btn')]);
     const numItems = lines.length ? Math.ceil(lines.length / linesPerItem) : 0;
     const itemStagger = numItems > 1
       ? Math.min(BASE_ITEM_STAGGER, STAGGER_WINDOW / (numItems - 1))
@@ -5040,18 +5082,16 @@ export async function initAtlas(options = {}) {
         }
       );
     }
-    // 右箭頭進場：hero clip-reveal「位移＋自遮罩」從下滑上（同 switchToList；user 09-01 不要 clip-path 原地擦除）；
+    // 翻頁箭頭進場：hero clip-reveal「位移＋自遮罩」從下滑上（同 switchToList；user 09-01 不要 clip-path 原地擦除）；
     // 動 btn 本體不動 wrapper。timing 接在最後 item 之後
-    if (navBtn) {
-      gsap.fromTo(navBtn, navChipHidden(navBtn, 'bottom'), {
-        ...NAV_CHIP_SHOWN,
-        duration: DUR.reveal,
-        delay: delay + numItems * itemStagger,
-        ease: EASE.enter,
-        clearProps: 'clipPath,translate',
-        overwrite: true,
-      });
-    }
+    navBtns.forEach(navBtn => gsap.fromTo(navBtn, navChipHidden(navBtn, 'bottom'), {
+      ...NAV_CHIP_SHOWN,
+      duration: DUR.reveal,
+      delay: delay + numItems * itemStagger,
+      ease: EASE.enter,
+      clearProps: 'clipPath,translate',
+      overwrite: true,
+    }));
   }
 
   // 手機 list 切分頁（頂部 tab／橫向的主持・就職鈕）：看得到的欄先出場、走完才換下一頁進場（user 2026-11-06
@@ -5514,8 +5554,8 @@ export async function initAtlas(options = {}) {
     return false;
   }
 
-  // filter 顯隱＝anchor opacity 淡出/淡入（user 09-28：不要 clip-path 擦除）；隨機起跑、同時結束。
-  // 掛 anchor 不掛 span：.atlas-name 有 CSS opacity transition（hover dim），GSAP 每幀寫 span 會打架。
+  // filter 顯隱＝anchor opacity 淡出/淡入（user 09-28：不要 clip-path 擦除）；隨機起跑、同時結束。**例外＝主持環 chip（B）走 clip-reveal
+  // （filterItemsVis）**。掛 anchor 不掛 span：.atlas-name 有 CSS opacity transition（hover dim），GSAP 每幀寫 span 會打架。
   // 淡出完才掛 atlas-filtered-out（display:none）→ 淡出期間 _fadingOut 讓 caller 分類視同已藏：
   // 0.4s 內反點（如雙擊同顆 btn）才會從當前 opacity 淡回，否則淡出照跑完、節點在 btn active 下消失。
   // wait＝起跑前多等的秒數（國家點等城市線先收完，見 applyCountriesGate）
@@ -5538,6 +5578,35 @@ export async function initAtlas(options = {}) {
         a.classList.add('atlas-filtered-out');
         (itemLines.get(item.id) || []).forEach(l => { l.style.display = 'none'; });
       },
+    });
+  }
+  // 篩選鈕（左邊 nav：Alumni 主鈕／Hosting subchip）顯隱一批 item：主持環 chip（B）進出都走 clip-reveal（bChipRevealTween、四向隨機，
+  // 同進站／切 list；user 2026-11-18「hosting chip 點左邊的 nav 隱藏的話用 clip reveal，進出場都是」），其餘照舊 fadeFilterItem。
+  // 節奏同淡出：各自隨機起跑、同時結束。show 先一次把 B 全部 un-hide（純寫）再建 tween（bChipHidden 讀 offsetWidth）＝只 reflow 一次。
+  // ponytail: 半路反點＝從全顯／全藏重來（bChipRevealTween 起點同步 set），不像淡出能從當下值接；嫌跳再接 progress
+  /** @param {any[]} list @param {boolean} show @param {number} [wait] */
+  function filterItemsVis(list, show, wait = 0) {
+    const bs = list.filter(it => it.category === 'B' && it._span);
+    list.forEach(it => { if (!bs.includes(it)) fadeFilterItem(it, show, wait); });
+    bs.forEach(it => {
+      const a = it._anchor;
+      flushZFade(it);
+      gsap.killTweensOf(a, 'opacity');   // 之前淡出留下的殘值
+      a.style.opacity = '';
+      it._fadingOut = !show;
+      if (show) { a.classList.remove('atlas-filtered-out'); (itemLines.get(it.id) || []).forEach(syncLineDisplay); }
+    });
+    bs.forEach(it => {
+      const d = Math.random() * FILTER_FADE_RANGE;
+      bChipRevealTween(it._span, randomBDir(), show ? 'show' : 'hide', {
+        duration: FILTER_FADE_TOTAL - d, delay: wait + d, ease: show ? EASE.enterSoft : EASE.exitSoft,
+        onComplete: () => {
+          if (show) return;
+          it._fadingOut = false;
+          it._anchor.classList.add('atlas-filtered-out');   // 跟清 clip 同幀＝不閃回
+          (itemLines.get(it.id) || []).forEach(l => { l.style.display = 'none'; });
+        },
+      });
     });
   }
 
@@ -5608,6 +5677,7 @@ export async function initAtlas(options = {}) {
 
     const toShow = [];
     const toHide = [];
+    const gateToShow = [], gateToHide = [];   // 國家底下的 item（見下 byGate）
     items.forEach(item => {
       if (!item._anchor) return;
       if (item.category === 'D') return;   // D 由 applyCountriesGate 統一處理（本函式尾端呼叫）
@@ -5618,9 +5688,12 @@ export async function initAtlas(options = {}) {
         visible = subchipActive[item._listSubGroup] !== false;
       }
       if (visible && gateHidden(item)) visible = false;   // 國家底下的 item：它的國家沒被點開就不出
-      const wasFiltered = item._anchor.classList.contains('atlas-filtered-out') || item._fadingOut;
-      if (visible && wasFiltered) toShow.push(item);
-      else if (!visible && !wasFiltered) toHide.push(item);
+      const wasFiltered = item._anchor.classList.contains('atlas-filtered-out') || item._fadingOut || !!item._gateOut;   // _gateOut＝正在滑出（gateHide）
+      // 國家底下的 item 的進退場歸閘門（gateShow／gateHide＝名字在盒內 clip-reveal，同點國家；user 2026-11-18），不走下面的淡；
+      //   切 list 放行中（gateOpenAll）與 instant 路徑照一般 item
+      const byGate = item._gated && !gateOpenAll && animate && typeof gsap !== 'undefined';
+      if (visible && wasFiltered) (byGate ? gateToShow : toShow).push(item);
+      else if (!visible && !wasFiltered) (byGate ? gateToHide : toHide).push(item);
       else if (!visible) {
         (itemLines.get(item.id) || []).forEach(lineEl => { lineEl.style.display = 'none'; });
       } else if (visible) {
@@ -5663,9 +5736,11 @@ export async function initAtlas(options = {}) {
     flipRingDir(toHide);
     flipRingDir(toShow);
 
-    toHide.forEach(item => fadeFilterItem(item, false));
+    gateHide(gateToHide);
+    gateShow(gateToShow, true);
+    filterItemsVis(toHide, false);
     if (!slideReveal) {
-      toShow.forEach(item => fadeFilterItem(item, true));
+      filterItemsVis(toShow, true);
     } else {
       // slideReveal（篩選後切 list 的 restore-first）：item 位移滑入＝clip-reveal「飛回星雲」
       //   （user 2026-09-12）；沿用 co 環 hero clip-reveal helper（translate+clip 同步）。
@@ -5689,6 +5764,7 @@ export async function initAtlas(options = {}) {
 
   function apply(animate = false) {
     btns.forEach(b => b.classList.toggle('active', selected.has(b.dataset.filter)));
+    syncGateByFilter();   // 先重算放行：開那一拍由這支 gateShow、關那一拍 gateHide；applyMapFilter 再照新狀態補（已在動的不重播）
     if (currentView === 'map') {
       applyMapFilter(animate);
     } else {
@@ -6465,7 +6541,7 @@ export async function initAtlas(options = {}) {
     // ── 重活先做完、等畫面跟上，才開始動（2026-11-17 定案；user 連三輪「stagger／少了 fade／instant 的出現」的結論）──
     // renderList 的預量是一個 0.2～0.5s 的長幀；國家底下那批每顆是合成層、第一次顯示還要 raster（0.1～0.25s 畫不出新的一格）。
     // 補間排在這些上面＝只畫得出兩三格、看起來直接出現。所以順序＝（有篩選／zoom 先還原完）→ 預渲染 list＋把那批隱形地顯示出來
-    // → 幀間隔回穩 → 那批淡入 → 淡完，線・城市方塊・chip 底色（＋全體變黑）一起跑（buildMapPreExitTl）→ 跑完才配對起飛（morphToList）。
+    // → 幀間隔回穩 → 那批 clip-reveal 出現 → 出完，線・城市方塊・chip 底色（＋全體變黑）一起跑（buildMapPreExitTl）→ 跑完才配對起飛（morphToList）。
     // 節奏＝user 2026-11-17「item 先出現，綫段、城市還有 chip 的底色一起 run 動畫」。
     // 篩選還原在上面已排好（那時還沒放行＝還原只管一般 item）
     deferListNodes = true;
@@ -6479,9 +6555,17 @@ export async function initAtlas(options = {}) {
       listView.style.visibility = 'hidden';
       openGateForMorph(shown => {
         const pre = gsap.timeline();
-        const fade = shown.length ? DUR.medium : 0;
-        // 整批同起同落、線性：一起跑時 ease-out 0.1s 就到六成，看起來還是跳出來
-        if (fade) pre.to(shown, { opacity: 1, duration: fade, ease: 'none', overwrite: true, clearProps: 'opacity' }, 0);
+        // 整批同起：四向隨機 clip-reveal（user 2026-11-18；11-17 是線性淡入）＝摘 .atlas-gate-out、CSS transition 接手（atlas.css，--dur-slow）。
+        // 藏好那一態已在 openGateForMorph 等幀時 commit 過＝直接摘就起 transition
+        const fade = shown.length ? DUR.slow : 0;
+        if (fade) {
+          shown.forEach(a => a.classList.remove('atlas-gate-out'));
+          pre.call(() => shown.forEach(a => {
+            a.style.removeProperty('--gate-lead');
+            const nb = /** @type {HTMLElement|null} */ (a.querySelector('.atlas-item-nameblock'));
+            if (nb) nb.style.willChange = '';
+          }), null, fade);
+        }
         pre.add(buildMapPreExitTl(), fade);
         pre.call(() => { if (!destroyed) morphToList(0); }, null, fade + M_CITY_DUR);
         introTween = /** @type {any} */ (pre);   // 離頁/中斷 kill 用（morphToList 會換成它的時間軸）
@@ -6537,16 +6621,15 @@ export async function initAtlas(options = {}) {
     const restTitles = allTitles.filter(t => !pairedTitles.has(t));
     if (restTitles.length) gsap.set(restTitles, { yPercent: 110, overwrite: true });
     // 右箭頭改 hero clip-reveal「位移＋自遮罩」進場（user 09-01：不要 clip-path 原地擦除）→ 藏「按鈕本體」在下方（navChipHidden 自 clip、無需 wrapper）
-    navItems.forEach(n => { const btn = n.querySelector('.atlas-list-nav-btn'); if (btn) gsap.set(btn, { ...navChipHidden(/** @type {HTMLElement} */(btn), 'bottom'), overwrite: true }); });
+    navItems.forEach(n => n.querySelectorAll('.atlas-list-nav-btn').forEach(btn => gsap.set(btn, { ...navChipHidden(/** @type {HTMLElement} */(btn), 'bottom'), overwrite: true })));
     listView.style.visibility = '';
     // 右箭頭改「跟副標同批次一起揭露」（user 09-04：不再 per-欄落地分波，見下方 SUB_REVEAL_AT）；navShown 去重＝onComplete 補揭露變 no-op
     const navShown = new Set();
     const revealNav = (/** @type {Element|null|undefined} */ nav) => {
       if (!nav || navShown.has(nav)) return;
       navShown.add(nav);
-      const btn = /** @type {HTMLElement|null} */ (nav.querySelector('.atlas-list-nav-btn'));
-      if (btn) gsap.fromTo(btn, navChipHidden(btn, 'bottom'),
-        { ...NAV_CHIP_SHOWN, duration: DUR.reveal, ease: EASE.enter, clearProps: 'clipPath,translate', overwrite: true });
+      nav.querySelectorAll('.atlas-list-nav-btn').forEach(btn => gsap.fromTo(btn, navChipHidden(/** @type {HTMLElement} */ (btn), 'bottom'),
+        { ...NAV_CHIP_SHOWN, duration: DUR.reveal, ease: EASE.enter, clearProps: 'clipPath,translate', overwrite: true }));
     };
 
     const master = gsap.timeline({
@@ -6579,7 +6662,8 @@ export async function initAtlas(options = {}) {
 
     // 前兩拍（收線 → 城市方塊・全體變黑・擦 host 色塊）這時已在星雲上跑完（buildMapPreExitTl，switchToList 排的）：
     // 進到這裡全體已是 theme-fg 裸文字、城市與線都走了 → 時間軸從位移這拍開始。
-    const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i));
+    // 藏著的（就職 twin，openGateForMorph 留藏）沒東西可靠攏＝不排
+    const unpairedExitItems = items.filter(i => i._span && !i._asList && !pairedItems.has(i) && !(i._anchor && i._anchor.classList.contains('atlas-filtered-out')));
     master.add(buildMapExitTl(unpairedExitItems), restoreDelay);
 
     // 第一頁 item + chrome 同波起飛（chrome 沿 NAV_ORDER 階梯、item 隨機散開）
@@ -6587,13 +6671,22 @@ export async function initAtlas(options = {}) {
     // B host 卡（user 08-28）：底色已在前兩拍擦掉，裸文字直飛（字色交給 flipFlyNode 飛行中補間，from＝theme-fg＝無縫）；
     // 反向鏡像＝文字先飛回、落地後底色沿來向 clip 進場（見 switchToMap）
     // （09-02：item 改直線 A→B，不再算欄頭弧線控制點 headerCtr）
+    // 就職 twin（星雲上沒這顆，見 openGateForMorph）：不飛，起飛那拍直接進 list 槽、名行藏在遮罩下，跟副標同刻原地滑入
+    /** @type {typeof pairs} */
+    const twinRows = [];
     pairs.forEach(p => {
+      if (p.item._twinHidden) { twinRows.push(p); return; }
       const flyAt = M_ITEM_START + Math.random() * M_ITEM_RANGE;
       // 副標＋右箭頭都改「全體同刻」批次揭露（見下方 SUB_REVEAL_AT）＝不跟各欄落地分波（user 09-04：副標要跟箭頭那批一起出現）
       master.add(flipFlyNode(p.item, restoreDelay + flyAt,   // 08-31：拿掉 +SWALLOW_DUR 前導（host ghost 已移 Phase B、不再需要起飛前導窗）＝再省 0.3s 停頓
         // ctrlPt=null＝直線 A→B（user 09-02 撤回 08-31 弧線 bow「有的 item 到位轉 curve」，flipFlyNode 弧線分支保留但不啟用）
         () => toListForm(p.item, p.wrapper, p.cat), undefined, true, null), 0);
     });
+    const twinLines = (/** @type {HTMLElement} */ w) => /** @type {HTMLElement[]} */ ([...w.querySelectorAll('.atlas-list-line-clip > *')]);
+    if (twinRows.length) master.call(() => {
+      if (destroyed) return;
+      twinRows.forEach(p => { toListForm(p.item, p.wrapper, p.cat); gsap.set(twinLines(p.wrapper), { yPercent: 110 }); });
+    }, null, restoreDelay + M_ITEM_START);
     // 副標＋右箭頭全體同刻統一揭露＝**對齊 title tab reveal 文字的時刻**（user 09-04：副標要跟 title tab 文字揭露＋箭頭同時，
     // 不是等所有 item 落地的最晚時刻）。title 文字在 maskFlyChrome onComplete 揭露＝chrome delay(M_NAV_START，STEP 0 同刻)
     // ＋CHROME_TEXT_OUT＋flyDurC(FLY_DUR+1)。此刻 ≥ 全 item 起飛完(M_ITEM_START+M_ITEM_RANGE=0.3)＝副標 yPercent 已被 flipFlyNode 藏好、無 race。
@@ -6606,6 +6699,9 @@ export async function initAtlas(options = {}) {
       //   文字改對齊整數像素、結束回一般渲染又跳回小數座標＝「國家出現時左右抖一下」（user 2026-10-20，實測偏 0.155px）
       if (allSubs.length) gsap.fromTo(allSubs, { yPercent: (/** @type {number} */ _, /** @type {Element} */ el) => subDirs.get(el) },
         { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true, force3D: false });
+      // 就職 twin 那列（名行＋副標）同刻原地滑入，每列上下隨機（同翻頁 playColEnterAnim）
+      twinRows.forEach(p => gsap.fromTo(twinLines(p.wrapper), { yPercent: Math.random() < 0.5 ? 110 : -110 },
+        { yPercent: 0, duration: DUR.reveal, ease: EASE.enter, clearProps: 'transform', overwrite: true, force3D: false }));
       navItems.forEach(revealNav);   // 右箭頭跟副標同刻（navShown 去重＝onComplete 補揭露變 no-op）
       if (listCareerCtrl) listCareerCtrl.show({ delay: 0 });   // 職業chip 併入同批＝跟 title/副標/箭頭一起（user 09-04：不要 onComplete 最後單獨出）
     }, null, SUB_REVEAL_AT);
@@ -6686,7 +6782,8 @@ export async function initAtlas(options = {}) {
     items.forEach(it => {
       if (!it._gated || !it._anchor) return;
       it._gateOut = 0;
-      if (pairedItems.has(it)) { it._anchor.classList.remove('atlas-filtered-out'); placeGatedNow(it); return; }
+      // 就職 twin（_twinHidden）：星雲上沒這顆＝不放落點、不飛回，list 那列原地收（見下 flyItems）
+      if (pairedItems.has(it) && !it._twinHidden) { it._anchor.classList.remove('atlas-filtered-out'); placeGatedNow(it); return; }
       gsap.killTweensOf(it._anchor, 'opacity');
       it._anchor.style.opacity = '';
       if (it._span) it._span.style.color = it.color;
@@ -6734,6 +6831,7 @@ export async function initAtlas(options = {}) {
         btns.forEach(b => b.classList.add('atlas-filter-revealed'));     // 落地已加；漏網補上
         stage.style.opacity = '';
         viewMorphing = false;
+        syncGateByFilter();   // filter 只剩就職／合作開著＝落定後國家底下的 item 再 clip-reveal 放出來（morph 中照舊全藏）
         resumeHueAfterMorph();
         refreshFloatRunning();   // 恢復 float（通常 floatThawEarly 已提前解凍＝no-op；補償在解凍當下做）
         floatThawEarly = false;
@@ -6789,6 +6887,12 @@ export async function initAtlas(options = {}) {
     // 當下頁 item 飛回＝全類本體直飛（黑、B 裸文字）；到位才 bloom（bulk 在 R_BLOOM／晚到自補）＝色與色塊一起、不在飛行中上色
     flyItems.forEach(it => {
       const delay = R_ITEM_START + Math.random() * R_ITEM_RANGE;
+      if (it._twinHidden) {   // 就職 twin：不飛回，名行原地滑出（同翻頁退場）→ 收完換回 chip 形、留在藏著的 anchor
+        const lines = /** @type {HTMLElement[]} */ ([...it._span.querySelectorAll('.atlas-list-line-clip > *')]);
+        master.to(lines, { yPercent: Math.random() < 0.5 ? 110 : -110, duration: DUR.medium, ease: EASE.exit, overwrite: true,
+          onComplete: () => { if (destroyed) return; toChipForm(it); it._span.style.color = it.color; } }, delay);
+        return;
+      }
       const swapFn = it.category === 'B'
         ? () => { toChipForm(it); it._span.style.backgroundColor = 'transparent'; }   // B 飛行中裸文字（色塊 bloom 才 clip-in）
         // 國家底下的 item：起飛就開始淡、最短的飛行時長內淡完＝邊飛邊淡出（線性，同未配對靠攏的淡法）
