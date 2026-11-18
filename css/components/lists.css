@@ -1413,7 +1413,7 @@ body.mode-color .gallery-ph > span {
 
 /* WATCH（影片那則，index-marquee.js 掛 .hm-watch）：bar 每 1s 換一色循環——粉→綠→藍黑字；mode3 黑白互換（color.css；user 2026-11-17）。
    inline 黑底是一般宣告＝動畫蓋得過；mode2／3 的 !important 底色規則排除 .hm-watch。字色跟著 link 走（inline 白字要 !important 才蓋得掉）。
-   寫在 .is-swap 前面＝hover 時 .is-swap 照舊蓋成三原色（!important 贏動畫） */
+   hover 見下方 .is-swap 段尾（!important 贏動畫） */
 .homepage-marquee-link.hm-watch { color: var(--color-black); animation: hm-watch-rgb 3s step-end infinite; }
 .homepage-marquee-link.hm-watch :is(.homepage-marquee-text, .homepage-marquee-clone) { color: inherit !important; }
 @keyframes hm-watch-rgb {
@@ -1426,6 +1426,10 @@ body.mode-color .gallery-ph > span {
    bar／字色都是 JS inline → !important；mode2/mode3 見 inverse.css / color.css */
 .hm-banner-row.is-swap .homepage-marquee-link { background: var(--hm-accent) !important; }
 .hm-banner-row.is-swap :is(.homepage-marquee-text, .homepage-marquee-clone) { color: var(--color-black) !important; }
+/* WATCH 的 hover 反過來（user 2026-11-17）：平常已經是 rgb → hover 變黑白＝mode1 黑底白字、mode2 白底黑字。
+   mode3 不用另寫：color.css 的 .is-swap 那兩條特異度較高，照舊蓋成 fg-inverse 底＋fg 字（＝跟 mode1／2 相反的那一色） */
+.hm-banner-row.is-swap .homepage-marquee-link.hm-watch { background: var(--theme-fg) !important; }
+.hm-banner-row.is-swap .hm-watch :is(.homepage-marquee-text, .homepage-marquee-clone) { color: var(--theme-fg-inverse) !important; }
 
 /* news banner 疊層：首屏 section 與 stack 都不建 stacking context（z auto）→ banner 直接跟 header(9999) 比。
    平常 15＝浮卡層(0)之上、WATCH 卡(20)之下；海報展開那則（桌面 hover／手機點開，index-marquee.js 掛 .is-poster-open）
