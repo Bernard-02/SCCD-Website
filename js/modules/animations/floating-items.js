@@ -585,7 +585,13 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
   } else {
     // hover 判定掛 mover（未旋轉的 2D 外框）不掛卡片（user 2026-10-01「有時 hover 不到這個 item」）：3D 擺動側過去時
     //   卡片投影變窄，游標落在外框內、卡片外＝打到透明的 perspectiveWrap → 卡片收不到 mouseenter。
-    let swayAt = null;   // hover 暫停當下的擺動角：離開時轉回這裡再續播＝反向動畫（原 resume 從 0 瞬跳回擺動角）
+    // 反過來，擺動時近側投影會超出外框：卡片若平常就吃滑鼠，游標停在那圈＝enter→轉正縮回框內→leave→轉回又蓋到→enter…
+    //   來回跳（user 2026-11-18）。所以卡片只在 hover 中吃滑鼠（右鍵／ctrl+點連結照常），平常只認外框。
+    //   擺動的 rotator（及外層）本身也是 div、一樣會被打到 → 整層關掉，卡片自己的值蓋回繼承。
+    perspectiveWrap.style.pointerEvents = 'none';
+    el.style.pointerEvents = 'none';
+    mover.style.cursor = 'var(--cursor-pointer)';
+    let swayAt = null;  // hover 暫停當下的擺動角：離開時轉回這裡再續播＝反向動畫（原 resume 從 0 瞬跳回擺動角）
     let clicked = false; // 點了＝要離頁：退場中游標移開也維持轉正／hover 態，不轉回原角度（user 2026-10-02）
     // hover 疊到最上層（1000，高過深度排名 1~N）／放回原深度：z-index 只能瞬切 → 換深度時疊一張複本交叉淡化
     //   （user 2026-10-19「從後面移到最前面太直接」）。複本每幀抄本體 transform＝跟本體完全重合、只差在 z →
@@ -618,6 +624,7 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
     }
     mover.addEventListener('mouseenter', () => {
       item.hovered = true;
+      el.style.pointerEvents = 'auto';
       gsap.killTweensOf(item, 'speed');
       item.speed = 0;                  // 立刻停住（user 2026-08-28：方便點擊）
       if (elData.onHover) elData.onHover(true);
@@ -631,6 +638,7 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
     mover.addEventListener('mouseleave', () => {
       if (clicked) return;
       item.hovered = false;
+      el.style.pointerEvents = 'none';   // 排在 crossfadeDepth 前：複本照抄＝離開時疊在最上層的複本也不擋游標
       if (elData.onHover) elData.onHover(false);
       gsap.to(item, { speed: 1, duration: DUR.fast, ease: EASE.enterSoft });   // 移動也漸進接回、不瞬間起跑
       gsap.to(rotator, {
