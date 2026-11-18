@@ -22,9 +22,9 @@ import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
 import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
 
 // 抓 collection 全部 rows（依後台 sort）→ mapFn；失敗/空 → null（該類不渲染）
-async function cmsList(collection, mapFn) {
+async function cmsList(collection, mapFn, fields = '*') {
   try {
-    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort`);
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${collection}?limit=-1&sort=sort&fields=${fields}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     return rows.map(mapFn);
   } catch (err) {
@@ -32,6 +32,10 @@ async function cmsList(collection, mapFn) {
     return null;
   }
 }
+
+// world 四張表（系友主持／就職、工作營／產學）一列＝一個單位：從單位庫選（org M2O，user 2026-11-17），分類＝哪一張表
+const ORG_FIELDS = 'id,sort,org.nameEn,org.nameZh,org.country';
+const orgOf = r => ({ nameEn: r.org?.nameEn || '', nameZh: r.org?.nameZh || '', country: r.org?.country || '' });
 
 // single-flight 快取：待機每次掛星雲都會呼叫，不快取＝每次重抓 7 個 collection（弱機後台慢時切回分頁
 // 待機空白數秒，user 2026-10-04）。任一類失敗（null）不留快取＝下次重抓；硬重整即重抓＝後台改完照常生效。
@@ -52,17 +56,15 @@ async function fetchAtlasData() {
       getFacultyData().catch(() => null),
       // 離職教師（同一個 faculty collection，status=former）
       getFormerFacultyData().catch(err => { console.warn('[atlas] faculty(former) CMS 取得失敗:', err.message); return null; }),
-      // co 環：系友任職企業（companyEn/Zh → nameEn/Zh；country 2026-08-03 加）
-      cmsList('alumni_hosting', r => ({ nameEn: r.companyEn || '', nameZh: r.companyZh || '', country: r.country || '' })),
+      // co 環：系友任職企業（單位從單位庫選，國家跟著單位）
+      cmsList('alumni_hosting', orgOf, ORG_FIELDS),
       // em 浮動：系友就職企業（保留 country，atlas 內對到 canonical 國家；D 國家節點從 em/guest 的 country 動態生成）
-      cmsList('alumni_employment', r => ({ textEn: r.companyEn || '', textZh: r.companyZh || '', country: r.country || '' })),
+      cmsList('alumni_employment', r => { const o = orgOf(r); return { textEn: o.nameEn, textZh: o.nameZh, country: o.country }; }, ORG_FIELDS),
       // 職業輪播
       cmsList('alumni_careers', r => ({ en: r.careerEn || '', zh: r.careerZh || '' })),
-      // 工作營 / 產學：atlas 專用扁平名單（見檔頭說明）；guest shape 走 atlas.js 既有欄名（name/name_zh/country）
-      cmsList('atlas_workshops', r => ({ nameEn: r.nameEn || '', nameZh: r.nameZh || '', country: r.country || '' }))
-        .then(rows => flatToNested(rows, 'atlas-wsg')),
-      cmsList('atlas_industry', r => ({ nameEn: r.nameEn || '', nameZh: r.nameZh || '', country: r.country || '' }))
-        .then(rows => flatToNested(rows, 'atlas-ind')),
+      // 工作營 / 產學：atlas 專用扁平名單（見檔頭說明）
+      cmsList('atlas_workshops', orgOf, ORG_FIELDS).then(rows => flatToNested(rows, 'atlas-wsg')),
+      cmsList('atlas_industry', orgOf, ORG_FIELDS).then(rows => flatToNested(rows, 'atlas-ind')),
     ]);
 
   return { facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry };

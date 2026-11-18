@@ -13,14 +13,22 @@
 // 人名庫（後台 people／organizations／job_titles，user 2026-11-17；先 lectures 試用）：活動的 people（M2M junction 列：
 // person＝人、titles／orgs＝這一場的職稱／單位）攤回舊 guests repeater 的 shape → 下游渲染／搜尋／國旗照舊吃 guests。
 // 職稱照舊排進 orgs（排在單位前、沒有國家）＝顯示位置跟搬家前一樣（舊資料本來就把職稱填在單位欄）。
-// 深取欄位＝POOL_GUEST_FIELDS（前綴 people.）。
-// POOL_COLLECTIONS＝已改從人名庫選的 collection（scripts/setup-people-pool.cjs 跑過的；跑完一個加一個）
-export const POOL_COLLECTIONS = new Set(['activities_lectures']);
+// 深取欄位＝POOL_GUEST_FIELDS（巢狀的加前綴：withPrefix('sessions.', POOL_GUEST_FIELDS)）。
+// POOL_COLLECTIONS＝有講者的活動 collection（全都改從人名庫選了；常設展演沒有講者、不在內）
+export const POOL_COLLECTIONS = new Set([
+  'activities_lectures', 'activities_workshops', 'activities_conferences', 'activities_conference_sessions',
+  'activities_exhibitions_special', 'activities_competitions', 'activities_visits_inbound', 'activities_visits_outbound',
+  'activities_students_present', 'activities_industry', 'activities_degree_show_events',
+]);
 export const POOL_GUEST_FIELDS = 'people.sort,people.person.*,people.titles.sort,people.titles.title.*,people.orgs.sort,people.orgs.org.*';
+export const withPrefix = (pre, fields) => fields.split(',').map(f => pre + f).join(',');
 const bySort = (a, b) => (a.sort ?? 0) - (b.sort ?? 0);
 const linked = (rows, key) => (rows || []).filter(r => r?.[key]).sort(bySort).map(r => r[key]);
+// 只有單位的清單（得獎紀錄／營隊的主辦單位：<col>.orgs M2M）→ [{ en, zh, country }]
+export const POOL_ORG_FIELDS = 'orgs.sort,orgs.org.*';
+export const poolOrgs = rows => linked(rows, 'org').map(o => ({ en: o.nameEn || '', zh: o.nameZh || '', country: o.country || '' }));
 export function poolGuests(rows) {
-  return rows.filter(j => j?.person).sort(bySort).map(({ person: p, titles, orgs }) => ({
+  return (rows || []).filter(j => j?.person).sort(bySort).map(({ person: p, titles, orgs }) => ({
     nameEn: p.nameEn || '', nameZh: p.nameZh || '', akaEn: p.akaEn || '', akaZh: p.akaZh || '',
     country: p.country || '', isAlumni: !!p.isAlumni,
     orgs: [...linked(titles, 'title'), ...linked(orgs, 'org')].map(o => ({ orgEn: o.nameEn || '', orgZh: o.nameZh || '', orgCountry: o.country || '' })),

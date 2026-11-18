@@ -11,7 +11,7 @@
  */
 import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '../../config/api.js';
 import { pdfOpenUrl } from './pdf-url.js';
-import { POOL_COLLECTIONS, POOL_GUEST_FIELDS, poolGuests } from './guest-orgs.js';
+import { POOL_COLLECTIONS, POOL_GUEST_FIELDS, poolGuests, withPrefix } from './guest-orgs.js';
 
 const CMS_COLLECTION = 'activities_degree_show';
 const LKG_KEY = 'degree-show';
@@ -25,8 +25,8 @@ const ACTIVITY_COLLECTIONS = [
 const _activityDeep = ACTIVITY_COLLECTIONS.flatMap(c => [
   `events.activity.item:${c}.*`,
   `events.activity.item:${c}.images.directus_files_id`,
-  // 講者已改從人名庫選的活動：深取 people（collectActivityGuests 攤回 guests shape）
-  ...(POOL_COLLECTIONS.has(c) ? POOL_GUEST_FIELDS.split(',').map(f => `events.activity.item:${c}.${f}`) : []),
+  // 講者從人名庫選：深取 people（collectActivityGuests 攤回 guests shape；常設展演沒有講者）
+  ...(POOL_COLLECTIONS.has(c) ? [withPrefix(`events.activity.item:${c}.`, POOL_GUEST_FIELDS)] : []),
 ]).join(',');
 // top-level references M2A（user「後台設的 ref」）：可連活動 collection（→ ref popover 跳轉）
 // 或 library_documents（→ ref popover 原地開 PDF lightbox）。deep-fetch 各型 item 拿 title / pdf。
@@ -36,10 +36,10 @@ const _refDeep = [
   'references.item:library_documents.pdf.filename_disk',   // pdf 深取 filename_disk → 組 CloudFront 開檔 URL（見 pdf-url.js）
 ].join(',');
 // deep：events 依 sort、帶 event 自身 images + M2A 關聯活動（collection 判別 + item 展開）；parent poster UUID
-// 論壇（conference）講者常寫在 sessions[].guests 而非 item.guests → 額外 deep-fetch session 講者
+// 論壇（conference）講者常寫在 sessions 裡而非活動本身 → 額外 deep-fetch session 講者；自有型場次的講者也從人名庫選（events.people）
 // 圖片檔案欄深取 filename_disk（<uuid>.<副檔名>）→ cdnUrl 組 CloudFront URL；直接檔欄 coverImage/bannerImage
 // 用 field.filename_disk，M2M（poster / events.images）用 junction.directus_files_id.filename_disk
-const FIELDS = `*,coverImage.filename_disk,bannerImage.filename_disk,events.*,events.images.directus_files_id.filename_disk,events.activity.collection,${_activityDeep},events.activity.item:activities_conferences.sessions.guests,references.collection,${_refDeep},poster.directus_files_id.filename_disk`;
+const FIELDS = `*,coverImage.filename_disk,bannerImage.filename_disk,events.*,${withPrefix('events.', POOL_GUEST_FIELDS)},events.images.directus_files_id.filename_disk,events.activity.collection,${_activityDeep},${withPrefix('events.activity.item:activities_conferences.sessions.', POOL_GUEST_FIELDS)},references.collection,${_refDeep},poster.directus_files_id.filename_disk`;
 
 export async function loadDegreeShow() {
   try {
@@ -171,21 +171,14 @@ function mapEvent(ev) {
     cityEn: ev.cityEn || '',
     city: ev.cityZh || '',
     images: cdnUrls(ev.images),
-    guests: cleanGuests(ev.guests),                     // 自有型：手填 guests repeater
+    guests: poolGuests(ev.people),                      // 自有型：場次自己的講者（人名庫）
   };
 }
 
-// 活動 guests：item.guests + 論壇（conference）sessions[].guests 合併（user：forum 講者常寫在 session 裡）
+// 活動講者＋論壇（conference）sessions 講者合併（user：forum 講者常寫在 session 裡）
 function collectActivityGuests(a) {
   if (!a) return [];
-  const out = [];
-  if (Array.isArray(a.people)) out.push(...poolGuests(a.people));  // 人名庫（取代舊 guests）
-  else if (Array.isArray(a.guests)) out.push(...a.guests);
-  if (Array.isArray(a.sessions)) a.sessions.forEach(s => { if (Array.isArray(s.guests)) out.push(...s.guests); });
-  return cleanGuests(out);
-}
-function cleanGuests(arr) {
-  return Array.isArray(arr) ? arr.filter(g => g && (g.nameZh || g.nameEn)) : [];
+  return [...poolGuests(a.people), ...(Array.isArray(a.sessions) ? a.sessions.flatMap(s => poolGuests(s?.people)) : [])];
 }
 
 // '2024-05-17' → '05 / 17'；有 endDate 且不同 → '05 / 17 - 05 / 20'。

@@ -22,8 +22,25 @@ let _formerPromise = null;
 
 // image / placeholder 欄位深取成 { filename_disk }（見下方 fetch 的 fields）→ CloudFront URL（cdnUrl；原檔、不套
 // on-the-fly transform——弱機現場轉檔會 504，webp 靠離線轉檔）。代用 logo 空＝null（下游用 null 判斷）。
+// 老師本人從人名庫選（person M2O）；職稱／職級、現職是「職稱庫或單位庫」的混合清單（M2A，舊資料兩種混填、照順序保留）
+// → 攤回舊 shape（nameEn…／titles[{titleEn,titleZh}]／occupations[{occupationEn,occupationZh,country}]），下游不動。
+// 單位才有國家（現職那筆有國家＝單位，卡片照舊加「（國家）」）。
+const MIXED = f => `${f}.sort,${f}.collection,${f}.item:job_titles.nameEn,${f}.item:job_titles.nameZh,${f}.item:organizations.nameEn,${f}.item:organizations.nameZh,${f}.item:organizations.country`;
+const PERSON_FIELDS = `person.nameEn,person.nameZh,person.akaEn,person.akaZh,person.country,${MIXED('titleItems')},${MIXED('occupationItems')}`;
+const mixed = rows => (rows || []).filter(r => r?.item && typeof r.item === 'object').sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+  .map(r => ({ en: r.item.nameEn || '', zh: r.item.nameZh || '', country: r.collection === 'organizations' ? r.item.country || '' : '' }));
+function fromPool(r) {
+  const p = r.person || {};
+  return {
+    nameEn: p.nameEn || '', nameZh: p.nameZh || '', akaEn: p.akaEn || '', akaZh: p.akaZh || '', country: p.country || '',
+    titles: mixed(r.titleItems).map(t => ({ titleEn: t.en, titleZh: t.zh })),
+    occupations: mixed(r.occupationItems).map(o => ({ occupationEn: o.en, occupationZh: o.zh, country: o.country })),
+    person: undefined, titleItems: undefined, occupationItems: undefined,
+  };
+}
+
 function mapRow(r) {
-  const item = { ...r, type: r.facultyType, image: cdnUrl(r.image) };
+  const item = { ...r, ...fromPool(r), type: r.facultyType, image: cdnUrl(r.image) };
   item.hasRealPhoto = !!r.image;
   // 照片比例先從後台檔案寬高拿：卡片出生就是對的框，不用等 lazy 圖載完才從 4:5 縮（字會跳，user 2026-10-21）
   item.imageRatio = r.image?.width && r.image?.height ? `${r.image.width} / ${r.image.height}` : '';
@@ -37,7 +54,7 @@ function mapRow(r) {
 }
 
 // 深取這些檔案欄位的 filename_disk（<uuid>.<副檔名>）→ 組 CloudFront URL。fields=* 保留全部 scalar。
-const FACULTY_FIELDS = '*,image.filename_disk,image.width,image.height,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk';
+const FACULTY_FIELDS = `*,image.filename_disk,image.width,image.height,placeholderStandard.filename_disk,placeholderInverse.filename_disk,placeholderWireframeBlack.filename_disk,${PERSON_FIELDS}`;
 
 export function getFacultyData() {
   if (!_promise) {
@@ -63,10 +80,11 @@ export function getFormerFacultyData() {
 }
 
 async function _fetchFormerFacultyData() {
-  const rows = (await fetchCmsJson(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=former`)) || [];
+  const rows = (await fetchCmsJson(`${CMS_API_BASE}/${COLLECTION}?limit=-1&sort=sort&filter[status][_eq]=former&fields=id,sort,${PERSON_FIELDS}`)) || [];
   if (!rows.length) throw new Error('empty');
-  return rows.map(r => {
-    const t = (Array.isArray(r.titles) && r.titles[0]) || {};
+  return rows.map(raw => {
+    const r = { id: raw.id, sort: raw.sort, ...fromPool(raw) };
+    const t = r.titles[0] || {};
     // akaEn/akaZh：離職教師別名（在職教師不帶進前台，只 atlas 離職者以括號顯示；同 guest aka 規則）
     // country＝老師本人國家（頂層欄，同在職 row）；titleCountry＝職稱（單位）國家，舊資料還掛在 titles 上
     return { id: r.id, sort: r.sort, nameEn: r.nameEn || '', nameZh: r.nameZh || '', akaEn: r.akaEn || '', akaZh: r.akaZh || '', titleEn: t.titleEn || '', titleZh: t.titleZh || '', titleCountry: t.country || '', country: r.country || '' };

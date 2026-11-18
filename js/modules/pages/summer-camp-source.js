@@ -7,6 +7,7 @@
  * admission 頁「營隊」tab 與 activities 頁共用 loadSummerCampInto → 都吃這個來源。
  */
 import { CMS_API_BASE, cdnUrl, cdnUrls, fetchCmsJson, saveLKG, readLKG } from '../../config/api.js';
+import { POOL_ORG_FIELDS, poolOrgs } from './guest-orgs.js';
 
 const CMS_COLLECTION = 'admission_summer_camp';
 const LKG_KEY = 'summer-camp';
@@ -15,7 +16,7 @@ export async function loadSummerCamp() {
   try {
     // *.* 展開 poster 檔案物件（含 filename_disk）＋ references 附件；images 是 M2M junction，多深一層
     // 取 directus_files_id.filename_disk 才拿得到檔名（*.* 只到 junction 層）→ 組 CloudFront URL。
-    const rows = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk`);
+    const rows = await fetchCmsJson(`${CMS_API_BASE}/${CMS_COLLECTION}?limit=-1&sort=sort&fields=*.*,images.directus_files_id.filename_disk,${POOL_ORG_FIELDS}`);
     if (!Array.isArray(rows) || !rows.length) throw new Error('empty');
     const grouped = groupByYear(rows.map(mapRow));
     saveLKG(LKG_KEY, grouped);
@@ -37,10 +38,10 @@ function mapRow(r) {
     // 「取消」判定：後台 isCancelled 旗標為主；相容舊資料（取消梯次不填日期）→ 無 startDate 也算取消。
     // 有日期又被標取消（取消已排定梯次）仍走 dates 歸到正確年份，只把日期文字覆蓋成「取消」。
     ...(r.isCancelled || !r.startDate ? { date: '取消' } : {}),
-    // 主辦單位 organizers {organizerZh, organizerEn} → 映射成 guests shape {nameEn, nameZh}，
+    // 主辦單位（單位庫）→ 映射成 guests shape {nameEn, nameZh}，
     // 直接套 loadListInto 既有的 guest layout（buildGuestHtml：名稱 EN/ZH 粗體；營隊無 country/affiliation 故右側留空）。
-    guests: (r.organizers || []).map(o => ({ nameEn: o.organizerEn || '', nameZh: o.organizerZh || '' }))
-                                .filter(g => g.nameEn || g.nameZh),
+    guests: poolOrgs(r.orgs).map(o => ({ nameEn: o.en, nameZh: o.zh })),
+    orgs: undefined,
     poster: cdnUrl(r.poster),
     images: cdnUrls(r.images),
   };

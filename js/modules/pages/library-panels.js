@@ -24,6 +24,7 @@ import { loadOthersAlbum } from './library-album-source.js';
 import { renderPdfCover, holdPdfCoverRaster } from '../ui/pdf-cover.js';
 import { loadUiLabels } from '../ui/ui-labels.js';
 import { shortLibId } from './library-deeplink.js';
+import { POOL_ORG_FIELDS, poolOrgs } from './guest-orgs.js';
 import { readTabHash } from '../../config/slugs.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { ACCENT_TO_DEEP } from '../accordions/list-accordion.js';   // accent → 深一階（awards row open 用）
@@ -1098,13 +1099,11 @@ function mapDirectusAwardRow(row) {
     // 主辦單位／獎項類別／名次 2026-08-25 起改 repeater（可多筆 {en,zh}）；scalar 欄保留作舊資料 / records.json fallback。
     categories: Array.isArray(row.categories) ? row.categories.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
     ranks: Array.isArray(row.ranks) ? row.ranks.map(o => ({ en: o.en || '', zh: o.zh || '' })) : [],
-    organizers: Array.isArray(row.organizers) ? row.organizers.map(o => ({ en: o.en || '', zh: o.zh || '', country: o.country || '' })) : [],
+    organizers: poolOrgs(row.orgs),  // 主辦單位從單位庫選（國家跟著單位）
     award_en: row.categoryEn || '', award: row.categoryZh || '',
     rank_en: row.rankEn || '', rank: row.rankZh || '',
-    // winners repeater（可多人）→ normalizeWinners 認得的 {en,zh} 陣列；沒填時給空陣列，
-    // normalizeWinners 會 fallback 用 winner_en/winner（這裡留空字串，等同無得獎人顯示空白，不會壞版面）。
+    // winners repeater（可多人，打字；都是學生、不進人名庫，user 2026-11-17）→ normalizeWinners 認得的 {en,zh} 陣列
     winners: Array.isArray(row.winners) ? row.winners.map(w => ({ en: w.nameEn || '', zh: w.nameZh || '' })) : [],
-    organizer_en: row.organizerEn || '', organizer: row.organizerZh || '',
     _resolvedRefs: remapAwardRefs(row.references),
   };
 }
@@ -1128,7 +1127,7 @@ let _awardsDataPromise = null;
 // localStorage 快取（user 2026-09-13）：真資料 670 筆、變動頻率低 → 有快取就先渲染（零等待），背景 fetch
 // revalidate、資料真的變了才更新快取＋latest-wins 重渲染（_awardsRerender）＝「後台編輯硬重整即生效」不破。
 // 存 raw Directus rows（含 deep references）而非 mapped shape：map/group 便宜，前台 mapping 演進時舊快取自動吃新版。
-const AWARDS_LS_KEY = 'sccdAwardsCacheV1';
+const AWARDS_LS_KEY = 'sccdAwardsCacheV2';  // V2＝主辦單位改讀單位庫（V1 存的舊 rows 沒有 orgs）
 const readAwardsCache = () => {
   try { const rows = JSON.parse(localStorage.getItem(AWARDS_LS_KEY) || 'null'); return Array.isArray(rows) && rows.length ? rows : null; }
   catch { return null; }
@@ -1143,7 +1142,7 @@ function loadAwardsDataCached() {
   _awardsDataPromise = (async () => {
     const awardsImages = await fetchAwardLogos();
 
-    const fetchRows = () => fetchCmsRows(`${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS}&sort=-year,sort&limit=-1`);
+    const fetchRows = () => fetchCmsRows(`${CMS_API_BASE}/library_awards?fields=*,${AWARD_REF_FIELDS},${POOL_ORG_FIELDS}&sort=-year,sort&limit=-1`);
 
     const cachedRows = readAwardsCache();
     if (cachedRows) {
