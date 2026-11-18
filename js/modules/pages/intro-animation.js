@@ -33,13 +33,13 @@ export function initIntroAnimation() {
   // 鎖定 scroll（隱藏 scrollbar）
   document.body.style.overflow = 'hidden';
 
-  // 播放 loader Lottie
+  // 播放 loader Lottie：直向手機換手機版（字母在中央逐一疊成 logo，不排一長串；user 2026-11-17），放大方式見 intro-animation.css
   const anim = lottie.loadAnimation({
     container: container,
     renderer: 'svg',
     loop: false,
     autoplay: true,
-    path: 'data/SCCDLoader.json'
+    path: SCCDHelpers.isPortraitPhone() ? 'data/SCCDLoader-mobile.json' : 'data/SCCDLoader.json'
   });
 
   // header＝logo／兩顆鈕 clip-reveal 滑入（header.js playHeaderEntrance，user 2026-10-26），跟 overlay 淡出同時起跑；

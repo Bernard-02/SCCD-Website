@@ -19,4 +19,19 @@
     width: 90vw;
   }
 
+  /* 直向手機＝手機版（SCCDLoader-mobile.json，intro-animation.js 同判準 isPortraitPhone）：整段只在 1920×1080 畫布正中
+     534 寬那塊動（最後的 logo＋系名）→ 放大到那塊左右各離螢幕邊「menu 鈕左緣」那麼遠（container padding＋手機 header 鈕 44；
+     user 2026-11-17），兩側白邊裁掉。改了 AE 版面要重量 534；ponytail: 44 寫死，手機 header 鈕尺寸改了同步 */
+  @media (max-width: 767px) and (orientation: portrait) {
+    #intro-overlay { overflow: hidden; }
+    #intro-lottie { flex: none; width: calc((100vw - 2 * (var(--container-padding) + 44px)) * 1920 / 534); }
+  }
+
+  /* 橫向手機（只看尺寸的兩項，iPad 橫拿不吃）：仍播桌面版，整段最寬＝字母排成一長串那幾格 1562/1920 → 同直向的規則放大到
+     那串左右各離螢幕邊「menu 鈕左緣」（user 2026-11-17「橫向有點小」）。畫布比視窗高，上下白邊一起裁。改了 AE 版面要重量 1562 */
+  @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px) {
+    #intro-overlay { overflow: hidden; }
+    #intro-lottie { flex: none; width: calc((100vw - 2 * (var(--container-padding) + 44px)) * 1920 / 1562); }
+  }
+
 }
