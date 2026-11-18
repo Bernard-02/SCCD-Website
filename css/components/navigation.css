@@ -224,13 +224,26 @@
    仍輸 mode 切換窗口規則 (0,5,1)＝換 mode 照樣跟大背景一起淡 */
 @media (max-width: 1023px), (max-height: 500px), (orientation: portrait) and (min-width: 768px), (orientation: landscape) and (hover: none) {
   body .anchor-nav-inner,
-  body .anchor-nav-btn div,
+  body .anchor-nav-btn div {
+    transition-property: transform, translate, opacity;   /* 保留各自的 duration/ease 清單 */
+  }
+  /* atlas 分類 tab：遮罩＝inner 自己的 clip-path、跟 translate 同一條 transition（atlas.css；2026-11-17）→ 清單多列 clip-path，
+     duration/ease 照 atlas.css 的位置對位（all 0.3s → transform、translate 0.9/0.5s、clip-path 同、opacity 繞回 0.3s） */
   body .atlas-filter-btn .anchor-nav-inner,
   body .atlas-filter-btn.atlas-filter-revealed .anchor-nav-inner {
-    transition-property: transform, translate, opacity;   /* 保留各自的 duration/ease 清單（atlas translate 照舊對位） */
+    transition-property: transform, translate, clip-path, opacity;
   }
   body.mode-color button:is(.anchor-nav-btn, .section-nav-btn, .faculty-filter-btn, .activities-section-btn, .courses-program-btn, .activities-filter-btn, .courses-filter-btn, .atlas-filter-btn):not(.active) .anchor-nav-inner {
     transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard) !important;
+  }
+  /* 同上給 atlas tab：mode3 的 inactive tab 進退場的 translate／clip-path 也要過渡（上一條只留 transform／opacity＝直接跳；時長曲線同 atlas.css） */
+  body.mode-color button.atlas-filter-btn:not(.active) .anchor-nav-inner {
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard),
+                translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19), clip-path 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) !important;
+  }
+  body.mode-color button.atlas-filter-btn.atlas-filter-revealed:not(.active) .anchor-nav-inner {
+    transition: transform var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard),
+                translate 0.9s cubic-bezier(0.215, 0.61, 0.355, 1), clip-path 0.9s cubic-bezier(0.215, 0.61, 0.355, 1) !important;
   }
   /* about 分組鈕／alumni 城市 tab／curriculum BFA 小標題：同上（element 前綴壓 Tailwind transition-all） */
   button.class-division-btn,

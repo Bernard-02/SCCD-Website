@@ -286,6 +286,11 @@ body.mode-color .rotate-hint-card {
   background-color: var(--theme-fg) !important;
   color: var(--theme-fg-inverse) !important;
 }
+/* atlas 的字卡跟左下切換鈕星雲那半（active）同色（user 2026-11-17）：mode3 那半＝反色底＋fg 字，見下方 .atlas-layout-opt.is-active */
+body.mode-color #atlas-rotate-hint .rotate-hint-card {
+  background-color: var(--theme-fg-inverse) !important;
+  color: var(--theme-fg) !important;
+}
 
 /* Inactive：跟 body bg 同色 + 100% 對比文字 + transition 排除 bg */
 body.mode-color .anchor-nav-btn:not(.active) .anchor-nav-inner,

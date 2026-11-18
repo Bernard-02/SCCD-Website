@@ -1005,6 +1005,35 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
 }
 /* 矮橫向寬 ≥768 會誤落桌面 hover 區、觸控又無 hover → 併入自動捲；(hover: none)＝觸控的桌面排版（iPad 橫向，user 2026-10-31）同 */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px), (hover: none) {
+  /* 系友子分頁鈕（atlas.js ensureGateSubBtns 建；橫向／iPad＝主持・就職兩顆、直向＝一顆切換 chip，user 2026-11-17）：
+     灰底同 host/employ col title、active 黑底白字、英中一行（iPad 直排見 gate 段）；位置見各版型段 */
+  #atlas-gate-sub {
+    position: fixed;
+    left: var(--container-padding, 24px);
+    display: flex;
+    gap: var(--spacing-xs);
+    z-index: 55;
+  }
+  .atlas-gate-sub-btn {
+    border: none;
+    cursor: var(--cursor-pointer);
+    background: var(--lib-bg);
+    color: var(--lib-fg);
+    padding: 6px var(--spacing-xs) 5px;
+    font-family: inherit;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xs);
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.3em;
+    line-height: var(--line-height-xs);
+    white-space: nowrap;
+  }
+  .atlas-gate-sub-btn.active {
+    background: var(--color-black);
+    color: var(--color-white);
+  }
   .atlas-list-name-en.is-overflow .atlas-marquee-inner,
   .atlas-list-name-zh.is-overflow .atlas-marquee-inner,
   .atlas-list-item-label-en.is-overflow .atlas-marquee-inner,
@@ -1124,19 +1153,10 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   font-weight: var(--font-weight-bold);
   font-size: var(--font-size-s);
   text-align: left;
-  /* 按鈕本體＝固定不動的遮罩窗，.anchor-nav-inner 從窗內滑出/滑回（純 translate 單管線；本體 translate＋clip 同步 transition 會窗緣抖動）。
-     overflow:clip + clip-margin 12px 讓 active inner 旋轉外溢不被裁（clip 不建立 scroll container）。JS 加 .atlas-filter-revealed 才揭露 */
-  overflow: clip;
-  overflow-clip-margin: 12px;
+  /* 遮罩＝.anchor-nav-inner 自己的盒（clip-path＋沿自身軸的 translate 同步 transition，同全站 navChipHidden）：
+     11-17 以前是按鈕本體 overflow:clip 外擴 12px 當窗＝進出的窗比 chip 大一圈（user「進退場 box 比較大」）。JS 加 .atlas-filter-revealed 才揭露 */
+  overflow: visible;
   transition: opacity var(--dur-micro) ease;
-}
-/* 觸控（iPad）：Safari 不支援 overflow-clip-margin＝nav btn 轉角被切（user 2026-10-31）→ 改 clip-path 負 inset（語意同）。
-   只限 coarse：PC 維持原樣（user「以 PC 為主」） */
-@media (pointer: coarse) {
-  .atlas-filter-btn {
-    overflow: visible;
-    clip-path: inset(-12px);
-  }
 }
 /* 未 reveal 時不吃 hover/click：否則滑過看不見的 btn 仍觸發變色 */
 .atlas-filter-btn:not(.atlas-filter-revealed) {
@@ -1151,16 +1171,20 @@ body.mode-inverse .atlas-alumni-subchip.subchip-inactive :is(.atlas-alumni-caree
   color: var(--color-black);
   padding: var(--card-pad-s);
   line-height: var(--line-height-s);
-  /* 藏起＝滑出遮罩左緣外：-24px = 12（clip-margin）+ 12（active inner 旋轉角外溢；只推 -12 會露一條）。
-     transition 宣告在目標態：本條掌管退場、下條掌管進場；translate 列在 all 之後覆蓋其 timing */
-  translate: var(--tab-hide, calc(-100% - 24px) 0);   /* 四向隨機：atlas.js pickTabHide 寫 --tab-hide（user 2026-10-28） */
+  /* 藏起＝整顆沿自身軸滑出一個身位＋同步裁到 0（四向隨機：atlas.js pickTabHide／syncTabHide 寫 --tab-hide／--tab-clip，向量已照 chip 角度轉過；
+     首繪 JS 還沒跑＝預設藏在左）。transition 宣告在目標態：本條掌管退場、下條掌管進場；translate／clip-path 列在 all 之後覆蓋其 timing */
+  translate: var(--tab-hide, -100% 0);
+  clip-path: var(--tab-clip, inset(0% 0% 0% 100%));
   transition: all var(--dur-fast) var(--ease-standard),
-              translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19);
+              translate 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19),
+              clip-path 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19);
 }
 .atlas-filter-btn.atlas-filter-revealed .anchor-nav-inner {
   translate: 0 0;
+  clip-path: inset(0% 0% 0% 0%);
   transition: all var(--dur-fast) var(--ease-standard),
-              translate 0.9s cubic-bezier(0.215, 0.61, 0.355, 1);
+              translate 0.9s cubic-bezier(0.215, 0.61, 0.355, 1),
+              clip-path 0.9s cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 .atlas-filter-btn .atlas-filter-en,
 .atlas-filter-btn .atlas-filter-zh {
@@ -1219,8 +1243,59 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   color: black !important;
 }
 
+/* ── 手機 list 往下捲（user 2026-11-17；atlas.js listScrolls 掛 .atlas-list-scroll，取代分頁＋翻頁鈕）──
+   #atlas-list-view 自己是捲動框（本頁 body 鎖捲動）：清單從分類 tab／切換鈕／職業 chip 底下捲過，捲到底時最後一列停在它們上方
+   （--list-end，下在欄的 padding-bottom：捲動框自己的底 padding Safari 不一定算進可捲範圍）。
+   框的位置、--list-end、一列幾筆（--list-cols）在下面各版型段寫在 #atlas-main 上（職業 chip 也讀） */
+#atlas-list-view.atlas-list-scroll {
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  grid-auto-rows: auto;
+  align-content: start;
+  z-index: 40;   /* 框蓋到 tab／鈕的位置 → 沉到職業 chip(45)／分類 tab(50)／主持・就職鈕(55)／切換鈕(70) 下 */
+}
+#atlas-list-view.atlas-list-scroll::-webkit-scrollbar { display: none; }
+.atlas-list-scroll .atlas-list-col { height: auto; }
+.atlas-list-scroll .atlas-list-col-items {
+  flex: none;
+  overflow: visible;
+  padding-bottom: var(--list-end, 0px);
+}
+.atlas-list-scroll .atlas-list-sub-col {
+  overflow: visible;
+  display: grid;
+  grid-template-columns: repeat(var(--list-cols, 1), minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+/* 續建哨兵（atlas.js build）：貼在欄底、不佔格 */
+.atlas-list-more {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+/* 手機的職業 chip（atlas.js renderList 掛在 #atlas-main）：fixed 釘在畫面上、英中一行；位置見各版型段。
+   不放進捲動框：iOS 會把捲動框裡的 fixed 子元素跟著框一起裁 */
+#atlas-main {
+  --list-career-h: calc(var(--font-size-xs) * var(--line-height-xs) + 8px);    /* 職業 chip 一行的高＝字 xs＋字卡內距上下 4 */
+  --list-sub-h: calc(var(--font-size-xs) * var(--line-height-xs) + 11px);      /* 主持／就職鈕一行的高＝字 xs＋內距 6/5 */
+}
+#atlas-main > .atlas-list-career-slot {
+  position: fixed;
+  right: auto;
+  z-index: 45;
+}
+#atlas-main > .atlas-list-career-slot .atlas-list-col-career {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3em;
+}
+
 /* ── 手機版：預設 list view；底部兩層 bar（三顆分類 tab + 最底星雲/list 切換鈕）；直式整頁只顯示轉向提示 #atlas-rotate-hint（見下方直式段）。
-   alumni tab = host/employ；faculty/partners 不顯示 col title（calcListPageSize 手機分支同步不扣 TITLEBLOCK_H）── */
+   alumni tab = host/employ；faculty/partners 不顯示 col title ── */
 @media (max-width: 767px) {
   .atlas-name {
     font-size: 0.625rem;
@@ -1275,14 +1350,16 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-filter {
     top: auto;
     bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-lg));
-    right: var(--container-padding, 24px);
+    /* 捲動框從畫面兩邊開始、左右距離下在 padding（同 lists.css .nav-bottom-bar）：框左緣在 24 的話第一顆的旋轉角會被裁（user 2026-11-17） */
+    left: 0;
+    right: 0;
     flex-direction: row;
     align-items: flex-end;
     gap: var(--spacing-xs);
     /* list view 標籤長、三顆加總可能超出 bar 寬 → 允許左右滑；上下 4px 免旋轉 active chip 被 scroll container 裁邊 */
     overflow-x: auto;
     scrollbar-width: none;
-    padding: 4px 0;
+    padding: 4px var(--container-padding, 24px);
   }
   #atlas-filter::-webkit-scrollbar { display: none; }
   /* 過寬時不折行（折行會把鈕壓窄） */
@@ -1312,8 +1389,7 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-filter .atlas-filter-btn {
     text-align: center;
   }
-  /* list view 一次顯示一個分類（col display 由 atlas.js applyListFilter 切）：faculty/partners span 2；alumni＝host + employ 各 span 1 並排。
-     尺寸與 atlas.js calcListPageSize 手機分支同步 */
+  /* list view 一次顯示一個分類（col display 由 atlas.js applyListFilter 切）：每欄全寬 span 2（系友也一次一欄、主持／就職由 chip 切，user 2026-11-17） */
   #atlas-list-view {
     /* 手機 top 收到 header+24（base +64 太低） */
     top: calc(var(--header-height, 80px) + 24px);
@@ -1324,50 +1400,24 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     grid-auto-rows: minmax(0, 1fr);
     gap: var(--spacing-md, 1.5rem);
   }
-  .atlas-list-col[data-category="host"],
-  .atlas-list-col[data-category="employ"] {
-    grid-column: span 1;
-    margin-left: 0;
-  }
-  /* 手機 repeat(2) → faculty/partners 全寬 span 2 */
-  #atlas-list-view .atlas-list-col[data-category="faculty"],
-  #atlas-list-view .atlas-list-col[data-category="partners"] {
+  #atlas-list-view .atlas-list-col {
     grid-column: span 2;
+    margin-left: 0;
   }
   /* tab 已標示分類，手機不佔位 */
   .atlas-list-group-label-col {
     display: none !important;
   }
-  /* faculty / partners 的 col title 同理拿掉（host/employ 保留以區分兩欄） */
-  #atlas-list-view .atlas-list-col[data-category="faculty"] > .atlas-list-col-titleblock,
-  #atlas-list-view .atlas-list-col[data-category="partners"] > .atlas-list-col-titleblock {
+  /* col title 全拿掉（分類 tab＋主持／就職 chip 已標示） */
+  #atlas-list-view .atlas-list-col > .atlas-list-col-titleblock {
     display: none;
   }
-  /* 桌面 host/就職 標題移欄底 + items 讓位是桌面專屬 → 手機標題回正常流當欄標 */
-  #atlas-list-view .atlas-list-col[data-category="host"] > .atlas-list-col-titleblock,
-  #atlas-list-view .atlas-list-col[data-category="employ"] > .atlas-list-col-titleblock {
-    min-height: 0;
-    margin: 0;
-    padding-top: 0;
-  }
-  /* item 自然高 + 固定 gap（解除桌面 slot 均分的 min-height）；atlas.js LIST_GAP_MOBILE 同步 */
+  /* item 自然高 + 固定列距（解除桌面 slot 均分的 min-height） */
   .atlas-list-item-wrapper {
     min-height: 0;
   }
   .atlas-list-item {
     padding-bottom: 0;
-  }
-  /* chevron 帶由 padding 保留（atlas.js CHEVRON_BAND_MOBILE=64 同步）：64 = nav bottom 18 + chevron ~28 + 呼吸 ~18 */
-  .atlas-list-col-items {
-    padding-bottom: 64px;
-  }
-  /* chevron 抬離分頁 tab（桌面 bottom:10 不動） */
-  .atlas-list-nav-item {
-    bottom: 18px;
-  }
-  /* 滿頁：剩餘高度均攤進間距（行數用最高 item 估，固定 gap 會把省下的高度全堆欄底）。.is-full 由 atlas.js build() 只在滿頁時標 */
-  .atlas-list-sub-col.is-full {
-    justify-content: space-between;
   }
   /* 直式轉向提示（仿 /create #landscape-overlay）；z 60：蓋過 atlas UI(50)、低於 layout btn(70)＝切換鈕照樣可點 */
   #atlas-rotate-hint {
@@ -1401,17 +1451,23 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
     gap: 0.3em;
   }
   /* tab↔切換鈕收到 sm：切換鈕頂 62（bottom 18＋44）＋ 16，−4＝#atlas-filter 上下 padding（旋轉餘裕）。
-     右側出血到畫面邊（user 2026-10-28「右邊不需要 padding 遮擋」）：tab 被畫面右緣切、捲到底再由 padding-right 留出 container 邊距 */
+     兩側出血到畫面邊、邊距下在 padding（見上方 <768 段；user 2026-10-28「右邊不需要 padding 遮擋」、11-17 左邊旋轉角被裁） */
   #atlas-filter {
     bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) - 4px);   /* 切換鈕底＝全站貼底界線（10-30；原 18） */
-    right: 0;
-    padding-right: var(--container-padding, 24px);
     gap: var(--spacing-md);   /* 同 about／faculty／curriculum 底 bar 鈕距（user 2026-10-29 嫌擠；原 xs） */
-  }  /* list 底＝tab 頂上 16：tab 底 74＋一行 tab ~36＋16（atlas.js calcListPageSize 直向 fallback 同步） */
+  }
+  /* 捲動框蓋滿畫面（user 2026-11-17）：清單從 header／分類 tab／切換鈕底下捲過（同 curriculum）；第一列＝全站手機內容頂 108、
+     捲到底最後一列停在 tab 頂上 16（--list-end 144＝tab 底 88（界線 32＋鈕 44＋sm）＋一行 tab ~36＋16） */
+  #atlas-main { --list-end: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) + 36px + 16px); }
   #atlas-list-view {
-    top: var(--mobile-content-top);   /* 第一行＝全站手機內容頂 108（user 2026-11-05；原 header 高＋24＝124） */
-    bottom: calc(var(--mobile-bottom-anchor) + 44px + var(--spacing-sm) + 36px + 16px);
-  }   /* 140＝tab 底 88（界線 32＋鈕 44＋sm）＋一行 tab ~36＋16（原 126＝鈕底 18 起算）；atlas.js calcListPageSize 讀 computed bottom */
+    top: 0;
+    bottom: 0;
+    left: 0 !important;   /* 蓋 atlas.js layoutListBox 的 inline left */
+    right: 0;
+    padding: 0 var(--container-padding, 24px);
+  }
+  /* 頂距下在欄、不下在捲動框：框有 padding-top 時欄標的 sticky top 會從 padding 內緣起算（Chrome 實測停在 216） */
+  .atlas-list-scroll .atlas-list-col { padding-top: var(--mobile-content-top); }
   /* 每筆一列：左名稱、右副標（atlas.js 直向單 sub-col）；過寬照舊 applyListMarquee 跑 marquee。
      ghost 量高的 item 同結構（第一個子＝名稱、其餘＝副標）；cover 是 absolute、不排進格 */
   #atlas-list-view .atlas-list-item {
@@ -1435,26 +1491,25 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   #atlas-list-view .atlas-sub-country { display: none; }
   /* 副標只剩被藏的國家：不排 grid（排了會留空的第二軌＋gap、名稱少 16） */
   #atlas-list-view .atlas-list-item:is([data-category="host"], [data-category="employ"]) { display: block; }
-  /* 主持／就職左右對列：每筆佔一格列高（atlas.js 寫 --list-item-h＝兩欄最高 item）、一行的也佔滿＝兩欄同列同高 */
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-item-wrapper { min-height: var(--list-item-h, 0px); }
-  /* 系友分頁少排一列讓位給職業 chip（user 2026-11-05）：--career-band＝空出的一格（列高＋列距，atlas.js calcListPageSize）。
-     兩欄的 next 鈕跟著上移、仍緊接最後一列；chip 在主持欄 next 鈕下方、靠左、英中一行。
-     chip 貼底（user 二修「對齊底部、離下面的 nav 區塊再多一個 padding」）：底邊＝原本 next 鈕的底線（欄底上 18）
-     ＝教師／合作單位分頁 next 鈕的同一條線，不跟著 next 鈕 */
-  #atlas-list-view .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-nav-item {
-    bottom: calc(18px + var(--career-band, 0px));
+  /* 主持／就職只有名稱（國家接在後面）：一列兩筆（user 2026-11-17「一個分類可以放兩列內容」）；師資／合作單位有副標＝維持一列一筆左右分欄 */
+  .atlas-list-scroll .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-sub-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--spacing-sm);
   }
-  #atlas-list-view .atlas-list-career-slot {
+  /* 系友分頁左下疊三層（由下往上）：分類 tab → 主持／就職切換 chip（底＝清單捲到底那條線）→ 職業 chip（再上 sm；user 2026-11-17「在 hosting 上面」）；
+     系友清單的底多留這兩層＝捲到底最後一列停在職業 chip 上方 */
+  #atlas-gate-sub {
     top: auto;
-    bottom: 18px;   /* ＝.atlas-list-nav-item 的 bottom */
-    right: auto;
-    left: 0;
+    bottom: var(--list-end);
+  }
+  #atlas-main > .atlas-list-career-slot {
+    top: auto;
+    bottom: calc(var(--list-end) + var(--list-sub-h) + var(--spacing-sm));
+    left: var(--container-padding, 24px);
     transform-origin: center;
   }
-  #atlas-list-view .atlas-list-col-career {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 0.3em;
+  .atlas-list-scroll .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-col-items {
+    padding-bottom: calc(var(--list-end) + var(--list-sub-h) + var(--spacing-sm) + var(--list-career-h) + var(--spacing-sm));
   }
 }
 
@@ -1466,8 +1521,10 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 @media (pointer: coarse) {
   #atlas-stage { touch-action: none; }
 }
-/* 反向縮放（放大時字／形狀的視覺大小恆定、只有間距被拉開）：一律「照正常大小畫、整顆（合成層本身＝.atlas-name）用 transform 縮」。
+/* 反向縮放（放大時字的視覺大小恆定 12px、只有間距被拉開）：一律「照正常大小畫、整顆（合成層本身＝.atlas-name）用 transform 縮」。
    --atlas-inv＝1／max(1, zoom)，吃 atlas.js 逐幀寫的 --atlas-line-scale。
+   ⚠️ 形狀例外（2026-11-17 user「放大時幾何圖形也要一起放大、不是原本的大小」）：圓點（A/C ::after）、主持環矩形（co 圓點態）、
+   國家方塊（D）跟 zoom 放大——矩形／方塊＝不掛反向縮放、跟 #atlas-zoom 走（純合成）；圓點在被縮的 .atlas-name 裡＝自己再 scale 回 zoom。
    ⚠️ 不要把字級／寬高除以 zoom（2026-11-12 以前的做法）：Safari 的合成層照「自己的尺寸」畫成一張圖、再被 #atlas-zoom 放大
    → 3–5px 的字放大三倍＝整片糊、一直不會變清楚（user iPad／iPhone 實機；Chrome 會重畫所以看不出來）。圓點盒除到 3–4px 同理：
    各邊貼齊像素、放大後圓變橢圓（user 2026-11-06）。縮也要掛在 .atlas-name 這層：縮裡面的子元素＝字還是畫進同一張小圖。
@@ -1488,29 +1545,39 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   transform-origin: calc(100% - 50% * var(--atlas-inv)) calc(50% * var(--atlas-inv));
   transform: translate(calc(50% * var(--atlas-inv) * (1 - var(--atlas-inv))), calc(-50% * var(--atlas-inv) * (2 - var(--atlas-inv)))) scale(var(--atlas-inv));
 }
-/* B chip（有底色；手機上＝主持企業環 co-*）：基底 translate(-50%,-50%)＋origin 0 0 → 個別屬性 scale 剛好繞 chip 中心（＝anchor）縮 */
+/* B chip（有底色）：基底 translate(-50%,-50%)＋origin 0 0 → 個別屬性 scale 剛好繞 chip 中心（＝anchor）縮。
+   手機上的 B 全是主持企業環 co-*＝下面那條固定 scale 蓋掉這裡的反向縮放（chip 跟 zoom 放大、不維持 12px） */
 #atlas-stage.atlas-dot-mode .atlas-cat-b .atlas-name {
   font-size: 0.75rem;
   scale: var(--atlas-inv);
 }
-/* 主持企業環（co-*）：圓點態＝無字矩形（底色＝chip 色；圓＝人／單位、方＝國家、矩形＝主持企業），視覺恆 24×12；
-   進到畫面中間那塊（.atlas-as-text，atlas.js syncTextRegion）才是文字 chip */
-#atlas-stage.atlas-dot-mode .atlas-anchor-co:not(.atlas-as-text) .atlas-name {
-  width: 24px;
-  height: 12px;
-  padding: 0;
+/* 主持企業環（co-*）：圓點態＝無字矩形（底色＝chip 色；圓＝人／單位、方＝國家、矩形＝主持企業）＝文字 chip 自己的長寬縮小、每顆長短不同
+   （user 2026-11-17「一開始縮小狀態就是它實際的長寬」；11-06～11-17 是統一 24×12）：盒子照文字排、字藏起來。
+   圓點態視覺大小＝zoom 1 時 chip 的 0.385、線性長到 zoom 2（＝atlas.js TEXT_ZOOM_SCALE 出字門檻）剛好 chip 原尺寸，之後跟名字一樣
+   恆定（1/zoom）→ 出字那拍 chip 本來就是原尺寸、不會縮一下，字 12px 跟漂浮的名字同大（user 同日三輪：「幾何圖形要跟著放大」
+   「出字不該縮小」「字要跟 floating item 一樣大」）。內容座標＝視覺÷zoom：(0.385＋0.615·(z−1))/z＝0.615−0.23/z，z≥2 取 1/z。
+   文字態（下方 .atlas-as-text 那條）一律 1/zoom＝任何 zoom 都原尺寸：zoom≥2 跟這條相等、zoom<2 只有「點選中的那顆縮小也維持字」
+   會用到（session d1 同日加）。
+   離畫面中心最近的那幾顆（.atlas-as-text，atlas.js syncTextRegion）才出字 */
+#atlas-stage.atlas-dot-mode .atlas-anchor-co .atlas-name {
+  padding: 3px 5px;   /* 同桌面 B chip；兩態同內距＝矩形比例就是文字 chip 的比例 */
+  scale: min(calc(0.615 - 0.23 / var(--atlas-line-scale, 1)), var(--atlas-inv));
+}
+#atlas-stage.atlas-dot-mode .atlas-anchor-co .atlas-item-nameline {
+  transition: opacity 0.25s ease;   /* 出字／收字淡入淡出（user 2026-11-17「改用 fade」），同 A/C 名字的 0.25s */
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor-co:not(.atlas-as-text) .atlas-item-nameline {
-  display: none;
+  opacity: 0;   /* 藏字但留盒子尺寸（display:none 盒子會塌成 0、也沒得 fade） */
 }
+/* 出字的 chip 一律原尺寸（恆定 1/zoom）：zoom 2 以上本來就是；zoom 2 以下只有點選中那顆會出字（縮小也不變回矩形，user 2026-11-17） */
 #atlas-stage.atlas-dot-mode .atlas-anchor-co.atlas-as-text .atlas-name {
-  padding: 3px 5px;   /* 同桌面 B chip */
+  scale: var(--atlas-inv);
 }
-/* D 國家方塊＝視覺恆 14px（atlas.js DOT_CITY_SIZE 同值；桌面 20 不動，user 2026-11-06「再小一點」）。實心方塊、連線端點盒
-   （atlas.js _boxW）跟著寬高走 → 這顆照舊除寬高 */
+/* D 國家方塊＝14px、跟 zoom 放大（atlas.js DOT_CITY_SIZE 同值；桌面 20 不動，user 2026-11-06「再小一點」；2026-11-17 起不再 ÷zoom）。
+   實心方塊、連線端點盒（atlas.js _boxW）同值 */
 #atlas-stage.atlas-dot-mode .atlas-cat-d .atlas-name {
-  width: calc(14px / max(1, var(--atlas-line-scale, 1)));
-  height: calc(14px / max(1, var(--atlas-line-scale, 1)));
+  width: 14px;
+  height: 14px;
 }
 /* 展開國名 chip（有字）也整顆縮：寬高交還 max-content。這顆的 transform 是 JS inline（translate(-50%,-50%) rotate()、origin 盒中心），
    縮只能掛個別屬性 scale——它疊在 transform 外層＝連「置中位移」一起縮掉 → 個別屬性 translate 補回差額，chip 中心才留在 anchor。
@@ -1566,17 +1633,18 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   position: absolute;
   left: 0;
   top: 50%;
-  /* 視覺恆 10px：放大後只有中間變文字、其餘「還是一樣的圓點」（user 2026-11-05）。盒子固定 10px、跟著 .atlas-name 整顆縮
-     （見上方「反向縮放」；自己不用再掛 scale） */
+  /* 10px、跟 zoom 放大（user 2026-11-17；11-05～11-17 是視覺恆 10）：盒子固定 10px、外層 .atlas-name 整顆被縮成 1/zoom
+     （見上方「反向縮放」）→ 自己再 scale 回 zoom。用 scale 不用改寬高＝放大中只重繪不重排 */
   --dot: 10px;
   width: var(--dot);
   height: var(--dot);
   margin: calc(var(--dot) / -2) 0 0 calc(var(--dot) / -2);
+  scale: max(1, var(--atlas-line-scale, 1));
   border-radius: 50%;
   background-color: var(--atlas-chip-c, currentColor);
   pointer-events: none;
-  /* 預設視圖（zoom 1）半透明、放大到 1.5 倍漸回 1（user 2026-10-27）：吃 JS 逐幀寫的 --atlas-line-scale（＝zoom） */
-  opacity: clamp(0.5, calc(var(--atlas-line-scale, 1) - 0.5), 1);
+  /* 實心（user 2026-11-17「不需要半透明」；10-27～11-17 是預設視圖 0.5、放大到 1.5 倍漸回 1） */
+  opacity: 1;
   transition: opacity 0.6s ease;   /* 輪流亮／熄的淡入淡出（下方 .atlas-dot-off） */
 }
 #atlas-stage.atlas-dot-mode .atlas-anchor.atlas-side-left:not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name::after {
@@ -1595,22 +1663,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 }
 
 /* ── 矮橫向 gate（同 landscape.css）：圓點/zoom 規則在上方 .atlas-dot-mode；此處只放 list view 重排 + stage top；觸控手勢見 atlas.js isMobileAtlas ── */
-/* 橫排 tab（直向手機＋矮橫向）鈕距只有 xs 8：遮罩四邊放 12 時，左右滑的 inner 會越過鈕距蓋到隔壁（user 2026-10-29）
-   → 左右只留旋轉餘裕 2（±3° 角外溢 ≈1px）、上下照留 12 */
-@media (max-width: 1023px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (orientation: portrait) and (min-width: 768px) {
-  #atlas-filter .atlas-filter-btn {
-    overflow: visible;
-    clip-path: inset(-12px -2px);
-  }
-}
-
 @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
   /* dot 態 A/C/em label opacity:0 但仍佔位、蓋在 co chip 上偷走 elementFromPoint → 關 hit-test。
      直向不套（直向 tap label 直開卡需 hit-test） */
   #atlas-stage.atlas-dot-mode .atlas-anchor:not(.atlas-as-text):not(.atlas-cat-d):not(.atlas-anchor-co) .atlas-name {
     pointer-events: none;
   }
-  /* ── list view：三顆 tab 進 header 列（logo 右側）、單分類 3 sub-col、alumni 左欄子分頁鈕；tab 顯隱由 JS 控 ── */
+  /* ── list view：三顆 tab 進 header 列（logo 右側）、單分類一列三筆往下捲、alumni 左欄子分頁鈕；tab 顯隱由 JS 控 ── */
   #atlas-filter {
     top: 24px;
     bottom: auto;
@@ -1632,21 +1691,28 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-alumni-row .atlas-filter-btn {
     width: auto;
   }
-  /* 職業輪播 chip 保留（!important 蓋直向手機的 none）；subchip 收掉（改用左欄子分頁鈕）。
-     ⚠️ subchip 也帶 .atlas-alumni-career → 雙 class 抬特異度 */
+  /* Alumni tab 旁邊的職業輪播 chip 拿下來（user 2026-11-17）＝同直向手機不顯示，改用 list 自己那顆（下方）；
+     subchip 也收掉（改用左欄子分頁鈕） */
   .atlas-alumni-career {
-    display: block !important;
-  }
-  .atlas-alumni-career.atlas-alumni-subchip {
     display: none !important;
   }
-  /* list 清 header 列 + 左欄 rail；atlas.js calcListPageSize gate 分支（top 104 / bottom 12）同步 */
+  /* list 清 header 列 + 左欄 rail；往下捲＝框到畫面底、捲到底最後一列離底 --list-end；一列三筆 */
+  #atlas-main { --list-end: 12px; --list-cols: 3; }
   #atlas-list-view {
     top: 104px;
-    bottom: 12px;
+    bottom: 0;
     left: 128px !important;     /* 對齊第一顆 tab 左緣；!important 蓋 renderList 的 inline left */
     right: var(--container-padding, 24px);
     grid-template-columns: 1fr;
+  }
+  /* 職業 chip：tab 下方＝清單頂左、英中一行，釘在畫面上；系友清單從 chip 下面開始、捲動時從它底下過 */
+  #atlas-main > .atlas-list-career-slot {
+    top: 104px;
+    left: 128px;
+    transform-origin: left center;
+  }
+  .atlas-list-scroll .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-col-items {
+    padding-top: calc(var(--list-career-h) + var(--spacing-sm));
   }
   #atlas-list-view .atlas-list-col {
     grid-column: 1 / -1;        /* 蓋 base / 直向手機 span（1 軌 grid 會長出 implicit track） */
@@ -1669,46 +1735,16 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   .atlas-list-item .atlas-list-item-name {
     min-height: 0;
   }
-  .atlas-list-col-items {
-    padding-bottom: 64px;       /* chevron 帶（atlas.js CHEVRON_BAND_MOBILE=64 同步） */
-  }
-  .atlas-list-nav-item {
-    bottom: 18px;
-  }
-  .atlas-list-sub-col.is-full {
-    justify-content: space-between;
-  }
-  /* alumni 子分頁鈕（atlas.js ensureGateSubBtns 建）：灰底同 host/employ col title，active 黑底白字 */
+  /* iPad 直拿：主持／就職鈕在左欄 rail 直排、EN/ZH 兩行（rail 只有 24..128 ≈ 104px，橫排 Employment 塞不下）；鈕本體樣式見上方手機 union 段 */
   #atlas-gate-sub {
-    position: fixed;
-    left: var(--container-padding, 24px);
     top: 104px;
-    display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-xs);
-    z-index: 55;
   }
-  /* EN/ZH 直排兩行：左欄 rail 只有 24..128 ≈ 104px，橫排 Employment 塞不下 */
   .atlas-gate-sub-btn {
-    border: none;
-    cursor: var(--cursor-pointer);
-    background: var(--lib-bg);
-    color: var(--lib-fg);
-    padding: 6px var(--spacing-xs) 5px;
-    font-family: inherit;
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-xs);
-    display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-en-zh-xs);
-    line-height: var(--line-height-xs);
-    white-space: nowrap;
-  }
-  .atlas-gate-sub-btn.active {
-    background: var(--color-black);
-    color: var(--color-white);
   }
   /* stage top：矮橫向 logo 小，星雲用滿 header 以外空間 */
   #atlas-stage {
@@ -1719,12 +1755,13 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
 
 /* ── 橫向手機（高 ≤500）專屬（user 2026-11-05）：版面線同 landscape.css --lp-*（起點＝logo 右＋sm、內容右緣＝header mode 鈕右緣、
    最右的鈕欄留空）。iPad（768–1023）維持上面 gate 段。本頁不捲動＝瀏覽器原生工具列常駐、可視高比模擬器矮 ~50
-   → 高度一律吃 svh／實際盒高、list 列數跟著可視高增減（atlas.js calcListPageSize 讀這裡的 top／bottom／padding-bottom） ── */
+   → 高度一律吃 svh／實際盒高 ── */
 @media (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none) {
-  /* 星雲只畫在中間：最高到 header 帶（92）的一半＝logo 中線、左起 logo 右＋sm（logo／切換鈕那欄留空，user 2026-11-06）、
-     最寬到 mode 鈕右緣；佈局吃 stage 盒（atlas.js W／H） */
+  /* 星雲只畫在中間：最高到 header 帶（92）的一半＝logo 中線、底留同一段（上下對稱，user 2026-11-17）、左起 logo 右＋sm
+     （logo／切換鈕那欄留空，user 2026-11-06）、最寬到 mode 鈕右緣；佈局吃 stage 盒（atlas.js W／H，人名圓貼到上下邊） */
   #atlas-stage {
     top: 46px;
+    bottom: 46px;
     left: var(--lp-start);
     right: calc(var(--container-padding) + var(--lp-btn-col));
   }
@@ -1747,17 +1784,32 @@ body.mode-inverse .atlas-filter-btn.active .anchor-nav-inner {
   }
   #atlas-filter::-webkit-scrollbar { display: none; }
 
-  /* list：左＝tab 列起點、右＝mode 鈕右緣、頂＝全站手機內容頂、底＝貼底界線（最底一列＝主持／就職鈕＋翻頁鈕） */
+  /* list（往下捲，user 2026-11-17）：左＝tab 列起點、右＝mode 鈕右緣、頂＝全站手機內容頂（header 帶下）、框到畫面底；
+     一列兩筆、列距 sm；捲到底最後一列停在貼底界線 */
+  /* 清單頂＝分類 tab 底＋sm（tab 兩行 s 字卡、在 92 帶裡垂直置中：46＋半個 tab 高；user 2026-11-17「tab 到 item 的 gap 再減少」，
+     原本吃全站 --mobile-content-top 108） */
+  #atlas-main { --list-end: var(--mobile-bottom-anchor); --list-cols: 2; --atlas-list-top: calc(46px + var(--font-size-s) * var(--line-height-s) + 5px + var(--spacing-sm)); }
+  /* 框從畫面頂開始、頂距下在欄（同直向）：捲上去的 item 從 tab 列後面經過、不被框頂切掉（user 2026-11-17「tab 這邊不需要遮擋」）；
+     tab(50)／header 疊在框(40)上面 */
   #atlas-list-view {
-    top: var(--mobile-content-top);
-    bottom: var(--mobile-bottom-anchor);
+    top: 0;
     left: var(--lp-start) !important;   /* !important 蓋 renderList 的 inline left */
     right: calc(var(--container-padding) + var(--lp-btn-col));
   }
-  /* 翻頁鈕帶＝鈕 30＋上方 8（可視高 325 的機型要靠這幾 px 才排得下兩列教師）；鈕靠右、底貼 list 底 */
-  .atlas-list-col-items { padding-bottom: 38px; }
-  .atlas-list-nav-item { bottom: 0; justify-content: flex-end; }
-  /* 主持／就職：英中一行、排在最底那列左邊（跟翻頁鈕同一條底線） */
+  .atlas-list-scroll .atlas-list-col { padding-top: var(--atlas-list-top); }
+  .atlas-list-scroll .atlas-list-sub-col { row-gap: var(--spacing-sm); }
+  /* 職業 chip：主持／就職鈕正上方（再上 sm；user 2026-11-17「在 hosting 上面」），同左緣 */
+  #atlas-main > .atlas-list-career-slot {
+    top: auto;
+    bottom: calc(var(--mobile-bottom-anchor) + var(--list-sub-h) + var(--spacing-sm));
+    left: var(--lp-start);
+  }
+  /* 系友：清單從左下的主持／就職鈕＋職業 chip 底下捲過、捲到底最後一列停在職業 chip 上方；頂距跟別欄一樣（gate 段給 chip 在上面時留的頂 pad 歸零） */
+  .atlas-list-scroll .atlas-list-col:is([data-category="host"], [data-category="employ"]) .atlas-list-col-items {
+    padding-top: 0;
+    padding-bottom: calc(var(--list-end) + var(--list-sub-h) + var(--spacing-sm) + var(--list-career-h) + var(--spacing-sm));
+  }
+  /* 主持／就職：英中一行、排在畫面左下（底＝貼底界線） */
   #atlas-gate-sub {
     top: auto;
     bottom: var(--mobile-bottom-anchor);
