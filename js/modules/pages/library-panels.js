@@ -8,7 +8,7 @@
 import { applyMarqueeOverflow, bindMarqueeReturn, buildSyncedMarqueeTimeline, marqueeSpeed, playCssMarquee } from '../ui/marquee-overflow.js';
 import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
-import { countryName } from '../../data/country-names.js';
+import { withCountry } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { coverZebra, uncoverZebra, clearZebraCover } from '../ui/list-row-reveal.js';
@@ -1398,14 +1398,10 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           // 主辦單位／獎項類別／名次：repeater（可多筆）→ 統一成陣列（scalar 舊資料當單筆）。
           // 空資料也渲染空 cell 保持欄位結構（auto-flow 不錯位、各列對齊點一致）。user 2026-06-13 六輪。
           const organizers = toBiList(item.organizers, item.organizer_en, item.organizer);
-          // 主辦方（國家）：每個主辦方後綴自己的國家（organizers repeater 子欄 country，存 ISO code）——
-          // ZH 全形「（國家名）」、EN 半形「 (CODE)」，對齊 press 面板 formatMediaWithCountry 慣例（user 2026-09-12）。
-          // 無 country（含 records.json 舊 scalar fallback）則不加尾綴。
-          const organizersDisplay = organizers.map(o => ({
-            en: o.en ? `${o.en}${o.country ? `&ensp;(${String(o.country).toUpperCase()})` : ''}` : '',
-            // 主辦方只有英文（外國主辦無中文名）→ 中文行不留空、補「英文名（中文國名）」（user 2026-09-13）
-            zh: (o.zh || o.en) ? `${o.zh || o.en}${o.country ? `（${countryName(o.country, 'zh')}）` : ''}` : '',
-          }));
+          // 主辦方（國家）：每個主辦方後綴自己的國家（單位庫 country，ISO code）——全站同一表示法（country-names.js withCountry；
+          // user 2026-11-18）：中英都有＝EN「&ensp;(CODE)」、ZH「（國名）」；只有一種語言（含中文名＝英文名）＝只那一行、國碼國名並排「(CODE 國名)」
+          //（取代 09-13「只有英文→中文行補英文名（中文國名）」）。無 country 則不加尾綴。
+          const organizersDisplay = organizers.map(o => withCountry(o.country, o.en, o.zh, '&ensp;'));
           const categories = toBiList(item.categories, item.award_en, item.award);
           const ranks = toBiList(item.ranks, item.rank_en, item.rank);
           const flat = (arr) => arr.map(o => `${o.en} ${o.zh}`).join(' ');
@@ -2037,17 +2033,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
 // ── Press Panel ───────────────────────────────────────────────────────────────
 
-// 媒體名 + 國家顯示：AAA（XX）。ZH 全形括號＋中文國名、EN 半形括號帶前導 &ensp;（一般 ASCII 空格在粗體小字級
-// 太窄看起來像沒空格，改用 en space 加大間距，同 press-item-subtitle-wrap 舊版 EN+ZH 合併行的 &ensp; 慣例）＋
-// 大寫 ISO2 碼（EN 顯示碼不顯示英文全名，對齊 guest country 慣例，見 reference_guest_country_field_iso_display
-// 記憶）；country 是 ISO2 code，查不到中文名就不加括號。
-function formatMediaWithCountry(media, countryCode, zh) {
-  if (!media) return '';
-  if (!countryCode) return media;
-  const name = zh ? countryName(countryCode, 'zh') : String(countryCode).toUpperCase();
-  if (!name) return media;
-  return zh ? `${media}（${name}）` : `${media}&ensp;(${name})`;
-}
+// 媒體名 + 國家顯示：全站同一表示法（country-names.js withCountry；中文媒體名同英文＝只印一行）。EN 半形括號帶前導 &ensp;
+//（一般 ASCII 空格在粗體小字級太窄看起來像沒空格，改用 en space 加大間距，同 press-item-subtitle-wrap 舊版 EN+ZH 合併行的 &ensp; 慣例）
+const mediaWithCountry = row => withCountry(row.country, row.mediaEn || '', row.mediaZh || '', '&ensp;');
 
 // Directus library_press row → 前台 press item shape（對應 field-key 差異 + 組 asset URL）。
 // 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF（原生上傳）、
@@ -2071,8 +2059,8 @@ function mapDirectusPressRow(row) {
     id: row.id != null ? `press-${row.id}` : undefined,           // deep-link hash 需 press- 前綴
     titleEn: row.titleEn || '', titleZh: row.titleZh || '',
     // mediaEn/Zh = 刊登媒體名 = 副標，country 有值時附加（國家）
-    subtitleEn: formatMediaWithCountry(row.mediaEn || '', row.country, false),
-    subtitleZh: formatMediaWithCountry(row.mediaZh || '', row.country, true),
+    subtitleEn: mediaWithCountry(row).en,
+    subtitleZh: mediaWithCountry(row).zh,
     year: row.year != null ? String(row.year) : '',               // press 列表用 year 分組（同 documents 整數欄）
     monthDay: row.monthDay || '',                                 // 月日（MM-DD）：同年份內排序用，見 pressMonthDayKey
     videoUrls,     // 自架影片 link 陣列

@@ -334,6 +334,7 @@ xs (8px) / sm (16px) / md (24px) / lg (32px) / xl (48px) / 2xl (64px) / 3xl (96p
 | `js/config/api.js` | Directus base ＋ `cdnUrl`／`cdnUrls`（檔案→CloudFront URL）、`fetchCmsJson`（含 body 的逾時）、`saveLKG`／`readLKG`（sessionStorage last-known-good） |
 | `js/modules/ui/scroll-animate.js` | clip-reveal entrance helpers；四向滑入共用 `REVEAL_DIRS` / `randomRevealDir()` / `revealHidden(dir?)`（±110；每次回新物件——GSAP 會把預設值寫回傳入的物件） |
 | `js/modules/ui/escape-html.js` | HTML 字串組裝的跳脫（`& < > " '`，null→''）；各 loader 別再自寫 esc |
+| `js/data/country-names.js` `withCountry`／`countrySuffixPair` | 名字後面的（國家）全站唯一表示法（＝World list；user 2026-11-18）：中英都有＝英 ` (TW)`、中 `（台灣）`；只有一種語言（含中文名＝英文名）＝只那一行、國碼中文國名並排 `(TW 台灣)`。awards 主辦／press 媒體／活動講者・單位（手機）／faculty 兼任單位・學歷／DSD 講者／World 都走它，新地方別再自己拼 |
 | `SCCDHelpers.shuffle(arr)` | Fisher–Yates 原地洗牌（helpers.js；凍結陣列如 ACCENT_COLORS 先複製） |
 | `js/modules/ui/pdf-cover.js` | pdf.js 版本（`PDFJS_VER`）與 `ensurePdfjsLoaded` 唯一來源（library-viewer 共用） |
 | `js/modules/ui/page-exit.js` | 註冊頁面退場動畫 |

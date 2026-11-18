@@ -47,7 +47,7 @@ import { enterLightboxMode, exitLightboxMode } from '../lightbox/lightbox-shell.
 import { openSlideInBg, closeSlideInBg, SLIDE_IN_ARRIVE } from '../ui/slide-in-bg-sync.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { DUR, EASE } from '../ui/motion.js';
-import { countryName } from '../../data/country-names.js';
+import { countryName, withCountry } from '../../data/country-names.js';
 import { getFacultyData } from './faculty-source.js';
 import { modePlaceholderUrl, syncPlaceholderCard, swapCardWireframe } from './faculty-data-loader.js';
 import { applyMarqueeOverflow, buildSyncedMarqueeTimeline } from '../ui/marquee-overflow.js';
@@ -222,13 +222,9 @@ export function initFacultySlideIn() {
   }
 
   // 學歷 row：school(含國家) | major | degree（3 col；country 不再獨立佔欄，併進學校名稱字串，2026-08-03 user）
-  // 國家英文用 ISO2 代碼（大寫，如 US / GB）接在英文校名後、中文全名接在中文校名後——
-  // 格式同 activities guest aka（ZH 全形括號無空格、EN 半形帶前導空格）
+  // （國家）全站同一表示法（country-names.js withCountry）：ISO2 接英文校名、中文國名接中文校名；只有一種語言的校名＝國碼國名並排
   function renderEducationRow(item) {
-    const countryZh = countryName(item.country, 'zh');
-    const countryEn = (item.country || '').toUpperCase();
-    const schoolEn = countryEn ? `${item.schoolEn || ''} (${countryEn})` : (item.schoolEn || '');
-    const schoolZh = countryZh ? `${item.schoolZh || ''}（${countryZh}）` : (item.schoolZh || '');
+    const { en: schoolEn, zh: schoolZh } = withCountry(item.country, item.schoolEn || '', item.schoolZh || '');
     return `
       <div class="faculty-grid-row faculty-grid-row-education">
         <span class="faculty-grid-span2">${bilingualMarquee(schoolZh, schoolEn)}</span>

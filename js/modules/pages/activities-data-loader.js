@@ -11,7 +11,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { makeActivatable } from '../ui/a11y.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
-import { countryName } from '../../data/country-names.js';
+import { countryName, withCountry } from '../../data/country-names.js';
 import { guestOrgs } from './guest-orgs.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { refreshStickyPinObservers, isAccordionBusy } from '../accordions/list-accordion.js';
@@ -594,14 +594,6 @@ function formatNameWithAka(name, akaSame, akaOther, zh) {
 // item-level guests 與 conference sessions[].guests 共用同一份渲染。
 // 兩種 shape 都接：新(endpoint) nameEn/nameZh/akaEn/akaZh/orgEn/orgZh/country/isAlumni
 //                舊(data/X.json) name/name_zh/affiliation/affiliation_zh/country/country_zh/isAlumni
-// 國家接在名字後面（手機）：同 library award 主辦單位——EN「&ensp;(CODE)」、ZH 全形「（國名）」；沒填國家＝空字串
-function countrySuffix(code, zhFallback = '') {
-  if (!code) return { en: '', zh: '' };
-  const upper = code.toUpperCase();
-  const zhName = countryName(code, 'zh');
-  const zh = zhName !== upper ? zhName : zhFallback;
-  return { en: `&ensp;(${upper})`, zh: zh ? `（${zh}）` : '' };
-}
 // 英、中各一行 nowrap，超出欄寬走 .list-title-marquee（展開時 processWrap 量溢出、同層兩條配對同步捲）
 function mqLines(cls, en, zh, gapCls) {
   return (en ? `<div class="list-title-marquee${zh ? ` ${gapCls}` : ''}"><p class="${cls}">${en}</p></div>` : '')
@@ -626,18 +618,19 @@ export function buildGuestHtml(g, { showGuestCountry = true, showGuestAffiliatio
     const zh = zhName !== upper ? zhName : (zhFallback || '');
     return `<div class="list-title-marquee"><p class="${cls}">${upper}${zh ? ` ${zh}` : ''}</p></div>`;
   };
-  // 手機（user 2026-10-29，同 award 主辦單位）：人名／單位英、中各一行（溢出 marquee），國家不另開欄、接在名字後面
+  // 手機（user 2026-10-29，同 award 主辦單位）：人名／單位英、中各一行（溢出 marquee），國家不另開欄、接在名字後面——
+  // 全站同一表示法（country-names.js withCountry：只有一種語言＝國碼國名並排）；沒填國家＝不加
   if (SCCDHelpers.isMobileLayout()) {
-    const sfx = (code, zhFallback) => countrySuffix(showGuestCountry ? code : '', zhFallback);
-    const s = sfx(gCountry, g.country_zh);
+    const cc = (code, en, zh) => withCountry(showGuestCountry ? code : '', en, zh, '&ensp;');
+    const nm = cc(gCountry, gNameEn && formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false), gNameZh && formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true));
     return `<div class="flex flex-col" style="gap: 0.25rem;">
       <div class="guest-name-cell min-w-0 flex items-start justify-between gap-sm">
-        <div class="min-w-0 self-stretch">${mqLines('text-s font-bold', gNameEn && formatNameWithAka(gNameEn, gAkaEn, gAkaZh, false) + s.en, gNameZh && formatNameWithAka(gNameZh, gAkaZh, gAkaEn, true) + s.zh, 'mb-en-zh-s')}</div>
+        <div class="min-w-0 self-stretch">${mqLines('text-s font-bold', nm.en, nm.zh, 'mb-en-zh-s')}</div>
         ${gIsAlumni ? `<p class="text-s flex-shrink-0">Alumni 系友</p>` : ''}
       </div>
       ${showGuestAffiliation ? gOrgs.map(o => {
-        const os = sfx(o.country);
-        return (o.en || o.zh) ? `<div class="min-w-0">${mqLines('text-xs', o.en && o.en + os.en, o.zh && o.zh + os.zh, 'mb-en-zh-xs')}</div>` : '';
+        const os = cc(o.country, o.en, o.zh);
+        return (os.en || os.zh) ? `<div class="min-w-0">${mqLines('text-xs', os.en, os.zh, 'mb-en-zh-xs')}</div>` : '';
       }).join('') : ''}
     </div>`;
   }

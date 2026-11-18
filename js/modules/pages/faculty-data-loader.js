@@ -14,7 +14,7 @@ import { registerPageCleanup } from '../ui/page-cleanup.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { randomRevealDir, revealHidden } from '../ui/scroll-animate.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
-import { countryName } from '../../data/country-names.js';
+import { withCountry } from '../../data/country-names.js';
 
 // 卡片職稱 marquee：hover 整張卡才跑（cards.css 的 hover 目標是 .faculty-card，不是個別 title-group）。
 // 2026-08-04 起改 GSAP 共用 timeline（原本純 CSS `:hover` 各自 animation:infinite，多職稱時 EN/ZH 各自
@@ -264,11 +264,10 @@ function pickCardTitles(item) {
   const pairs = (item.titles || []).map(t => ({ en: t.titleEn || '', zh: t.titleZh || '' }));
   if (item.type !== 'parttime') return pairs;
   // 兼任副標是單位＝後面加（國家），是職業＝不加（user 2026-11-16）。後台沒有「單位／職業」欄，分法同 atlas：
-  // occupations 同名那筆有填國家＝單位。格式同詳情學歷列（EN 半形帶空格＋ISO2、ZH 全形＋中文國名）
+  // occupations 同名那筆有填國家＝單位。格式全站同一（country-names.js withCountry：只有一種語言＝國碼國名並排）
   return pairs.slice(0, 2).map(p => {
     const code = (item.occupations || []).find(o => o.country && (o.occupationEn || '') === p.en && (o.occupationZh || '') === p.zh)?.country;
-    if (!code) return p;
-    return { en: p.en && `${p.en} (${String(code).toUpperCase()})`, zh: p.zh && `${p.zh}（${countryName(code, 'zh')}）` };
+    return code ? withCountry(code, p.en, p.zh) : p;
   });
 }
 

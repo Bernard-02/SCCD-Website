@@ -20,7 +20,7 @@ import { createLightboxVideo } from '../lightbox/lightbox-video.js';
 import { loadDegreeShow } from './degree-show-source.js';
 import { escapeHtml } from '../ui/escape-html.js';
 import { pauseVideosOffscreen } from '../ui/pause-offscreen-video.js';
-import { countryName } from '../../data/country-names.js';
+import { withCountry } from '../../data/country-names.js';
 import { bindNavBtnHover, bindNavBtnFit, bindMobileBottomBar } from '../ui/section-switch-helpers.js';
 import { bindArrowSpin } from '../ui/arrow-spin.js';
 import { makeTabsDraggable } from '../ui/footer-scatter.js';
@@ -1041,7 +1041,7 @@ function eventBoxesHtml(ev, phone = false) {
   const pair = (en, zh) => (en || zh) ? `<div>${en ? `<p class="${mq}font-bold${zh ? ' mb-en-zh-s' : ''}">${txt(en)}</p>` : ''}${zh ? `<p class="${mq}font-bold" lang="zh-Hant">${txt(zh)}</p>` : ''}</div>` : '';
   const stack = (...parts) => { const h = parts.join(''); return h && `<div class="flex flex-col gap-xs">${h}</div>`; };
   const guests = (Array.isArray(ev.guests) ? ev.guests : [])
-    .map(g => pair(fmtGuestLine(g.nameEn, g.akaEn || g.akaZh, g.country, false), fmtGuestLine(g.nameZh, g.akaZh || g.akaEn, g.country, true)));
+    .map(g => { const l = fmtGuestLines(g); return pair(l.en, l.zh); });
   // 城市／國家接在地點後面的括號裡、不另起一行（user 2026-10-21）；英文半形 ( )、中文全形（）同講者國名
   const withCity = (loc, city, zh) => {
     const l = escapeHtml(loc || ''), c = escapeHtml(city || '');
@@ -1530,22 +1530,17 @@ async function resolveRefImages(ref) {
 }
 
 // event 名稱下方的 guests 清單（self 手填 / linked 從活動拉、含論壇 session 講者）：每人 EN/ZH 雙行、只顯示姓名（不含單位，user 2026-08-17）、s regular；名字過長也 marquee（在標題欄 .dsd-mq-col 內，隨標題欄 hover）
-// 統一格式「人名（AKA）（國家）」：self 型 guests（後台手填 nameZh/nameEn/akaZh/akaEn/country）與
-// linked 型（從被連活動 guests 拉、含 aka/country）共用。country 是 ISO code → countryName 轉當語名稱。
-function fmtGuestLine(name, aka, country, zh) {
-  if (!name) return '';
-  let s = escapeHtml(name);
-  if (aka) s += zh ? `（${escapeHtml(aka)}）` : ` (${escapeHtml(aka)})`;
-  // 英文＝國碼大寫（TW）、中文＝國名，同 activities 講者 countryCell（user 2026-10-20）
-  const cn = country ? (zh ? countryName(country, 'zh') : country.toUpperCase()) : '';
-  if (cn) s += zh ? `（${escapeHtml(cn)}）` : ` (${escapeHtml(cn)})`;
-  return s;
+// 統一格式「人名（AKA）（國家）」EN／ZH 兩行：self 型 guests（後台手填 nameZh/nameEn/akaZh/akaEn/country）與
+// linked 型（從被連活動 guests 拉、含 aka/country）共用。（國家）全站同一表示法（country-names.js withCountry：
+// 只有一種語言＝國碼國名並排、中文名同英文＝只印一行）
+function fmtGuestLines(g) {
+  const nm = (name, aka, zh) => name ? escapeHtml(name) + (aka ? (zh ? `（${escapeHtml(aka)}）` : ` (${escapeHtml(aka)})`) : '') : '';
+  return withCountry(g.country, nm(g.nameEn, g.akaEn || g.akaZh, false), nm(g.nameZh, g.akaZh || g.akaEn, true));
 }
 function renderEventGuests(guests) {
   if (!Array.isArray(guests) || guests.length === 0) return '';
   const rows = guests.map(g => {
-    const en = fmtGuestLine(g.nameEn, g.akaEn || g.akaZh, g.country, false);
-    const zh = fmtGuestLine(g.nameZh, g.akaZh || g.akaEn, g.country, true);
+    const { en, zh } = fmtGuestLines(g);
     if (!en && !zh) return '';
     // .dsd-mq-hover＝每位講者各自一個 hover marquee 單元（見下 bindMarqueeReturn）：多位長名講者時只捲 hover 的那位。
     return `<div class="dsd-mq-hover">${en ? `<p class="dsd-mq-line text-s text-black font-regular mb-en-zh-s"><span class="dsd-mq-inner">${en}</span></p>` : ''}${zh ? `<p class="dsd-mq-line text-s text-black font-regular" lang="zh-Hant"><span class="dsd-mq-inner">${zh}</span></p>` : ''}</div>`;

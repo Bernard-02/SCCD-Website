@@ -270,3 +270,25 @@ export function countryName(code, lang) {
   if (!entry) return String(code).toUpperCase();
   return entry[lang] || entry.en;
 }
+
+// 名字後面的（國家）——全站同一種表示法（＝World list；user 2026-11-18「沒有同時存在兩個語言的，（）國家就並排」）：
+// 中英都有＝英 ` (TW)`、中 `（台灣）`；只有一種語言＝那一行把國碼跟中文國名並排 `(TW 台灣)`／`（TW 台灣）`。
+// en／zh 傳名字本身（中文名跟英文名一樣＝當沒有中文，同 World list）；gap＝英文括號前的空白（library／activities 粗體小字用 &ensp;）；
+// 查不到中文名＝只放國碼；沒國家＝兩邊空字串
+export function countrySuffixPair(code, en, zh, gap = ' ') {
+  const hasEn = !!en, hasZh = !!zh && zh !== en;
+  if (!code || (!hasEn && !hasZh)) return { en: '', zh: '' };
+  const up = String(code).toUpperCase(), zhName = countryName(code, 'zh');
+  const cn = zhName !== up ? zhName : '';
+  const both = hasEn && hasZh;
+  const joint = cn ? `${up} ${cn}` : up;
+  return {
+    en: hasEn ? `${gap}(${both ? up : joint})` : '',
+    zh: hasZh ? `（${both ? (cn || up) : joint}）` : '',
+  };
+}
+// 直接給兩行：名字＋尾綴（中文名同英文＝中文行空＝不印）
+export function withCountry(code, en, zh, gap = ' ') {
+  const c = countrySuffixPair(code, en, zh, gap);
+  return { en: en ? en + c.en : '', zh: zh && zh !== en ? zh + c.zh : '' };
+}
