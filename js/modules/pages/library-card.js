@@ -29,9 +29,10 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   //   deskTopGap()＝header 鈕垂直中線（SCCDHelpers.headerGeom().mid）− section 頂（＝header 高）：next 鈕中心釘灰卡右上角＝跟 mode/漢堡同高
   //   （灰卡頂伸進 header 列；header 放行點擊見 library.css）；
   //   DESK_BOTTOM_GAP 48＝當前頁卡底（navigation.css bottom 48）＝上下 padding 一致（上＝header 列 pt 48）；色卡底界也用它；
-  //   deskLeft()＝logo 右緣（60＋縮小態 logo，依視窗高；1920×960＝160）+ 32（左下當前頁卡同樣讓開 32）＝192；
   //   deskRight()＝next 鈕中心離視窗右緣：container padding 60＋漢堡 48＋gap＋mode 48＋gap＋半顆 next 24，gap＝mode↔漢堡間距
   //   （header.html ml-md）＝三顆等距；一般螢幕 228（next 右緣 sw−204、mode 左緣 sw−180）；
+  //   deskLeft()＝deskRight()（user 2026-11-18「左邊 padding 調成跟右邊一樣、灰卡更窄」；09-27～11-17 是 logo 右緣＋32＝192，
+  //   World 的 SIDE_REACH 仍沿用那條舊線、沒跟著改）；
   //   色卡上界＝全站 nav line（見 genColorConfig），左右到 container padding 60；只避開左下當前頁卡（見 indicatorZone）。
   // header 高與 md 間距是 rem：寬 >1920 的大螢幕根字級放大（typography.css）＝header 列 96→128、gap 24→32；寫死 96／228 時
   //   next 鈕比 mode／漢堡低 32、間距也不等（user 2026-11-12，2560×1440）→ 兩個都讀當下的值
@@ -44,7 +45,7 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
     return 60 + 48 + gap + 48 + gap + 24;
   };
   const DESK_BOTTOM_GAP = 48, DESK_COLOR_PAD_X = 60;
-  const deskLeft = () => 60 + SCCDHelpers.headerGeom().logoSm + 32;
+  const deskLeft = () => deskRight();
   const DESK_MIN_OVERLAP = 48; // 色塊至少伸進灰卡底下幾 px（見 genColorConfig minW）
   const isDesk = () => window.matchMedia('(orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover)').matches;
   // 灰卡上緣/尺寸（RO init 與 resize relayout 共用）。高度＝上下錨定撐滿中間：不同高度裝置的上下留白都固定一致、卡高自適應

@@ -4101,16 +4101,54 @@ export function playPanelTitleReveal(title) {
 //   看起來是原地擦除）。navChipHidden＝translate 與 clip 同步＝沒有外層遮罩也像在框內滑。只上下（捲動框裡左右會撐出
 //   x scrollbar），同一類共用一個方向、每次進場重抽。revealPanelChrome、晚建的年份鈕／分類 chevron 共用
 const chromeDir = () => (Math.random() < 0.5 ? 'top' : 'bottom');
-function chromeHide(/** @type {HTMLElement} */ el, /** @type {'top'|'bottom'} */ dir) {
-  const h = navChipHidden(el, dir);
+// hidden／shown 可外給（標題用墨跡窗 titleInkMask）；預設＝navChipHidden 整個盒
+function chromeHide(/** @type {HTMLElement} */ el, /** @type {'top'|'bottom'} */ dir, h = navChipHidden(el, dir)) {
   el.style.transition = 'none'; el.style.clipPath = h.clipPath; el.style.translate = h.translate;
 }
-function chromePlay(/** @type {HTMLElement} */ el, /** @type {number} */ d) {
+function chromePlay(/** @type {HTMLElement} */ el, /** @type {number} */ d, shown = NAV_CHIP_SHOWN) {
   const t = `var(--dur-medium) var(--ease-wipe) ${d.toFixed(2)}s`;
   el.style.transition = `clip-path ${t}, translate ${t}`;
-  el.style.clipPath = NAV_CHIP_SHOWN.clipPath;
-  el.style.translate = NAV_CHIP_SHOWN.translate;
+  el.style.clipPath = shown.clipPath;
+  el.style.translate = shown.translate;
   setTimeout(() => { el.style.transition = ''; el.style.clipPath = ''; el.style.translate = ''; }, (d + DUR.medium) * 1000 + 60);
+}
+// 灰卡標題的遮罩窗＝字的墨跡，不是 .lib-title-box 的行框（user 2026-11-18「從比較高的位置出現」）：box 高＝line-height 1.2（32px 字＝38.4），
+//   Inter 的 ascent 給重音符號留的頭頂＋descender 空間讓窗比墨跡上下各多 5～7px，往下 reveal 時字底從窗頂冒出＝比字最後的頂還高。
+//   這裡用 canvas 量這串字的實際上下墨跡、換成 px inset（四值同單位），位移＝窗高（不是 box 高）＝窗釘在墨跡上、字在裡面滑。
+//   只在這支標題用，版面不動；動畫跑完 inline 清掉（chromePlay 的 timer；退場＝離頁）。量不到（canvas 不認這串 font）＝退回整個 box
+function titleInkMask(/** @type {HTMLElement} */ box) {
+  const br = box.getBoundingClientRect();
+  const h = br.height || 0;   // 不用 offsetHeight（取整；38.4 變 38＝位移跟窗高差 0.4、窗會漂）
+  const unit = /** @type {HTMLElement} */ (box.querySelector('.lib-title-unit') || box);
+  const probe = document.createElement('span');
+  probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+  unit.appendChild(probe);
+  const baseY = probe.getBoundingClientRect().top - br.top;   // 基線在 box 裡的高度
+  probe.remove();
+  const cs = getComputedStyle(unit);
+  const fontPx = parseFloat(cs.fontSize) || 0;
+  let up = 0, down = 0;
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (ctx) {
+      ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const m = ctx.measureText((unit.textContent || '').trim());
+      up = m.actualBoundingBoxAscent; down = m.actualBoundingBoxDescent;
+    }
+  } catch (_) { /* 量不到＝下面退回整個 box */ }
+  // 墨跡高度不到半個字＝font 字串沒被 canvas 吃到（會變 10px sans-serif）→ 不裁，免得把字切掉
+  const ok = up > fontPx * 0.5 && h > 0;
+  const top = ok ? Math.max(0, Math.floor(baseY - up) - 1) : 0;          // 各退 1px 給抗鋸齒邊
+  const bot = ok ? Math.max(0, Math.floor(h - baseY - down) - 1) : 0;
+  const win = h - top - bot;
+  const px = (/** @type {number} */ n) => `${+n.toFixed(2)}px`;
+  return {
+    shown: { clipPath: `inset(${px(top)} 0px ${px(bot)} 0px)`, translate: '0px 0px' },
+    /** @param {'top'|'bottom'} dir 'top'＝藏在窗上方往下滑進來 */
+    hidden: (dir) => dir === 'top'
+      ? { clipPath: `inset(${px(h - bot)} 0px ${px(bot)} 0px)`, translate: `0px ${px(-win)}` }
+      : { clipPath: `inset(${px(top)} 0px ${px(h - top)} 0px)`, translate: `0px ${px(win)}` },
+  };
 }
 // 分類選項逐顆進場間隔（同舊 filter 滑板 OPT_STAGGER）
 const CAT_OPT_STAGGER = 0.05;
@@ -4176,10 +4214,16 @@ function revealPanelChrome(panelEl, delaySec, animateTitle) {
   if (catGroup) [...catOpts, ...catChev].forEach(el => hide(el, catDir));
   else if (catFilter) hide(catFilter, catDir);
   if (ticker)    hide(ticker, chromeDir());
+  // 標題的遮罩＝文字自己的框（.lib-title-box＝marquee 窗，貼字寬字高），不是整列 h2：h2 上下有 8／12 內距＝字從框外滑進來
+  //   （user 2026-11-18「clip reveal 沒在 box 裡做」）。h2 本身只負責放開（hidePanelChildren／HTML 出生藏的是它）；手機沒建 box＝退回 h2
+  const titleBox = /** @type {HTMLElement|null} */ (title && (title.querySelector('.lib-title-box') || title));
+  const titleMask = animateTitle && titleBox && titleBox !== title ? titleInkMask(titleBox) : null;   // 窗貼墨跡（有 box 才量）
   if (animateTitle && title) {
-    hide(title, chromeDir());   // §36：含 instant 首開（user「第一次打開卡片 marquee 不能瞬現」）
+    const tDir = chromeDir();
+    hide(titleBox, tDir, titleMask ? titleMask.hidden(tDir) : undefined);   // §36：含 instant 首開（user「第一次打開卡片 marquee 不能瞬現」）
+    title.style.transition = 'none'; title.style.clipPath = ''; title.style.translate = '';
     bumpTitleSeq(title);        // 作廢 pending 舊 tween、殺半路 reveal——skip playPanelTitleReveal 後這裡要自己做
-    if (typeof gsap !== 'undefined') gsap.killTweensOf(title);
+    if (typeof gsap !== 'undefined') gsap.killTweensOf([title, titleBox]);
   }
 
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -4190,7 +4234,7 @@ function revealPanelChrome(panelEl, delaySec, animateTitle) {
       catChev.forEach(el => play(el, chevDelay));
     } else if (catFilter) play(catFilter, delaySec);
     if (ticker)    play(ticker, delaySec);
-    if (animateTitle && title) play(title, delaySec);
+    if (animateTitle && title) play(titleBox, delaySec, titleMask ? titleMask.shown : undefined);
   }));
 
   return delaySec;  // list 起播＝與所有 chrome 同拍
@@ -4328,16 +4372,18 @@ export function playPanelTitleExit(panelEl, dur = DUR.medium) {
   const title = /** @type {HTMLElement|null} */ (panelEl.querySelector(':scope > .lib-panel-title'));
   if (!title) return;
   bumpTitleSeq(title);  // 作廢仍掛在 await 的 pending reveal（連點防護）
-  const dir = pickTitleDir(title);
-  title.style.transition = 'none';  // §36：revealPanelChrome play() 的 inline transition 若還掛著，gsap 逐幀寫 clip 會被拖尾
+  const el = /** @type {HTMLElement} */ (title.querySelector('.lib-title-box') || title);   // 遮罩＝文字自己的框（同進場 revealPanelChrome）
+  const dir = pickTitleDir(el);
+  title.style.transition = 'none'; el.style.transition = 'none';  // §36：revealPanelChrome play() 的 inline transition 若還掛著，gsap 逐幀寫 clip 會被拖尾
   if (typeof gsap === 'undefined') { title.style.clipPath = TITLE_ENTER_CLIP[dir]; return; }
-  gsap.killTweensOf(title);  // 殺掉跑到一半的 reveal，避免跨 tween 搶寫 clip/translate
+  gsap.killTweensOf([title, el]);  // 殺掉跑到一半的 reveal，避免跨 tween 搶寫 clip/translate
   // 對稱 hero slide-out：translate 沿旋轉軸滑出 + 同向 clip 同步收。fromTo 顯式起點 inset(0)：
   // 進場 onComplete 已 clearProps → computed clipPath=none，gsap.to 從 none 補間不動會 snap
-  // （見 feedback_clippath_exit_after_clearprops_use_fromto）
-  gsap.fromTo(title,
-    { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
-    { clipPath: TITLE_ENTER_CLIP[dir], translate: titleHiddenTranslate(title, dir), duration: dur, ease: EASE.exit });
+  // （見 feedback_clippath_exit_after_clearprops_use_fromto）。窗同進場＝貼墨跡（titleInkMask；只有上下向）
+  const mask = el !== title && (dir === 'top' || dir === 'bottom') ? titleInkMask(el) : null;
+  gsap.fromTo(el,
+    mask ? mask.shown : { clipPath: 'inset(0% 0% 0% 0%)', translate: '0px 0px' },
+    { ...(mask ? mask.hidden(dir) : { clipPath: TITLE_ENTER_CLIP[dir], translate: titleHiddenTranslate(el, dir) }), duration: dur, ease: EASE.exit });
 }
 
 // §37/§38：panel 內容「件」清單——§38 起 chrome 件退場＝直接消失、rows 逐列退場（見 playPanelBodyExit）；
