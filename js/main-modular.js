@@ -121,15 +121,6 @@ export function cleanupPageModules(destPage) {
   }
 }
 
-// 開場預覽開關：?intro=1＝這個分頁每次整頁重載都播開場（換完 AE 匯出的 SCCDLoader.json 看效果用），?intro=0 關；
-// 同 ?gpulogo=1 存 sessionStorage＝router 把網址收斂後重新整理仍有效。模組載入當下就讀（router 動網址之前）
-let alwaysIntro = false;
-try {
-  const q = new URLSearchParams(location.search).get('intro');
-  if (q !== null) sessionStorage.setItem('sccd-intro-always', q);
-  alwaysIntro = sessionStorage.getItem('sccd-intro-always') === '1';
-} catch (e) { /* 讀不到 storage＝照常只播第一次 */ }
-
 // ── 頁面模組初始化（router 每次換頁都會呼叫）──────────────────
 // fromUserNav：true=使用者點連結的 SPA 導航；false=初始載入 / refresh / 上一頁下一頁。
 // 給 curriculum 的 deep-link（?item= 自動捲到 section + 開 slide-in）判斷：只有從首頁卡片
@@ -293,9 +284,8 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
 
   // --- Index Page ---
   if (page === 'index') {
-    // 開關只管整頁載入：SPA 從別頁點回首頁不重播（overlay 早就藏了）
-    const firstVisit = !sessionStorage.getItem('sccd-intro-shown') || alwaysIntro;
-    alwaysIntro = false;
+    // 開場每個分頁只播第一次；SPA 從別頁點回首頁不重播（overlay 早就藏了）
+    const firstVisit = !sessionStorage.getItem('sccd-intro-shown');
     if (firstVisit) sessionStorage.setItem('sccd-intro-shown', '1');
     // 進場順序（user 2026-10-21）：logo／header、news 同時（stage1）→ floating 最後。
     // stage1＝news 開始進場那刻（資料＋海報量完；首訪再等 intro loader 播完、header 由 intro 自己淡入）。
