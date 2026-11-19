@@ -794,6 +794,15 @@ body.mode-color .atlas-alumni-subchip.subchip-inactive .atlas-alumni-career-zh {
 body.mode-color .atlas-alumni-subchip:not(.subchip-inactive) {
   background-color: var(--list-zebra-strip, rgba(255, 255, 255, 0.15)) !important;
 }
+/* 手機／iPad list 的主持・就職子分頁鈕（atlas.css .atlas-gate-sub-btn）同上面桌面 subchip 的配色（user 2026-11-19「顏色錯了」：
+   原本沒有 mode3 規則＝沒選取吃 mode1 的灰底、選取寫死黑底白字）：沒選取＝theme-bg 底、選取＝--list-zebra-strip，字一律 fg */
+body.mode-color .atlas-gate-sub-btn {
+  background: var(--theme-bg);
+  color: var(--theme-fg);
+}
+body.mode-color .atlas-gate-sub-btn.active {
+  background: var(--list-zebra-strip, rgba(255, 255, 255, 0.15));
+}
 body.mode-color .atlas-list-col-career {
   background-color: var(--theme-fg-inverse) !important;
   color: var(--theme-fg) !important;

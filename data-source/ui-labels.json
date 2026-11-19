@@ -66,6 +66,7 @@
     { "key": "atlas.employ",   "en": "Employment", "zh": "就職" },
     { "key": "atlas.detail.host",   "en": "Hosted by Alumni", "zh": "系友主持" },
     { "key": "atlas.detail.employ", "en": "Joined by Alumni", "zh": "系友就職" },
+    { "key": "atlas.detail.hint",   "en": "Click to view", "zh": "點一下瀏覽" },
 
     { "key": "alumni.vision",       "en": "Vision",       "zh": "精神" },
     { "key": "alumni.activities",   "en": "Activities",   "zh": "活動" },
