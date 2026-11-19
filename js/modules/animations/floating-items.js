@@ -622,7 +622,10 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
         onComplete: () => { g.remove(); if (ghost === g) ghost = null; mover.style.opacity = ''; },
       });
     }
-    mover.addEventListener('mouseenter', () => {
+    // 觸控不綁 hover：tap 補發的 mouseenter 會先轉正＋疊複本（iOS 看到 hover 改了畫面＝第一下不送 click、要點第二下）
+    //   → 點下去直接跳（user 2026-11-19）
+    const hover = SCCDHelpers.canHover();
+    if (hover) mover.addEventListener('mouseenter', () => {
       item.hovered = true;
       el.style.pointerEvents = 'auto';
       gsap.killTweensOf(item, 'speed');
@@ -635,7 +638,7 @@ function spawnItem(container, poolEntry, pos, preImg = null) {
       gsap.to(rotator, { rotateY: 0, rotateX: 0, duration: DUR.fast, ease: EASE.enterSoft, overwrite: 'auto' });
       crossfadeDepth(true);   // 排在轉正 tween 之後建：GSAP 同幀依建立順序更新 → 複本抄到的是本幀角度、不慢一幀
     });
-    mover.addEventListener('mouseleave', () => {
+    if (hover) mover.addEventListener('mouseleave', () => {
       if (clicked) return;
       item.hovered = false;
       el.style.pointerEvents = 'none';   // 排在 crossfadeDepth 前：複本照抄＝離開時疊在最上層的複本也不擋游標
