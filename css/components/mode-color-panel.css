@@ -12,9 +12,8 @@
   overflow: hidden;         /* inset:0＝視窗：也防 off-screen 鈕撐出橫向捲軸 */
 }
 
-/* 手機滿版 slide-in 蓋著時強制藏；lightbox／PDF viewer／share／桌面色卡（overlay-no-dim）留在原位（user 2026-11-16）：
-   z 9998 本來就在 overlay（9999）下＝跟頁面一起被蓋暗、點不到 */
-html.has-slide-in:not(.overlay-no-dim) #mode-color-panel { display: none !important; }
+/* lightbox／PDF viewer／share／桌面色卡（overlay-no-dim）／手機滿版 slide-in 開著都留在原位（user 2026-11-16；slide-in 11-19 跟進、原本強制藏）：
+   z 9998 本來就在 overlay／slide-in 容器（9999）下＝被蓋住、點不到 */
 
 /* 桌面 footer 卡開著：沉到 backdrop（9997）下＝被卡蓋住、點不到（user 2026-10-20；本檔 unlayered，規則放這才蓋得過上面的 9998） */
 body.footer-card-open #mode-color-panel { z-index: 9996; }

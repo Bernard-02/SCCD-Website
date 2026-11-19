@@ -5,7 +5,7 @@ import { prefersReducedMotion } from '../ui/reduce-motion.js';
  * Lightbox Shell（共用 utility）
  * 提供所有全螢幕 lightbox/modal 統一的 enter/exit 行為：
  *   - body.lightbox-open class + overflow:hidden
- *   - header mode／menu 鈕：只有手機 slide-in 收（clip-reveal）；lightbox／PDF／share／桌面色卡留在原位、壓在 overlay 下（user 2026-11-16，見 enterLightboxMode）
+ *   - header mode／menu 鈕：一律不收——lightbox／PDF／share／桌面色卡留在原位、壓在 overlay 下（user 2026-11-16）；手機 slide-in 的 mode 鈕被 panel 蓋過去（2026-11-19，見 coverModeBtn）
  *   - 把 logo <a> portal 出 header 到 #site-header 頂層、z=10000 浮在 overlay z-[9999] 上；header 本體（含 bars）
  *     留在原 z 沉在 overlay 底下（user 2026-09-08，見 portalLogoAboveOverlay）
  *
@@ -44,18 +44,9 @@ export function getHeaderTargets() {
   return /** @type {HTMLElement[]} */ ([...row.querySelectorAll('[data-bar]')]);
 }
 
-// header bars 收/展：桌面 [data-bar]/#mode-btn 與手機兩顆 .mobile-header-btn 一律走 header.js footerHideBars/
-// footerShowBars 的 clip-reveal（每個 bar 靜止遮罩＋本體滑出／滑回，桌面隨機四方向、手機一致上滑），與
-// footer-near 收起同一套視覺（user 2026-08-31：lightbox/slide-in 也改 clip-reveal，不再用 clip-path wipe）。
-// 經 window hook 委派避免與 header.js 循環 import。⚠️ footerHideBars 內部自取 getHeaderTargets() 當 bars，
-// 故 targets 必須就是 header bars（唯二 caller 都傳 getHeaderTargets()）。手機用 DUR.fast（slide 感覺較慢，
-// user 2026-08-10）、桌面用傳入 duration（預設 DUR.slow）。
-export function animateHeaderHide(targets, { duration = DUR.slow, ease = EASE.enterSoft } = {}) {
-  if (typeof gsap === 'undefined' || !targets.length || typeof window.__sccdHideHeaderBars !== 'function') return;
-  const mobileBtns = targets.every(t => t?.classList?.contains('mobile-header-btn'));
-  window.__sccdHideHeaderBars({ duration: mobileBtns ? DUR.fast : duration, ease });
-}
-
+// header bars 放回原位：走 header.js footerShowBars 的 clip-reveal（經 window hook 委派避免與 header.js 循環 import）。
+// ⚠️ footerShowBars 內部自取 getHeaderTargets() 當 bars，故 targets 必須就是 header bars。手機用 DUR.fast、桌面用傳入 duration。
+// 收的那半（animateHeaderHide）2026-11-19 拿掉：最後一個會收鈕的手機 slide-in 改成 panel 直接蓋過去（見 coverModeBtn）
 export function animateHeaderShow(targets, { duration = DUR.slow, ease = EASE.enterSoft } = {}) {
   if (typeof gsap === 'undefined' || !targets.length || typeof window.__sccdShowHeaderBars !== 'function') return;
   const mobileBtns = targets.every(t => t?.classList?.contains('mobile-header-btn'));
@@ -276,13 +267,49 @@ function installScrollLock() {
 // keepHeader（faculty 桌面色卡不 dim，user 2026-10-20）：logo 連結不拔＝點 logo 照常回首頁（卡片的收場由 caller 掛 page exit）
 // menuBack（手機 slide-in，user 2026-11-04）：menu 鈕不收、換成返回箭頭，點了呼叫 menuBack 關閉；exit 時換回漢堡。
 //   panel 從鈕下方滑入＝navigation.css html.has-slide-in 把 header 抬過 slide-in
-// header mode／menu 鈕只有手機 slide-in（＝有 menuBack：header 抬到 panel 上、mode 鈕會壓在 panel 內容上）才收；
-// lightbox／PDF viewer／share／桌面色卡一律留在原位（user 2026-11-16「不需要消失，保持在畫面上即可」）：
-// 它們在 overlay 下面（同 z、DOM 在前）＝跟頁面一起被蓋暗、點不到；右下 footer 鈕與 mode3 鉛筆同理（footer.css／mode-color-panel.css）
-let headerBarsHidden = false;
+// header mode／menu 鈕一律不收：lightbox／PDF viewer／share／桌面色卡留在原位（user 2026-11-16「不需要消失，保持在畫面上即可」）＝
+// 在 overlay 下面（同 z、DOM 在前）、跟頁面一起被蓋暗、點不到；右下 footer 鈕與 mode3 鉛筆同理（footer.css／mode-color-panel.css）。
+// 手機 slide-in 的 mode 鈕也不收、讓 panel 蓋過去（coverModeBtn）
+let slideInOpen = false;   // 這次開的是手機 slide-in（有 menuBack）
+
+// 手機 slide-in：mode 鈕不進出場，panel 直接蓋過去（user 2026-11-19「只要被遮蓋即可」；11-04～11-18 是上滑收起）。
+// header 這時整條抬在 panel 上（返回鍵、logo 要浮著，navigation.css）＝裡面的鈕壓不到 panel 下 → 本體藏起來，
+// 在 header 外（#site-header＝root stacking context）同位置放一顆複本、z 壓在 slide-in 容器（9999）下；panel 收完換回本體。
+// 複本只擺樣子；本體留在 header 裡＝別處對它的操作照舊。
+// ponytail: 複本抄開卡當下的 inline 樣式——mode 鈕換 icon 那 0.4s 內開卡會帶到凍住的舊色；真遇到再改成先等換完
+/** @type {{ btn: HTMLElement, clone: HTMLElement } | null} */
+let modeBtnStandIn = null;
+function coverModeBtn() {
+  const btn = document.getElementById('mode-btn-mobile');
+  const host = document.getElementById('site-header');
+  if (modeBtnStandIn || !btn || !host || !btn.getClientRects().length) return;
+  // 位置看遮罩（header.js ensureBarMask 包的那層＝鈕的原位）：鈕本身可能正被 GSAP 平移
+  const home = btn.parentElement?.classList.contains('header-bar-clip') ? btn.parentElement : btn;
+  const r = home.getBoundingClientRect();
+  const clone = /** @type {HTMLElement} */ (btn.cloneNode(true));
+  clone.removeAttribute('id');
+  clone.setAttribute('aria-hidden', 'true');
+  clone.inert = true;
+  clone.style.transform = '';   // 抄來的 GSAP 平移清掉 → 回樣式表的 rotate(var(--hdr-rot))
+  Object.assign(clone.style, {
+    position: 'fixed', margin: '0', zIndex: '9998', pointerEvents: 'none', transition: 'none',
+    left: `${r.left + r.width / 2 - btn.offsetWidth / 2}px`,
+    top: `${r.top + r.height / 2 - btn.offsetHeight / 2}px`,
+  });
+  host.appendChild(clone);
+  btn.style.visibility = 'hidden';
+  modeBtnStandIn = { btn, clone };
+}
+function uncoverModeBtn() {
+  if (!modeBtnStandIn) return;
+  modeBtnStandIn.btn.style.visibility = '';
+  modeBtnStandIn.clone.remove();
+  modeBtnStandIn = null;
+}
+
 export function enterLightboxMode({ keepHeader = false, menuBack = null } = {}) {
   if (openCount === 0) {
-    headerBarsHidden = !!menuBack;
+    slideInOpen = !!menuBack;
     savedFocusEl = document.activeElement; // 無障礙：存開啟 lightbox 的觸發元素，exit 時還焦
     // freeze 底層捲動：純擋輸入，完全不碰 body/html overflow（保住頁內 sticky 不跳、也不跳頂部）。
     // ⚠️ 連 body.overflow:hidden 都不能設：clip 頁（faculty/activities，html inline overflow-x:clip）html overflow
@@ -299,8 +326,7 @@ export function enterLightboxMode({ keepHeader = false, menuBack = null } = {}) 
     portalLogoAboveOverlay(!keepHeader);
     if (!keepHeader) disableLogoLinks();
     padLightboxTops();
-    if (menuBack) window.__sccdMenuBtnBack?.(menuBack);   // 要在收鈕之前：收鈕才會跳過返回態的 menu 鈕
-    if (headerBarsHidden) animateHeaderHide(getHeaderTargets());
+    if (menuBack) { window.__sccdMenuBtnBack?.(menuBack); coverModeBtn(); }
   }
   openCount++;
 }
@@ -321,7 +347,11 @@ export function exitLightboxMode({ deferHeaderShow = false } = {}) {
     //   全螢幕 lightbox（fade out）傳 false＝立即，維持「header 與 lightbox 同步淡回」的原設計。
     const revealHeader = () => {
       if (openCount !== 0) return;  // 延後窗口內又開了新 lightbox（enter 已 portal logo + hide）→ 放棄還原
-      if (headerBarsHidden) animateHeaderShow(getHeaderTargets());
+      if (slideInOpen) {
+        uncoverModeBtn();   // panel 已經滑出去了：複本換回本體（同位置同樣子＝看不出來）
+        // 保險：進站進場撞上開著的 slide-in 時鈕還收著沒放（header.js playHeaderEntrance 的守門）→ 這裡放；平常鈕本來就在＝沒有變化
+        animateHeaderShow(getHeaderTargets());
+      }
       // logo 搬回 header 延到 overlay 300ms 淡出結束：logo portal 期間浮在 overlay 之上，overlay 仍在淡出時就把
       //   logo 搬回 header（沉回 overlay 底下）會讓 logo 閃一下（同 2026-09-07 z 還原太早的問題）。待 overlay
       //   淡完再搬回（openCount 再守衛：延後窗口內又開新 lightbox 則不還原）。
@@ -346,6 +376,7 @@ export function resetLightboxMode() {
   restoreLogoDown();   // 把 portal 到 #site-header 的 logo 搬回 header 原位（SPA 換頁時 modal 還開著兜底）
   restoreLogoLinks();  // SPA 換頁時 modal 還開著（如返回鍵）→ 把 logo href 還回去，否則下一頁 logo 變死連結
   window.__sccdMenuBtnBack?.(null);   // 同上：menu 鈕別停在返回態
+  uncoverModeBtn();
   // 解除底層 scroll freeze（若 lightbox 沒走正規 exit 流程退出時兜底）
   if (scrollLockCleanup) { scrollLockCleanup(); scrollLockCleanup = null; }
 }

@@ -425,11 +425,7 @@ if (typeof window !== 'undefined') {
   // clip-reveal 收/展（比照 footer-near hide，user 2026-08-31）——lightbox-shell.animateHeaderHide/Show 經此
   // hook 委派（避免與 lightbox-shell 循環 import）；桌面隨機四方向、手機一致上滑由 footerHideBars 內部 gate 決定。
   window.__sccdHideHeaderBars = footerHideBars;   // 皆接受 { duration, ease }
-  // 非桌面整屏 footer 開著＝鈕由下面的 footer:progress 管（關 footer 才放）：slide-in 收到一半就開 footer，它延後的放鈕別把鈕放到 footer 上
-  window.__sccdShowHeaderBars = (o) => {
-    if (!SCCDHelpers.isDesktopLayout() && document.body.classList.contains('footer-card-open')) return;
-    footerShowBars(o);
-  };
+  window.__sccdShowHeaderBars = footerShowBars;
   // 真桌面覆蓋卡 footer（footer-scatter.js）開卡＝關桌面 menu（面板在 header 層、會蓋在卡上）；logo／mode／menu 鈕都不收
   //（user 2026-10-19 第二輪），點 logo 照常回首頁、卡同拍退場。
   // logo 尺寸跟卡的升起比例 p 同步（footer:progress，user 2026-10-29「跟著滑鼠同步縮小」；原本推到頂才整段縮）：
@@ -452,15 +448,13 @@ if (typeof window !== 'undefined') {
     _footerLogoTween = gsap.to(logo, { width: size, height: size, duration, ease });
   }
   document.addEventListener('footer:open', () => closeMobileMenu());
-  // 非桌面整屏 footer（z 在 header 下）＝同 slide-in：mode／menu 鈕收起（user 2026-11-04）；
-  // logo 換對比色在框碰到 logo 那幀才換（footer-scatter.js syncFooterLogo，user 2026-11-05）
+  // 非桌面整屏 footer（z 在 header 下）：mode／menu 鈕留在原位不收（user 2026-11-19「打開的時候 menu 跟 mode btn 不需要退場」；
+  // 11-04～11-18 是同 slide-in 收起、slide-in 上的返回鍵跟著 footer 收放）＝鈕自己不做退場，被升上來的 footer 蓋過去
+  //（user 同日「不會退場是沒錯，但 footer 的 z index 會比它們還高」；footer-scatter.js coverHeaderBtns 每幀照 footer 頂裁鈕欄）；
+  // logo 換對比色在框碰到 logo 那幀才換（footer-scatter.js syncFooterLogo，user 2026-11-05）。桌面只管 logo 縮放
   document.addEventListener('footer:progress', (e) => {
     const d = /** @type {CustomEvent} */ (e).detail;
-    if (SCCDHelpers.isDesktopLayout()) { footerLogoSize(d.p, d.duration, d.ease); return; }
-    // 手機 slide-in 上開 footer（footer 鈕留在 slide-in 上，user 2026-11-16）：mode 鈕本來就收著、footer 收了也不放回來；
-    // 返回鍵（返回態的 menu 鈕，平常不收）跟著 footer 收／放＝footer 開著時只剩 logo＋footer 鈕、關了 footer 才能返回
-    const bars = isMenuBtnBack() ? getHeaderTargets().filter(el => el.querySelector('.mobile-menu-btn')) : undefined;
-    (d.p ? footerHideBars : footerShowBars)({ duration: DUR.fast, bars });
+    if (SCCDHelpers.isDesktopLayout()) footerLogoSize(d.p, d.duration, d.ease);
   });
   const setLogoSmall = () => { const s = SCCDHelpers.headerGeom().logoSm; gsap.set('#header-logo', { width: s, height: s }); };
   // 開卡期間 resize（或任何 ScrollTrigger.refresh）：scroll-shrink scrub 在 refresh 裡會把 logo 直接寫回公式值（首頁＝大），
@@ -567,7 +561,7 @@ function applyMobileGenerateLogo() {
 
   const swap = () => {
     if (typeof lottie !== 'undefined') {
-      try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 沒 anim 可砸時 silent */ }
+      try { lottie.destroy(mobileLogo.dataset.animName || 'header-logo-mobile-anim'); } catch (e) { /* 沒 anim 可砸時 silent */ }
     }
     mobileLogo.innerHTML = '';
     if (lottieAnchor) lottieAnchor.classList.add('hidden');
@@ -1192,8 +1186,9 @@ export function initHeader() {
     // /create 跳過（桌面 logo 也跳過）；mode 切換時 listener 重 load 保持 logo 跟 body mode 同步
     const mobileLogo = document.getElementById('header-logo-mobile');
     if (mobileLogo && typeof lottie !== 'undefined' && currentPage !== 'generate') {
-      function loadMobileLogo({ fade = false } = {}) {
-        if (!fade) mobileLogo.style.opacity = '';   // 硬載（init / mode 切換）確保可見；fade 版由 hook fade-out→fade-in 控制
+      let mobileAnimGen = 0;   // 每次載入一個唯一 anim 名：交叉淡入期間新舊兩個 Lottie 同時活著
+      function loadMobileLogo({ fade = false, xfade = false } = {}) {
+        if (!fade) mobileLogo.style.opacity = '';   // 硬載（init）確保可見；fade 版由 hook fade-out→fade-in 控制
         // overlay 開啟時手機 logo 用 wireframe 線條版，顏色依 overlay 類型分（user 2026-06-10）：
         //   - 全螢幕 lightbox（media/PDF，body.lightbox-open 但無 html.has-slide-in，黑底 overlay）→ 白線 invert(1)
         //   - slide-in（faculty/courses，html.has-slide-in；手機 panel 蓋滿含 logo 區，底=accent/theme-bg）：
@@ -1219,8 +1214,16 @@ export function initHeader() {
         else if (isSlideIn || isColorM) logoFileM = 'SCCDLogoWireframeStandard.json';
         else if (isInverseM) logoFileM = 'SCCDLogoInverse.json';
         else logoFileM = 'SCCDLogoStandard.json';
-        try { lottie.destroy('header-logo-mobile-anim'); } catch (e) { /* 首次無 anim 可砸 */ }
-        mobileLogo.innerHTML = '';
+        // xfade（切 mode，user 2026-11-19「手機 logo 切 mode 會直接 fade 不見再出現」）：舊層留著、新 JSON 載進新層、載好才交叉淡入
+        //（同桌面 switchHeaderLogo xfade）。原本 destroy＋清空再載＝View Transition 的新快照裡沒有 logo（Lottie 還在載）→
+        // 整頁淡完 logo 才突然出現。硬載／overlay 的 fade 版照舊先砸舊的
+        const oldLayer = /** @type {HTMLElement|null} */ (mobileLogo.querySelector(':scope > .mlogo-layer'));
+        const oldName = mobileLogo.dataset.animName || 'header-logo-mobile-anim';
+        const crossfade = xfade && !!(oldLayer && oldLayer.querySelector('svg')) && typeof gsap !== 'undefined';
+        if (!crossfade) {
+          try { lottie.destroy(oldName); } catch (e) { /* 首次無 anim 可砸 */ }
+          mobileLogo.innerHTML = '';
+        }
         // filter + 對比追蹤標記：full lightbox 一律白線框（WireframeStandard 黑線 → invert 成白）；slide-in mode1/2 黑線、mode3 auto；其餘清空
         let filterM = '', contrastM = '';
         // 矮橫向的 slide-in 只蓋右側 ~60%（landscape gate），logo 留在左側「黑色半透明 dim」上 →
@@ -1241,24 +1244,40 @@ export function initHeader() {
         mobileLogo.style.transition = 'filter var(--dur-base) ease';
         mobileLogo.dataset.logoContrast = contrastM;
         const logoPathM = sitePath(`data/${logoFileM}`);
+        // 每份 Lottie 各自一層（絕對定位疊在容器上）：交叉淡入時新舊同位
+        mobileLogo.style.position = 'relative';
+        const layer = document.createElement('div');
+        layer.className = 'mlogo-layer';
+        layer.style.cssText = 'position:absolute;inset:0;' + (crossfade ? 'opacity:0;' : '');
+        mobileLogo.appendChild(layer);
+        const animName = `header-logo-mobile-anim-${++mobileAnimGen}`;
+        mobileLogo.dataset.animName = animName;
         const mobileLogoAnim = lottie.loadAnimation({
-          container: mobileLogo,
+          container: layer,
           renderer: 'svg',
           loop: true,
           autoplay: true,
-          name: 'header-logo-mobile-anim',
+          name: animName,
           path: logoPathM,
           rendererSettings: { preserveAspectRatio: 'xMidYMid meet' }
         });
         mobileLogoAnim.addEventListener('DOMLoaded', () => {
+          if (mobileLogo.dataset.animName !== animName) { try { lottie.destroy(animName); } catch (e) { /* 已被砸 */ } layer.remove(); return; }   // 載到一半又換檔＝這份過期
           if (_logoReadyResolve) { _logoReadyResolve(); _logoReadyResolve = null; }
-          const svg = mobileLogo.querySelector('svg');
+          const svg = layer.querySelector('svg');
           if (svg) {
             svg.style.overflow = 'visible';
             svg.setAttribute('viewBox', '0 0 1080 1080');
           }
+          if (crossfade && oldLayer) {
+            // 交叉淡入：新層淡進、舊層同時淡出（跟 mode 切換的背景同長），淡完才砸舊的 Lottie
+            gsap.to(layer, { opacity: 1, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto' });
+            gsap.to(oldLayer, { opacity: 0, duration: DUR.base, ease: EASE.enterSoft, overwrite: 'auto', onComplete: () => {
+              try { lottie.destroy(oldName); } catch (e) { /* 已被砸 */ }
+              oldLayer.remove();
+            } });
+          } else if (fade && typeof gsap !== 'undefined') {
           // fade 版：換檔後 fade-in（比照桌面 switchHeaderLogo，蓋掉 Lottie 換 JSON 的空白格）
-          if (fade && typeof gsap !== 'undefined') {
             gsap.fromTo(mobileLogo, { opacity: 0 }, { opacity: 1, duration: DUR.micro / 2, ease: EASE.enterSoft, overwrite: 'auto' });
           }
         });
@@ -1290,7 +1309,7 @@ export function initHeader() {
         // sccdAnchor.dataset.logoType === 'mobile-generate-svg' 是 applyMobileGenerateLogo 設的標記（sibling anchor 上）
         const sccdAnchorEl = document.getElementById('header-logo-mobile-sccd');
         if (sccdAnchorEl && sccdAnchorEl.dataset.logoType === 'mobile-generate-svg') return;
-        loadMobileLogo();
+        loadMobileLogo({ xfade: true });   // 新舊交叉淡入（user 2026-11-19），同桌面切 mode
       });
     }
     if (genLogoNow) triggerGenerateLogo();   // 見上方 genLogoNow：header 一注入就是 SCCD，不等 /create 模組下載

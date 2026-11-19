@@ -253,9 +253,7 @@ function shouldShow() {
   //（user 2026-11-16：首頁 header 等 news 一起進，鉛筆卻在 header 一載入就先滑進來、而且比較快）
   if (!document.documentElement.classList.contains('header-entered')) return false;
   if (document.body.classList.contains('idle-standby-inplace')) return false;   // atlas 頁待機＝頁面本身當待機畫面（idle-standby.js）
-  // 手機滿版 slide-in 才收；lightbox／桌面色卡（overlay-no-dim）留在原位、壓在 overlay 下（user 2026-11-16「鉛筆不需要消失」）
-  const html = document.documentElement.classList;
-  if (html.contains('has-slide-in') && !html.contains('overlay-no-dim')) return false;
+  // lightbox／桌面色卡／手機滿版 slide-in 開著都留在原位、被蓋過去（user 2026-11-16「鉛筆不需要消失」；slide-in 11-19 跟 header mode 鈕、footer 鈕一起改）
   const vid = document.getElementById('video-player-overlay');
   if (vid && vid.style.display === 'flex') return false;                // 自架 video player（無 class，看 inline display）
   // footer 打開＝不出現在 footer 裡（user 2026-11-04；整屏版蓋滿畫面）。真桌面卡底在鈕列上方、鉛筆照常
@@ -266,7 +264,7 @@ function shouldShow() {
 }
 // 圓鈕顯隱（user 2026-07-15：footer 捲到也要收起動畫，不能直接跳不見）：所有 gate 轉換一律
 // 滑動收展（gsap.to 從當下位置接、快速跨 footer 閾值來回也順；'auto'＝只接管 xPercent、不殺進行中的 width 收合）。
-// lightbox/slide-in 由 CSS !important 即時硬藏（overlay 蓋住時不該看到滑出過程）。
+// lightbox／slide-in 不走這裡：鈕留在原位、被 overlay／panel 蓋過去（z 9998）。
 // theme:changed 在 color loop 中 ~5Hz 重發，靠 wasShown 不變 early return 去重。
 let wasShown = false;
 let headerWasIn = false;

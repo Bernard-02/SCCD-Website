@@ -15,7 +15,8 @@
      桌面 hover 到 menu 鈕時海報早收了、無差 */
   html.mobile-menu-open header { z-index: 10001 !important; }
   /* 手機 slide-in：header 抬過 slide-in 容器（同 9999、DOM 在後）＝menu 鈕（返回態，mobile-menu.js）浮在 panel 上、
-     panel 從鈕下方滑入（user 2026-11-04）。mode 鈕照收；header 本體仍 pointer-events none、只有鈕吃點擊（下方 has-slide-in 例外）。
+     panel 從鈕下方滑入（user 2026-11-04）。mode 鈕不收、要被 panel 蓋過去（user 2026-11-19）＝lightbox-shell.js coverModeBtn 把本體藏起、
+     在 header 外放一顆複本壓在 panel 下；header 本體仍 pointer-events none、只有鈕吃點擊（下方 has-slide-in 例外）。
      關閉滑出＋overlay 淡完才拿掉 class＝鈕全程在上。桌面色卡（desk-card.js）也掛 has-slide-in、另帶 overlay-no-dim＝排除 */
   html.has-slide-in:not(.overlay-no-dim) header { z-index: 10000 !important; }
 

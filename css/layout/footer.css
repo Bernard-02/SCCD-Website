@@ -21,11 +21,6 @@
   html.has-slide-in .footer-shell {
     z-index: 40;
   }
-  /* 手機滿版 slide-in（faculty／curriculum）：footer 鈕留在 panel 上、照常開 footer（user 2026-11-16）→ footer 要蓋過 slide-in：
-     同它的 9999、DOM 在後＝在上，仍在 header（這時抬到 10000）的 logo 下。平常停在視窗下＝不會露出來 */
-  html.has-slide-in:not(.overlay-no-dim) .footer-shell {
-    z-index: 9999;
-  }
 
   .footer-link {
     color: var(--footer-fg, var(--color-white));
@@ -350,15 +345,12 @@
     .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
     /* ⚠️ 不加列尾 spacer（同 faculty/activities nav 列）：點擊置中由 bindFooterTabs scrollTo 做，捲程不足時原生 clamp＝頭尾那顆自然貼邊。 */
 
-    /* 文字一律 xs（user 2026-10-27）：同特異度、本段在 <1024 線性 s 段與 tab base 之後＝後出勝 */
+    /* 文字一律 xs（user 2026-10-27）：同特異度、本段在 <1024 線性 s 段與 tab base 之後＝後出勝。
+       tab 鈕除外＝手機 nav／tab 鈕全站字級 s（user 2026-11-19「都 14」），吃上面 tab base 的 s */
     .footer-random :is(h6, p, a),
-    .footer-privacy :is(p, a),
-    .footer-tab :is(.footer-tab-en, .footer-tab-zh) {
+    .footer-privacy :is(p, a) {
       font-size: var(--font-size-xs);
       line-height: var(--line-height-xs);
-    }
-    .footer-tab .footer-tab-zh {
-      margin-top: var(--space-en-zh-xs);
     }
     /* Office Hours（後台 footer_tabs.note）：排法同資訊卡（粗體標題＋mb-xs＋內文照後台換行）；位置固定在 legal 正上方（見下一段） */
     .footer-random .footer-note,
@@ -690,9 +682,9 @@
        ＝跟頁面一起被蓋暗、點不到（點了＝點到 overlay＝關閉；同 header mode／menu 鈕）；鉛筆 9998 同理（mode-color-panel.css） */
     body.lightbox-open .footer-btn-mask,
     html.overlay-no-dim .footer-btn-mask { z-index: 9998; transition-delay: 0s; }
-    /* 手機滿版 slide-in（faculty／curriculum）：鈕不消失、留在 panel 上、照常開 footer（user 2026-11-16；原 display:none）。
-       slide-in 也掛 body.lightbox-open → 把上一條降下去的 z 蓋回來 */
-    html.has-slide-in:not(.overlay-no-dim) .footer-btn-mask { z-index: 10002; }
+    /* 手機滿版 slide-in（faculty／curriculum）：鈕不動、被 panel 蓋過去（user 2026-11-19；11-16～18 是留在 panel 上、可以開 footer）。
+       body.lightbox-open 在關閉當下就摘、panel 還在滑出 → 用 has-slide-in（收完才摘）把 z 壓到 panel 走完 */
+    html.has-slide-in:not(.overlay-no-dim) .footer-btn-mask { z-index: 9998; transition-delay: 0s; }
     /* footer 藏起的頁（router 寫 inline display:none；SPA 容器整個藏、首頁靜態 footer 看兄弟；換頁時鈕先由 footer-scatter.js
        setFooterBtnRouteHidden 滑出遮罩）＝不出現（menu 開著、首頁 WATCH 播放層由 syncFooterBtn 滑出）。
        寫 display:none 的地方（router.js／main-modular.js renderComingSoon）同步掛 .is-footer-hidden：樣式表不寫 [style*=…]
@@ -735,8 +727,12 @@
       inset: 0;
       z-index: 9997;
     }
-    body.footer-card-open #site-header :is(#mode-btn, #menu-btn, .mobile-header-btn) {
-      pointer-events: none;
+    /* 只有真桌面覆蓋卡才把兩鈕放行給 backdrop；手機整屏 footer 的 mode／menu 鈕不退場、被升上來的 footer 蓋住
+       （user 2026-11-19；footer-scatter.js coverHeaderBtns 裁鈕欄＝蓋住的地方點不到） */
+    @media (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
+      body.footer-card-open #site-header :is(#mode-btn, #menu-btn, .mobile-header-btn) {
+        pointer-events: none;
+      }
     }
   }
   /* 手機／iPad／矮橫向鈕＝44／icon 28、底＝全站貼底界線（同 header 鈕、mode3 鉛筆；手機 44/28 慣例）；有底 bar 的頁 bar 右邊讓位

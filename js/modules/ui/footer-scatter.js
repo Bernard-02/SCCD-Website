@@ -929,7 +929,7 @@ export async function initFooterScatter(scope, opts = {}) {
 // 卡不在捲動流裡（footer.css 真桌面段 position:fixed、平常停在視窗下）：點鈕 → 卡以這次新抽的 ±[1,2]° 從自己的底邊往上 clip-reveal；
 // 再點鈕／點卡外（backdrop）／換頁（router playFooterExit）→ 沿原路沉回去（點卡上空白處不關）。卡底在鈕上方（footer.css --footer-card-bottom）。
 // header（logo／mode／menu）不收、浮在卡上；開卡時墊一層 .footer-backdrop 吃掉卡外的滑鼠操作（點／滾輪＝關卡，不碰後面內容）。
-// footer:open（document）→ header.js 關桌面 menu；footer:progress → 桌面 logo 同拍縮小／還原、非桌面收 mode／menu 鈕＋logo 換 footer 對比色。
+// footer:open（document）→ header.js 關桌面 menu；footer:progress → 桌面 logo 同拍縮小／還原；非桌面的 mode／menu 鈕被 footer 蓋住（coverHeaderBtns）、logo 換 footer 對比色（syncFooterLogo）。
 const OVERLAY_HIDE_YPERCENT = 130;   // 停放位：卡整張在視窗下（custom-scrollbar 等量 footer 位置的才不會當成 footer 在畫面內）
 // 卡跟鈕之間的 gap＝桌面 menu 打開時 menu 鈕底到第一個選項（About）頂的距離＝鈕底與 nav line 的中點，視窗高 960＝31
 // （user 2026-11-04「用 menu 到 about btn 那個 gap」、2026-11-16 釐清是 menu 的選項不是頁內 nav btn；variables.css --menu-gap 同式）
@@ -1048,9 +1048,28 @@ function tweenReveal(shell, p, onComplete) {
   const h = shell.offsetHeight * (Number(gsap.getProperty(shell, 'scaleY')) || 1);
   gsap.to(_reveal, {
     p, duration: prefersReducedMotion() ? 0 : CARD_DUR, ease: EASE.enter, overwrite: true,
-    onUpdate: () => { drawReveal(shell, h); syncFooterLogo(shell); },
-    onComplete: () => { onComplete(); syncFooterLogo(shell); },
+    onUpdate: () => { drawReveal(shell, h); syncFooterLogo(shell); coverHeaderBtns(shell); },
+    onComplete: () => { onComplete(); syncFooterLogo(shell); coverHeaderBtns(shell); },
   });
+}
+// 非桌面整屏 footer：header 的 mode／menu 鈕不退場，是被升上來的 footer 蓋過去（user 2026-11-19「不會退場是沒錯，但 footer 的 z index
+// 會比它們還高，遮蓋」；11-04～11-18 是鈕自己收起）。鈕跟 logo 同在 header 這個 stacking context（footer 要留在 logo 下）＝z 排不出
+// 「蓋鈕不蓋 logo」→ 每幀照 footer 頂把鈕欄從底往上裁，看起來就是被 footer 蓋住；裁掉的地方本來就點不到，蓋滿再掛 inert（鍵盤也進不去）。
+// 裁的是兩顆鈕的外層欄（不轉）：鈕自己有 hover 抽的角，裁在鈕上＝裁切線跟著歪；四周放寬 PAD 不裁到凸出的角
+function coverHeaderBtns(shell) {
+  if (SCCDHelpers.isDesktopLayout()) return;
+  // 兩顆鈕共同的外層欄（各鈕另有自己的 .header-bar-clip 進場遮罩，那層歸 header.js 管、不碰）
+  const btns = [...document.querySelectorAll('#site-header .mobile-header-btn')];
+  let box = /** @type {HTMLElement|null} */ (btns[0]?.parentElement || null);
+  while (box && !btns.every(b => /** @type {HTMLElement} */ (box).contains(b))) box = box.parentElement;
+  if (!box || box.id === 'site-header') return;
+  const PAD = 24;
+  const r = box.getBoundingClientRect();
+  const top = shell.getBoundingClientRect().top;
+  const cut = r.bottom - top;                       // 鈕欄底到 footer 頂：>0＝被蓋到這麼多
+  const covered = top <= Math.max(0, r.top - PAD);  // footer 頂過了鈕欄頂（含放寬）＝整顆蓋住；鈕欄貼近視窗頂時以 footer 到頂為準
+  box.style.clipPath = cut <= -PAD ? '' : covered ? 'inset(0 0 100% 0)' : `inset(-${PAD}px -${PAD}px ${cut.toFixed(1)}px -${PAD}px)`;
+  box.inert = covered;
 }
 // 非桌面整屏 footer：升起的框碰到 header logo 那幀才 fade 成 footer 對比版、離開才換回（同 slide-in-bg-sync.js syncLogo，user 2026-11-05）。
 // 整屏版不轉、clip 收底邊＋往下推同量 → 框頂＝看得到的 footer 頂；header.js loadMobileLogo 看 body.footer-over-logo 挑檔

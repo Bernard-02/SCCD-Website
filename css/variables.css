@@ -968,7 +968,11 @@
     align-items: baseline;
     gap: 0.3em;   /* ≈ 一個空白（同底 bar chip） */
     white-space: nowrap;
+    /* 手機 nav／tab 鈕全站字級 s（user 2026-11-19「都 14」；原 md）；字卡內距、行距跟字級走。字級寫在下面那條：鈕裡每行自己帶 .text-md */
+    padding: var(--card-pad-s);
+    line-height: var(--line-height-s);
   }
+  .dsd-event-tabs-section .class-division-btn > div { font-size: var(--font-size-s); }
   .dsd-event-tabs-section .class-division-btn > div:first-child { margin-bottom: 0; }
 
   /* 上下屆：一屏上下兩半（中段疊 2xl）各一張連結框＋標題 chip 常駐在框角（上張左上、下張右下）；

@@ -980,20 +980,18 @@
     body .footer-right > :is(.footer-privacy, :has(> .footer-privacy)) {
       justify-self: end;
     }
+    /* legal 在右欄＝header mode／menu 鈕的位置：鈕開 footer 時被 footer 蓋住（footer-scatter.js coverHeaderBtns，user 2026-11-19）＝不會壓到字 */
     body .footer-random,
     body .footer-privacy {
       padding-top: 0;   /* tab 列／legal 頂＝logo 頂 */
     }
+    /* tab 鈕不在內＝手機 nav／tab 鈕全站字級 s（user 2026-11-19「都 14」），吃 footer.css tab base 的 s */
     body .footer-random :is(h6, p, a),
     body .footer-privacy :is(p, a),
-    body .footer-tab :is(.footer-tab-en, .footer-tab-zh),
     body .footer-legal-en,
     body .footer-legal-zh {
       font-size: var(--font-size-xs);
       line-height: var(--line-height-xs);
-    }
-    body .footer-tab .footer-tab-zh {
-      margin-top: var(--space-en-zh-xs);
     }
     body .footer-random > .footer-tabs .footer-tab { --tab-text-cap: 10.5rem; }
     body .footer-random > .footer-tabs .footer-tab[data-fgroup="aa"] { --tab-text-cap: 6rem; }
