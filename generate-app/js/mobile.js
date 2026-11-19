@@ -960,6 +960,7 @@ function updateMobileModeIcon() {
 // ③ 基準高＝同寬度下沒開鍵盤時看過的最大 vv 高（舊版 script 載入時抓一次，轉向／工具列伸縮後就不準）
 const MOBILE_KB_SETTLE = 150;   // ms：vv resize 停這麼久＝鍵盤動完
 let mobileKbOpen = false, mobileKbBaseH = 0, mobileKbBaseW = 0, mobileKbTimer = 0;
+let mobileKbFlips = [];   // 進行中的鍵盤升降補間（WAAPI）
 
 function setMobileKeyboard(open) {
   const app = document.getElementById('create-app');
@@ -969,9 +970,23 @@ function setMobileKeyboard(open) {
   if (app) {
     // 輸入區高度平常有過渡（開關 custom 用）；這次一步到位：過渡中 logo 容器連續變高、canvas 跟著縮了又長
     const area = app.querySelector('.mobile-input-area');
+    // 版面一步到位，畫面另外補間（FLIP；user 2026-11-19「instant 縮小放大」）：logo＋輸入框從切換前的位置／大小滑到新的。
+    // 先量再砍上一輪＝升到一半就收也從當下畫面接；WAAPI 不留 inline transform、不跟 draw() 搶主執行緒
+    const flip = [app.querySelector('#canvas-container canvas'), area].filter(Boolean);
+    const from = flip.map(el => el.getBoundingClientRect());
+    mobileKbFlips.forEach(a => a.cancel());
     if (area) area.style.transition = 'none';
     app.classList.toggle('create-kb-mobile', open);
     if (area) { void area.offsetHeight; area.style.transition = ''; }
+    if (typeof resizeMobileCanvas === 'function') resizeMobileCanvas();   // 點陣圖先換成新尺寸，終點才量得到
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0
+      : (parseFloat(getComputedStyle(app).getPropertyValue('--dur-fast')) || 0.3) * 1000;
+    mobileKbFlips = flip.map((el, i) => {
+      const a = from[i], b = el.getBoundingClientRect();
+      if (!duration || !a.width || !b.width) return null;
+      const dx = a.left + a.width / 2 - (b.left + b.width / 2), dy = a.top + a.height / 2 - (b.top + b.height / 2);
+      return el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${a.width / b.width})` }, { transform: 'none' }], { duration, easing: 'ease' });
+    }).filter(Boolean);
   }
   // 鎖 body：Safari 會把整頁往上推去露出輸入框（下方露空白）
   const s = document.body.style;
