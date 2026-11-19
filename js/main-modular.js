@@ -224,6 +224,9 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // /create 例外：p5、字型、彩蛋、icon 全是本地檔、不接後台 → 後台掛著照常可用（user 2026-11-03）
   // hero 文案進站就預抓（user 2026-11-05「更快看到文案」）：本頁那筆跟下面 ui_labels 閘門並行、不等它，其他 3 頁閒下來抓存 LKG
   if (!heroPrefetched) { heroPrefetched = true; prefetchHeroes(page); }
+  // World 的後台資料進路由就先抓（跟 ui_labels 閘門、atlas.js 下載並行；原本要等 atlas.js 載完才開始＝三段網路串著跑，
+  // user 2026-11-19「進場要一點時間」）。single-flight＋localStorage LKG 在 atlas-source；閘門後重進本函式＝吃同一支
+  if (page === 'atlas') import('./modules/pages/atlas-source.js').then(m => m.loadAtlasData()).catch(() => {});
 
   if (page !== 'generate') {
     if (cmsDown) { renderComingSoon(); probeCms(); return; }

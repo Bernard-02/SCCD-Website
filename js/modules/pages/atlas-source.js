@@ -4,9 +4,9 @@
  * 後台是唯一來源：各 collection 失敗/空 → null（該類節點不渲染；本地 JSON 快照已退場，user 2026-10-04）。
  *
  * ── 資料來源 ──
- *   facultyCurrent ← faculty（status=active，共用 faculty-source.getFacultyData）
  *   facultyFormer  ← faculty（status=former，faculty-source.getFormerFacultyData；
  *                    2026-08-04 起 former 併進同一個 faculty collection，不再是獨立的 faculty_former）
+ *   在職教師（status=active）不進 World（user 2026-11-19「歷任老師不顯示目前正在任職的」；11-19 前也一起放）
  *   companies (co) ← alumni_hosting      （系友任職企業 → 中央橢圓 ring，保留真名）
  *   employment(em) ← alumni_employment   （系友就職企業 → 浮動 chip，帶 country 對到國家 D 節點）
  *   careers        ← alumni_careers      （filter 下方職業輪播）
@@ -19,7 +19,7 @@
  */
 
 import { CMS_API_BASE, fetchCmsJson } from '../../config/api.js';
-import { getFacultyData, getFormerFacultyData } from './faculty-source.js';
+import { getFormerFacultyData } from './faculty-source.js';
 
 // 抓 collection 全部 rows（依後台 sort）→ mapFn；失敗/空 → null（該類不渲染）
 async function cmsList(collection, mapFn, fields = '*') {
@@ -37,24 +37,35 @@ async function cmsList(collection, mapFn, fields = '*') {
 const ORG_FIELDS = 'id,sort,org.nameEn,org.nameZh,org.country';
 const orgOf = r => ({ nameEn: r.org?.nameEn || '', nameZh: r.org?.nameZh || '', country: r.org?.country || '' });
 
-// single-flight 快取：待機每次掛星雲都會呼叫，不快取＝每次重抓 7 個 collection（弱機後台慢時切回分頁
+// single-flight 快取：待機每次掛星雲都會呼叫，不快取＝每次重抓 6 個 collection（弱機後台慢時切回分頁
 // 待機空白數秒，user 2026-10-04）。任一類失敗（null）不留快取＝下次重抓；硬重整即重抓＝後台改完照常生效。
+// localStorage last-known-good **只當備援**（user 2026-11-19「不改變目前情況下讓 World 快一點」＝後台改完硬重整即生效不能變）：
+// 平常一律等後台的新資料、成功就存一份；某一類逾時／失敗（null）才拿快取那一類補上（全失敗＝整份用快取），
+// 補過的不留記憶體快取＝下次再試後台。首訪沒快取＝照舊缺的那類不畫。key 帶版本：資料形狀改了把 v 加一＝舊快取作廢
+const LKG_KEY = 'sccd:atlas:v1';
+const LKG_KEYS = ['facultyFormer', 'companies', 'employment', 'careers', 'workshops', 'industry'];
+const complete = d => !!d && LKG_KEYS.every(k => d[k] != null);
+const readLkg = () => { try { const d = JSON.parse(localStorage.getItem(LKG_KEY) || 'null'); return complete(d) ? d : null; } catch { return null; } };
+const saveLkg = d => { try { localStorage.setItem(LKG_KEY, JSON.stringify(d)); } catch { /* 存不進去無妨 */ } };
 let _atlasData = null;
 export function loadAtlasData() {
   if (!_atlasData) {
-    const p = _atlasData = fetchAtlasData();
-    p.then(d => { if (_atlasData === p && Object.values(d).some(v => v == null)) _atlasData = null; });
+    const p = _atlasData = fetchAtlasData().then(d => {
+      if (complete(d)) { saveLkg(d); return d; }
+      if (_atlasData === p) _atlasData = null;
+      const lkg = readLkg();
+      if (!lkg) return d;
+      return Object.fromEntries(LKG_KEYS.map(k => [k, d[k] != null ? d[k] : lkg[k]]));
+    });
   }
   // 每次給副本：atlas 頁與待機紙可能同時各跑一份 atlas，不共用同一批資料物件
   return _atlasData.then(d => structuredClone(d));
 }
 
 async function fetchAtlasData() {
-  const [facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry] =
+  const [facultyFormer, companies, employment, careers, workshops, industry] =
     await Promise.all([
-      // 在職教師（與 faculty 卡片頁同源 + 同 cache；失敗回 []）
-      getFacultyData().catch(() => null),
-      // 離職教師（同一個 faculty collection，status=former）
+      // 離職教師（同一個 faculty collection，status=former）；在職教師不進 World（見檔頭）
       getFormerFacultyData().catch(err => { console.warn('[atlas] faculty(former) CMS 取得失敗:', err.message); return null; }),
       // co 環：系友任職企業（單位從單位庫選，國家跟著單位）
       cmsList('alumni_hosting', orgOf, ORG_FIELDS),
@@ -67,7 +78,7 @@ async function fetchAtlasData() {
       cmsList('atlas_industry', orgOf, ORG_FIELDS).then(rows => flatToNested(rows, 'atlas-ind')),
     ]);
 
-  return { facultyCurrent, facultyFormer, companies, employment, careers, workshops, industry };
+  return { facultyFormer, companies, employment, careers, workshops, industry };
 }
 
 // 扁平單位 rows → atlas.js 期望的「年份 → items → guests」巢狀 shape。

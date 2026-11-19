@@ -381,7 +381,7 @@ export async function initAtlas(options = {}) {
   }
 
   // ── 載入資料（Directus，各自有本地 fallback；workshops/industry 暫讀本地，見 atlas-source.js）──
-  const { facultyCurrent, facultyFormer, workshops, industry, companies, employment, careers } =
+  const { facultyFormer, workshops, industry, companies, employment, careers } =
     await loadAtlasData();
   // 職業輪播：後台 alumni_careers（無假資料 fallback；CMS 取不到就空、輪播不顯示）
   const careersList = careers || [];
@@ -424,27 +424,7 @@ export async function initAtlas(options = {}) {
     countryIndex.set(iso, it.id);
   });
 
-  // A: 在職教師（titles 為陣列，取第一個職稱當 list view 副標；三種 type 共用同一形狀）
-  (facultyCurrent || []).forEach(f => {
-    if (!f.nameEn && !f.nameZh) return;
-    const t = (Array.isArray(f.titles) && f.titles[0]) || {};
-    // 兼任：titles 是職級(rank；且有 EN 公司/ZH 職級混填的髒資料)→ 改抓 occupations（真職稱/公司，user 2026-09-09）；
-    // 專任 occupations=null、fallback JSON 無 occupations → 照舊 titles[0]，graceful。
-    const o = (Array.isArray(f.occupations) && f.occupations[0]) || null;
-    const useOcc = f.type === 'parttime' && o && (o.occupationEn || o.occupationZh);
-    items.push({
-      id: uid('fc'), category: 'A',
-      textEn: f.nameEn || '', textZh: f.nameZh || '',
-      labelEn: 'Current Faculty', labelZh: '在職教師',
-      detail: '目前任職於本系，從事教學、研究與創作實務。',
-      groups: [], cityKey: null,
-      // country 2026-08-13 起掛 occupations（職稱/公司才有國家，職級沒有）；t.country 留舊資料 fallback
-      _titleEn: useOcc ? (o.occupationEn || '') : (t.titleEn || ''),
-      _titleZh: useOcc ? (o.occupationZh || '') : (t.titleZh || ''),
-      _countryCode: (Array.isArray(f.occupations) && f.occupations[0]?.country) || t.country || '',
-      _nameCountry: f.country || '',   // 老師本人國家（後台頂層「國家」欄，user 2026-10-21）→ 名字後（國家）
-    });
-  });
+  // A: 在職教師不進 World（user 2026-11-19「歷任老師不顯示目前正在任職的」）；prefix 'fc' 留在 FILTER_PREFIXES／intro 波次表裡，沒有節點＝no-op
 
   // A: 離職教師（別名 aka 以括號附在名字後：ZH 全形、EN 半形帶前導空格、單語 aka 兩行共用；同 guest 規則）
   // 在職教師刻意不帶 aka（見 faculty-source 註）——別名只出現在 atlas 離職者。
