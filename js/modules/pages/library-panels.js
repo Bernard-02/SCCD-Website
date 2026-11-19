@@ -8,7 +8,7 @@
 import { applyMarqueeOverflow, bindMarqueeReturn, buildSyncedMarqueeTimeline, marqueeSpeed, playCssMarquee } from '../ui/marquee-overflow.js';
 import { videoMediaFromUrl, grabHlsFrame, isSelfHostedVideo } from '../ui/video-player.js';
 import { ensureFlagIconsCss } from '../ui/ensure-flag-icons.js';
-import { withCountry } from '../../data/country-names.js';
+import { countryName, withCountry } from '../../data/country-names.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { coverZebra, uncoverZebra, clearZebraCover } from '../ui/list-row-reveal.js';
@@ -86,6 +86,9 @@ function splitCatLabel(s) {
 let _catUiMap = null;
 // 各面板 init 完掛上的 re-init hook（showLibPanel 切 tab 時呼叫；原本掛 window._xxx，11-02 盤點只在本檔用→收成模組變數）
 let _awardsMarqueeInit = null, _awardsResetAccordions = null, _awardsRerender = null, _awardsTickerStart = null;
+// award 列進場播完（playAwardItem）→ 還沒量過 marquee 的補量（initAwardsPanel queueUnmeasured）
+/** @type {((row: HTMLElement) => void) | null} */
+let _awardsRowRevealed = null;
 let _pressMarqueeInit = null, _filesMarqueeInit = null, _albumMarqueeInit = null;
 function catLabelCombined(cat) {
   const row = _catUiMap && _catUiMap[`lib.cat.${cat}`];
@@ -322,7 +325,24 @@ function makeScrollPager(wrap, col, getItems, labels) {
   wrap.appendChild(end);   // 捲動內容最尾
   const io = new IntersectionObserver(([e]) => { more.disabled = e.isIntersecting; }, { root: wrap });
   io.observe(end);
-  /** @type {any} */ (more)._io = io;
+  // 點了框裡的選項 → reset（連帶下一批 chevron）從下面升上來把框壓矮：剛點的那顆被壓到多少、內容就同拍往上推多少
+  //   （user 2026-11-19「點最後一個時會被 chevron 遮住」）。只推被壓到的量＝點上面的選項不動、第一顆不會被推到上一批 chevron 底下；
+  //   只認剛點完那一下（reset 空間升起的時長內），之後框再變矮（resize）不追
+  let pinned = /** @type {HTMLElement|null} */ (null), pinUntil = 0, lastH = wrap.getBoundingClientRect().height;
+  wrap.addEventListener('click', e => {
+    pinned = /** @type {HTMLElement|null} */ (/** @type {HTMLElement} */ (e.target).closest('button'));
+    pinUntil = performance.now() + DUR.medium * 1000 + 200;
+  });
+  const ro = new ResizeObserver(() => {
+    const box = wrap.getBoundingClientRect();
+    const shrunk = lastH - box.height;
+    lastH = box.height;
+    if (shrunk <= 0 || !pinned || performance.now() > pinUntil) return;
+    const over = pinned.getBoundingClientRect().bottom - box.bottom;
+    if (over > 0) wrap.scrollTop += Math.min(shrunk, over);
+  });
+  ro.observe(wrap);
+  /** @type {any} */ (more)._io = { disconnect: () => { io.disconnect(); ro.disconnect(); } };
   return { up, more, sync: syncUp };
 }
 
@@ -523,6 +543,12 @@ function syncCatBtns(catBtns, selectedCats, listEl, selYears, q) {
     if (selYears.size === 0 || selYears.has(el.dataset.year)) ok.add(el.dataset.cat);
     if (withMatch && el.dataset.search.includes(q)) withMatch.add(el.dataset.cat);
   });
+  return styleCatBtns(catBtns, selectedCats, ok, withMatch);
+}
+// 套到鈕上：ok＝選取年份內有 item 的分類、withMatch＝當前搜尋有結果的分類（null＝沒在搜尋）。
+// awards 的國家鈕也走這裡（清單是 lazy 建的＝從資料算，不掃 DOM）
+/** @param {HTMLButtonElement[]} catBtns @param {Set<string>} selectedCats @param {Set<string>} ok @param {Set<string>|null} withMatch */
+function styleCatBtns(catBtns, selectedCats, ok, withMatch) {
   const before = selectedCats.size;
   catBtns.forEach(b => {
     b.disabled = !ok.has(b.dataset.cat);
@@ -836,7 +862,7 @@ async function fetchCmsRows(url) {
 }
 
 async function fetchPressData() {
-  const url = `${CMS_API_BASE}/library_press?fields=*,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
+  const url = `${CMS_API_BASE}/library_press?fields=*,media.nameEn,media.nameZh,media.country,cover.filename_disk,pdf.filename_disk&sort=sort&limit=-1`;
   return (await fetchCmsRows(url)).map(mapDirectusPressRow);
 }
 let _pressDataPromise = null;
@@ -1084,6 +1110,9 @@ function remapAwardRef(r) {
   }
 }
 const remapAwardRefs = (arr) => Array.isArray(arr) ? arr.map(remapAwardRef).filter(Boolean) : [];
+
+// 一筆得獎的國家（ISO code 陣列；多國＝多面國旗）：國旗欄與國家篩選共用
+const awardFlags = item => Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : [];
 
 // Directus library_awards row → renderItems 吃的 shape（欄位對齊 records.json 慣例的 xxx_en/xxx 雙語鍵）。
 // 後台欄位叫 category（避免跟 collection 名 award 混淆）映射回前台既有的 award_en/award。
@@ -1446,9 +1475,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
           return `
             <div class="award-record-item py-[0.5rem]${zebra}"
                  style="font-size: var(--font-size-xs);${cursorStyle}"
-                 data-search="${escapeHtml(searchText)}"${item.id ? ` id="${item.id}"` : ''}>
+                 data-search="${escapeHtml(searchText)}" data-countries="${escapeHtml(awardFlags(item).join(' '))}"${item.id ? ` id="${item.id}"` : ''}>
               <div class="clip-reveal-wrapper" style="overflow-y:clip;overflow-x:visible;"><div class="award-row" data-clip-wrapped="1" style="display:grid;${AWARD_GRID} align-items: center;">
-                <div class="award-cell-mask"><div style="display: flex; flex-direction: column; row-gap: 0.25em;">${(Array.isArray(item.flag) ? item.flag : item.flag ? [item.flag] : []).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div></div>
+                <div class="award-cell-mask"><div style="display: flex; flex-direction: column; row-gap: 0.25em;">${awardFlags(item).map(f => `<span class="fi fi-${f}" style="width:1.5em;height:1em;display:block;"></span>`).join('')}</div></div>
                 <div class="award-mid">
                   <div class="award-cell-mask"><div class="truncate flex flex-col award-cell-hover${(item.competition_en && item.competition) ? '' : ' award-cell-center'}" role="heading" aria-level="3">${bilingualBold(item.competition_en, item.competition)}</div></div>
                   ${portraitDetail ? winnersCell : `
@@ -1652,7 +1681,9 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // contentvisibilityautostatechange 等第一次進渲染範圍再量（仍走 queueScopeMarquees 對捲動讓路）；有列已渲染
     // 的組直接量（讀寫分離維持在組內）。不支援 checkVisibility 的瀏覽器＝c-v 也不支援＝原路全量。
     const CV_OPTS = { contentVisibilityAuto: true };
-    const mqCvListeners = new WeakMap();
+    // 量過 marquee 的列。沒量過＝整組還沒畫就被要求量的、量的當下被篩選藏著的（display:none 量到 0 寬被跳過）
+    //   → 之後看得到時補量它那一組（queueUnmeasured）
+    const mqDone = new WeakSet();
     function applyAwardMarquees(scope) {
       const blocks = scope.matches('.year-block') ? [scope] : [...scope.querySelectorAll('.year-block')];
       if (!blocks.length) { applyAwardMarqueesNow(scope); return; }
@@ -1660,18 +1691,24 @@ async function initAwardsPanel(onEntranceDoneCallback) {
         const rows = [...block.querySelectorAll('.award-record-item')];
         // ⚠️ 要探列的「子元素」：c-v auto 掛在列自身，列的 box 永遠算可見（checkVisibility 只看祖先是否跳過內容）
         const skipped = rows.length > 0 && typeof rows[0].checkVisibility === 'function' && !rows.some(r => (r.firstElementChild || r).checkVisibility(CV_OPTS));
-        const bound = mqCvListeners.get(block);
-        if (!skipped) {
-          if (bound) { rows.forEach(r => r.removeEventListener('contentvisibilityautostatechange', bound)); mqCvListeners.delete(block); }
-          applyAwardMarqueesNow(block);
-          return;
-        }
-        if (bound) return;
-        const onCv = (e) => { if (!e.skipped) queueScopeMarquees(block); };
-        mqCvListeners.set(block, onCv);
-        rows.forEach(r => r.addEventListener('contentvisibilityautostatechange', onCv));
+        if (skipped) rows.forEach(r => mqDone.delete(r));   // 整組都沒畫：標成沒量過，看得到時再量（寬度變了要重量的也走這條）
+        else applyAwardMarqueesNow(block);
       });
     }
+    // 補量：列還沒量過、現在看得到了 → 排它那一組（queueScopeMarquees：300ms debounce＋對捲動讓路、同一組只排一次）。兩個來源：
+    //   ① 列進渲染範圍（捲到）＝c-v 事件。capture：WebKit 這個事件不冒泡
+    //   ② 列的進場播完（playAwardItem）。篩選／sort 把沒捲到過的列直接推進畫面時 ① 等不到：重播進場把列暫設
+    //      content-visibility: visible（revealAwardItems），還原成 auto 時已經在畫面上、瀏覽器不發事件
+    //      → 字被切掉卻 hover 不捲（user 2026-11-19 國家篩選後回報；搜尋、sort 也會中）
+    const queueUnmeasured = (/** @type {HTMLElement} */ row) => {
+      if (row.style.display === 'none' || mqDone.has(row)) return;
+      const block = /** @type {HTMLElement|null} */ (row.closest('.year-block'));
+      if (block && listEl.contains(block)) queueScopeMarquees(block);
+    };
+    listEl.addEventListener('contentvisibilityautostatechange', (/** @type {any} */ e) => {
+      if (!e.skipped && e.target instanceof HTMLElement && e.target.matches('.award-record-item')) queueUnmeasured(e.target);
+    }, true);
+    _awardsRowRevealed = queueUnmeasured;
     function applyAwardMarqueesNow(scope) {
       // 多獲獎者水平 marquee（桌面 hover 才捲；量測需 panel 可見、隱藏時 offsetWidth=0 自動略過）
       applyWinnersHMarquee(scope);
@@ -1689,6 +1726,11 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       }
       // ref 展開列標題過長 → marquee（桌面 hover 才跑、手機沿用全站 .list-title-marquee 自動跑慣例；量測見上）
       initAwardRefTitleMarquees(scope);
+      // 記下這次真的量到的列＝顯示中的。篩選藏著的列（display:none）量到 0 寬被跳過、上面的 reset 還會把它原本的結果清掉
+      //   → 標回沒量過，等篩選把它放出來再補量（queueUnmeasured）
+      scope.querySelectorAll('.award-record-item').forEach(r => {
+        if (/** @type {HTMLElement} */ (r).style.display === 'none') mqDone.delete(r); else mqDone.add(r);
+      });
     }
 
     function renderItems(data) {
@@ -1782,24 +1824,85 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     // 年份＋search 複合篩選單一入口（user 2026-08-10：任何篩選歸零都要 No Result）。
     // 原本 search handler 只看 q、年份 updateList 只看年份，兩邊互蓋顯隱、複合零結果判不出來。
     const awardsEmptyState = ensureEmptyState(listEl);
-    const selectedYears = new Set();
     const searchInput = document.getElementById('library-awards-search');
-    // 搜尋下有結果的年份（null＝沒在搜尋）：年份鈕淡化用（同 createYearPicker.setSearchMatch；awards 自己的 picker 在下方 updateBtns 套）
-    /** @type {Set<string>|null} */
-    let awardsMatchYears = null;
-    let syncAwardsYearBtns = () => {};
+
+    // 年份 Picker＝其他三頁同一支 createYearPicker（國家篩選要它的 setEnabled；2026-11-19 起不另刻一份）。
+    // 只列資料裡有的年份（到今年為止）；年份鈕不隨背景 revalidate 重建（年份集合變動罕見，下次進頁補上）
+    const yearPickerEl = document.getElementById('library-year-picker');
+    const thisYear = new Date().getFullYear();
+    const pickerYears = [...new Set(records.map(g => Number(g.year)))].filter(y => Number.isFinite(y) && y <= thisYear).sort((a, b) => b - a).map(String);
+    // 年份篩選：會消失／換位置的年份組先退場，退完才套用＋重播（filterWithExit）；then＝套用完才做的捲動
+    const filterYears = (/** @type {(() => void)|undefined} */ then) => filterWithExit(listEl, before => {
+      applyAwardsFilters();
+      clipWipeChangedBlocks(listEl, before); // 只 wipe 新出現/位置變的年份組
+      then?.();
+    }, { apply: applyAwardsFilters, changedOnly: true });
+    const { selected: selectedYears, setEnabled: setYearsEnabled, clear: clearYears, setSearchMatch: setYearSearchMatch } = createYearPicker(yearPickerEl, pickerYears, filterYears);
+
+    // 國家篩選（user 2026-11-19「做法跟 album 一樣，上面是國家，下面是年份」）：鈕依資料建——台灣第一個、其餘照 ISO 國碼字母序；
+    // 第一行國碼、第二行中文國名（全站國家表示法）。一筆得獎可以多國＝任一國選到就算。跟年份雙向連動（同 album 分類）：
+    // 清單是 lazy 建的 → 哪些年份／國家還有東西從資料算（records），不掃 DOM
+    const selectedCountries = new Set();
+    const countryEl = document.getElementById('library-awards-cat-filter');
+    const countryCodes = [...new Set(records.flatMap(g => (g.items || []).flatMap(awardFlags)))]
+      .sort((a, b) => Number(b === 'tw') - Number(a === 'tw') || a.localeCompare(b));
+    if (countryEl) countryEl.innerHTML = countryCodes.map(c => {
+      const up = c.toUpperCase(), zh = countryName(c, 'zh');
+      return `<button class="lib-awards-cat-btn" data-cat="${escapeHtml(c)}" aria-pressed="false"><span class="cat-btn-en">${escapeHtml(up)}</span>${zh !== up ? `<span class="cat-btn-zh">${escapeHtml(zh)}</span>` : ''}</button>`;
+    }).join('');
+    const countryBtns = /** @type {HTMLButtonElement[]} */ ([...(countryEl?.querySelectorAll(':scope > button') || [])]);
+    const hasCountry = (/** @type {any} */ it) => selectedCountries.size === 0 || awardFlags(it).some(c => selectedCountries.has(c));
+    const availYears = () => new Set(records.filter(g => (g.items || []).some(hasCountry)).map(g => String(g.year)));
+    const availCountries = () => new Set(records.filter(g => selectedYears.size === 0 || selectedYears.has(String(g.year))).flatMap(g => (g.items || []).flatMap(awardFlags)));
+    const onCountryFilter = () => filterWithExit(listEl, () => {
+      filterKeepingNearestYear(listEl, applyAwardsFilters);
+      clipWipeItems(cullNearViewport(visibleListItems(listEl), listEl));   // 畫外重播沒人看（同 album）
+    }, { apply: applyAwardsFilters });
+    const countryReset = attachCatPager(countryEl, () => {
+      selectedCountries.clear();
+      setYearsEnabled(availYears());
+      onCountryFilter();
+    });
+    countryBtns.forEach(btn => btn.addEventListener('click', () => {
+      const c = btn.dataset.cat;
+      if (selectedCountries.has(c)) { selectedCountries.delete(c); } else { selectedCountries.add(c); }
+      if (selectedCountries.size === countryBtns.filter(b => !b.disabled).length) selectedCountries.clear();
+      setYearsEnabled(availYears());   // 選的國家沒有的年份 disabled
+      onCountryFilter();
+    }));
+    // 資料晚到、awards 已進場過＝補 clip-reveal（同 revealLateYearBtns；手機選項收著＝offsetParent null 跳過）
+    if (countryEl?.closest('[id^="lib-panel-"]')?.dataset.libChromeShown && countryEl.offsetParent !== null && !prefersReducedMotion()) {
+      const dir = chromeDir();
+      countryBtns.forEach(b => chromeHide(b, dir));
+      requestAnimationFrame(() => requestAnimationFrame(() => countryBtns.forEach(b => chromePlay(b, 0))));
+    }
+    PANEL_RESETS.awards = () => {
+      if (!selectedYears.size && !selectedCountries.size) return false;
+      selectedCountries.clear(); clearYears(); setYearsEnabled(availYears()); applyAwardsFilters();
+      return true;
+    };
+
     const applyAwardsFilters = () => {
       const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
       // 篩選要掃「全部」資料 → lazy 未建完就先補完（一次性；歸零後不重觸發）
-      if (q || selectedYears.size) buildAllRemaining();
-      awardsMatchYears = q ? new Set() : null;
+      if (q || selectedYears.size || selectedCountries.size) buildAllRemaining();
+      // 國家鈕：選取年份內沒有的 disabled（已選的退選→年份可點範圍重算）、當前搜尋沒結果的淡掉
+      const matchCountries = q ? new Set() : null;
+      if (matchCountries) listEl.querySelectorAll('.award-record-item').forEach(it => {
+        const el = /** @type {HTMLElement} */ (it);
+        if ((el.dataset.search || '').includes(q)) (el.dataset.countries || '').split(' ').forEach(c => matchCountries.add(c));
+      });
+      if (styleCatBtns(countryBtns, selectedCountries, availCountries(), matchCountries)) setYearsEnabled(availYears());
+      setResetShown(countryReset, selectedCountries.size > 0);
+      const matchYears = q ? new Set() : null;   // 搜尋＋國家下有結果的年份（null＝沒在搜尋）：年份鈕淡化用
       listEl.querySelectorAll('.year-block').forEach(block => {
         const yearMatch = selectedYears.size === 0 || selectedYears.has(block.dataset.year);
         let blockVisible = false;
         block.querySelectorAll('.award-record-item').forEach(item => {
+          const countryMatch = selectedCountries.size === 0 || (item.dataset.countries || '').split(' ').some(c => selectedCountries.has(c));
           const searchMatch = !q || (item.dataset.search || '').includes(q);
-          if (awardsMatchYears && searchMatch) awardsMatchYears.add(block.dataset.year);
-          const visible = yearMatch && searchMatch;
+          if (matchYears && countryMatch && searchMatch) matchYears.add(block.dataset.year);
+          const visible = yearMatch && countryMatch && searchMatch;
           /** @type {HTMLElement} */ (item).style.display = visible ? '' : 'none';
           if (visible) blockVisible = true;
           // 不動 border（visible items 一致 default border-b-2 黑）；防禦性清掉舊邏輯可能殘留的 border-b-4
@@ -1811,7 +1914,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
       restripeZebra(listEl, '.award-record-item'); // 篩後依可見順序重排斑馬
       const anyVisible = /** @type {HTMLElement[]} */ ([...listEl.querySelectorAll('.year-block')]).some(b => b.style.display !== 'none');
       awardsEmptyState.classList.toggle('hidden', anyVisible);
-      syncAwardsYearBtns();
+      setYearSearchMatch(matchYears);
     };
 
     // showLibPanel('awards') 顯示 panel 後重量一次 winners marquee（首次 render 時卡片可能尚未 sized →
@@ -1844,7 +1947,7 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     };
 
     // localStorage 快取背景 revalidate 發現後台資料變了 → latest-wins 就地重渲染（罕見：真的有編輯才觸發）。
-    // records 就地替換（getSorted 等 closure 引用同一 array）；年份鈕不重建（年份集合變動更罕見，下次進頁補上）。
+    // records 就地替換（getSorted 等 closure 引用同一 array）；年份鈕／國家鈕不重建（集合變動更罕見，下次進頁補上）。
     // 進場動畫窗口內不 commit 大 innerHTML（2026-09-11 首渲染閘教訓）→ reveal busy 時改期到收完再換。
     _awardsRerender = (newRecords) => {
       if (!listEl.isConnected) return; // SPA 已離頁：快取已更新、下次進頁生效
@@ -1857,70 +1960,6 @@ async function initAwardsPanel(onEntranceDoneCallback) {
     };
     // 背景 revalidate 若比本 init 先回來（hook 還沒掛）→ 這裡補收
     if (_awardsFreshRecords) { const fresh = _awardsFreshRecords; _awardsFreshRecords = null; _awardsRerender(fresh); }
-
-    // 年份 Picker
-    const yearPickerEl = document.getElementById('library-year-picker');
-    if (yearPickerEl) {
-      const dataYears   = new Set(records.map(g => String(g.year)));
-      const currentYear = new Date().getFullYear();
-      // 下限跟資料走（2026-09-13 匯入含 1992/1994 早期得獎；原寫死 1997 當保底上限）
-      const numYears = [...dataYears].map(Number).filter(Number.isFinite);
-      const minYear  = numYears.length ? Math.min(1997, ...numYears) : 1997;
-      const allYears    = [];
-      for (let y = currentYear; y >= minYear; y--) allYears.push(y);
-
-      // selectedYears 宣告在 panel 層（applyAwardsFilters 共用）；年份顯隱走複合篩選單一入口
-      const updateList = applyAwardsFilters;
-      const updateBtns = () => {
-        const hasSel = selectedYears.size > 0;
-        setResetShown(resetBtn, hasSel);
-        yearPickerEl.querySelectorAll('button[data-year]').forEach(b => {  // [data-year] 排除同在 picker 內的 reset 鈕（手機版位）
-          const faint = !!awardsMatchYears && !awardsMatchYears.has(b.dataset.year);   // 當前搜尋該年無結果＝0.2（同 createYearPicker）
-          b.classList.toggle('lib-faint', faint);
-          b.style.color = faint ? 'rgba(var(--lib-fg-rgb),0.2)'
-            : (!hasSel || selectedYears.has(b.dataset.year)) ? 'var(--lib-fg)' : 'rgba(var(--lib-fg-rgb),0.5)';  // 未選 0.5＝同 createYearPicker
-          b.setAttribute('aria-pressed', String(selectedYears.has(b.dataset.year)));
-        });
-      };
-      syncAwardsYearBtns = updateBtns;
-
-      // 年份篩選：會消失／換位置的年份組先退場，退完才套用＋重播（filterWithExit）；then＝套用完才做的捲動
-      const filterYears = (/** @type {(() => void)|undefined} */ then) => filterWithExit(listEl, before => {
-        updateList();
-        clipWipeChangedBlocks(listEl, before); // 只 wipe 新出現/位置變的年份組
-        then?.();
-      }, { apply: updateList, changedOnly: true });
-      const resetBtn = attachYearReset(yearPickerEl, () => {
-        selectedYears.clear();
-        updateBtns();
-        filterYears();
-      });
-      PANEL_RESETS.awards = () => {
-        if (!selectedYears.size) return false;
-        selectedYears.clear(); updateBtns(); updateList();
-        return true;
-      };
-
-      allYears.forEach(year => {
-        if (!dataYears.has(String(year))) return;
-        const btn = document.createElement('button');
-        btn.textContent  = String(year);
-        btn.dataset.year = String(year);
-        btn.style.cssText = 'text-align:left;background:none;border:none;padding:0;font-family:inherit;font-size:var(--font-size-xs);cursor:var(--cursor-pointer);font-weight:var(--font-weight-bold);color:var(--lib-fg);';
-        btn.addEventListener('click', () => {
-          const adding = !selectedYears.has(String(year));
-          if (selectedYears.has(String(year))) { selectedYears.delete(String(year)); } else { selectedYears.add(String(year)); }
-          updateBtns();
-          filterYears(() => {
-            // 歸零＝全部顯示＝Reset 語義 → 回頂；加選＝跳到該年份組；取消後仍有選取＝維持原位（同 createYearPicker）
-            if (selectedYears.size === 0) yearPickerEl.closest('[id^="lib-panel-"]')?.querySelector('[id$="-scroll"]')?.scrollTo(0, 0);
-            else if (adding) scrollToYearBlock(yearPickerEl, String(year));
-          });
-        });
-        yearPickerEl.appendChild(btn);
-      });
-      revealLateYearBtns(yearPickerEl);   // 資料晚到、awards 已進場過＝補 clip-reveal
-    }
 
     // Search：與年份共用 applyAwardsFilters（border 不動的原則與防禦 cleanup 已併入該函式）；
     // 包 diff reveal（A-3）＝刪字放寬時新出現的列播進場、打字縮小不動畫
@@ -2035,10 +2074,15 @@ async function initAwardsPanel(onEntranceDoneCallback) {
 
 // 媒體名 + 國家顯示：全站同一表示法（country-names.js withCountry；中文媒體名同英文＝只印一行）。EN 半形括號帶前導 &ensp;
 //（一般 ASCII 空格在粗體小字級太窄看起來像沒空格，改用 en space 加大間距，同 press-item-subtitle-wrap 舊版 EN+ZH 合併行的 &ensp; 慣例）
-const mediaWithCountry = row => withCountry(row.country, row.mediaEn || '', row.mediaZh || '', '&ensp;');
+// 媒體從媒體庫選（後台 media_outlets，library_press.media M2O；user 2026-11-19）；還沒搬的列退回舊打字欄 mediaEn／mediaZh／country
+const mediaWithCountry = row => {
+  const m = row.media ? { en: row.media.nameEn, zh: row.media.nameZh, country: row.media.country }
+    : { en: row.mediaEn, zh: row.mediaZh, country: row.country };
+  return withCountry(m.country, m.en || '', m.zh || '', '&ensp;');
+};
 
 // Directus library_press row → 前台 press item shape（對應 field-key 差異 + 組 asset URL）。
-// 後台 field key 跟前台讀的不同：mediaEn/Zh=副標、country=報導單位國家(ISO2)、pdf(uuid)=單 PDF（原生上傳）、
+// 後台 field key 跟前台讀的不同：media（媒體庫）=副標＋國家、pdf(uuid)=單 PDF（原生上傳）、
 // videoLinks(json)=影片自架 link、year(整數，同 documents)、id(uuid)→加 press- 前綴（deep-link hash 用）。
 // ⚠️ press 只吃 PDF + 影片（user 2026-08-20 拿掉 images M2M 與 pdfLink 兩欄，後台亦已刪）。
 // press 年內排序鍵：monthDay（Directus 新欄 "MM-DD"）優先，退 date（"YYYY.MM"，只有月）。
@@ -3580,7 +3624,9 @@ function playAwardItem(el, dur, delay) {
   const subDelay = sub ? delay + SUBTITLE_REVEAL_STAGGER : delay;
   markRevealBusy(dur + subDelay + 0.2);
   uncoverZebra(el, dur, delay);
-  if (!texts.length && !sub) el.style.contentVisibility = '';   // 還原 auto（revealAwardItems flush 揭前暫設 visible）；底色遮罩是 paint 不受影響
+  // 還原 auto（revealAwardItems flush 揭前暫設 visible；底色遮罩是 paint 不受影響）＋通知「這列進場播完」（award 補量 marquee，見 _awardsRowRevealed）
+  const shown = () => { el.style.contentVisibility = ''; _awardsRowRevealed?.(el); };
+  if (!texts.length && !sub) shown();
   if (texts.length) {
     texts.forEach(t => { t.style.transition = `transform ${dur}s ease-out ${delay}s`; t.style.transform = 'translateY(0)'; });
     // 聽在 item 上（transitionend 會冒泡）：award 多欄同時長同起跑＝任一欄結束即全部結束；空欄（高 0）位移 0
@@ -3589,7 +3635,7 @@ function playAwardItem(el, dur, delay) {
       if (e.propertyName !== 'transform' || !texts.includes(/** @type {HTMLElement} */ (e.target))) return;
       texts.forEach(t => { t.style.transition = ''; t.style.transform = ''; });
       el.classList.remove('award-cell-clip');
-      if (!sub) el.style.contentVisibility = '';
+      if (!sub) shown();
       el.removeEventListener('transitionend', clearTxt);
     };
     el.addEventListener('transitionend', clearTxt);
@@ -3600,7 +3646,7 @@ function playAwardItem(el, dur, delay) {
     const clearSub = (e) => {
       if (e.target !== sub || e.propertyName !== 'transform') return;
       sub.style.transition = ''; sub.style.transform = '';
-      el.style.contentVisibility = '';
+      shown();
       sub.removeEventListener('transitionend', clearSub);
     };
     sub.addEventListener('transitionend', clearSub);
@@ -4791,7 +4837,7 @@ export function initLibraryPanels() {
   bindToolsToggle();
   bindTouchMarqueeGate();
   // 離頁放掉各面板掛的 re-init hook（舊閉包抓著整份 DOM／records）；下次進頁各 init 重掛
-  registerPageCleanup(() => { _awardsMarqueeInit = _awardsResetAccordions = _awardsRerender = _awardsTickerStart = _pressMarqueeInit = _filesMarqueeInit = _albumMarqueeInit = null; });
+  registerPageCleanup(() => { _awardsMarqueeInit = _awardsResetAccordions = _awardsRerender = _awardsTickerStart = _awardsRowRevealed = _pressMarqueeInit = _filesMarqueeInit = _albumMarqueeInit = null; });
   ensureSerifFonts();
   let _entranceDoneCb = null;
   let _entranceDoneFired = false;

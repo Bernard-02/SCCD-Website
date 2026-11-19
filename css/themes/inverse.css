@@ -208,21 +208,19 @@ body.mode-inverse #library-awards-ticker .awards-ticker-wrapper img {
 
 /* ===== Library Files / Album / Press hover：亮三原色底文字一律反黑 ===== */
 /* bindListItemHover（library-panels.js）hover 時 inline 設 accent bg → .has-inline-bg 偵測，字全反黑（0.5 白 → 0.5 黑）；
-   .files-item 為 files + album 共用 */
-@media (min-width: 768px) {
-  body.mode-inverse .files-item.has-inline-bg,
-  body.mode-inverse .files-item.has-inline-bg *,
-  body.mode-inverse .press-item.has-inline-bg,
-  body.mode-inverse .press-item.has-inline-bg * {
-    color: black !important;
-  }
-
-  body.mode-inverse .files-item.has-inline-bg .files-item-subtitle-tag {
-    color: rgba(0, 0, 0, 0.5) !important;
-  }
-
-  /* press-item-subtitle 刻意不列入上方 0.5：維持 100% 黑（由上面 * 規則給） */
+   .files-item 為 files + album 共用。不限桌面：手機沒綁 hover，但 deep-link 落地的 highlight 一樣寫 inline 底色（runHighlight） */
+body.mode-inverse .files-item.has-inline-bg,
+body.mode-inverse .files-item.has-inline-bg *,
+body.mode-inverse .press-item.has-inline-bg,
+body.mode-inverse .press-item.has-inline-bg * {
+  color: black !important;
 }
+
+body.mode-inverse .files-item.has-inline-bg .files-item-subtitle-tag {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+/* press-item-subtitle 刻意不列入上方 0.5：維持 100% 黑（由上面 * 規則給） */
 
 /* ===== Courses Grid Cards：inverse 深灰底白字 =====
    :not(.has-inline-bg) 排除 hover/active：否則 !important 會蓋過 JS inline accent bg（跟 standard 不一致） */

@@ -1,10 +1,10 @@
-// 合併人名庫／單位庫／職稱庫裡的重複（user 2026-11-17）：用到「併掉那筆」的地方全部改指到「留下那筆」，
+// 合併人名庫／單位庫／職稱庫／媒體庫裡的重複（user 2026-11-17）：用到「併掉那筆」的地方全部改指到「留下那筆」，
 // 留下那筆空著的欄位用併掉那筆補上，最後刪掉併掉那筆。
 // 用到的地方從後台關聯自動找（M2O／M2M 連結表／師資的 M2A 混合清單）＝之後新增欄位也不用改這支。
 // 同一筆資料兩個都連到（例：一場活動同時掛了兩種寫法）＝只留一個連結。
 //
 // 用法（名字寫「英文|中文」，英文不分大小寫；可以一次給好幾對）：
-//   node scripts/merge-pool.cjs <people|organizations|job_titles> "<留下 英文|中文>" "<併掉 英文|中文>" [更多成對…] [--dry]
+//   node scripts/merge-pool.cjs <people|organizations|job_titles|media_outlets> "<留下 英文|中文>" "<併掉 英文|中文>" [更多成對…] [--dry]
 // token：scripts/.directus-token（gitignore）或環境變數 DIRECTUS_TOKEN。
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // *.usc.edu.tw 萬用憑證對不上裸連線
@@ -15,8 +15,9 @@ const BASE = 'https://sccdadmin.usc.edu.tw';
 const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
 const DRY = process.argv.includes('--dry');
 const [POOL, ...names] = process.argv.slice(2).filter(a => a !== '--dry');
-if (!['people', 'organizations', 'job_titles'].includes(POOL) || !names.length || names.length % 2) {
-  console.error('用法：node scripts/merge-pool.cjs <people|organizations|job_titles> "<留下 英文|中文>" "<併掉 英文|中文>" [更多成對…] [--dry]'); process.exit(1);
+const FILL = { people: ['nameEn', 'nameZh', 'akaEn', 'akaZh', 'country', 'isAlumni'], organizations: ['nameEn', 'nameZh', 'country'], job_titles: ['nameEn', 'nameZh'], media_outlets: ['nameEn', 'nameZh', 'country'] }[POOL];
+if (!FILL || !names.length || names.length % 2) {
+  console.error('用法：node scripts/merge-pool.cjs <people|organizations|job_titles|media_outlets> "<留下 英文|中文>" "<併掉 英文|中文>" [更多成對…] [--dry]'); process.exit(1);
 }
 const api = async (method, p, body) => {
   if (DRY && method !== 'GET') return null;
@@ -27,7 +28,6 @@ const api = async (method, p, body) => {
 };
 const norm = s => String(s || '').replace(/\s+/g, ' ').trim();
 const keyOf = (en, zh) => `${norm(en).toLowerCase()}|${norm(zh)}`;
-const FILL = { people: ['nameEn', 'nameZh', 'akaEn', 'akaZh', 'country', 'isAlumni'], organizations: ['nameEn', 'nameZh', 'country'], job_titles: ['nameEn', 'nameZh'] }[POOL];
 
 (async () => {
   const [rows, rels] = await Promise.all([api('GET', `/items/${POOL}?limit=-1&fields=id,${FILL.join(',')}`), api('GET', '/relations?limit=-1')]);

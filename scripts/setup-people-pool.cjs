@@ -5,7 +5,8 @@
 //            ＋ <col>_people_titles（credit／title）、<col>_people_orgs（credit／org）＝同一人每場可掛不同職稱、單位
 //   people ＝只有人（得獎人）：<col>.people → <col>_people（item／person／sort）
 //   orgs   ＝只有單位、可多個（主辦單位）：<col>.orgs → <col>_orgs（item／org／sort）
-//   org    ＝一列就是一個單位（world 四張表）：<col>.org（M2O）
+//   org    ＝一列就是一個單位（world 四張表）：<col>.org（M2O）；給 pool／field＝改指別的庫
+//            （報導的媒體：library_press.media → 媒體庫 media_outlets，user 2026-11-19）
 //   person ＝一列就是一個人（師資）：<col>.person（M2O）
 //   mixed  ＝職稱、單位混在同一個有順序的清單（師資的職稱／職級、現職）：<col>.<alias>（M2A → 職稱庫或單位庫）
 //            → <junction>（parent／collection／item／sort）；職稱庫有的當職稱，其餘當單位
@@ -38,6 +39,7 @@ const SPEC = {
     { kind: 'orgs', src: 'organizers', label: '主辦單位', org: o => ({ en: o.en, zh: o.zh, country: o.country }), hide: ['organizers', 'organizerEn', 'organizerZh'] },
   ],
   admission_summer_camp: [{ kind: 'orgs', src: 'organizers', label: '主辦單位', org: o => ({ en: o.organizerEn, zh: o.organizerZh }), hide: ['organizers'] }],
+  library_press: [{ kind: 'org', pool: 'media_outlets', field: 'media', label: '媒體', org: r => ({ en: r.mediaEn, zh: r.mediaZh, country: r.country }), hide: ['mediaEn', 'mediaZh', 'country'] }],
   alumni_hosting: [worldOrg('companyEn', 'companyZh')],
   alumni_employment: [worldOrg('companyEn', 'companyZh')],
   atlas_workshops: [worldOrg('nameEn', 'nameZh')],
@@ -59,6 +61,9 @@ const api = async (method, p, body) => {
 };
 const get = p => api('GET', p).catch(() => null);
 const zh = t => [{ language: 'zh-TW', translation: t }];
+// kind 'org' 指到哪個庫、欄位叫什麼（預設＝單位庫的 org）
+const POOL_ZH = { organizations: '單位庫', media_outlets: '媒體庫' };
+const poolOf = s => s.pool || 'organizations', fieldOf = s => s.field || 'org';
 
 // ── schema 小工具（存在就跳過）──
 const uuidPk = { field: 'id', type: 'uuid', meta: { hidden: true, readonly: true, interface: 'input', special: ['uuid'] }, schema: { is_primary_key: true, length: 36, has_auto_increment: false } };
@@ -130,11 +135,12 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
     { field: 'isAlumni', type: 'boolean', meta: { interface: 'boolean', width: 'half', translations: zh('系友') }, schema: { default_value: false } }, usedInGroup,
   ]);
   await ensureCollection('organizations', { icon: 'domain', translations: zh('單位庫'), display_template: '{{nameZh}} {{nameEn}}', note: poolNote('單位') }, [text('nameEn', '英文名'), text('nameZh', '中文名'), country, usedInGroup]);
+  await ensureCollection('media_outlets', { icon: 'newspaper', translations: zh('媒體庫'), display_template: '{{nameZh}} {{nameEn}}', note: poolNote('媒體') }, [text('nameEn', '英文名'), text('nameZh', '中文名'), country, usedInGroup]);
   await ensureCollection('job_titles', { icon: 'badge', translations: zh('職稱庫'), display_template: '{{nameZh}} {{nameEn}}', note: poolNote('職稱') }, [text('nameEn', '英文名'), text('nameZh', '中文名')]);
 
   console.log(`2) ${COL}（${colLabel}）改從 pool 選`);
   const sortOf = async f => (await get(`/fields/${COL}/${f}`))?.meta?.sort;  // 新欄位放在舊欄位的位置
-  const publicCols = ['people', 'organizations', 'job_titles'];
+  const publicCols = ['people', 'organizations', 'job_titles', 'media_outlets'];
   for (const s of SPEC) {
     if (s.kind === 'credits' || s.kind === 'people') {
       const J = `${COL}_people`;
@@ -164,13 +170,15 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
       await ensureRelation({ collection: J, field: 'org', related_collection: 'organizations', meta: { one_field: COL, junction_field: 'item', one_deselect_action: 'nullify' }, schema: { on_delete: 'RESTRICT' } });
       publicCols.push(J);
     } else if (s.kind === 'org') {
-      await ensureField(COL, { field: 'org', type: 'uuid', schema: { is_nullable: true }, meta: {
+      const pool = poolOf(s), f = fieldOf(s);
+      await ensureField(COL, { field: f, type: 'uuid', schema: { is_nullable: true }, meta: {
         interface: 'select-dropdown-m2o', special: ['m2o'], sort: await sortOf(s.hide[0]), width: 'full', translations: zh(s.label),
-        note: '點一下從單位庫搜尋；找不到可以直接新增（會自動加進單位庫）',
+        note: `點一下從${POOL_ZH[pool]}搜尋；找不到可以直接新增（會自動加進${POOL_ZH[pool]}）`,
         options: { template: '{{nameZh}} {{nameEn}}', enableCreate: true, enableSelect: true }, display: 'related-values', display_options: { template: '{{nameZh}} {{nameEn}}' },
       } });
-      await ensureField('organizations', reverse(COL, colLabel, 'o2m', '{{org.nameZh}} {{org.nameEn}}'));
-      await ensureRelation({ collection: COL, field: 'org', related_collection: 'organizations', meta: { one_field: COL, one_deselect_action: 'nullify' }, schema: { on_delete: 'RESTRICT' } });
+      // 反向清單：world 的列沒有自己的名字＝顯示單位名；報導有標題＝照它自己的顯示樣板
+      await ensureField(pool, reverse(COL, colLabel, 'o2m', s.pool ? (colInfo.meta?.display_template || '{{id}}') : '{{org.nameZh}} {{org.nameEn}}'));
+      await ensureRelation({ collection: COL, field: f, related_collection: pool, meta: { one_field: COL, one_deselect_action: 'nullify' }, schema: { on_delete: 'RESTRICT' } });
     } else if (s.kind === 'person') {
       await ensureField(COL, { field: 'person', type: 'uuid', schema: { is_nullable: true }, meta: {
         interface: 'select-dropdown-m2o', special: ['m2o'], sort: await sortOf(s.hide[0]), width: 'full', translations: zh(s.label),
@@ -201,19 +209,22 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
   await ensurePublicRead(publicCols);
 
   console.log('3) 搬資料');
-  const aliases = SPEC.map(s => s.alias || ({ credits: 'people', people: 'people', orgs: 'orgs', org: 'org', person: 'person' })[s.kind]);
+  const aliases = SPEC.map(s => s.alias || s.field || ({ credits: 'people', people: 'people', orgs: 'orgs', org: 'org', person: 'person' })[s.kind]);
   const haveAlias = [];
   for (const a of aliases) if (await get(`/fields/${COL}/${a}`)) haveAlias.push(a);  // dry 跑在建欄之前＝還沒有，帶上會 400
   const srcFields = [...new Set(SPEC.flatMap(s => s.src ? [s.src] : s.hide))];
-  const [pool, orgPool, titlePool, rows] = await Promise.all([
+  const [pool, orgPool, titlePool, outletPool, rows] = await Promise.all([
     get('/items/people?limit=-1&fields=id,nameEn,nameZh,akaEn,akaZh,country,isAlumni'),
     get('/items/organizations?limit=-1&fields=id,nameEn,nameZh,country'),
     get('/items/job_titles?limit=-1&fields=id,nameEn,nameZh'),
+    get('/items/media_outlets?limit=-1&fields=id,nameEn,nameZh,country'),
     get(`/items/${COL}?limit=-1&fields=id,${[...srcFields, ...haveAlias].join(',')}`),
   ]);
   // 已在 pool 的：cur＝pool 現值（空著的欄位舊資料有填就補進去＝fill，已填的不蓋）
   const people = new Map((pool || []).map(p => [keyOf(p.nameEn, p.nameZh), { id: p.id, cur: p }]));
   const orgs = new Map((orgPool || []).map(o => [keyOf(o.nameEn, o.nameZh), { id: o.id, cur: o }]));
+  const outlets = new Map((outletPool || []).map(o => [keyOf(o.nameEn, o.nameZh), { id: o.id, cur: o }]));
+  const mapOf = s => s.pool === 'media_outlets' ? outlets : orgs;
   const titles = new Map((titlePool || []).map(t => [keyOf(t.nameEn, t.nameZh), { id: t.id }]));
   const isTitle = o => titles.has(keyOf(o.en, o.zh));  // 舊資料裡混在單位欄的職稱：只認職稱庫已有的，其餘一律當單位
   const conflicts = [];
@@ -227,7 +238,7 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
       else conflicts.push(`${label}「${key}」${k}：用 ${cur[k]}，另一筆寫 ${data[k]}`);
     }
   };
-  const wantOrg = o => want(orgs, keyOf(o.en, o.zh), { nameEn: norm(o.en), nameZh: norm(o.zh), country: cc(o.country) }, '單位');
+  const wantOrg = (o, map = orgs, label = '單位') => want(map, keyOf(o.en, o.zh), { nameEn: norm(o.en), nameZh: norm(o.zh), country: cc(o.country) }, label);
   const done = (r, s) => { const v = r[aliases[SPEC.indexOf(s)]]; return Array.isArray(v) ? v.length > 0 : !!v; };
   // 每個 spec 要搬的列＋那列的來源清單（已搬過的跳過）
   const work = SPEC.map(s => (rows || []).filter(r => !done(r, s)).map(r => {
@@ -239,14 +250,15 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
     return { r, list: raw.filter(g => g.nameEn || g.nameZh) };
   }).filter(w => w.list.length));
   SPEC.forEach((s, i) => work[i].forEach(({ list }) => list.forEach(x => {
-    if (s.kind === 'org' || s.kind === 'orgs') return wantOrg(x);
+    if (s.kind === 'org') return wantOrg(x, mapOf(s), s.label);
+    if (s.kind === 'orgs') return wantOrg(x);
     if (s.kind === 'mixed') return isTitle(x) ? null : wantOrg(x);
     want(people, keyOf(x.nameEn, x.nameZh), asPerson(x), '人');
-    if (s.kind === 'credits') orgsOf(x).filter(o => !isTitle(o)).forEach(wantOrg);
+    if (s.kind === 'credits') orgsOf(x).filter(o => !isTitle(o)).forEach(o => wantOrg(o));   // 不直接傳 wantOrg：forEach 的 index 會變成第二個參數
   })));
-  const newPeople = [...people.values()].filter(v => v.data), newOrgs = [...orgs.values()].filter(v => v.data);
-  console.log(`  要搬 ${SPEC.map((s, i) => `${s.label} ${work[i].length} 列`).join('、')}；人名庫新增 ${newPeople.length}（已有 ${(pool || []).length}）、單位庫新增 ${newOrgs.length}（已有 ${(orgPool || []).length}）、職稱庫 ${(titlePool || []).length}（只沿用）`);
-  const fills = [...people.values(), ...orgs.values()].filter(v => v.fill);
+  const newPeople = [...people.values()].filter(v => v.data), newOrgs = [...orgs.values()].filter(v => v.data), newOutlets = [...outlets.values()].filter(v => v.data);
+  console.log(`  要搬 ${SPEC.map((s, i) => `${s.label} ${work[i].length} 列`).join('、')}；人名庫新增 ${newPeople.length}（已有 ${(pool || []).length}）、單位庫新增 ${newOrgs.length}（已有 ${(orgPool || []).length}）、職稱庫 ${(titlePool || []).length}（只沿用）${newOutlets.length ? `、媒體庫新增 ${newOutlets.length}（已有 ${(outletPool || []).length}）` : ''}`);
+  const fills = [[people, 'people'], [orgs, 'organizations'], [outlets, 'media_outlets']].flatMap(([m, c]) => [...m.values()].filter(v => v.fill).map(v => ({ ...v, c })));
   if (fills.length) console.log(`  pool 已有、空欄位補上 ${fills.length} 筆：\n    ${fills.map(v => `${v.cur.nameEn} ${v.cur.nameZh} ${JSON.stringify(v.fill)}`).join('\n    ')}`);
   const noCountry = newOrgs.filter(v => !v.data.country);
   if (noCountry.length) console.log(`  ⚠️ 沒有國家的新單位（多半是職稱；是的話先在後台職稱庫加上再跑）：\n    ${noCountry.map(v => `${v.data.nameEn} ${v.data.nameZh}`).join('\n    ')}`);
@@ -257,7 +269,7 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
     const dup = [...byEn.values(), ...byZh.values()].filter(v => v.length > 1);
     if (dup.length) console.log(`  ⚠️ 疑似重複的${label}（中英其中一邊一樣）：\n    ${dup.map(v => v.join('  ／  ')).join('\n    ')}`);
   };
-  near(people, '人'); near(orgs, '單位');
+  near(people, '人'); near(orgs, '單位'); near(outlets, '媒體');
   if (DRY) { console.log('\n[dry] 沒有真的寫入。'); return; }
 
   // ⚠️ 批次新增的回傳順序≠送出順序（UUID 主鍵依 id 排序回來）→ 一律用回傳的名字對回去，別用索引
@@ -269,16 +281,17 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
   };
   await createAll('people', people, newPeople);
   await createAll('organizations', orgs, newOrgs);
-  for (const v of fills) await api('PATCH', `/items/${people.get(keyOf(v.cur.nameEn, v.cur.nameZh)) === v ? 'people' : 'organizations'}/${v.id}`, v.fill);
+  await createAll('media_outlets', outlets, newOutlets);
+  for (const v of fills) await api('PATCH', `/items/${v.c}/${v.id}`, v.fill);
   const idOf = (map, en, zhName) => map.get(keyOf(en, zhName)).id;
   const postAll = async (collection, list) => { for (let i = 0; i < list.length; i += 100) await api('POST', `/items/${collection}`, list.slice(i, i + 100)); };
   for (const [i, s] of SPEC.entries()) {
     if (s.kind === 'org' || s.kind === 'person') {
       const patch = work[i].map(({ r, list }) => s.kind === 'org'
-        ? { id: r.id, org: idOf(orgs, list[0].en, list[0].zh) }
+        ? { id: r.id, [fieldOf(s)]: idOf(mapOf(s), list[0].en, list[0].zh) }
         : { id: r.id, person: idOf(people, list[0].nameEn, list[0].nameZh) });
       for (let k = 0; k < patch.length; k += 100) await api('PATCH', `/items/${COL}`, patch.slice(k, k + 100));
-      console.log(`  ✓ ${s.label}：${patch.length} 列指到${s.kind === 'org' ? '單位庫' : '人名庫'}`);
+      console.log(`  ✓ ${s.label}：${patch.length} 列指到${s.kind === 'org' ? POOL_ZH[poolOf(s)] : '人名庫'}`);
     } else if (s.kind === 'mixed') {
       const links = work[i].flatMap(({ r, list }) => list.map((o, j) => isTitle(o)
         ? { parent: r.id, collection: 'job_titles', item: idOf(titles, o.en, o.zh), sort: j + 1 }
@@ -307,7 +320,7 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
     const m = (await get(`/fields/${COL}/${f}`))?.meta;
     if (m && !m.hidden) { console.log(`  · 藏起 ${COL}.${f}`); await api('PATCH', `/fields/${COL}/${f}`, { meta: { hidden: true } }); }
   }
-  if (SPEC.some(s => s.kind === 'org')) await api('PATCH', `/collections/${COL}`, { meta: { display_template: '{{org.nameZh}} {{org.nameEn}}' } });
+  if (SPEC.some(s => s.kind === 'org' && !s.pool)) await api('PATCH', `/collections/${COL}`, { meta: { display_template: '{{org.nameZh}} {{org.nameEn}}' } });
   if (SPEC.some(s => s.kind === 'person')) await api('PATCH', `/collections/${COL}`, { meta: { display_template: '{{person.nameZh}} {{person.nameEn}}' } });
 
   // 自驗：讀回來跟舊欄位比（只會差在上面列的「寫法不同」）；職稱排在單位前＝同前台 poolGuests
@@ -315,7 +328,7 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
   if (aliases.includes('people')) backFields.push('people.sort', 'people.person.*');
   if (SPEC.some(s => s.kind === 'credits')) backFields.push('people.titles.sort', 'people.titles.title.*', 'people.orgs.sort', 'people.orgs.org.*');
   if (aliases.includes('orgs')) backFields.push('orgs.sort', 'orgs.org.*');
-  if (aliases.includes('org')) backFields.push('org.*');
+  for (const s of SPEC) if (s.kind === 'org') backFields.push(`${fieldOf(s)}.*`);
   if (aliases.includes('person')) backFields.push('person.*');
   for (const s of SPEC) if (s.kind === 'mixed') backFields.push(`${s.alias}.sort`, `${s.alias}.collection`, `${s.alias}.item:job_titles.*`, `${s.alias}.item:organizations.*`);
   const back = await get(`/items/${COL}?limit=-1&fields=${backFields.join(',')}`);
@@ -324,7 +337,7 @@ const asPerson = g => ({ nameEn: norm(g.nameEn), nameZh: norm(g.nameZh), akaEn: 
   let diff = 0;
   for (const r of back) for (const s of SPEC) {
     let was, now;
-    if (s.kind === 'org') { const o = s.org(r); was = (o.en || o.zh) ? names([o]) : ''; now = r.org ? names([{ en: r.org.nameEn, zh: r.org.nameZh }]) : ''; }
+    if (s.kind === 'org') { const o = s.org(r); was = (o.en || o.zh) ? names([o]) : ''; const v = r[fieldOf(s)]; now = v ? names([{ en: v.nameEn, zh: v.nameZh }]) : ''; }
     else if (s.kind === 'person') {
       const p = r.person || {}, sig = x => [norm(x.nameEn).toLowerCase(), norm(x.nameZh), norm(x.akaEn), norm(x.akaZh), cc(x.country)].join('|');
       was = (r.nameEn || r.nameZh) ? sig(r) : ''; now = r.person ? sig(p) : '';

@@ -391,6 +391,10 @@ main#page-content:where(:has(> section > #library-card-main)) { display: flow-ro
 .press-item-subtitle-en {
   margin-bottom: var(--space-en-zh-xs);
 }
+/* 媒體名只有一種語言＝在兩行副標的高度內垂直置中（同標題 --center；user 2026-11-19）：上下各補半行＝副標區恆兩行高、各列等高 */
+.press-item-subtitle:only-child {
+  margin-block: calc((1lh + var(--space-en-zh-xs)) / 2);
+}
 .press-subtitle-inner {
   display: inline-block;
   white-space: nowrap;
@@ -755,7 +759,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
    只給真滑鼠（觸控 sticky hover 會黏住） */
 @media (hover: hover) and (orientation: landscape) and (min-width: 1024px) and (min-height: 501px) and (hover: hover) {
   [id$="-year-picker"] button[data-year]:not(:disabled, .lib-faint):hover,
-  :is(.lib-files-cat-btn, .lib-album-cat-btn):not(:disabled, .lib-faint):hover {
+  :is(.lib-files-cat-btn, .lib-album-cat-btn, .lib-awards-cat-btn):not(:disabled, .lib-faint):hover {
     -webkit-text-fill-color: var(--lib-fg);
   }
 }
@@ -1003,8 +1007,9 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   white-space: nowrap;
 }
 
-/* ── Album category filter buttons ──────────────────────────── */
-.lib-album-cat-btn {
+/* ── Album category／Awards country filter buttons ──────────── */
+.lib-album-cat-btn,
+.lib-awards-cat-btn {
   transition: color var(--dur-fast) ease;
   background: none;
   border: none;
@@ -1248,12 +1253,24 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     flex-direction: column !important;
   }
 
-  /* 年份標題 sticky 黏 *-scroll 容器頂。top:-1px：top:0 在非整數 DPR 手機會留 1px 縫、上方列內容透出 */
+  /* 年份標題 sticky 黏 *-scroll 容器頂。top:-1px：top:0 在非整數 DPR 手機會留 1px 縫、上方列內容透出。
+     再保險：底色往上多鋪 2px（::before；捲動框會裁掉多的）＝sticky 位置被 iOS 取整到比 -1 低時，標題頂跟框頂之間不露底下的圖
+     （user 2026-11-19 仍回報有圖分頁 1px 縫；灰卡寬高同時改成偶數，見 library-card.js layoutMain） */
   .press-year-label {
     position: sticky !important;
     top: -1px !important;
     z-index: 5 !important;
     margin-top: 0 !important;
+  }
+  .press-year-label::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -2px;
+    height: 3px;
+    background: inherit;
+    pointer-events: none;
   }
 
   .library-mobile-tabs {
@@ -1528,6 +1545,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     order: 1 !important;
   }
   /* cat-filter：EN/ZH 兩行＋橫向 scroll */
+  #library-awards-cat-filter,
   #library-files-cat-filter,
   #library-album-cat-filter {
     order: 2 !important;
@@ -1541,9 +1559,11 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     scrollbar-width: none;
     padding-bottom: var(--spacing-sm);
   }
+  #library-awards-cat-filter::-webkit-scrollbar,
   #library-files-cat-filter::-webkit-scrollbar,
   #library-album-cat-filter::-webkit-scrollbar { display: none; }
   /* cat-btn：EN／ZH 兩 span 直排 */
+  #library-awards-cat-filter .lib-awards-cat-btn,
   #library-files-cat-filter .lib-files-cat-btn,
   #library-album-cat-filter .lib-album-cat-btn {
     flex-shrink: 0 !important;
@@ -1553,7 +1573,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     gap: 2px;
     text-align: left;
     line-height: 1.2;
-    font-size: var(--font-size-xs) !important;
+    font-size: var(--font-size-s) !important;   /* 手機選項跟年份鈕、全站 nav／tab 鈕同字級 s（user 2026-11-19「都 14」；原 xs） */
   }
   .cat-btn-en,
   .cat-btn-zh {
@@ -1773,6 +1793,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #lib-panel-press > div.lib-panel-grid > div:first-child,
   #lib-panel-files > div.lib-panel-grid > div:first-child,
   #lib-panel-album > div.lib-panel-grid > div:first-child { order: 3 !important; }
+  #library-awards-cat-filter,
   #library-files-cat-filter,
   #library-album-cat-filter {
     order: 4 !important;
@@ -1780,6 +1801,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
     margin-top: calc(-1 * var(--spacing-xs));   /* 抵掉內容欄 gap */
   }
   /* 一行後鈕只剩 15 高 → 上下 xs 補觸控區（兩行時約 36）；英中空格已由 .cat-btn-en margin-right 0.3em 給 */
+  #library-awards-cat-filter .lib-awards-cat-btn,
   #library-files-cat-filter .lib-files-cat-btn,
   #library-album-cat-filter .lib-album-cat-btn { padding: var(--spacing-xs) 0; gap: 0 !important; }
   /* search 列：高 44、input 撐滿列高＝整列可點；margin 蓋 files／album inline mb:sm＋抵掉內容欄 gap */
@@ -1831,7 +1853,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   #library-card-main > .library-sort-btn[hidden] { display: none; }
   .lib-tools-btn .icon { font-size: 20px; }
   #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child,
-  #library-card-main:not(.lib-tools-open) :is(#library-files-cat-filter, #library-album-cat-filter),
+  #library-card-main:not(.lib-tools-open) :is(#library-awards-cat-filter, #library-files-cat-filter, #library-album-cat-filter),
   #library-card-main:not(.lib-tools-open) #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     display: none !important;
   }
@@ -1859,7 +1881,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
   }
   #library-card-main.lib-tools-open #library-awards-ticker,
   #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div:first-child,
-  #library-card-main.lib-tools-open :is(#library-files-cat-filter, #library-album-cat-filter),
+  #library-card-main.lib-tools-open :is(#library-awards-cat-filter, #library-files-cat-filter, #library-album-cat-filter),
   #library-card-main.lib-tools-open #library-card-content > [id^="lib-panel-"] > div.lib-panel-grid > div > div.lib-search-row.lib-search-row {
     position: relative;
     z-index: 6;
@@ -1924,6 +1946,7 @@ body.mode-color .award-spawn-icon { background-color: var(--theme-fg-inverse); }
 @media (max-width: 767px), (orientation: landscape) and (max-height: 500px), (orientation: landscape) and (max-width: 1023px), (orientation: landscape) and (hover: none), (min-width: 768px) and (max-width: 1023px), (orientation: portrait) and (min-width: 768px) {
 
   /* 選項、tab 鈕：英中一行（同 about 直向底 bar） */
+  #library-awards-cat-filter .lib-awards-cat-btn,
   #library-files-cat-filter .lib-files-cat-btn,
   #library-album-cat-filter .lib-album-cat-btn,
   #library-mobile-tabs .anchor-nav-inner {

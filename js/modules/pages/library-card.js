@@ -53,8 +53,11 @@ export function initLibraryCard({ onTabSwitch, onEntranceDone: onEntranceDoneCb,
   function layoutMain(sw, sh) {
     const desk = isDesk();
     TOP_GAP = desk ? deskTopGap() : BASE_TOP_GAP;
-    MAIN_W = desk ? sw - deskLeft() - deskRight() : Math.round(sw * 0.84);
-    MAIN_H = Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP));
+    // 寬高取偶數：灰卡用 translate(-50%,-50%) 置中，奇數寬高＝整張卡落在半像素上 → 卡內同色色塊交界（sticky 年份標題頂／捲動框邊）
+    // 在手機出現 1px 透線（user 2026-11-19「年份上面有 1px 縫、有圖的分頁明顯」；視窗高奇數的手機才會、headless 844 高重現不了）
+    const even = (/** @type {number} */ v) => Math.round(v / 2) * 2;
+    MAIN_W = even(desk ? sw - deskLeft() - deskRight() : sw * 0.84);
+    MAIN_H = even(Math.max(240, sh - TOP_GAP - (desk ? DESK_BOTTOM_GAP : BOTTOM_GAP)));
   }
   const grayCx = (sw) => (isDesk() ? deskLeft() + MAIN_W / 2 : sw / 2); // 灰卡水平中心（≥1200 不置中）
   const centerY = () => TOP_GAP + MAIN_H / 2;
