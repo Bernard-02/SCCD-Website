@@ -34,7 +34,12 @@ export function initOrientationReload() {
     resetInactiveHeaderChrome();
     if (!window.matchMedia('(pointer: coarse)').matches) return;   // 重排只在觸控裝置（真手機/平板）
     clearTimeout(timer);
-    timer = setTimeout(() => reloadCurrentRoute(), 300);
+    timer = setTimeout(() => {
+      // 重載前讓頁面把「當前狀態」存起來（World 的 view／分類／系友子分頁，atlas.js 聽這個事件存 sessionStorage；
+      // user 2026-11-19「旋轉之後應該保持 list view」）。URL 帶的狀態（library hash、activities section）本來就留著
+      document.dispatchEvent(new CustomEvent('orientation:reload'));
+      reloadCurrentRoute();
+    }, 300);
   };
   window.matchMedia(GATE).addEventListener('change', onChange);
   window.matchMedia(SCCDHelpers.LANDSCAPE_PHONE).addEventListener('change', onChange);

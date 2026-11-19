@@ -14,6 +14,7 @@
  *     年級 block 也全部往下排，年級 bar＝scroll-spy＋點擊捲到該年級、只顯示目前 program 那條
  */
 
+import { keepOnOrientationReload, takeOrientationRestore } from '../ui/orientation-restore.js';
 import { renderCoursesGrid, deselectActiveCard, resetCoursesMapState, selectCardBySlugInPanel, highlightCardBySlugInPanel } from './courses-map.js';
 import { prefersReducedMotion } from '../ui/reduce-motion.js';
 import { setActiveNavBtn, bindNavBtnFit, bindFrameScrollSplit, bindNavBtnHover, bindLandscapeNavGate, isNavSpinDesktop } from '../ui/section-switch-helpers.js';
@@ -183,6 +184,9 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
 
   // ?program= deep-link：只有從首頁 floating course card 點進來的 SPA 導航（fromUserNav）才套指定 program + 跑導航動畫。
   // refresh / 直接開 / 上一頁下一頁（fromUserNav=false）→ 清掉 query、回 default program（= 直接點 curriculum 的樣子，user 2026-06-04）。
+  // 轉向重載留在當前 program（ui/orientation-restore.js）：?program= 呈現完就被清掉，重載只能靠這裡
+  const restored = takeOrientationRestore('curriculum');
+  keepOnOrientationReload('curriculum', () => ({ program: document.querySelector('.courses-program-btn.active')?.getAttribute('data-program') || null }));
   const params = readParams('curriculum');   // program 已換回內部代號（網址列是 slug，js/config/slugs.js）
   const hasQueryDeepLink = params.has('program');
   const DEFAULT_PROGRAM = 'bfa-animation';
@@ -195,6 +199,8 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
   } else if (hasQueryDeepLink) {
     history.replaceState(history.state, '', window.location.pathname);
   }
+  const restoredProgram = !(hasQueryDeepLink && fromUserNav) && restored?.program && [...programBtns].some(b => b.getAttribute('data-program') === restored.program) ? restored.program : null;
+  if (restoredProgram) initialProgram = restoredProgram;
 
   // deep-link 自動導航時卡片/表頭進場「init 就直接播」不等 ScrollTrigger：
   // 自動捲動會在 hero 後立刻把 grid 帶進視窗，靠 trigger 的話 reveal 在捲動落地後才開始
@@ -280,6 +286,8 @@ export function initCoursesSectionSwitch(fromUserNav = false, unlock) {
     panelList.forEach(p => p.classList.remove('hidden'));
     applyActiveProgram(initialProgram);
     await Promise.all([...programBtns].map(b => renderCoursesGrid(b.getAttribute('data-program') || '')));
+    // 轉向還原：三個 program 疊著捲＝active 其實是捲動位置 → 捲到那個 panel（router 的 scrollToTop 之後）
+    if (restoredProgram) setTimeout(() => scrollToPanel(panelOf(initialProgram)), 150);
     if (typeof ScrollTrigger !== 'undefined') ScrollTrigger.refresh();
 
     // 桌面：年級表頭只留一份（user 2026-11-04「不需要重複表頭，除非不一樣才做進出場」）——各 panel 自己的 cover 隱形佔位

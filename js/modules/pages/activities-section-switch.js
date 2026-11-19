@@ -6,6 +6,7 @@
 
 import { loadExhibitionsInto, loadDegreeShowListInto, loadGeneralActivitiesInto, loadLecturesInto, loadIndustryInto, loadWorkshopsInto, loadSummerCampInto, loadVisitsInto, prefetchExhibitionsData, prefetchOtherActivitiesData, deferListWorkUntil, gateListImagesUntil, releaseGatedImages } from './activities-data-loader.js';
 import { revalidateActivitiesData, beginActivitiesVisit } from './activities-source.js';
+import { keepOnOrientationReload, takeOrientationRestore } from '../ui/orientation-restore.js';
 import { initListAccordion, resetListAccordionsInPanel, alignWithBottomSpacer, loadDeferredMedia } from '../accordions/list-accordion.js';
 import { clearSearch, markProgrammaticScroll } from '../ui/activities-search.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, isNavSpinDesktop, bindFrameScrollSplit, navHoverColor, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
@@ -766,6 +767,13 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
 
   // ?section= / ?item= deep-link：只有從首頁 floating 卡片點進來的 SPA 導航（fromUserNav）才套指定 section + 跑導航動畫。
   const params = readParams('activities');   // 分頁已換回內部代號（網址列是 slug，js/config/slugs.js）
+  // 轉向重載留在當前分頁（含展演／參訪子類型；ui/orientation-restore.js）：分頁呈現完 ?section= 就被清掉，重載只能靠這裡
+  const restored = takeOrientationRestore('activities');
+  keepOnOrientationReload('activities', () => {
+    const section = /** @type {HTMLElement|null} */ (document.querySelector('.activities-section-btn.active'))?.dataset.section || null;
+    const type = section ? /** @type {HTMLElement|null} */ (document.querySelector(`#${section}-type-filter .active`))?.dataset.type || null : null;
+    return { section, type };
+  });
   // 瀏覽器上一頁回到「從畢業展清單點卡離開」的那筆紀錄（initExhibitionsTypeFilter 寫進 history.state；refresh 由 router 清掉）
   // → 比照舊 ?section=degree-show 連結：開展演＋切畢業展子分頁、hero 後捲到清單（user 2026-10-20）
   const backToDegreeShow = !fromUserNav && history.state?.restore === 'degree-show';
@@ -881,7 +889,13 @@ export function initActivitiesSectionSwitch(defaultSection = 'general', fromUser
     // 往下捲向內容區 兩者先到就起跑（沒捲＝維持不搶 hero；捲了＝hero 已離視窗、render 搶幀看不到）＝空窗人立即補上。
     whenHeroDoneOrScrolledToward()
       // 使用者已在 hero 期間手動切換 → init switch 讓路（否則之後硬切回 default 覆蓋使用者選擇）
-      .then(() => userSwitchedSection ? undefined : switchToSection(defaultSection, btns, false, true))
+      .then(() => {
+        if (userSwitchedSection) return undefined;
+        if (!restored?.section) return switchToSection(defaultSection, btns, false, true);
+        const r = switchToSection(restored.section, btns, false, true, restored.type || undefined);
+        centerSectionNavBtn(restored.section);   // 手機底 bar：還原的分頁捲到中間（同點擊）
+        return r;
+      })
       // 預設分頁進場後，閒置序列預暖其餘分頁資料（見 prefetchOtherActivitiesData）→ 之後切換免等網路
       .then(() => prefetchOtherActivitiesData())
       // P1-4：warm 完再背景 revalidate 上次 visit 的 key（post-hero、序列、避開進場窗口）→ 新內容供本次瀏覽後續與下次進頁

@@ -5,6 +5,7 @@
  */
 
 import { registerPageCleanup } from '../ui/page-cleanup.js';
+import { keepOnOrientationReload, takeOrientationRestore } from '../ui/orientation-restore.js';
 import { registerPageExit } from '../ui/page-exit.js';
 import { DUR, EASE } from '../ui/motion.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
@@ -463,4 +464,16 @@ export function initAnchorNav({ reveal = false } = {}) {
   // 3.（2026-07-07 移除）舊手機 floating 圓鈕選單（mobile-anchor-toggle/wrapper/menu/overlay/container）——
   //    about.html 已改為 hero 下方水平 strip（#mobile-anchor-strip，行為走上面共用 click/scroll-spy），
   //    floating DOM 已刪、此段邏輯純 delete（alumni 無此結構、無其他消費者）。
+
+  // 4. 轉向重載留在當前區段（ui/orientation-restore.js）：about／alumni 是捲動頁、active 只在 scroll-spy，重載會捲回頂。
+  //    key 帶頁（兩頁共用這支）；還原＝router 的 scrollToTop 之後直接捲到那段（scroll-margin-top 由各段 CSS 給）
+  const orientKey = 'anchor:' + location.pathname;
+  keepOnOrientationReload(orientKey, () => ({ id: currentActiveId }));
+  const restoredAnchor = takeOrientationRestore(orientKey);
+  if (restoredAnchor?.id) {
+    setTimeout(() => {
+      const el = document.getElementById(restoredAnchor.id);
+      if (el) el.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }, 150);
+  }
 }

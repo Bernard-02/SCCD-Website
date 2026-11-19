@@ -12,6 +12,7 @@ import { initRouter } from './router.js';
 import { initSmoothScroll } from './modules/ui/smooth-scroll.js';
 import { initIdleStandby } from './modules/ui/idle-standby.js';
 import { initOrientationReload } from './modules/ui/orientation-reload.js';
+import { keepOnOrientationReload, takeOrientationRestore } from './modules/ui/orientation-restore.js';
 import { initCustomScrollbar } from './modules/ui/custom-scrollbar.js';
 import { initModeColorPanel } from './modules/ui/mode-color-panel.js';
 import { installReducedMotionGsap, prefersReducedMotion } from './modules/ui/reduce-motion.js';
@@ -375,7 +376,10 @@ export function initPageModules(page, searchParams = new URLSearchParams(), from
   // --- Faculty Pages ---
   if (page === 'faculty') {
     // deep-link：site map 的 ?section=fulltime/parttime/admin 從 SPA 點擊（fromUserNav）落在該分類 active
-    const facultySection = fromUserNav ? searchParams.get('section') : null;
+    // 轉向重載留在當前分類（ui/orientation-restore.js；data-filter＝fulltime/parttime/admin）
+    const restoredFaculty = takeOrientationRestore('faculty');
+    keepOnOrientationReload('faculty', () => ({ section: document.querySelector('.faculty-filter-btn.active')?.getAttribute('data-filter') || null }));
+    const facultySection = fromUserNav ? searchParams.get('section') : (restoredFaculty?.section || null);
     Promise.all([
       import('./modules/pages/faculty-data-loader.js').then(m => m.loadFacultyData()),
       import('./modules/filters/faculty-filter.js'),

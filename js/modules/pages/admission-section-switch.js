@@ -3,6 +3,7 @@
  * admission.html 左側 section 切換邏輯：當前 panel 統一往下退場 → 切換 → 新 panel per-item 進場
  */
 
+import { keepOnOrientationReload, takeOrientationRestore } from '../ui/orientation-restore.js';
 import { setActiveNavBtn, showPanel, initHoverDimMoveGuard, bindNavBtnFit, bindNavBtnSpin, bindFrameScrollSplit, getScrollableScrollCol, waitForItemRevealed, bindLandscapeNavGate, bindMobileBottomBar, scrollToSectionTopNow } from '../ui/section-switch-helpers.js';
 import { navChipHidden, pickNavDir, NAV_CHIP_SHOWN } from '../ui/scroll-animate.js';
 import {
@@ -21,6 +22,7 @@ import { readParams } from '../../config/slugs.js';
 
 // 當前 active section 的色（setActiveNavBtn 回傳）；給 deep-link highlight 用（= 該 section 色，三原色之一）
 let currentSectionColor = '';
+let currentSection = 'news';   // 轉向重載存回用（ui/orientation-restore.js）
 
 // 首頁 floating camp 海報 deep-link 用：捲到指定 item → 等 reveal → flash highlight → 展開 accordion
 // （比照 activities navigateToItem smooth 版，但 admission summer-camp 結構簡單：無 sub-tab / sticky filter bar）。
@@ -237,6 +239,7 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
     }
 
     switching = true;
+    currentSection = section;
 
     // try/finally：lazy import / loadSummerCampInto reject 時 switching flag 不能永久卡 true
     // （參考 activities-section-switch 已有的 race fix；同 pattern 套 admission）
@@ -297,6 +300,9 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
 
   // ?section= / ?item= deep-link（首頁 floating camp 海報導航）：只有 fromUserNav 才套指定 section + 跑導航動畫。
   const params = readParams('admission');   // 分頁已換回內部代號（網址列是 slug，js/config/slugs.js）
+  // 轉向重載留在當前分頁（ui/orientation-restore.js）：分頁呈現完 ?section= 就被清掉，重載只能靠這裡
+  const restored = takeOrientationRestore('admission');
+  keepOnOrientationReload('admission', () => ({ section: currentSection }));
   const hasDeepLink = params.has('section');
   if (hasDeepLink && fromUserNav) {
     const initialSection = params.get('section') || 'news';
@@ -320,6 +326,6 @@ export function initAdmissionSectionSwitch(fromUserNav = false, unlock) {
   } else {
     // refresh / 直接開連結 / 上一頁下一頁：清掉 deep-link query（URL 變乾淨）+ 停在 default news（= 直接點 admission 的樣子）
     if (hasDeepLink) history.replaceState(history.state, '', window.location.pathname);
-    switchSection('news', false, true);
+    switchSection(restored?.section || 'news', false, true);
   }
 }
